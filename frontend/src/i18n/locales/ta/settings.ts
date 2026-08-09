@@ -20,6 +20,12 @@ const settings = {
   // ── ProfileScreen ─────────────────────────────────────────────────────────
   profile: 'சுயவிவரம்',
   editProfile: 'சுயவிவரம் திருத்து',
+  linkTruecaller: 'உங்கள் தொலைபேசியை இணைக்கவும் (Truecaller)',
+  linkTruecallerUnavailable:
+    'Truecaller கிடைக்கவில்லை. Truecaller செயலியைத் திறந்து, உள்நுழைந்து, மீண்டும் முயற்சிக்கவும்.',
+  phoneLinked: 'தொலைபேசி எண் இணைக்கப்பட்டது',
+  phoneAlreadyLinked: 'அந்த எண் ஏற்கனவே வேறு கணக்குடன் இணைக்கப்பட்டுள்ளது.',
+  linkTruecallerFailed: 'உங்கள் எண்ணை இணைக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
   emailAddress: 'மின்னஞ்சல் முகவரி',
   fullName: 'முழு பெயர்',
   phoneNumber: 'தொலைபேசி எண்',

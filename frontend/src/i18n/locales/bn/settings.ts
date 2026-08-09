@@ -20,6 +20,12 @@ const settings = {
   // ── ProfileScreen ─────────────────────────────────────────────────────────
   profile: 'প্রোফাইল',
   editProfile: 'প্রোফাইল সম্পাদনা',
+  linkTruecaller: 'আপনার ফোন যুক্ত করুন (Truecaller)',
+  linkTruecallerUnavailable:
+    'Truecaller উপলব্ধ নয়। Truecaller অ্যাপ খুলুন, সাইন ইন করুন, তারপর আবার চেষ্টা করুন।',
+  phoneLinked: 'ফোন নম্বর যুক্ত হয়েছে',
+  phoneAlreadyLinked: 'সেই নম্বরটি ইতিমধ্যে অন্য একটি অ্যাকাউন্টের সাথে যুক্ত।',
+  linkTruecallerFailed: 'আপনার নম্বর যুক্ত করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।',
   emailAddress: 'ইমেইল ঠিকানা',
   fullName: 'পুরো নাম',
   phoneNumber: 'ফোন নম্বর',

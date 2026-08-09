@@ -76,12 +76,13 @@ export default {
         }
       ],
       "@react-native-google-signin/google-signin",
-      // Injects <meta-data android:name="com.truecaller.android.sdk.ClientId">
-      // into the Android manifest so the native Truecaller SDK can initialize.
-      // Without this, isUsable()/authenticate() fail (no client id at runtime).
+      // Local Truecaller OAuth SDK plugin: injects the ClientId manifest
+      // meta-data, the missed-call permissions, and the SDK Gradle dependency.
+      // The native module itself lives in the committed android/ tree (see
+      // android/app/src/main/java/com/upcheck/app/truecaller/).
       [
-        "./node_modules/@dhana-cs/react-native-truecaller/plugins/withTruecaller.js",
-        { clientId: TRUECALLER_ANDROID_CLIENT_ID }
+        "./plugins/withTruecaller",
+        { clientId: TRUECALLER_ANDROID_CLIENT_ID, sdkVersion: "3.3.0" }
       ]
     ],
     runtimeVersion: "1.0.0",

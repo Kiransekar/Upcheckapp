@@ -443,7 +443,7 @@ export class TruecallerService {
   private readonly logger = new Logger(TruecallerService.name);
 
   private readonly keysApiUrl: string;
-  private readonly profileApiUrl: string;
+  private readonly otpVerifyUrl: string;
   private readonly publicKeyTtlMs: number;
   private readonly nonceTtlMs: number;
 
@@ -466,9 +466,17 @@ export class TruecallerService {
     this.keysApiUrl =
       this.configService.get<string>('TRUECALLER_KEYS_API_URL') ||
       TRUECALLER_DEFAULT_KEYS_API_URL;
-    this.profileApiUrl =
-      this.configService.get<string>('TRUECALLER_PROFILE_API_URL') ||
-      'https://api5.truecaller.com/v1/otp/installation/verify/profile';
+    // Missed-call / OTP (non-Truecaller user) access-token validation endpoint.
+    // The SDK hands the app an opaque access token after a drop-call/OTP
+    // verification; we validate it server-to-server here. Per the official
+    // 3.x docs this is a `GET .../phoneNumberDetail/{accessToken}` with the
+    // `clientId` sent as a HEADER (NOT an OAuth Bearer token — that was the
+    // earlier bug that pointed at api5's profile endpoint). The token is
+    // appended to this base URL as a path segment. Non-EU host by default;
+    // EU deployments override via env.
+    this.otpVerifyUrl =
+      this.configService.get<string>('TRUECALLER_OTP_VERIFY_URL') ||
+      'https://sdk-otp-verification-noneu.truecaller.com/v1/otp/client/installation/phoneNumberDetail';
 
     // OAuth endpoints default to the non-EU Truecaller account host (India and
     // most non-EU regions). EU deployments override these via env. The client
@@ -624,17 +632,21 @@ export class TruecallerService {
     accessToken: string,
     expectedPhoneNumber: string,
   ): Promise<VerifiedTruecallerProfile> {
+    // The access token is appended as a path segment; the client id travels
+    // as a header. `encodeURIComponent` guards against a token containing a
+    // `/` or `?` from breaking out of the path.
+    const url = `${this.otpVerifyUrl}/${encodeURIComponent(accessToken)}`;
     let res;
     try {
-      res = await axios.get(this.profileApiUrl, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      res = await axios.get(url, {
+        headers: { clientId: this.oauthClientId },
         // Treat all statuses as resolved so we can map them ourselves.
         validateStatus: () => true,
       });
     } catch (err) {
       // Network / transport failure — never leak the access token.
       this.logger.warn(
-        `Truecaller profile API request failed for ${this.maskPhone(expectedPhoneNumber)}: ${(err as Error).message}`,
+        `Truecaller OTP verify request failed for ${this.maskPhone(expectedPhoneNumber)}: ${(err as Error).message}`,
       );
       throw new UnauthorizedException({
         success: false,
@@ -643,8 +655,11 @@ export class TruecallerService {
     }
 
     if (res.status < 200 || res.status >= 300) {
+      // 404 {code:1404} = invalid access token; 404 {code:404} = invalid
+      // partner credentials; anything else = server error. All collapse to
+      // the same 10.2 envelope so no implementation detail leaks.
       this.logger.warn(
-        `Truecaller profile API returned ${res.status} for ${this.maskPhone(expectedPhoneNumber)}`,
+        `Truecaller OTP verify returned ${res.status} for ${this.maskPhone(expectedPhoneNumber)}: ${JSON.stringify(res.data)?.slice(0, 200)}`,
       );
       throw new UnauthorizedException({
         success: false,
@@ -652,24 +667,37 @@ export class TruecallerService {
       });
     }
 
-    const profile = res.data;
-    if (
-      !profile ||
-      typeof profile.phoneNumber !== 'string' ||
-      profile.phoneNumber.length === 0
-    ) {
+    // The phoneNumberDetail endpoint returns `{ phoneNumber, countryCode }`.
+    // `phoneNumber` may arrive as a JSON number (e.g. 919876543210) rather
+    // than a string, so coerce defensively before validating.
+    const data = res.data;
+    const rawPhone =
+      data != null &&
+      (typeof data.phoneNumber === 'string' ||
+        typeof data.phoneNumber === 'number')
+        ? String(data.phoneNumber)
+        : '';
+    if (rawPhone.length === 0) {
       throw new UnauthorizedException({
         success: false,
         message: 'Invalid Truecaller profile',
       });
     }
 
+    const countryCode =
+      typeof data.countryCode === 'string' ? data.countryCode : undefined;
+    // Canonicalize to E.164 so a missed-call login and a one-tap OAuth login
+    // for the same person resolve to the SAME stored `phone` value (the
+    // account-linking key). The OTP endpoint returns bare national digits,
+    // whereas OAuth userinfo returns a `+`-prefixed E.164 string; without
+    // this both would create separate `users` rows for one human.
+    const e164 = this.toE164(rawPhone, countryCode);
+
     if (
-      this.normalizePhone(profile.phoneNumber) !==
-      this.normalizePhone(expectedPhoneNumber)
+      this.normalizePhone(e164) !== this.normalizePhone(expectedPhoneNumber)
     ) {
       this.logger.warn(
-        `Truecaller profile phone mismatch: profile=${this.maskPhone(profile.phoneNumber)} expected=${this.maskPhone(expectedPhoneNumber)}`,
+        `Truecaller OTP phone mismatch: profile=${this.maskPhone(e164)} expected=${this.maskPhone(expectedPhoneNumber)}`,
       );
       throw new UnauthorizedException({
         success: false,
@@ -678,21 +706,13 @@ export class TruecallerService {
     }
 
     this.logger.log(
-      `Truecaller access token verified for ${this.maskPhone(profile.phoneNumber)}`,
+      `Truecaller access token verified for ${this.maskPhone(e164)}`,
     );
 
-    return {
-      phoneNumber: profile.phoneNumber,
-      firstName:
-        typeof profile.firstName === 'string' && profile.firstName.length > 0
-          ? profile.firstName
-          : 'User',
-      lastName:
-        typeof profile.lastName === 'string' ? profile.lastName : undefined,
-      email: typeof profile.email === 'string' ? profile.email : undefined,
-      avatarUrl:
-        typeof profile.avatarUrl === 'string' ? profile.avatarUrl : undefined,
-    };
+    // This endpoint returns only the phone number (no name/email/avatar).
+    // The caller supplies the user-entered display name for missed-call
+    // sign-ups; the phone number here is the only server-verified identity.
+    return { phoneNumber: e164, firstName: 'User' };
   }
 
   /**
@@ -853,6 +873,43 @@ export class TruecallerService {
     const digits = input.replace(/\D/g, '');
     if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
     return digits;
+  }
+
+  /**
+   * Canonicalize a phone number to E.164 (`+<cc><national>`) so every
+   * Truecaller flow (OAuth one-tap / signed payload / missed-call OTP)
+   * stores the SAME `phone` value for one human — the account-linking key.
+   *
+   * - A value already in `+`-prefixed form is assumed to be E.164 and only
+   *   has interior whitespace stripped (OAuth userinfo / signed payloads).
+   * - Otherwise the value is reduced to digits and prefixed with the dialing
+   *   code for `countryCode` (default `IN` → `+91`). A 12-digit `91…`
+   *   string is treated as already carrying the country code. This app is
+   *   India-first and Truecaller's non-TC verification is India-only, so a
+   *   `+91` default is safe; other country codes can be added here later.
+   */
+  toE164(
+    input: string | null | undefined,
+    countryCode?: string | null,
+  ): string {
+    if (typeof input !== 'string') return '';
+    const trimmed = input.trim();
+    if (trimmed.startsWith('+')) return '+' + trimmed.slice(1).replace(/\D/g, '');
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    // Map the ISO country code to its dialing code. Only `IN` is needed
+    // today; unknown codes fall back to India rather than emitting a
+    // country-less number that could never link.
+    const dialByCountry: Record<string, string> = { IN: '91' };
+    const dial = dialByCountry[(countryCode ?? 'IN').toUpperCase()] ?? '91';
+    if (digits.startsWith(dial) && digits.length === dial.length + 10) {
+      return '+' + digits;
+    }
+    if (digits.length === 10) return `+${dial}${digits}`;
+    // Fall back to prefixing a `+` on whatever digits we have so the value
+    // is at least well-formed; callers cross-check against the expected
+    // number, so a wrong guess here fails closed as a mismatch.
+    return '+' + digits;
   }
 
   /**

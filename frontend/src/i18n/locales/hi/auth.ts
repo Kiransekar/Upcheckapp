@@ -131,6 +131,35 @@ const auth = {
   expiresIn: '{{seconds}}s में समाप्त',
   verifyingWithUpcheck: 'Upcheck से सत्यापित किया जा रहा है...',
   signInWithEmail: 'ईमेल से साइन इन करें',
+  truecallerNoSession: 'सर्वर ने कोई सत्र नहीं लौटाया। कृपया पुनः प्रयास करें।',
+  truecallerVerificationFailed: 'Truecaller सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',
+  networkErrorBody: 'सर्वर तक नहीं पहुँच सके। कृपया पुनः प्रयास करें।',
+
+  // ── Truecaller मिस्ड-कॉल / OTP (नॉन-Truecaller यूज़र) फ़्लो ───────────────
+  tcFallbackCta: 'Truecaller ऐप नहीं है? मिस्ड कॉल से सत्यापित करें',
+  tcPhoneTitle: 'अपना नंबर सत्यापित करें',
+  tcPhoneSubtitle:
+    'हम आपके नंबर को सत्यापित करने के लिए एक छोटी मिस्ड कॉल करेंगे — कुछ भी टाइप करने की ज़रूरत नहीं।',
+  tcPhoneLabel: 'मोबाइल नंबर',
+  tcFirstNameLabel: 'पहला नाम',
+  tcFirstNamePlaceholder: 'जैसे आरव',
+  tcLastNameLabel: 'उपनाम (वैकल्पिक)',
+  tcLastNamePlaceholder: 'जैसे शर्मा',
+  tcSendVerification: 'मिस्ड कॉल से सत्यापित करें',
+  tcCallingTitle: 'आपको कॉल कर रहे हैं…',
+  tcCallingBody:
+    'हम {{phone}} पर एक छोटी कॉल कर रहे हैं। कॉल उठाने की ज़रूरत नहीं — हम इसे अपने आप पहचान लेंगे।',
+  tcOtpBody: '{{phone}} पर भेजा गया कोड दर्ज करें।',
+  tcVerify: 'सत्यापित करें',
+  tcChangeNumber: 'दूसरा नंबर उपयोग करें',
+  tcInvalidPhone: 'मान्य 10-अंकों वाला मोबाइल नंबर दर्ज करें।',
+  tcFirstNameRequired: 'कृपया अपना पहला नाम दर्ज करें।',
+  tcInvalidOtp: 'आपको मिला कोड दर्ज करें।',
+  tcVerificationFailed: 'सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',
+  tcPermissionsRequired:
+    'सत्यापन कॉल को अपने आप पहचानने के लिए फ़ोन और कॉल-लॉग अनुमतियाँ आवश्यक हैं। कृपया उन्हें दें, या Truecaller / ईमेल से साइन इन करें।',
+  tcUnsupported:
+    'मिस्ड-कॉल सत्यापन केवल Android पर उस ऐप बिल्ड के साथ उपलब्ध है जिसमें Truecaller SDK शामिल है।',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP दर्ज करें',

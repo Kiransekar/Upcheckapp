@@ -87,6 +87,42 @@ export const authApi = {
         state?: string;
     }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller/exchange', payload),
 
+    // Truecaller missed-call / OTP (non-Truecaller-user) sign-in. The native
+    // SDK verifies the phone via a drop-call / IM-OTP and hands back an opaque
+    // accessToken; the backend re-validates that token server-to-server
+    // (phone is the verified identity) before minting a session. firstName /
+    // lastName are the user-entered display name (the token carries no name).
+    truecallerMissedCall: (payload: {
+        accessToken: string;
+        phoneNumber: string;
+        firstName: string;
+        lastName?: string;
+    }) => apiClient.post<AuthResponse>('/auth/supabase/oauth/truecaller', payload),
+
+    // Link a Truecaller-verified phone to the CURRENT (authenticated) account.
+    // Safe cross-provider linking: the verified phone is the identity; a phone
+    // already owned by another account returns 409.
+    truecallerLinkExchange: (payload: {
+        authorizationCode: string;
+        codeVerifier: string;
+        state?: string;
+    }) =>
+        apiClient.post<{ linked: boolean; phoneNumber: string }>(
+            '/auth/supabase/link/truecaller/exchange',
+            payload,
+        ),
+
+    truecallerLinkMissedCall: (payload: {
+        accessToken: string;
+        phoneNumber: string;
+        firstName: string;
+        lastName?: string;
+    }) =>
+        apiClient.post<{ linked: boolean; phoneNumber: string }>(
+            '/auth/supabase/link/truecaller',
+            payload,
+        ),
+
     // ── Passwordless email OTP login ──
     loginOtpRequest: (email: string) =>
         apiClient.post('/auth/supabase/login-otp/request', { email }),

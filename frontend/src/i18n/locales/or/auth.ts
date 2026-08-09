@@ -131,6 +131,35 @@ const auth = {
   expiresIn: '{{seconds}}s ରେ ସମୟ ଶେଷ',
   verifyingWithUpcheck: 'Upcheck ସହ ଯାଞ୍ଚ ହେଉଛି...',
   signInWithEmail: 'ଇମେଲ ଦ୍ୱାରା ସାଇନ ଇନ',
+  truecallerNoSession: 'ସର୍ଭର କୌଣସି ସେସନ ଫେରାଇ ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  truecallerVerificationFailed: 'Truecaller ଯାଞ୍ଚ ବିଫଳ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  networkErrorBody: 'ସର୍ଭରରେ ପହଞ୍ଚିପାରିଲୁ ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+
+  // ── Truecaller ମିସଡ୍-କଲ୍ / OTP (Truecaller-ହୀନ ୟୁଜର) ଫ୍ଲୋ ─────────────────
+  tcFallbackCta: 'Truecaller ଆପ୍ ନାହିଁ? ମିସଡ୍ କଲ୍ ଦ୍ୱାରା ଯାଞ୍ଚ କରନ୍ତୁ',
+  tcPhoneTitle: 'ଆପଣଙ୍କ ନମ୍ବର ଯାଞ୍ଚ କରନ୍ତୁ',
+  tcPhoneSubtitle:
+    'ଆପଣଙ୍କ ନମ୍ବର ଯାଞ୍ଚ କରିବାକୁ ଆମେ ଏକ ଛୋଟ ମିସଡ୍ କଲ୍ କରିବୁ — କିଛି ଟାଇପ୍ କରିବାର ଆବଶ୍ୟକ ନାହିଁ।',
+  tcPhoneLabel: 'ମୋବାଇଲ୍ ନମ୍ବର',
+  tcFirstNameLabel: 'ପ୍ରଥମ ନାମ',
+  tcFirstNamePlaceholder: 'ଉଦା. ଆରଭ',
+  tcLastNameLabel: 'ଉପନାମ (ଐଚ୍ଛିକ)',
+  tcLastNamePlaceholder: 'ଉଦା. ଶର୍ମା',
+  tcSendVerification: 'ମିସଡ୍ କଲ୍ ଦ୍ୱାରା ଯାଞ୍ଚ କରନ୍ତୁ',
+  tcCallingTitle: 'ଆପଣଙ୍କୁ କଲ୍ କରୁଛୁ…',
+  tcCallingBody:
+    'ଆମେ {{phone}} କୁ ଏକ ଛୋଟ କଲ୍ କରୁଛୁ। ଉଠାନ୍ତୁ ନାହିଁ — ଆମେ ଏହାକୁ ସ୍ୱୟଂଚାଳିତ ଭାବରେ ଚିହ୍ନଟ କରିବୁ।',
+  tcOtpBody: '{{phone}} କୁ ପଠାଯାଇଥିବା କୋଡ୍ ଲେଖନ୍ତୁ।',
+  tcVerify: 'ଯାଞ୍ଚ କରନ୍ତୁ',
+  tcChangeNumber: 'ଅନ୍ୟ ଏକ ନମ୍ବର ବ୍ୟବହାର କରନ୍ତୁ',
+  tcInvalidPhone: 'ଏକ ବୈଧ ୧୦-ଅଙ୍କ ମୋବାଇଲ୍ ନମ୍ବର ଲେଖନ୍ତୁ।',
+  tcFirstNameRequired: 'ଦୟାକରି ଆପଣଙ୍କ ପ୍ରଥମ ନାମ ଲେଖନ୍ତୁ।',
+  tcInvalidOtp: 'ଆପଣ ପାଇଥିବା କୋଡ୍ ଲେଖନ୍ତୁ।',
+  tcVerificationFailed: 'ଯାଞ୍ଚ ବିଫଳ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  tcPermissionsRequired:
+    'ଯାଞ୍ଚ କଲ୍ ସ୍ୱୟଂଚାଳିତ ଭାବରେ ଚିହ୍ନଟ କରିବାକୁ ଫୋନ୍ ଏବଂ କଲ୍-ଲଗ୍ ଅନୁମତି ଆବଶ୍ୟକ। ଦୟାକରି ସେଗୁଡ଼ିକ ଦିଅନ୍ତୁ, କିମ୍ବା Truecaller / ଇମେଲ ଦ୍ୱାରା ସାଇନ୍ ଇନ୍ କରନ୍ତୁ।',
+  tcUnsupported:
+    'ମିସଡ୍-କଲ୍ ଯାଞ୍ଚ କେବଳ Android ରେ ସେହି ଆପ୍ ବିଲ୍ଡରେ ଉପଲବ୍ଧ ଯେଉଁଥିରେ Truecaller SDK ଅନ୍ତର୍ଭୁକ୍ତ ଅଛି।',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP ଦିଅନ୍ତୁ',

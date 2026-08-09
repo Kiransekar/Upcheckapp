@@ -20,6 +20,12 @@ const settings = {
   // ── ProfileScreen ─────────────────────────────────────────────────────────
   profile: 'Profile',
   editProfile: 'Edit Profile',
+  linkTruecaller: 'Link your phone (Truecaller)',
+  linkTruecallerUnavailable:
+    "Truecaller isn't available. Open the Truecaller app, sign in, then try again.",
+  phoneLinked: 'Phone number linked',
+  phoneAlreadyLinked: 'That number is already linked to another account.',
+  linkTruecallerFailed: 'Could not link your number. Please try again.',
   emailAddress: 'Email Address',
   fullName: 'Full Name',
   phoneNumber: 'Phone Number',

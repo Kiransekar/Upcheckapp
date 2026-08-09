@@ -1,21 +1,18 @@
 /**
- * TruecallerLoginScreen — Truecaller OAuth 2.0 "One-Tap" sign-in.
+ * TruecallerLoginScreen — entry point for Truecaller sign-in.
  *
- * Flow:
- *   1. `TruecallerAuth.authenticate()` drives the native SDK and returns an
- *      authorization code + PKCE `codeVerifier` + `state`.
- *   2. Those are POSTed to `/auth/supabase/oauth/truecaller/exchange`, where
- *      the backend completes the server-to-server exchange and returns a
- *      Supabase session.
- *   3. The session is stored; RootNavigator swaps to the authed stack as soon
- *      as `isAuthenticated` flips true.
+ * Primary path: one-tap OAuth for users WITH the Truecaller app.
+ *   `TruecallerAuth.getAuthorizationCode()` drives the native SDK and returns
+ *   an authorization code + PKCE `codeVerifier` + `state`, which are POSTed to
+ *   `/auth/supabase/oauth/truecaller/exchange`; the backend completes the
+ *   server-to-server exchange and returns a Supabase session.
  *
- * Trust boundary: nothing here authorizes the user — the backend exchange is
- * the only component that verifies the Truecaller identity.
+ * Fallback path: users WITHOUT the Truecaller app (or who tap "use another
+ * number") are routed to {@link TruecallerPhoneScreen} for missed-call / OTP
+ * verification.
  *
- * The legacy OTP / missed-call manual flow has been removed: the OAuth SDK
- * does not support it, and the previous event-based implementation was wired
- * to no-op stubs.
+ * Trust boundary: nothing here authorizes the user — the backend is the only
+ * component that verifies the Truecaller identity.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -33,11 +30,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { theme } from '../../theme';
-import { TruecallerAuth, type TruecallerErrorCode } from '../../native/TruecallerAuth';
-import { authApi } from '../../api/auth';
+import {
+    TruecallerAuth,
+    type TruecallerErrorCode,
+} from '../../native/TruecallerAuth';
+import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
-
-const EMAIL_LOGIN_ROUTE = 'Login';
 
 export interface TruecallerLoginScreenProps {
     navigation: {
@@ -51,7 +49,7 @@ export interface TruecallerLoginScreenProps {
 function messageForError(error: TruecallerErrorCode): string {
     switch (error) {
         case 'ERROR_TC_NOT_USABLE':
-            return 'Truecaller is not available on this device. Make sure the Truecaller app is installed and signed in, or continue with email.';
+            return 'Truecaller is not available on this device. Make sure the Truecaller app is installed and signed in, or verify with a missed call.';
         case 'ERROR_PLATFORM_UNSUPPORTED':
             return 'Truecaller sign-in is only available on Android. Please continue with email.';
         case 'ERROR_NETWORK':
@@ -77,28 +75,17 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
         void TruecallerAuth.initialize();
     }, []);
 
-    const handleStartAuth = useCallback(async () => {
-        setStatusMessage(null);
-        setLoading(true);
-        try {
-            const result = await TruecallerAuth.authenticate();
+    const goToPhoneFallback = useCallback(() => {
+        navigation.navigate('TruecallerPhone');
+    }, [navigation]);
 
-            if (!result.successful) {
-                // Silent for an explicit user cancel; surface everything else.
-                if (result.error !== 'ERROR_USER_CANCELLED') {
-                    setStatusMessage(messageForError(result.error));
-                }
-                return;
-            }
-
-            const { data } = await authApi.truecallerExchange({
-                authorizationCode: result.authorizationCode,
-                codeVerifier: result.codeVerifier,
-                state: result.state,
-            });
-
+    /** Turn an /exchange AuthResponse into a session, 2FA challenge, or error. */
+    const handleAuthResponse = useCallback(
+        (data: AuthResponse) => {
             if (data.requires2FA && data.tempToken) {
-                navigation.navigate('TwoFactorChallenge', { tempToken: data.tempToken });
+                navigation.navigate('TwoFactorChallenge', {
+                    tempToken: data.tempToken,
+                });
                 return;
             }
             if (data.session) {
@@ -108,30 +95,79 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
             }
             Alert.alert(
                 t('auth.loginFailed'),
-                t('auth.truecallerNoSession', 'The server did not return a session. Please try again.'),
+                t(
+                    'auth.truecallerNoSession',
+                    'The server did not return a session. Please try again.',
+                ),
             );
+        },
+        [navigation, setSession, t],
+    );
+
+    const handleStartAuth = useCallback(async () => {
+        setStatusMessage(null);
+        setLoading(true);
+        try {
+            const outcome = await TruecallerAuth.getAuthorizationCode();
+
+            switch (outcome.type) {
+                case 'oauth': {
+                    const { data } = await authApi.truecallerExchange({
+                        authorizationCode: outcome.authorizationCode,
+                        codeVerifier: outcome.codeVerifier,
+                        state: outcome.state,
+                    });
+                    handleAuthResponse(data);
+                    return;
+                }
+                case 'verificationRequired':
+                case 'unavailable':
+                    // No usable Truecaller profile → verify via missed call.
+                    goToPhoneFallback();
+                    return;
+                case 'cancelled':
+                    // User dismissed the consent sheet — silent.
+                    return;
+                case 'error':
+                    if (outcome.error === 'ERROR_TC_NOT_USABLE') {
+                        goToPhoneFallback();
+                        return;
+                    }
+                    setStatusMessage(messageForError(outcome.error));
+                    return;
+            }
         } catch (err: unknown) {
-            const status = (err as { response?: { status?: number } })?.response?.status;
-            const serverMessage = (err as { response?: { data?: { message?: string } } })
-                ?.response?.data?.message;
+            const status = (err as { response?: { status?: number } })?.response
+                ?.status;
+            const serverMessage = (
+                err as { response?: { data?: { message?: string } } }
+            )?.response?.data?.message;
             if (status && status >= 400 && status < 500) {
                 Alert.alert(
                     t('auth.loginFailed'),
-                    serverMessage || t('auth.truecallerVerificationFailed', 'Truecaller verification failed. Please try again.'),
+                    serverMessage ||
+                        t(
+                            'auth.truecallerVerificationFailed',
+                            'Truecaller verification failed. Please try again.',
+                        ),
                 );
             } else {
                 Alert.alert(
                     t('auth.networkError'),
-                    serverMessage || t('auth.networkErrorBody', 'Could not reach the server. Please try again.'),
+                    serverMessage ||
+                        t(
+                            'auth.networkErrorBody',
+                            'Could not reach the server. Please try again.',
+                        ),
                 );
             }
         } finally {
             setLoading(false);
         }
-    }, [setSession, t]);
+    }, [goToPhoneFallback, handleAuthResponse, t]);
 
     const handleEmailLoginPress = useCallback(() => {
-        navigation.navigate(EMAIL_LOGIN_ROUTE);
+        navigation.navigate('Login');
     }, [navigation]);
 
     return (
@@ -167,6 +203,24 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
             ) : (
                 <View style={styles.section}>
                     <TruecallerLoginButton onPress={handleStartAuth} loading={false} />
+
+                    {/* Direct path for users who don't have the Truecaller app. */}
+                    <TouchableOpacity
+                        onPress={goToPhoneFallback}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('auth.tcFallbackCta')}
+                        style={styles.fallbackLink}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialCommunityIcons
+                            name="phone-outgoing-outline"
+                            size={18}
+                            color={theme.roles.light.textSecondary}
+                        />
+                        <Text style={styles.fallbackLinkText}>
+                            {t('auth.tcFallbackCta')}
+                        </Text>
+                    </TouchableOpacity>
                 </View>
             )}
 
@@ -211,6 +265,18 @@ const styles = StyleSheet.create({
     },
     section: {
         paddingVertical: theme.spacing[2],
+    },
+    fallbackLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[3],
+        marginTop: theme.spacing[2],
+    },
+    fallbackLinkText: {
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.textSecondary,
     },
     statusBanner: {
         flexDirection: 'row',
