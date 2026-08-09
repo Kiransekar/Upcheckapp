@@ -54,10 +54,18 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
     /** Pending one-tap promise; resolved by the TcOAuthCallback. */
     @Volatile private var oauthPromise: Promise? = null
 
+    /** Pending initialize() promise; resolved by onSdkReady/onFailure. */
+    @Volatile private var initPromise: Promise? = null
+
     /** PKCE verifier generated for the in-flight one-tap request. */
     @Volatile private var currentCodeVerifier: String? = null
 
-    @Volatile private var initialized = false
+    /** initAsync has completed (onSdkReady fired). */
+    @Volatile private var sdkReady = false
+    /** initAsync is currently running. */
+    @Volatile private var initializing = false
+    /** getAuthorizationCode was requested before the SDK finished init. */
+    @Volatile private var pendingAuthLaunch = false
 
     /** Activity-result launcher for the OAuth consent screen (SDK 3.3.0). */
     private var oauthLauncher: ActivityResultLauncher<Intent>? = null
@@ -68,6 +76,20 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
     // ── One-tap OAuth callback ────────────────────────────────────────────────
 
     private val oAuthCallback = object : TcOAuthCallback {
+        // 3.3.0: async init finished. Resolve a waiting initialize() and, if the
+        // user already tapped, launch the queued consent flow.
+        override fun onSdkReady() {
+            sdkReady = true
+            initializing = false
+            initPromise?.let { it.resolve(safeIsUsable()); initPromise = null }
+            if (pendingAuthLaunch) {
+                pendingAuthLaunch = false
+                val act = currentFragmentActivity()
+                if (act != null) runOnUi { launchAuth(act) }
+                else resolveOauth(unavailable())
+            }
+        }
+
         override fun onSuccess(tcOAuthData: TcOAuthData) {
             val map = Arguments.createMap().apply {
                 putString("type", "oauth")
@@ -82,18 +104,28 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
         }
 
         override fun onFailure(tcOAuthError: TcOAuthError) {
+            // During init this signals init failure; otherwise it's an auth
+            // failure. Route accordingly.
+            if (initializing || initPromise != null) {
+                initializing = false
+                initPromise?.let { it.resolve(false); initPromise = null }
+                if (pendingAuthLaunch) {
+                    pendingAuthLaunch = false
+                    resolveOauth(errorMap("ERROR_SDK_NOT_INITIALIZED", "Truecaller init failed"))
+                }
+                return
+            }
             val message = tcOAuthError.errorMessage ?: "Truecaller error"
             val lower = message.lowercase()
             val outcome = when {
                 lower.contains("cancel") || lower.contains("dismiss") -> "cancelled"
                 else -> "error"
             }
-            val map = Arguments.createMap().apply {
+            resolveOauth(Arguments.createMap().apply {
                 putString("type", outcome)
                 putString("errorCode", "ERROR_UNKNOWN")
                 putString("message", message)
-            }
-            resolveOauth(map)
+            })
         }
 
         // Truecaller app not usable / user chose "use another number" → the app
@@ -103,10 +135,6 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
                 putString("type", "verificationRequired")
             })
         }
-
-        // Required by the 3.3.0 TcOAuthCallback interface. No-op: we drive the
-        // flow imperatively rather than waiting on an SDK-ready signal.
-        override fun onSdkReady() {}
     }
 
     @Synchronized
@@ -114,6 +142,72 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
         val p = oauthPromise
         oauthPromise = null
         p?.resolve(map)
+    }
+
+    private fun safeIsUsable(): Boolean =
+        try {
+            TcSdk.getInstance().isOAuthFlowUsable
+        } catch (e: Exception) {
+            false
+        }
+
+    /**
+     * Kick off async SDK init on a background thread (3.3.0 requirement).
+     * `onSdkReady` / `onFailure` on the shared callback report completion.
+     */
+    private fun startInit(activity: FragmentActivity) {
+        if (initializing) return
+        initializing = true
+        Thread {
+            try {
+                try {
+                    TcSdk.clear()
+                } catch (_: Exception) {
+                    // fine if nothing to clear
+                }
+                val options = TcSdkOptions.Builder(activity, oAuthCallback)
+                    .sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
+                    .build()
+                TcSdk.initAsync(options)
+            } catch (e: Exception) {
+                Log.w(TAG, "initAsync failed: ${e.message}")
+                initializing = false
+                initPromise?.let { it.resolve(false); initPromise = null }
+                if (pendingAuthLaunch) {
+                    pendingAuthLaunch = false
+                    resolveOauth(errorMap("ERROR_SDK_NOT_INITIALIZED", e.message ?: "init failed"))
+                }
+            }
+        }.start()
+    }
+
+    /** Launch the consent screen (UI thread, SDK ready). */
+    private fun launchAuth(activity: FragmentActivity) {
+        try {
+            if (!TcSdk.getInstance().isOAuthFlowUsable) {
+                resolveOauth(Arguments.createMap().apply {
+                    putString("type", "verificationRequired")
+                })
+                return
+            }
+            val state = BigInteger(130, SecureRandom()).toString(32)
+            TcSdk.getInstance().setOAuthState(state)
+            TcSdk.getInstance()
+                .setOAuthScopes(arrayOf("profile", "phone", "openid", "email"))
+            val verifier = CodeVerifierUtil.generateRandomCodeVerifier()
+            currentCodeVerifier = verifier
+            val challenge = CodeVerifierUtil.getCodeChallenge(verifier)
+            if (challenge == null) {
+                resolveOauth(errorMap("ERROR_UNKNOWN", "Code challenge unavailable"))
+                return
+            }
+            TcSdk.getInstance().setCodeChallenge(challenge)
+            ensureLauncher(activity)
+            TcSdk.getInstance().getAuthorizationCode(activity, oauthLauncher!!)
+        } catch (e: Exception) {
+            Log.w(TAG, "launchAuth failed: ${e.message}")
+            resolveOauth(errorMap("ERROR_UNKNOWN", e.message ?: "Truecaller error"))
+        }
     }
 
     // ── Non-TC verification callback ──────────────────────────────────────────
@@ -182,18 +276,6 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             .emit(EVENT_NAME, map)
     }
 
-    private fun ensureInitialized(activity: FragmentActivity) {
-        if (initialized && TcSdk.getInstance() != null) return
-        val options = TcSdkOptions.Builder(activity, oAuthCallback)
-            // OPTION_VERIFY_ALL_USERS enables BOTH one-tap (TC users) and the
-            // missed-call / OTP path for non-TC users.
-            .sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
-            .build()
-        // `init` is a hard Kotlin keyword — escape it to call the Java static.
-        TcSdk.`init`(options)
-        initialized = true
-    }
-
     /**
      * Register (once per activity instance) the launcher the SDK uses to return
      * the consent-screen result. Uses `activityResultRegistry.register` (the
@@ -226,27 +308,18 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             promise.resolve(false)
             return
         }
-        runOnUi {
-            try {
-                ensureInitialized(activity)
-                promise.resolve(TcSdk.getInstance().isOAuthFlowUsable)
-            } catch (e: Exception) {
-                Log.w(TAG, "initialize failed: ${e.message}")
-                promise.resolve(false)
-            }
+        if (sdkReady) {
+            promise.resolve(safeIsUsable())
+            return
         }
+        // Resolve once onSdkReady/onFailure fires.
+        initPromise = promise
+        startInit(activity)
     }
 
     @ReactMethod
     fun isOAuthUsable(promise: Promise) {
-        runOnUi {
-            try {
-                val usable = initialized && TcSdk.getInstance().isOAuthFlowUsable
-                promise.resolve(usable)
-            } catch (e: Exception) {
-                promise.resolve(false)
-            }
-        }
+        promise.resolve(sdkReady && safeIsUsable())
     }
 
     @ReactMethod
@@ -260,33 +333,12 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             oauthPromise?.resolve(unavailable())
             oauthPromise = promise
         }
-        runOnUi {
-            try {
-                ensureInitialized(activity)
-                if (!TcSdk.getInstance().isOAuthFlowUsable) {
-                    resolveOauth(Arguments.createMap().apply {
-                        putString("type", "verificationRequired")
-                    })
-                    return@runOnUi
-                }
-                val state = BigInteger(130, SecureRandom()).toString(32)
-                TcSdk.getInstance().setOAuthState(state)
-                TcSdk.getInstance()
-                    .setOAuthScopes(arrayOf("profile", "phone", "openid", "email"))
-                val verifier = CodeVerifierUtil.generateRandomCodeVerifier()
-                currentCodeVerifier = verifier
-                val challenge = CodeVerifierUtil.getCodeChallenge(verifier)
-                if (challenge == null) {
-                    resolveOauth(errorMap("ERROR_UNKNOWN", "Code challenge unavailable"))
-                    return@runOnUi
-                }
-                TcSdk.getInstance().setCodeChallenge(challenge)
-                ensureLauncher(activity)
-                TcSdk.getInstance().getAuthorizationCode(activity, oauthLauncher!!)
-            } catch (e: Exception) {
-                Log.w(TAG, "getAuthorizationCode failed: ${e.message}")
-                resolveOauth(errorMap("ERROR_UNKNOWN", e.message ?: "Truecaller error"))
-            }
+        if (sdkReady) {
+            runOnUi { launchAuth(activity) }
+        } else {
+            // Init hasn't finished — queue the launch; onSdkReady will run it.
+            pendingAuthLaunch = true
+            startInit(activity)
         }
     }
 
@@ -297,9 +349,14 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             promise.reject("ERROR_PLATFORM_UNSUPPORTED", "No activity")
             return
         }
+        if (!sdkReady) {
+            // JS awaits initialize() before calling this; a not-ready state means
+            // init failed or is still running. Surface it so JS can retry.
+            promise.reject("ERROR_SDK_NOT_INITIALIZED", "Truecaller SDK not ready")
+            return
+        }
         runOnUi {
             try {
-                ensureInitialized(activity)
                 // Country code is fixed to "IN": Truecaller only supports non-TC
                 // verification for Indian numbers.
                 TcSdk.getInstance()
@@ -345,9 +402,10 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
                 oauthLauncher?.let { try { it.unregister() } catch (_: Exception) {} }
                 oauthLauncher = null
                 launcherActivity = null
-                if (initialized) {
+                if (sdkReady || initializing) {
                     TcSdk.clear()
-                    initialized = false
+                    sdkReady = false
+                    initializing = false
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "clear failed: ${e.message}")
