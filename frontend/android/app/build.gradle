@@ -156,11 +156,13 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
-    // Truecaller SDK legacy v2.x (Partner Key) — backs the autolinked
-    // @dhana-cs/react-native-truecaller module (see src/native/TruecallerAuth.ts).
-    // 2.7.0 is the oldest 2.x published to Maven Central; 2.6.0 only ever existed
-    // on the now-defunct JCenter.
-    implementation 'com.truecaller.android.sdk:truecaller-sdk:2.7.0'
+    // Truecaller OAuth SDK 3.x — backs our hand-written native module
+    // (com.upcheck.app.truecaller.TruecallerAuthModule). OPTION_VERIFY_ALL_USERS
+    // gives both one-tap OAuth (TC users) and missed-call/OTP (non-TC users).
+    // If a native build fails on getAuthorizationCode(activity) /
+    // onActivityResultObtained(activity, requestCode, resultCode, data), pin
+    // 3.1.0 here (that minor documents the single-arg overload this bridge uses).
+    implementation 'com.truecaller.android.sdk:truecaller-sdk:3.3.0'
 
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";

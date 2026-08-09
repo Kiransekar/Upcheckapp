@@ -4,6 +4,11 @@
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
   <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+  <!-- Truecaller non-Truecaller-user (missed-call/OTP) verification: the SDK
+       auto-detects the incoming drop-call. Requires a Google Play permissions
+       declaration; used only in the TruecallerPhoneScreen flow (India-only). -->
+  <uses-permission android:name="android.permission.READ_CALL_LOG"/>
+  <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS"/>
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
