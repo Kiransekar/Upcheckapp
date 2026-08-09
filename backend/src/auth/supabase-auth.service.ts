@@ -521,6 +521,57 @@ export class SupabaseAuthService {
   }
 
   /**
+   * Link a Truecaller-verified phone number to an ALREADY-authenticated user
+   * (the safe cross-provider linking path). Unlike sign-in, the caller's
+   * identity comes from their session (`userId`), and the Truecaller flow only
+   * proves ownership of the phone number being attached.
+   *
+   * Guard: the verified phone must not already belong to a DIFFERENT account,
+   * otherwise linking it here would either hijack that account's login key or
+   * create two rows that both claim the same phone. That case returns 409 so
+   * the client can tell the user to sign in with that number instead.
+   */
+  async linkTruecallerToUser(
+    userId: string,
+    profile: {
+      phoneNumber: string;
+      firstName?: string;
+      lastName?: string;
+      avatarUrl?: string;
+    },
+  ) {
+    const { data: phoneOwner } = await this.supabase
+      .from('users')
+      .select('id')
+      .eq('phone', profile.phoneNumber)
+      .maybeSingle();
+
+    if (phoneOwner && phoneOwner.id !== userId) {
+      throw new ConflictException(
+        'This phone number is already linked to another account.',
+      );
+    }
+    if (phoneOwner && phoneOwner.id === userId) {
+      // Already linked to this user — idempotent success.
+      return { linked: true as const, phoneNumber: profile.phoneNumber };
+    }
+
+    const update: Record<string, unknown> = {
+      phone: profile.phoneNumber,
+      phone_verified: true,
+    };
+    if (profile.avatarUrl) update.avatar_url = profile.avatarUrl;
+
+    const { error } = await this.supabase
+      .from('users')
+      .update(update)
+      .eq('id', userId);
+    if (error) throw new ServiceUnavailableException(error.message);
+
+    return { linked: true as const, phoneNumber: profile.phoneNumber };
+  }
+
+  /**
    * Redeem an admin-generated magic link into a real session server-side.
    * `admin.generateLink` never returns a live session (its `action_link` is
    * always populated), so the only way to mint one out-of-band is to verify

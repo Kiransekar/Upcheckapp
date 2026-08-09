@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Share, Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -15,6 +15,8 @@ import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
+import { authApi } from '../../api/auth';
+import { TruecallerAuth } from '../../native/TruecallerAuth';
 
 export const ProfileScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -46,6 +48,64 @@ export const ProfileScreen = ({ navigation }: any) => {
     // dedicated strict-confirmation screen (typed confirmation + password
     // re-auth) instead of confirming inline here.
     const handleDeleteAccount = () => navigation.navigate('DeleteAccount');
+
+    // Safe cross-provider linking: an already-signed-in user (email/Google)
+    // attaches their phone via Truecaller one-tap. The backend links only by
+    // the VERIFIED phone; a number already on another account returns 409.
+    const [isLinking, setIsLinking] = useState(false);
+    const handleLinkTruecaller = useCallback(async () => {
+        setIsLinking(true);
+        try {
+            const outcome = await TruecallerAuth.getAuthorizationCode();
+            if (outcome.type !== 'oauth') {
+                if (outcome.type === 'cancelled') return;
+                showToast({
+                    message: t(
+                        'settings.linkTruecallerUnavailable',
+                        'Truecaller isn\'t available. Open the Truecaller app, sign in, then try again.',
+                    ),
+                    type: 'error',
+                });
+                return;
+            }
+            const { data } = await authApi.truecallerLinkExchange({
+                authorizationCode: outcome.authorizationCode,
+                codeVerifier: outcome.codeVerifier,
+                state: outcome.state,
+            });
+            setPhone(data.phoneNumber);
+            setProfile((p) => (p ? { ...p, phone: data.phoneNumber } : p));
+            showToast({
+                message: t('settings.phoneLinked', 'Phone number linked'),
+                type: 'success',
+            });
+        } catch (err: any) {
+            const status = err?.response?.status;
+            const serverMsg = err?.response?.data?.message;
+            if (status === 409) {
+                showToast({
+                    message:
+                        serverMsg ||
+                        t(
+                            'settings.phoneAlreadyLinked',
+                            'That number is already linked to another account.',
+                        ),
+                    type: 'error',
+                });
+            } else {
+                showToast({
+                    message: t(
+                        'settings.linkTruecallerFailed',
+                        'Could not link your number. Please try again.',
+                    ),
+                    type: 'error',
+                });
+            }
+        } finally {
+            setIsLinking(false);
+        }
+    }, [showToast, t]);
+
     const [profile, setProfile] = useState<ProfileCompat | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -326,6 +386,17 @@ export const ProfileScreen = ({ navigation }: any) => {
                                 </TouchableOpacity>
                             </View>
                         </Card>
+                    )}
+
+                    {!isEditing && Platform.OS === 'android' && TruecallerAuth.isSupported() && (
+                        <Button
+                            title={t('settings.linkTruecaller', 'Link your phone (Truecaller)')}
+                            onPress={handleLinkTruecaller}
+                            loading={isLinking}
+                            variant="outlined"
+                            icon="phone-check"
+                            style={styles.editBtn}
+                        />
                     )}
 
                     {!isEditing && (

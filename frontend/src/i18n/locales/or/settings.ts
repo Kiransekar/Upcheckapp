@@ -20,6 +20,12 @@ const settings = {
   // ── ProfileScreen ─────────────────────────────────────────────────────────
   profile: 'ପ୍ରୋଫାଇଲ',
   editProfile: 'ପ୍ରୋଫାଇଲ ସମ୍ପାଦନ',
+  linkTruecaller: 'ଆପଣଙ୍କ ଫୋନ୍ ଯୋଡ଼ନ୍ତୁ (Truecaller)',
+  linkTruecallerUnavailable:
+    'Truecaller ଉପଲବ୍ଧ ନାହିଁ। Truecaller ଆପ୍ ଖୋଲନ୍ତୁ, ସାଇନ୍ ଇନ୍ କରନ୍ତୁ, ତାପରେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  phoneLinked: 'ଫୋନ୍ ନମ୍ବର ଯୋଡ଼ାଗଲା',
+  phoneAlreadyLinked: 'ସେହି ନମ୍ବର ପୂର୍ବରୁ ଅନ୍ୟ ଏକ ଆକାଉଣ୍ଟ ସହ ଯୋଡ଼ାଯାଇଛି।',
+  linkTruecallerFailed: 'ଆପଣଙ୍କ ନମ୍ବର ଯୋଡ଼ିହେଲା ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
   emailAddress: 'ଇମେଲ ଠିକଣା',
   fullName: 'ପୂରା ନାମ',
   phoneNumber: 'ଫୋନ ନମ୍ବର',

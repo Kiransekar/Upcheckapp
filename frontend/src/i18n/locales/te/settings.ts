@@ -20,6 +20,12 @@ const settings = {
   // ── ProfileScreen ─────────────────────────────────────────────────────────
   profile: 'ప్రొఫైల్',
   editProfile: 'ప్రొఫైల్ మార్చు',
+  linkTruecaller: 'మీ ఫోన్‌ను లింక్ చేయండి (Truecaller)',
+  linkTruecallerUnavailable:
+    'Truecaller అందుబాటులో లేదు. Truecaller యాప్‌ను తెరిచి, సైన్ ఇన్ చేసి, మళ్లీ ప్రయత్నించండి.',
+  phoneLinked: 'ఫోన్ నంబర్ లింక్ చేయబడింది',
+  phoneAlreadyLinked: 'ఆ నంబర్ ఇప్పటికే మరో ఖాతాకు లింక్ చేయబడింది.',
+  linkTruecallerFailed: 'మీ నంబర్‌ను లింక్ చేయలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
   emailAddress: 'ఇమెయిల్ చిరునామా',
   fullName: 'పూర్తి పేరు',
   phoneNumber: 'ఫోన్ నంబర్',

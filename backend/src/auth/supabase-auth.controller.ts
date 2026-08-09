@@ -497,6 +497,57 @@ export class SupabaseAuthController {
     );
   }
 
+  // ==================== Truecaller account linking ====================
+  // Authenticated: attach a Truecaller-verified phone to the CURRENT user.
+  // The verified phone (never the request body) is the identity; a phone
+  // already owned by another account returns 409 (ConflictException).
+
+  @UseGuards(SupabaseAuthGuard)
+  @Post('link/truecaller/exchange')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(TruecallerInvalidRequestFilter)
+  async linkTruecallerOAuth(
+    @CurrentUser() user: User,
+    @Body(truecallerValidationPipe) body: TruecallerOAuthExchangeDto,
+  ) {
+    const verified = await this.truecallerService.verifyOAuthCode(
+      body.authorizationCode,
+      body.codeVerifier,
+    );
+    return this.supabaseAuthService.linkTruecallerToUser(user.id, {
+      phoneNumber: verified.phoneNumber,
+      firstName: verified.firstName,
+      lastName: verified.lastName,
+      avatarUrl: verified.avatarUrl,
+    });
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Post('link/truecaller')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(TruecallerInvalidRequestFilter)
+  async linkTruecallerMissedCall(
+    @CurrentUser() user: User,
+    @Body(truecallerValidationPipe) body: TruecallerAuthDto,
+  ) {
+    if (!body.accessToken) {
+      // Only the missed-call (accessToken) channel is accepted here.
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid request',
+      });
+    }
+    const verified = await this.truecallerService.verifyAccessToken(
+      body.accessToken,
+      body.phoneNumber,
+    );
+    return this.supabaseAuthService.linkTruecallerToUser(user.id, {
+      phoneNumber: verified.phoneNumber,
+      firstName: body.firstName || verified.firstName,
+      lastName: body.lastName || verified.lastName,
+    });
+  }
+
   // ==================== Session Management ====================
 
   @Public()
