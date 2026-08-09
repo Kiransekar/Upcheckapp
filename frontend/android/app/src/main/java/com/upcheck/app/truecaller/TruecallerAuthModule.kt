@@ -1,6 +1,8 @@
 package com.upcheck.app.truecaller
 
 import androidx.fragment.app.FragmentActivity
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -8,9 +10,6 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
-import com.facebook.react.bridge.ActivityEventListener
-import com.facebook.react.bridge.BaseActivityEventListener
-import android.app.Activity
 import android.content.Intent
 import android.util.Log
 
@@ -30,24 +29,21 @@ import java.security.SecureRandom
 
 /**
  * TruecallerAuthModule — thin, faithful RN bridge over the official Truecaller
- * OAuth SDK 3.x (`com.truecaller.android.sdk:truecaller-sdk`). It exposes both:
+ * OAuth SDK 3.3.0. Exposes both:
  *
  *   • One-tap OAuth (Truecaller users) — PKCE authorization-code flow. The
  *     `codeVerifier` is generated here and returned to JS so the backend can
  *     complete the server-to-server token exchange.
  *   • Non-Truecaller-user verification (India + Android only) — missed-call /
- *     Truecaller-IM OTP. Progress is streamed to JS as `TruecallerVerification`
- *     device events; on completion an `accessToken` is delivered for backend
- *     validation.
+ *     Truecaller-IM OTP, streamed to JS as `TruecallerVerification` events.
  *
- * The JS contract lives in `src/native/TruecallerAuth.ts`; keep the two in sync.
+ * JS contract: `src/native/TruecallerAuth.ts` — keep the two in sync.
  *
- * SDK-version note: this uses the single-arg `getAuthorizationCode(activity)`
- * overload + `onActivityResultObtained(activity, requestCode, resultCode, data)`
- * so the flow works with React Native's classic Activity-result forwarding
- * (no `registerForActivityResult`, which a RN native module can't own). This
- * matches the shipping community wrappers. If a future SDK drops that overload,
- * switch to the `getAuthorizationCode(activity, launcher)` variant.
+ * SDK 3.3.0 note: `getAuthorizationCode` is launcher-only, so the one-tap flow
+ * registers an ActivityResultLauncher through the activity's
+ * `activityResultRegistry` (this works from a native module AFTER the activity
+ * is RESUMED, which `registerForActivityResult` would not) and completes via
+ * the 3-arg `onActivityResultObtained(activity, resultCode, data)`.
  */
 class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -61,10 +57,11 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
     /** PKCE verifier generated for the in-flight one-tap request. */
     @Volatile private var currentCodeVerifier: String? = null
 
-    /** CSRF state we set; used to sanity-check the callback's echoed state. */
-    @Volatile private var currentState: String? = null
-
     @Volatile private var initialized = false
+
+    /** Activity-result launcher for the OAuth consent screen (SDK 3.3.0). */
+    private var oauthLauncher: ActivityResultLauncher<Intent>? = null
+    private var launcherActivity: FragmentActivity? = null
 
     override fun getName(): String = "TruecallerAuth"
 
@@ -85,9 +82,6 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
         }
 
         override fun onFailure(tcOAuthError: TcOAuthError) {
-            // Map the SDK error to our coarse JS outcome. Truecaller uses
-            // numeric error codes; a user dismiss surfaces here too, so we
-            // classify by the message when the code is ambiguous.
             val message = tcOAuthError.errorMessage ?: "Truecaller error"
             val lower = message.lowercase()
             val outcome = when {
@@ -105,11 +99,14 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
         // Truecaller app not usable / user chose "use another number" → the app
         // should fall back to the missed-call flow.
         override fun onVerificationRequired(tcOAuthError: TcOAuthError?) {
-            val map = Arguments.createMap().apply {
+            resolveOauth(Arguments.createMap().apply {
                 putString("type", "verificationRequired")
-            }
-            resolveOauth(map)
+            })
         }
+
+        // Required by the 3.3.0 TcOAuthCallback interface. No-op: we drive the
+        // flow imperatively rather than waiting on an SDK-ready signal.
+        override fun onSdkReady() {}
     }
 
     @Synchronized
@@ -167,44 +164,17 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
         }
 
         override fun onRequestFailure(callbackType: Int, trueException: TrueException) {
-            val map = Arguments.createMap().apply {
+            emit(Arguments.createMap().apply {
                 putString("status", "ERROR")
                 putString("message", trueException.exceptionMessage ?: "Verification failed")
-            }
-            emit(map)
+            })
         }
-    }
-
-    // ── Activity-result forwarding for the one-tap flow ───────────────────────
-
-    private val activityEventListener: ActivityEventListener =
-        object : BaseActivityEventListener() {
-            override fun onActivityResult(
-                activity: Activity?,
-                requestCode: Int,
-                resultCode: Int,
-                data: Intent?,
-            ) {
-                if (requestCode == TcSdk.SHARE_PROFILE_REQUEST_CODE) {
-                    val act = currentFragmentActivity() ?: return
-                    try {
-                        TcSdk.getInstance()
-                            .onActivityResultObtained(act, requestCode, resultCode, data)
-                    } catch (e: Exception) {
-                        Log.w(TAG, "onActivityResultObtained failed: ${e.message}")
-                    }
-                }
-            }
-        }
-
-    init {
-        reactContext.addActivityEventListener(activityEventListener)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun currentFragmentActivity(): FragmentActivity? =
-        currentActivity as? FragmentActivity
+        reactContext.currentActivity as? FragmentActivity
 
     private fun emit(map: WritableMap) {
         reactContext
@@ -219,8 +189,32 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             // missed-call / OTP path for non-TC users.
             .sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
             .build()
-        TcSdk.init(options)
+        // `init` is a hard Kotlin keyword — escape it to call the Java static.
+        TcSdk.`init`(options)
         initialized = true
+    }
+
+    /**
+     * Register (once per activity instance) the launcher the SDK uses to return
+     * the consent-screen result. Uses `activityResultRegistry.register` (the
+     * lifecycle-less overload) so it can be created after the activity is
+     * RESUMED, then forwards the result to the SDK.
+     */
+    private fun ensureLauncher(activity: FragmentActivity) {
+        if (oauthLauncher != null && launcherActivity === activity) return
+        oauthLauncher?.let { try { it.unregister() } catch (_: Exception) {} }
+        launcherActivity = activity
+        oauthLauncher = activity.activityResultRegistry.register(
+            "truecaller_oauth_" + System.currentTimeMillis(),
+            ActivityResultContracts.StartActivityForResult(),
+        ) { result ->
+            try {
+                TcSdk.getInstance()
+                    .onActivityResultObtained(activity, result.resultCode, result.data)
+            } catch (e: Exception) {
+                Log.w(TAG, "onActivityResultObtained failed: ${e.message}")
+            }
+        }
     }
 
     // ── @ReactMethods ─────────────────────────────────────────────────────────
@@ -262,7 +256,6 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
             promise.resolve(unavailable())
             return
         }
-        // Only one one-tap request may be in flight.
         synchronized(this) {
             oauthPromise?.resolve(unavailable())
             oauthPromise = promise
@@ -277,7 +270,6 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
                     return@runOnUi
                 }
                 val state = BigInteger(130, SecureRandom()).toString(32)
-                currentState = state
                 TcSdk.getInstance().setOAuthState(state)
                 TcSdk.getInstance()
                     .setOAuthScopes(arrayOf("profile", "phone", "openid", "email"))
@@ -289,7 +281,8 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
                     return@runOnUi
                 }
                 TcSdk.getInstance().setCodeChallenge(challenge)
-                TcSdk.getInstance().getAuthorizationCode(activity)
+                ensureLauncher(activity)
+                TcSdk.getInstance().getAuthorizationCode(activity, oauthLauncher!!)
             } catch (e: Exception) {
                 Log.w(TAG, "getAuthorizationCode failed: ${e.message}")
                 resolveOauth(errorMap("ERROR_UNKNOWN", e.message ?: "Truecaller error"))
@@ -349,6 +342,9 @@ class TruecallerAuthModule(private val reactContext: ReactApplicationContext) :
     fun clear() {
         runOnUi {
             try {
+                oauthLauncher?.let { try { it.unregister() } catch (_: Exception) {} }
+                oauthLauncher = null
+                launcherActivity = null
                 if (initialized) {
                     TcSdk.clear()
                     initialized = false
