@@ -86,6 +86,22 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
         lastNameRef.current = lastName;
     }, [lastName]);
 
+    // Safety net so "Calling you…" can't hang forever: if the SDK places no
+    // drop-call and fires no callback within the window (e.g. the number is
+    // already a Truecaller user — Truecaller won't drop-call its own users, or
+    // a network issue), surface a clear message and return to the input.
+    const stageRef = useRef<Stage>('input');
+    const verifyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        stageRef.current = stage;
+    }, [stage]);
+    const clearVerifyTimeout = useCallback(() => {
+        if (verifyTimeoutRef.current) {
+            clearTimeout(verifyTimeoutRef.current);
+            verifyTimeoutRef.current = null;
+        }
+    }, []);
+
     const supported = TruecallerAuth.isSupported();
 
     // Warm up the async SDK init on mount so the first verify is responsive.
@@ -148,6 +164,8 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
     useEffect(() => {
         const sub = TruecallerAuth.addVerificationListener(
             (e: TruecallerVerificationEvent) => {
+                // The SDK responded — cancel the no-response safety timeout.
+                clearVerifyTimeout();
                 switch (e.status) {
                     case 'MISSED_CALL_INITIATED':
                         setError(null);
@@ -206,9 +224,10 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
         );
         return () => {
             sub.remove();
+            clearVerifyTimeout();
             TruecallerAuth.clear();
         };
-    }, [submitToken, t]);
+    }, [submitToken, t, clearVerifyTimeout]);
 
     // TTL countdown for the waiting / OTP states.
     useEffect(() => {
@@ -237,13 +256,19 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
         // requestVerification runs only once the SDK is ready.
         await TruecallerAuth.initialize();
 
-        // Missed-call detection needs phone-state + call-log access.
+        // Missed-call detection needs phone-state + call-log + (Android 8+)
+        // answer-phone-calls access — the Truecaller SDK requires all three or
+        // it fails with "phone permission missing".
         if (Platform.OS === 'android') {
             try {
-                const granted = await PermissionsAndroid.requestMultiple([
+                const perms = [
                     PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
                     PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
-                ]);
+                ];
+                if (PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS) {
+                    perms.push(PermissionsAndroid.PERMISSIONS.ANSWER_PHONE_CALLS);
+                }
+                const granted = await PermissionsAndroid.requestMultiple(perms);
                 const ok = Object.values(granted).every(
                     (v) => v === PermissionsAndroid.RESULTS.GRANTED,
                 );
@@ -264,13 +289,26 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
         setStage('calling');
         try {
             await TruecallerAuth.requestVerification(national);
+            // Arm the no-response safety net; any SDK callback clears it.
+            clearVerifyTimeout();
+            verifyTimeoutRef.current = setTimeout(() => {
+                if (stageRef.current === 'calling') {
+                    setError(
+                        t(
+                            'auth.tcNoCallDetected',
+                            "We couldn't detect a verification call. If this number already uses Truecaller, go back and use one-tap sign-in — or try a different number.",
+                        ),
+                    );
+                    setStage('input');
+                }
+            }, 45000);
         } catch {
             setError(
                 t('auth.tcVerificationFailed', 'Verification failed. Please try again.'),
             );
             setStage('input');
         }
-    }, [firstName, phone, t]);
+    }, [firstName, phone, t, clearVerifyTimeout]);
 
     const submitOtp = useCallback(async () => {
         const code = otp.replace(/\D/g, '');
@@ -296,12 +334,13 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
     }, [otp, t]);
 
     const resetToInput = useCallback(() => {
+        clearVerifyTimeout();
         TruecallerAuth.clear();
         setStage('input');
         setOtp('');
         setTtl(null);
         setError(null);
-    }, []);
+    }, [clearVerifyTimeout]);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>

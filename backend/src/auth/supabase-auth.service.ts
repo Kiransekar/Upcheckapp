@@ -411,11 +411,18 @@ export class SupabaseAuthService {
     email?: string;
     avatarUrl?: string;
   }) {
+    // Canonicalize the verified phone to ONE stored form (digits incl. country
+    // code, no '+') so every Truecaller path resolves to the SAME users.phone.
+    // One-tap's OIDC userinfo returns e.g. "917010133018" while the missed-call
+    // endpoint returns "+917010133018"; without this the same person creates
+    // two accounts and the second login collides on the internal email.
+    const phone = String(profile.phoneNumber ?? '').replace(/\D/g, '');
+
     // 1. Check if user exists by phone number
     const { data: existingUser, error: lookupError } = await this.supabase
       .from('users')
       .select('*')
-      .eq('phone', profile.phoneNumber)
+      .eq('phone', phone)
       .single();
 
     if (existingUser) {
@@ -442,12 +449,12 @@ export class SupabaseAuthService {
     // unverified email — so an attacker can't pre-squat a victim's address
     // in auth.users (which enforces email uniqueness regardless of
     // confirmation) and lock them out of a future signup.
-    const tempEmail = `${profile.phoneNumber.replace(/[^0-9]/g, '')}@truecaller.temp`;
+    const tempEmail = `${phone}@truecaller.temp`;
 
     const { data: newUser, error: createError } =
       await this.supabase.auth.admin.createUser({
         email: tempEmail,
-        phone: profile.phoneNumber,
+        phone,
         password: crypto.randomUUID(),
         email_confirm: false,
         phone_confirm: true,
@@ -493,7 +500,7 @@ export class SupabaseAuthService {
           // profile email (public.users.email is NOT NULL). The real
           // email stays unset until the user verifies one.
           email: tempEmail,
-          phone: profile.phoneNumber,
+          phone,
           first_name: profile.firstName,
           last_name: profile.lastName,
           avatar_url: profile.avatarUrl,
