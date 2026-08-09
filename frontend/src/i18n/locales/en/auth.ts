@@ -158,6 +158,8 @@ const auth = {
   tcVerificationFailed: 'Verification failed. Please try again.',
   tcPermissionsRequired:
     'Phone and call-log permissions are needed to auto-detect the verification call. Please grant them, or sign in with Truecaller / email.',
+  tcNoCallDetected:
+    "We couldn't detect a verification call. If this number already uses Truecaller, go back and use one-tap sign-in — or try a different number.",
   tcUnsupported:
     'Missed-call verification is only available on Android with the app build that bundles the Truecaller SDK.',
 
