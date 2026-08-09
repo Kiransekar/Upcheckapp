@@ -52,6 +52,7 @@ interface FromBuilder {
   single: jest.Mock;
   update: jest.Mock;
   insert: jest.Mock;
+  upsert: jest.Mock;
 }
 
 /**
@@ -96,6 +97,11 @@ function buildMockSupabase(opts: {
           .mockResolvedValue(opts.updateResult ?? { data: null, error: null }),
       }),
       insert: jest
+        .fn()
+        .mockResolvedValue(opts.insertResult ?? { data: null, error: null }),
+      // The new-user create branch upserts (trigger already inserted the row);
+      // `insertResult` scripts the outcome of that write.
+      upsert: jest
         .fn()
         .mockResolvedValue(opts.insertResult ?? { data: null, error: null }),
     };

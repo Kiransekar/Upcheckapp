@@ -479,21 +479,30 @@ export class SupabaseAuthService {
     // would reject re-creation of the same phone or email.
     const newAuthUserId = newUser.user.id;
     try {
-      // Create user record in our DB
-      const { error: dbError } = await this.supabase.from('users').insert({
-        id: newAuthUserId,
-        // Store the phone-derived internal email, not the unverified
-        // profile email (public.users.email is NOT NULL). The real
-        // email stays unset until the user verifies one.
-        email: tempEmail,
-        phone: profile.phoneNumber,
-        first_name: profile.firstName,
-        last_name: profile.lastName,
-        avatar_url: profile.avatarUrl,
-        auth_provider: 'truecaller',
-        phone_verified: true,
-        email_verified: false,
-      });
+      // The `handle_new_user` trigger (supabase_setup.sql) already mirrored the
+      // new auth.users row into public.users on createUser above — but it does
+      // NOT copy `phone`. A plain INSERT here therefore collides with that
+      // trigger-created row on the primary key (duplicate key on users.id),
+      // which previously made EVERY new Truecaller signup fail and roll back.
+      // UPSERT on the id instead: update the trigger row to add the verified
+      // phone (and Truecaller-specific fields), or insert it if no trigger ran.
+      const { error: dbError } = await this.supabase.from('users').upsert(
+        {
+          id: newAuthUserId,
+          // Store the phone-derived internal email, not the unverified
+          // profile email (public.users.email is NOT NULL). The real
+          // email stays unset until the user verifies one.
+          email: tempEmail,
+          phone: profile.phoneNumber,
+          first_name: profile.firstName,
+          last_name: profile.lastName,
+          avatar_url: profile.avatarUrl,
+          auth_provider: 'truecaller',
+          phone_verified: true,
+          email_verified: false,
+        },
+        { onConflict: 'id' },
+      );
 
       if (dbError) {
         // Same reasoning as createError above — surface DB outages as

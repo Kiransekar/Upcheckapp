@@ -88,6 +88,11 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
 
     const supported = TruecallerAuth.isSupported();
 
+    // Warm up the async SDK init on mount so the first verify is responsive.
+    useEffect(() => {
+        void TruecallerAuth.initialize();
+    }, []);
+
     const handleAuthResponse = useCallback(
         (data: AuthResponse) => {
             if (data.requires2FA && data.tempToken) {
@@ -227,6 +232,10 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
         }
         setPhone(national);
         phoneRef.current = national;
+
+        // The native SDK inits asynchronously (3.3.0 initAsync); await it so
+        // requestVerification runs only once the SDK is ready.
+        await TruecallerAuth.initialize();
 
         // Missed-call detection needs phone-state + call-log access.
         if (Platform.OS === 'android') {
