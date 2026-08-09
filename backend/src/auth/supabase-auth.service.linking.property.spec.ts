@@ -130,6 +130,7 @@ class StatefulSupabaseMock {
         return builder;
       },
       insert: (row: UserRow) => Promise.resolve(self.doInsert(row)),
+      upsert: (row: UserRow) => Promise.resolve(self.doUpsert(row)),
     };
 
     return builder;
@@ -175,6 +176,18 @@ class StatefulSupabaseMock {
     }
     this.usersTable.set(row.id, { ...row });
     return { data: null, error: null };
+  }
+
+  // Mirrors `upsert(row, { onConflict: 'id' })`: update the existing row on an
+  // id conflict (as the handle_new_user trigger's row would be), otherwise
+  // insert (which still enforces the unique-phone invariant via doInsert).
+  private doUpsert(row: UserRow) {
+    const existing = this.usersTable.get(row.id);
+    if (existing) {
+      Object.assign(existing, row);
+      return { data: null, error: null };
+    }
+    return this.doInsert(row);
   }
 
   readonly auth = {
