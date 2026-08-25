@@ -89,6 +89,24 @@ describe('FarmAccessService', () => {
         .mockResolvedValueOnce([{ id: FARM }]); // live
       expect(await service.getAccessibleFarmIds(OWNER)).toEqual([FARM]);
     });
+
+    it('scopes the soft-delete check to the caller own farms, not every farm in the database', async () => {
+      // PERF: this used to select EVERY live farm to filter a handful. The
+      // method fires on every list endpoint call (harvests, sampling, ponds,
+      // reports), so its cost grew with total farms across all tenants rather
+      // than with the caller's own — it got slower for everyone each time
+      // anyone signed up.
+      membersRepo.find.mockResolvedValue([{ farmId: FARM }]);
+      farmsRepo.find
+        .mockResolvedValueOnce([]) // owned
+        .mockResolvedValueOnce([{ id: FARM }]); // live, scoped
+
+      await service.getAccessibleFarmIds(WORKER);
+
+      const liveQuery = farmsRepo.find.mock.calls[1][0];
+      expect(liveQuery.where).toHaveProperty('id');
+      expect(liveQuery.where).toHaveProperty('deletedAt');
+    });
   });
 
   describe('getFarmIdsWithCapability (AUDIT id 142 — batched, not N+1)', () => {
