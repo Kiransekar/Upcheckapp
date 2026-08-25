@@ -28,6 +28,10 @@ import {
   DMMono_400Regular,
   DMMono_500Medium,
 } from '@expo-google-fonts/dm-mono';
+// Material Symbols Rounded — the redesign names its icons in Material Symbols
+// terms, and this is a ligature font, so components render the icon NAME as
+// text (see components/ui/Icon.tsx).
+import { MaterialSymbolsRounded_400Regular } from '@expo-google-fonts/material-symbols-rounded';
 
 export default function App() {
   const [expoPushToken, setExpoPushToken] = useState('');
@@ -74,6 +78,7 @@ export default function App() {
     'DMSans-SemiBold': DMSans_700Bold,
     'DMMono-Regular': DMMono_400Regular,
     'DMMono-Medium': DMMono_500Medium,
+    MaterialSymbolsRounded: MaterialSymbolsRounded_400Regular,
   });
 
   useEffect(() => {

@@ -31,6 +31,11 @@ const common = {
   status: 'Status',
   actions: 'Actions',
   // Bottom-tab labels
+  tabToday: 'Today',
+  tabFarm: 'Farm',
+  tabMoney: 'Money',
+  tabTeam: 'Team',
+  tabSettings: 'Settings',
   tabDashboard: 'Dashboard',
   tabFarms: 'Farms',
   tabReports: 'Reports',

@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
+import { Icon } from '../components/ui/Icon';
 import { usePermissions } from '../hooks/usePermissions';
 
 // Import screens
@@ -13,6 +14,8 @@ import { HomeScreen } from '../screens/main/HomeScreen';
 import { FarmsListScreen } from '../screens/farms/FarmsListScreen';
 import { ReportsScreen } from '../screens/main/ReportsScreen';
 import { MoreScreen } from '../screens/main/MoreScreen';
+import { TeamScreen } from '../screens/main/TeamScreen';
+import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -44,7 +47,7 @@ const QuickLogButton = () => {
                     end={theme.gradients.brand.end}
                     style={styles.centerFab}
                 >
-                    <MaterialCommunityIcons name="plus" size={30} color={theme.roles.light.textInverse} />
+                    <Icon name="edit_note" size={28} color={theme.roles.light.textInverse} />
                 </LinearGradient>
             </TouchableOpacity>
         </View>
@@ -53,6 +56,12 @@ const QuickLogButton = () => {
 
 export const MainNavigator = () => {
     const { t } = useTranslation();
+    // The tab set is CAPABILITY-DRIVEN, not account-driven. The design shows
+    // six tabs for an owner and the same five minus Money for a worker, and
+    // Money is exactly VIEW_FINANCIALS — so the nav derives from the same
+    // matrix the backend enforces rather than from any global account flag.
+    // Hidden, not disabled: a tab a worker may not open should not be there.
+    const perms = usePermissions();
 
     return (
         <Tab.Navigator
@@ -79,20 +88,16 @@ export const MainNavigator = () => {
                 name="Dashboard"
                 component={HomeScreen}
                 options={{
-                    tabBarLabel: t('common.tabDashboard'),
-                    tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="view-dashboard" color={color} size={size} />
-                    ),
+                    tabBarLabel: t('common.tabToday'),
+                    tabBarIcon: ({ color }) => <Icon name="flag" color={color} size={22} />,
                 }}
             />
             <Tab.Screen
                 name="Farms"
                 component={FarmsListScreen}
                 options={{
-                    tabBarLabel: t('common.tabFarms'),
-                    tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="barn" color={color} size={size} />
-                    ),
+                    tabBarLabel: t('common.tabFarm'),
+                    tabBarIcon: ({ color }) => <Icon name="grid_view" color={color} size={22} />,
                 }}
             />
             {/* Center quick-log action — opens the Quick Log modal, never a tab. */}
@@ -105,24 +110,33 @@ export const MainNavigator = () => {
                 }}
                 listeners={{ tabPress: (e) => e.preventDefault() }}
             />
+            {/* Money is VIEW_FINANCIALS. A worker or viewer simply does not
+                have this tab — the design shows their nav as the same set
+                minus this one. */}
+            {perms.canViewFinancials && (
+                <Tab.Screen
+                    name="Money"
+                    component={TransactionsScreen}
+                    options={{
+                        tabBarLabel: t('common.tabMoney'),
+                        tabBarIcon: ({ color }) => <Icon name="currency_rupee" color={color} size={22} />,
+                    }}
+                />
+            )}
             <Tab.Screen
-                name="Reports"
-                component={ReportsScreen}
+                name="Team"
+                component={TeamScreen}
                 options={{
-                    tabBarLabel: t('common.tabReports'),
-                    tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="chart-box" color={color} size={size} />
-                    ),
+                    tabBarLabel: t('common.tabTeam'),
+                    tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
                 }}
             />
             <Tab.Screen
                 name="More"
                 component={MoreScreen}
                 options={{
-                    tabBarLabel: t('common.tabMore'),
-                    tabBarIcon: ({ color, size }) => (
-                        <MaterialCommunityIcons name="menu" color={color} size={size} />
-                    ),
+                    tabBarLabel: t('common.tabSettings'),
+                    tabBarIcon: ({ color }) => <Icon name="settings" color={color} size={22} />,
                 }}
             />
         </Tab.Navigator>
