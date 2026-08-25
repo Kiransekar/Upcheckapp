@@ -65,7 +65,6 @@ export class SupabaseAuthService {
       firstName?: string;
       lastName?: string;
       username?: string;
-      account_type?: 'owner' | 'worker';
     },
   ) {
     const { data, error } = await this.supabase.auth.signUp({

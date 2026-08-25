@@ -10,7 +10,6 @@ import {
   Param,
   Delete,
   UseGuards,
-  ForbiddenException,
 } from '@nestjs/common';
 import { FarmsService } from './farms.service';
 import { CreateFarmDto } from './dto/create-farm.dto';
@@ -21,16 +20,19 @@ export class FarmsController {
 
   @Post()
   create(@Body() createFarmDto: CreateFarmDto, @CurrentUser() user) {
-    // A worker account creating a farm becomes that farm's owner (farm.userId
-    // is whoever created it) — there was no server-side check at all, only a
-    // client-side UX assumption that workers wouldn't reach this screen. Any
-    // worker who did (directly or via a client bug) genuinely became an
-    // "owner" of a real farm row, which is exactly the reported bug.
-    if (user.accountType === 'worker') {
-      throw new ForbiddenException(
-        'Worker accounts cannot create farms. Ask a farm owner to add you as a team member.',
-      );
-    }
+    // Anyone may create a farm; the creator becomes its `owner` in
+    // farm_members. The old `user.accountType === 'worker'` gate is gone —
+    // it was the only authorization decision anywhere that read the global
+    // account flag, and it never actually held: `account_type` lived in
+    // client-mutable Supabase user_metadata (see the removed POST
+    // /auth/supabase/update). It also contradicted the per-farm role model —
+    // a "worker" account could hold `manager` on a farm, or be handed full
+    // ownership via transferOwnership, while still being blocked from
+    // creating one of its own.
+    //
+    // Do NOT reintroduce this at farm level either (e.g. "only owner-type
+    // accounts may receive ownership transfer"). The membership row's `role`
+    // is the single answer to every "may they?" question.
     return this.farmsService.create(createFarmDto, user.id);
   }
 

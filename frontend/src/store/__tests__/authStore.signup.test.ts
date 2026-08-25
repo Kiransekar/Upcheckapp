@@ -12,26 +12,26 @@ import { useAuthStore } from '../authStore';
 
 const mockedSignup = authApi.signup as jest.Mock;
 
-describe('authStore.signup — owner vs worker first-run gating', () => {
+describe('authStore.signup — first-run gating follows the stated intent', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         useAuthStore.setState({ pendingFarmSetup: false, pendingFarmJoin: false } as any);
     });
 
-    it('gates an owner into farm setup, not farm join', async () => {
+    it('routes "I run my own farm" into farm setup, not farm join', async () => {
         mockedSignup.mockResolvedValue({ data: { session: { access_token: 't', user: { email: 'a@b.com' } } } });
 
-        await useAuthStore.getState().signup('a@b.com', 'pw', 'A', 'B', 'owner');
+        await useAuthStore.getState().signup('a@b.com', 'pw', 'A', 'B', 'own_farm');
 
         const s = useAuthStore.getState();
         expect(s.pendingFarmSetup).toBe(true);
         expect(s.pendingFarmJoin).toBe(false);
     });
 
-    it('gates a worker into farm join, not farm setup', async () => {
+    it('routes "I work on someone else\'s farm" into farm join, not farm setup', async () => {
         mockedSignup.mockResolvedValue({ data: { session: { access_token: 't', user: { email: 'a@b.com' } } } });
 
-        await useAuthStore.getState().signup('a@b.com', 'pw', 'A', 'B', 'worker');
+        await useAuthStore.getState().signup('a@b.com', 'pw', 'A', 'B', 'work_on_farm');
 
         const s = useAuthStore.getState();
         expect(s.pendingFarmSetup).toBe(false);

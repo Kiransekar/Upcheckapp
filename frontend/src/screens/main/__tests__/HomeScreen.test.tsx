@@ -262,7 +262,7 @@ describe('HomeScreen — worker dashboard v1 (#48)', () => {
         jest.clearAllMocks();
         await AsyncStorage.clear();
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
-        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in', accountType: 'worker' } } as any);
+        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in' } } as any);
         useMembershipStore.setState({
             memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
             loaded: true, loading: false,
