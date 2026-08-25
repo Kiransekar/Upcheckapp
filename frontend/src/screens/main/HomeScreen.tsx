@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/ui/Skeleton';
 import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
 import { FarmContextBar } from '../../components/dashboard/FarmContextBar';
+import { NextActionCard, rankActions } from '../../components/dashboard/NextActionCard';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
@@ -80,6 +81,12 @@ export const HomeScreen = ({ navigation }: any) => {
     // tap (docs/UI_UX_AUDIT.md homepage redesign, Phase 1).
     const [alerts, setAlerts] = useState<BriefingItem[]>([]);
     const [alertsLoading, setAlertsLoading] = useState(true);
+    // Actions deferred with "Later" — component state on purpose. It is a
+    // "not right now", not a decision worth persisting: next time the farmer
+    // opens Home the pond either still needs attention (so it comes back) or
+    // it does not (so it is gone). Persisting would need an expiry policy for
+    // something that expires naturally.
+    const [deferred, setDeferred] = useState<string[]>([]);
     // Per-pond severity, keyed by pondId — drives the small severity dot on
     // "Your Ponds" cards below, from the SAME fetch (no extra round trips).
     const [pondSeverity, setPondSeverity] = useState<Record<string, AlertSeverity>>({});
@@ -203,6 +210,19 @@ export const HomeScreen = ({ navigation }: any) => {
         setIsLoading(true);
         fetchSummary();
     }, [fetchSummary]);
+
+    // Alerts still worth acting on right now.
+    const nextActions = rankActions(alerts).filter(
+        (a) => !deferred.includes(a.pondId ?? a.topTitle),
+    );
+    // Each item carries the farm it came from — Home spans every farm, so an
+    // action without its farm name is ambiguous the moment you have two.
+    const farmNameForPond = (pondId: string | null) => {
+        if (!pondId) return undefined;
+        const pond = ponds.find((pd) => pd.id === pondId);
+        if (!pond) return selectedFarm?.name;
+        return pond.farmId === selectedFarm?.id ? selectedFarm?.name : undefined;
+    };
 
     const pondsForSelectedFarm = selectedFarm?.id
         ? ponds.filter((p) => p.farmId === selectedFarm.id).length
@@ -399,6 +419,25 @@ export const HomeScreen = ({ navigation }: any) => {
                 multi-farm members. This is the core fix for the owner-vs-worker
                 ambiguity: role is now a distinct colored badge, not a faint line. */}
             <FarmContextBar />
+
+            {/* "Do this first" — the redesign's centrepiece (artboard 1b).
+                Home used to open on a LIST of alerts, which makes the farmer
+                rank severity, pond and farm before they can act. This does the
+                ranking and states ONE action; the list below becomes "then". */}
+            {!alertsLoading && nextActions.length > 0 && (
+                <NextActionCard
+                    items={nextActions}
+                    farmNameForPond={farmNameForPond}
+                    onDone={(item) => {
+                        // Recording the reading is what actually clears the
+                        // alert, so send them to the log for that pond rather
+                        // than optimistically marking it resolved here.
+                        setDeferred((d) => [...d, item.pondId ?? item.topTitle]);
+                        goRoot('QuickLog', item.pondId ? { pondId: item.pondId } : undefined);
+                    }}
+                    onLater={(item) => setDeferred((d) => [...d, item.pondId ?? item.topTitle])}
+                />
+            )}
 
             {/* "Needs Attention" — top of the page, always, so a critical issue in
                 any pond is visible before Getting Started/stats/ponds, not just
