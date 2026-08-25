@@ -79,7 +79,11 @@ export class ReportsService {
   }
 
   async getCycleAnalysis(cycleId: string, userId: string) {
-    // Verify the caller owns this cycle (throws Forbidden/NotFound otherwise).
+    // Deliberately the VIEW_FINANCIALS-strict `cropsService.findOne` (owner +
+    // manager), NOT `findOneAccessible`. Cycle analysis is a financial report,
+    // so it must inherit the same capability the economics path uses. Do not
+    // "fix" this to the member-aware variant — that would hand a worker or
+    // viewer the farm's cycle economics.
     const crop = await this.cropsService.findOne(cycleId, userId);
 
     const [samplings, harvests] = await Promise.all([

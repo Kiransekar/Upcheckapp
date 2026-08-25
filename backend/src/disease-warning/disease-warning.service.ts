@@ -205,7 +205,8 @@ export class DiseaseWarningService {
     userId: string,
     cropId?: string,
   ): Promise<DiseaseRiskSnapshot> {
-    await this.pondsService.findOne(pondId, userId);
+    // Persisting a risk snapshot is field-level output — WRITE_OPERATIONAL.
+    await this.pondsService.verifyAccess(pondId, userId, 'WRITE_OPERATIONAL');
     const risks = this.computeRisks(indicators);
     const snap = this.repo.create({
       pondId,
@@ -217,7 +218,7 @@ export class DiseaseWarningService {
   }
 
   async recent(pondId: string, userId: string): Promise<DiseaseRiskSnapshot[]> {
-    await this.pondsService.findOne(pondId, userId);
+    await this.pondsService.verifyAccess(pondId, userId, 'READ');
     return this.repo.find({
       where: { pondId },
       order: { date: 'DESC' },
@@ -226,7 +227,7 @@ export class DiseaseWarningService {
   }
 
   async latest(pondId: string, userId: string): Promise<DiseaseRiskSnapshot> {
-    await this.pondsService.findOne(pondId, userId);
+    await this.pondsService.verifyAccess(pondId, userId, 'READ');
     const snap = await this.repo.findOne({
       where: { pondId },
       order: { date: 'DESC' },

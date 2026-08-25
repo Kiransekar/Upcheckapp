@@ -51,15 +51,17 @@ function makeService(
   };
   const trayRepo = { findOne: jest.fn().mockResolvedValue(over.tray ?? null) };
   const wqRepo = { find: jest.fn().mockResolvedValue(over.wqRecords ?? []) };
+  // Pond context is a dashboard read: it goes through the member-aware
+  // helpers at READ, not the owner-only / financial-strict variants.
   const pondsService = {
-    findOne: jest
+    findOneAccessible: jest
       .fn()
       .mockResolvedValue(
         over.pond ?? { id: 'p1', calculatedAreaM2: 4000, activeCycleId: 'c1' },
       ),
   };
   const cropsService = {
-    findOne: jest.fn().mockResolvedValue(over.crop ?? null),
+    findOneAccessible: jest.fn().mockResolvedValue(over.crop ?? null),
   };
   const svc = new PondContextService(
     samplingRepo as any,

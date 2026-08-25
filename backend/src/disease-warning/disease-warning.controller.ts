@@ -1,5 +1,14 @@
-import { Controller, Get, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { DiseaseWarningService } from './disease-warning.service';
 import type { DiseaseIndicators } from './disease-warning.service';
 
@@ -23,6 +32,8 @@ export class DiseaseWarningController {
 
   /** Persist a ranked risk snapshot for a pond. */
   @Post()
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_OPERATIONAL')
   snapshot(@Body() body: SnapshotBody, @CurrentUser() user) {
     return this.service.snapshot(
       body.pondId,
@@ -34,11 +45,15 @@ export class DiseaseWarningController {
   }
 
   @Get('pond/:pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   recent(@Param('pondId') pondId: string, @CurrentUser() user) {
     return this.service.recent(pondId, user.id);
   }
 
   @Get('pond/:pondId/latest')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   latest(@Param('pondId') pondId: string, @CurrentUser() user) {
     return this.service.latest(pondId, user.id);
   }

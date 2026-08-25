@@ -22,8 +22,14 @@ export class CropsService {
   ) {}
 
   async create(createCropDto: CreateCropDto, userId: string) {
-    // Verify user owns the pond (throws otherwise).
-    const owned = await this.pondsService.findOne(createCropDto.pondId, userId);
+    // Starting a cycle is WRITE_MANAGEMENT (owner + manager) — matching the
+    // route guard. Owner-only findOne here used to 403 a manager who had
+    // already passed that guard.
+    const owned = await this.pondsService.findOneAccessible(
+      createCropDto.pondId,
+      userId,
+      'WRITE_MANAGEMENT',
+    );
 
     // Default status to 'active' — and use the SAME resolved value below so a
     // cycle created without an explicit status still links to the pond.
@@ -120,13 +126,27 @@ export class CropsService {
     });
   }
 
+  /**
+   * VIEW_FINANCIALS crop read (owner + manager). This is the economics path —
+   * P&L, cycle analysis. For anything user-facing that is NOT financial, use
+   * `findOneAccessible`, which is member-aware at READ. Keeping both makes the
+   * distinction explicit; picking the wrong one either 403s a legitimate
+   * manager or leaks farm economics to a worker.
+   */
   async findOne(id: string, userId: string) {
     const crop = await this.cropsRepository.findOneBy({ id });
     if (!crop) {
       throw new NotFoundException(`Crop with ID ${id} not found`);
     }
-    // Verify ownership via pond (STRICT — this path feeds economics/PNL)
-    await this.pondsService.findOne(crop.pondId, userId);
+    // STRICT — this path feeds economics/PNL. Express that intent as the
+    // capability that actually means it (owner + manager) rather than
+    // owner-only, so it matches CAPABILITY_ROLES. `reports.getCycleAnalysis`
+    // inherits the right behaviour from here.
+    await this.pondsService.findOneAccessible(
+      crop.pondId,
+      userId,
+      'VIEW_FINANCIALS',
+    );
     return this.enrichWithDOC(crop);
   }
 
@@ -179,10 +199,17 @@ export class CropsService {
   }
 
   async remove(id: string, userId: string) {
-    const crop = await this.findOne(id, userId); // Verify ownership
+    const crop = await this.findOne(id, userId); // VIEW_FINANCIALS, see above
 
-    // If deleting the active cycle, clear it from pond
-    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    // Deleting a cycle is OWNER_ONLY — assert it here rather than relying on
+    // the route guard alone. An owner satisfies both this and the
+    // VIEW_FINANCIALS check in findOne above; a manager clears findOne and is
+    // stopped here, which is the intended outcome.
+    const pond = await this.pondsService.findOneAccessible(
+      crop.pondId,
+      userId,
+      'OWNER_ONLY',
+    );
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,
@@ -207,8 +234,12 @@ export class CropsService {
       status: 'completed',
     });
 
-    // Unlink from ponds activeCycleId
-    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    // Unlink from ponds activeCycleId. Harvesting is WRITE_MANAGEMENT.
+    const pond = await this.pondsService.findOneAccessible(
+      crop.pondId,
+      userId,
+      'WRITE_MANAGEMENT',
+    );
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,
@@ -241,7 +272,12 @@ export class CropsService {
     // Let's get the pond first to be safe?
     // findOne already calls pondService.findOne(crop.pondId), but doesn't return pond.
 
-    const pond = await this.pondsService.findOne(crop.pondId, userId);
+    // Closing a cycle is WRITE_MANAGEMENT.
+    const pond = await this.pondsService.findOneAccessible(
+      crop.pondId,
+      userId,
+      'WRITE_MANAGEMENT',
+    );
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,

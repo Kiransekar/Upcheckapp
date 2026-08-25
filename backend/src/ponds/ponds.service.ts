@@ -272,7 +272,18 @@ export class PondsService {
     });
   }
 
-  async findOne(id: string, userId: string) {
+  /**
+   * OWNER-ONLY pond fetch. Deliberately NOT called `findOne`: sitting next to
+   * the member-aware `findOneAccessible`, that name invited every new engine to
+   * reach for it and silently 403 managers and workers who the capability
+   * matrix says have access — which is exactly the bug W1 fixed across twenty
+   * call sites.
+   *
+   * Use `findOneAccessible(id, userId, capability)` unless the operation really
+   * is owner-exclusive. The only caller today is `remove()`, whose route guard
+   * is `OWNER_ONLY`, so this check is equal to the guard rather than stricter.
+   */
+  async findOneAsOwner(id: string, userId: string) {
     const pond = await this.pondsRepository.findOne({
       where: { id },
       relations: ['farm'],
@@ -391,7 +402,9 @@ export class PondsService {
    * Hard delete a pond. Only allowed for ponds with no cycles ever.
    */
   async remove(id: string, userId: string) {
-    const pond = await this.findOne(id, userId);
+    // Pond deletion is OWNER_ONLY at the route guard; keep the service check
+    // equal to it, not stricter and not looser.
+    const pond = await this.findOneAsOwner(id, userId);
 
     if (pond.activeCycleId) {
       throw new ConflictException('Cannot delete a pond with an active cycle');

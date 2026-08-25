@@ -1,5 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { PondContextService } from './pond-context.service';
 
 /**
@@ -11,6 +13,8 @@ export class PondContextController {
   constructor(private readonly service: PondContextService) {}
 
   @Get(':pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   get(@Param('pondId') pondId: string, @CurrentUser() user) {
     return this.service.getContext(pondId, user.id);
   }
