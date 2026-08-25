@@ -5,7 +5,10 @@ import { In } from 'typeorm';
 import { FarmsService } from './farms.service';
 import { Farm } from './farm.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 
 describe('FarmsService', () => {
   let service: FarmsService;
@@ -79,16 +82,33 @@ describe('FarmsService', () => {
       );
     });
 
-    it('should use provided farm code if given', async () => {
+    it('ignores a client-supplied farm code and generates one server-side', async () => {
       repository.create.mockReturnValue(mockFarm);
       repository.save.mockResolvedValue(mockFarm);
+      repository.findOneBy.mockResolvedValue(null); // no collision
 
-      await service.create({ name: 'Farm', farmCode: 'CUSTOM01' }, 'user-1');
-      expect(repository.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          farmCode: 'CUSTOM01',
-        }),
+      // `farmCode` is no longer on CreateFarmDto; the global ValidationPipe
+      // strips it in production. Cast here to prove the service ignores it even
+      // if one reaches it another way.
+      await service.create(
+        { name: 'Farm', farmCode: 'CUSTOM01' } as any,
+        'user-1',
       );
+
+      const created = repository.create.mock.calls[0][0];
+      expect(created.farmCode).not.toBe('CUSTOM01');
+      expect(created.farmCode).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+    });
+
+    it('throws rather than returning a colliding code after 10 attempts', async () => {
+      // Every generated candidate already exists.
+      repository.findOneBy.mockResolvedValue(mockFarm);
+
+      await expect(service.create({ name: 'Farm' }, 'user-1')).rejects.toThrow(
+        InternalServerErrorException,
+      );
+      expect(repository.findOneBy).toHaveBeenCalledTimes(10);
+      expect(repository.save).not.toHaveBeenCalled();
     });
   });
 
