@@ -31,6 +31,11 @@ const common = {
   status: 'स्थिति',
   actions: 'क्रियाएं',
   // Bottom-tab labels
+  tabToday: 'आज',
+  tabFarm: 'फ़ार्म',
+  tabMoney: 'पैसा',
+  tabTeam: 'टीम',
+  tabSettings: 'सेटिंग्स',
   tabDashboard: 'डैशबोर्ड',
   tabFarms: 'फार्म',
   tabReports: 'रिपोर्ट',

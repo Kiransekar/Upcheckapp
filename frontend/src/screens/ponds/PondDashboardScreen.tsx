@@ -66,7 +66,7 @@ const ActionChip = ({ item, mode, onPress }: { item: ActionConfig; mode: ChipMod
 const chipStyles = StyleSheet.create({
     chip: { alignItems: 'center', width: (SCREEN_WIDTH - theme.spacing[4] * 2 - theme.spacing[3] * 2) / 3, paddingVertical: theme.spacing[3] },
     iconWrap: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
-    label: { fontSize: 11, fontWeight: '500', color: '#374151', textAlign: 'center' },
+    label: { fontSize: 11, fontWeight: '500', color: theme.roles.light.textSecondary, textAlign: 'center' },
 });
 
 const SectionTab = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
@@ -78,15 +78,15 @@ const SectionTab = ({ label, active, onPress }: { label: string; active: boolean
 const tabStyles = StyleSheet.create({
     tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
     tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
-    label: { fontSize: 13, fontWeight: '500', color: '#9CA3AF' },
-    labelActive: { color: '#111827', fontWeight: '700' },
+    label: { fontSize: 13, fontWeight: '500', color: theme.roles.light.textTertiary },
+    labelActive: { color: theme.roles.light.textPrimary, fontWeight: '700' },
 });
 
 const DOC_MAX = 120;
 
 const DocBadge = ({ doc }: { doc: number }) => {
     const progress = Math.min(doc / DOC_MAX, 1);
-    const color = progress < 0.4 ? '#4CAF50' : progress < 0.75 ? '#FF9800' : '#F44336';
+    const color = progress < 0.4 ? theme.roles.light.successBorder : progress < 0.75 ? theme.roles.light.warningBorder : theme.roles.light.dangerBorder;
 
     return (
         <View style={docStyles.container}>
@@ -107,12 +107,12 @@ const docStyles = StyleSheet.create({
     innerRing: { position: 'absolute', width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderStyle: 'dashed' },
     center: { alignItems: 'center' },
     number: { fontSize: 20, fontWeight: '800', lineHeight: 22 },
-    suffix: { fontSize: 9, fontWeight: '600', color: '#9CA3AF', letterSpacing: 1 },
+    suffix: { fontSize: 9, fontWeight: '600', color: theme.roles.light.textTertiary, letterSpacing: 1 },
 });
 
 const MetricTile = ({ label, value, unit, icon }: { label: string; value: string; unit: string; icon: string }) => (
     <View style={tileStyles.container}>
-        <MaterialCommunityIcons name={icon as any} size={14} color="#9CA3AF" style={{ marginBottom: 4 }} />
+        <MaterialCommunityIcons name={icon as any} size={14} color={theme.roles.light.textTertiary} style={{ marginBottom: 4 }} />
         <Text style={tileStyles.value}>
             {value}
             {value !== '--' && unit ? <Text style={tileStyles.unit}> {unit}</Text> : null}
@@ -123,9 +123,9 @@ const MetricTile = ({ label, value, unit, icon }: { label: string; value: string
 
 const tileStyles = StyleSheet.create({
     container: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-    value: { fontSize: 18, fontWeight: '700', color: '#111827' },
-    unit: { fontSize: 11, fontWeight: '500', color: '#6B7280' },
-    label: { fontSize: 10, fontWeight: '500', color: '#9CA3AF', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
+    value: { fontSize: 18, fontWeight: '700', color: theme.roles.light.textPrimary },
+    unit: { fontSize: 11, fontWeight: '500', color: theme.roles.light.textSecondary },
+    label: { fontSize: 10, fontWeight: '500', color: theme.roles.light.textTertiary, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
 });
 
 export const PondDashboardScreen = ({ route, navigation }: any) => {
@@ -136,20 +136,20 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     // loop and show by default; the rest (occasional clinical/lab logs) collapse
     // under "More" to keep the daily surface uncluttered.
     const ACTION_CONFIG: ActionConfig[] = [
-        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: '#2196F3', bg: '#E3F2FD', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory', core: true },
-        { label: t('ponds.actionFeed'), icon: 'corn', color: '#FF9800', bg: '#FFF3E0', logRoute: 'FeedLog', historyRoute: 'FeedHistory', core: true },
-        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: '#0B8457', bg: '#E6F5EE', logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine', core: true },
-        { label: t('ponds.actionSampling'), icon: 'scale', color: '#4CAF50', bg: '#E8F5E9', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
-        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: '#0D84D6', bg: '#EBF4FD', logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
-        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: '#7C4DFF', bg: '#EFEAFE', logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
-        { label: t('ponds.actionTreatment'), icon: 'pill', color: '#F44336', bg: '#FFEBEE', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
-        { label: t('ponds.actionMortality'), icon: 'alert-circle', color: '#E53935', bg: '#FCE4EC', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
-        { label: t('ponds.actionDisease'), icon: 'virus', color: '#9C27B0', bg: '#F3E5F5', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
-        { label: t('ponds.actionChemical'), icon: 'flask', color: '#FF6D00', bg: '#FFF8E1', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
-        { label: t('ponds.actionPlankton'), icon: 'leaf', color: '#00897B', bg: '#E0F2F1', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
-        { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: '#607D8B', bg: '#ECEFF1', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-        { label: t('ponds.actionHarvest'), icon: 'basket', color: '#43A047', bg: '#F1F8E9', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
-        { label: t('ponds.actionWeeklyChem'), icon: 'flask-outline', color: '#FF6D00', bg: '#FFF3E6', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
+        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory', core: true },
+        { label: t('ponds.actionFeed'), icon: 'corn', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'FeedLog', historyRoute: 'FeedHistory', core: true },
+        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: theme.roles.light.successText, bg: theme.roles.light.successBg, logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine', core: true },
+        { label: t('ponds.actionSampling'), icon: 'scale', color: theme.roles.light.successBorder, bg: theme.roles.light.successBg, logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
+        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
+        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
+        { label: t('ponds.actionTreatment'), icon: 'pill', color: theme.roles.light.dangerBorder, bg: theme.roles.light.dangerBg, logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
+        { label: t('ponds.actionMortality'), icon: 'alert-circle', color: theme.roles.light.dangerBorder, bg: theme.roles.light.dangerBg, logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
+        { label: t('ponds.actionDisease'), icon: 'virus', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
+        { label: t('ponds.actionChemical'), icon: 'flask', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
+        { label: t('ponds.actionPlankton'), icon: 'leaf', color: theme.roles.light.successText, bg: theme.roles.light.successBg, logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
+        { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: theme.roles.light.textSecondary, bg: theme.roles.light.surfaceVariant, logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
+        { label: t('ponds.actionHarvest'), icon: 'basket', color: theme.roles.light.successBorder, bg: theme.roles.light.successBg, logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
+        { label: t('ponds.actionWeeklyChem'), icon: 'flask-outline', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
     ];
     const coreActions = ACTION_CONFIG.filter((a) => a.core);
     const moreCount = ACTION_CONFIG.length - coreActions.length;
@@ -318,7 +318,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const doc = activeCycle?.stockingDate
         ? computeDOC(activeCycle.stockingDate, activeCycle.initialAgeDays ?? 0)
         : (activeCycle?.doc ?? 0);
-    const pondStatusColor = pond?.status === 'active' ? '#4CAF50' : pond?.status === 'fallow' ? '#FF9800' : '#9E9E9E';
+    const pondStatusColor = pond?.status === 'active' ? theme.roles.light.successBorder : pond?.status === 'fallow' ? theme.roles.light.warningBorder : theme.roles.light.textDisabled;
 
     const renderSkeleton = () => (
         <View style={styles.scrollContent}>
@@ -358,14 +358,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="arrow-left" size={22} color="#111827" />
+                    <MaterialCommunityIcons name="arrow-left" size={22} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                     <View style={[styles.statusDot, { backgroundColor: pondStatusColor }]} />
                     <Text style={styles.headerTitle} numberOfLines={1}>{pondName}</Text>
                 </View>
                 <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="cog-outline" size={22} color="#111827" />
+                    <MaterialCommunityIcons name="cog-outline" size={22} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
             </View>
 
@@ -377,7 +377,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 <ErrorState title={t('ponds.errorPondTitle')} error={error} onRetry={handleRetry} />
             ) : (
                 <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={['#2196F3']} tintColor="#2196F3" />}>
+                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />}>
                         {activeCycle && wqAlert && (
                             <AlertBanner title={t('ponds.wqAlertTitle')} message={t('ponds.wqAlertMessage')} type="warning" />
                         )}
@@ -413,7 +413,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                         ) : (
                             <View style={styles.idleCard}>
                                 <View style={styles.idleIconWrap}>
-                                    <MaterialCommunityIcons name="water-outline" size={40} color="#9CA3AF" />
+                                    <MaterialCommunityIcons name="water-outline" size={40} color={theme.roles.light.textTertiary} />
                                 </View>
                                 <Text style={styles.idleTitle}>{t('ponds.idleTitle')}</Text>
                                 <Text style={styles.idleSubtitle}>{t('ponds.idleSubtitle')}</Text>
@@ -461,9 +461,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                     activeOpacity={0.7}
                                     accessibilityRole="button"
                                 >
-                                    <MaterialCommunityIcons name="cash-multiple" size={20} color="#0B8457" />
+                                    <MaterialCommunityIcons name="cash-multiple" size={20} color={theme.roles.light.successText} />
                                     <Text style={styles.econRowText}>{t('ponds.viewExpenses')}</Text>
-                                    <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={[styles.econRow, styles.econRowLast]}
@@ -471,9 +471,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                     activeOpacity={0.7}
                                     accessibilityRole="button"
                                 >
-                                    <MaterialCommunityIcons name="calendar-check" size={20} color="#7C4DFF" />
+                                    <MaterialCommunityIcons name="calendar-check" size={20} color={theme.roles.light.primary} />
                                     <Text style={styles.econRowText}>{t('ponds.harvestPlans')}</Text>
-                                    <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
                                 </TouchableOpacity>
                             </View>
                         )}
@@ -484,9 +484,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 onPress={() => navigation.navigate('PondDimensionHistory', { pondId: pond.id, pondName })}
                                 activeOpacity={0.7}
                             >
-                                <MaterialCommunityIcons name="history" size={20} color="#6B7280" />
+                                <MaterialCommunityIcons name="history" size={20} color={theme.roles.light.textSecondary} />
                                 <Text style={styles.dimHistoryText}>{t('ponds.dimHistory', 'Dimension history')}</Text>
-                                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
                             </TouchableOpacity>
                         )}
 
@@ -496,9 +496,9 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 onPress={() => navigation.navigate('FeedingTrayChecks', { cropId: activeCycle.id, pondName })}
                                 activeOpacity={0.7}
                             >
-                                <MaterialCommunityIcons name="basket-outline" size={20} color="#6B7280" />
+                                <MaterialCommunityIcons name="basket-outline" size={20} color={theme.roles.light.textSecondary} />
                                 <Text style={styles.dimHistoryText}>{t('logs.feedingTray_title', 'Feeding tray check')}</Text>
-                                <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
                             </TouchableOpacity>
                         )}
 
@@ -511,39 +511,39 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E5E7EB' },
-    iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: theme.roles.light.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.borderDefault },
+    iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center' },
     headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 8 },
     statusDot: { width: 8, height: 8, borderRadius: 4 },
-    headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-    scrollContent: { padding: 16, backgroundColor: '#F9FAFB' },
-    heroCard: { backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
-    heroTop: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F3F4F6' },
+    headerTitle: { fontSize: 17, fontWeight: '700', color: theme.roles.light.textPrimary },
+    scrollContent: { padding: 16, backgroundColor: theme.roles.light.background },
+    heroCard: { backgroundColor: theme.roles.light.surface, borderRadius: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
+    heroTop: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.surfaceVariant },
     heroInfo: { flex: 1 },
-    heroLabel: { fontSize: 9, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
-    heroName: { fontSize: 17, fontWeight: '700', color: '#111827' },
-    heroDate: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-    harvestBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#4CAF50', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+    heroLabel: { fontSize: 9, fontWeight: '700', color: theme.roles.light.textTertiary, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
+    heroName: { fontSize: 17, fontWeight: '700', color: theme.roles.light.textPrimary },
+    heroDate: { fontSize: 12, color: theme.roles.light.textSecondary, marginTop: 2 },
+    harvestBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: theme.roles.light.successBorder, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
     harvestBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
     metricsRow: { flexDirection: 'row', alignItems: 'center' },
-    metricDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: '#E5E7EB' },
-    idleCard: { backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 16, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
-    idleIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    idleTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 6 },
-    idleSubtitle: { fontSize: 14, color: '#9CA3AF', marginBottom: 24, textAlign: 'center' },
-    startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#2196F3', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
+    metricDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: theme.roles.light.borderDefault },
+    idleCard: { backgroundColor: theme.roles.light.surface, borderRadius: 20, marginBottom: 16, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
+    idleIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    idleTitle: { fontSize: 18, fontWeight: '700', color: theme.roles.light.textSecondary, marginBottom: 6 },
+    idleSubtitle: { fontSize: 14, color: theme.roles.light.textTertiary, marginBottom: 24, textAlign: 'center' },
+    startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.roles.light.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
     startBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-    actionsSection: { backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
-    tabBar: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 12, padding: 4, marginBottom: 20 },
+    actionsSection: { backgroundColor: theme.roles.light.surface, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
+    tabBar: { flexDirection: 'row', backgroundColor: theme.roles.light.surfaceVariant, borderRadius: 12, padding: 4, marginBottom: 20 },
     actionGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-    moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: theme.spacing[2], paddingVertical: theme.spacing[3], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6' },
+    moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: theme.spacing[2], paddingVertical: theme.spacing[3], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.roles.light.surfaceVariant },
     moreToggleText: { fontSize: 13, fontWeight: '600', color: theme.roles.light.primary },
-    econSection: { backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden', marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
-    econTitle: { fontSize: 13, fontWeight: '700', color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
-    econRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#F3F4F6' },
+    econSection: { backgroundColor: theme.roles.light.surface, borderRadius: 20, overflow: 'hidden', marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
+    econTitle: { fontSize: 13, fontWeight: '700', color: theme.roles.light.textTertiary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
+    econRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.surfaceVariant },
     econRowLast: { borderBottomWidth: 0 },
-    econRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
-    dimHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 14, marginBottom: 12 },
-    dimHistoryText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+    econRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: theme.roles.light.textPrimary },
+    dimHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: theme.roles.light.surface, borderRadius: 14, marginBottom: 12 },
+    dimHistoryText: { flex: 1, fontSize: 15, fontWeight: '600', color: theme.roles.light.textPrimary },
     mb2: { marginBottom: theme.spacing[2] },
 });

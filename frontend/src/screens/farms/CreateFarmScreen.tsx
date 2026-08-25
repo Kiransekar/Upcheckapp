@@ -6,9 +6,12 @@ import * as Location from 'expo-location';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { Stepper } from '../../components/ui/Stepper';
+import { Icon } from '../../components/ui/Icon';
 import { LanguagePill } from '../../components/ui/LanguagePill';
 import { theme } from '../../theme';
 import { farmsApi } from '../../api/farms';
+import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 
@@ -25,6 +28,11 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
     const completeFarmSetup = useAuthStore((s) => s.completeFarmSetup);
     const showToast = useUIStore((s) => s.showToast);
+    // How many farms they already have. Drives the design's "YOUR 4TH FARM"
+    // eyebrow and the reassurance line at the bottom.
+    const memberships = useMembershipStore((st) => st.memberships);
+    const existingFarmCount = memberships.length;
+
     const [name, setName] = useState('');
     const [numPonds, setNumPonds] = useState('');
     const [address, setAddress] = useState('');
@@ -160,6 +168,11 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 </View>
 
                 <View style={styles.setupHeader}>
+                    {existingFarmCount > 0 && (
+                        <Text style={styles.eyebrow}>
+                            {t('farms.yourNthFarm', { n: existingFarmCount + 1 })}
+                        </Text>
+                    )}
                     <Text style={styles.setupTitle}>
                         {pendingFarmSetup ? t('farms.setupTitle') : t('farms.createFarmTitle')}
                     </Text>
@@ -177,15 +190,29 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                     required
                 />
 
-                <Input
-                    label={t('farms.fieldPondCount')}
-                    value={numPonds}
-                    onChangeText={setNumPonds}
-                    placeholder={t('farms.placeholderPondCount')}
-                    keyboardType="number-pad"
-                    error={errors.numPonds}
-                    required={pendingFarmSetup}
-                />
+                {/* A stepper, not a keyboard. Pond count is a small whole
+                    number and the farmer is often outdoors — the design shows
+                    − / + controls, and Stepper already implements them to the
+                    44dp tap-target rule. */}
+                <View style={styles.pondSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>{t('farms.pondsSection')}</Text>
+                        <View style={styles.sectionRule} />
+                    </View>
+                    <Stepper
+                        label={t('farms.createPondsNow')}
+                        value={Number(numPonds) || 0}
+                        onChange={(v) => setNumPonds(String(v))}
+                        min={0}
+                        max={200}
+                    />
+                    <Text style={styles.pondHint}>
+                        {Number(numPonds) > 0
+                            ? t('farms.pondsNamedHint', { last: Number(numPonds) })
+                            : t('farms.pondsLaterHint')}
+                    </Text>
+                    {errors.numPonds ? <Text style={styles.fieldError}>{errors.numPonds}</Text> : null}
+                </View>
 
                 <Input
                     label={t('farms.fieldAddress')}
@@ -255,6 +282,24 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                     })}
                 </View>
 
+                {/* The farm code is created with the farm — say so here rather
+                    than letting the owner discover it on the members screen. */}
+                <View style={styles.noteCard}>
+                    <Icon name="key" size={20} color={theme.roles.light.primary} />
+                    <Text style={styles.noteText}>{t('farms.farmCodeNote')}</Text>
+                </View>
+
+                {/* T3.15 — the plan asked for a "confirmation step" on farm
+                    creation to discourage junk farms. The design answers it as
+                    a reassurance LINE, not a modal: the worry it addresses is
+                    "will this replace or affect my existing farms?", and a
+                    confirm dialog would add friction without answering that. */}
+                <Text style={styles.reassurance}>
+                    {existingFarmCount > 0
+                        ? t('farms.stayOwnerWithOthers', { count: existingFarmCount })
+                        : t('farms.stayOwner')}
+                </Text>
+
                 <Button
                     title={t('farms.saveFarm')}
                     onPress={handleSave}
@@ -267,6 +312,30 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    eyebrow: {
+        ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary,
+        letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '600',
+        marginBottom: theme.spacing[1],
+    },
+    pondSection: { marginBottom: theme.spacing[4], gap: theme.spacing[2] },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+    sectionLabel: {
+        ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary,
+        letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '600',
+    },
+    sectionRule: { flex: 1, height: 1, backgroundColor: theme.roles.light.borderDefault },
+    pondHint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    fieldError: { ...theme.typeScale.bodySmall, color: theme.roles.light.dangerText },
+    noteCard: {
+        flexDirection: 'row', alignItems: 'flex-start', gap: theme.spacing[3],
+        padding: theme.spacing[4], borderRadius: theme.radius.md,
+        backgroundColor: theme.roles.light.infoBg, marginBottom: theme.spacing[3],
+    },
+    noteText: { ...theme.typeScale.bodyMedium, color: theme.roles.light.infoText, flex: 1 },
+    reassurance: {
+        ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary,
+        marginBottom: theme.spacing[3],
+    },
     formContainer: {
         paddingTop: theme.spacing[4],
     },
