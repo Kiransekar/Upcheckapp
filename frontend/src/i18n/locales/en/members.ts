@@ -45,6 +45,7 @@ const members = {
     declineTitle: 'Turn them away?',
     declineConfirm: '{{name}} will not join this farm. They can ask again with a new code.',
     approveError: 'Could not update the request. Please try again.',
+    loadErrorTitle: 'Could not load the team',
     emptyTitle: 'No team members yet',
     emptySub: 'Add a worker so they can log water quality and feed for this farm.',
     addWorker: 'Add worker',
