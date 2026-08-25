@@ -47,7 +47,7 @@ const renderScreen = () =>
 describe('AttendanceScreen — worker self check-in/out (#50)', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in', accountType: 'worker' } } as any);
+        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in' } } as any);
         jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     });
 

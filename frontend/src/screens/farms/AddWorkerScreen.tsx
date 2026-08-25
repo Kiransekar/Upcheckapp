@@ -57,6 +57,12 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
             setFound(data);
         } catch (e: any) {
             setFound(null);
+            // Re-arm the scanner. `onBarcode` sets `scanned` before calling us and
+            // bails out early while it is true, so without this a valid-prefix QR
+            // whose lookup fails wedges the camera until the user toggles modes.
+            // Same 1200ms debounce as the invalid-prefix path below, so dismissing
+            // the alert doesn't immediately re-scan the same failing code.
+            setTimeout(() => setScanned(false), 1200);
             Alert.alert(t('members.notFoundTitle'), e?.response?.data?.message ?? t('members.notFoundSub'));
         } finally {
             setBusy(false);

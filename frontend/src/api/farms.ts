@@ -22,7 +22,7 @@ export interface Farm {
 
 export interface CreateFarmDto {
     name: string;
-    farmCode?: string;
+    // No farmCode — the server always generates it. Sending one is ignored.
     areaHectares?: number;
     address?: string;
     waterSourceType?: string;

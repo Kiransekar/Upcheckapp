@@ -227,20 +227,30 @@ describe('PondsService', () => {
     });
   });
 
-  // ── findOne ────────────────────────────────────────────────
+  // ── findOneAsOwner (was findOne) ────────────────────────────
 
-  describe('findOne', () => {
-    it('should return pond for authorized user', async () => {
+  describe('findOneAsOwner', () => {
+    it('should return pond for the owner', async () => {
       pondsRepository.findOne.mockResolvedValue(mockPond);
-      const result = await service.findOne('pond-1', 'user-1');
+      const result = await service.findOneAsOwner('pond-1', 'user-1');
       expect(result).toEqual(mockPond);
     });
 
     it('should throw NotFoundException when not found', async () => {
       pondsRepository.findOne.mockResolvedValue(null);
-      await expect(service.findOne('bad-id', 'user-1')).rejects.toThrow(
+      await expect(service.findOneAsOwner('bad-id', 'user-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should throw ForbiddenException for a non-owner, even a farm member', async () => {
+      pondsRepository.findOne.mockResolvedValue({
+        ...mockPond,
+        farm: { userId: 'someone-else' },
+      });
+      await expect(
+        service.findOneAsOwner('pond-1', 'user-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 

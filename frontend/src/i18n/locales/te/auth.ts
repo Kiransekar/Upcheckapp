@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "మరియు",
 
   // ── Account type selection ────────────────────────────────────────────────
-  accountTypeLabel: 'నేను ఒక…',
-  accountTypeRequired: 'దయచేసి ఖాతా రకాన్ని ఎంచుకోండి',
-  accountOwnerTitle: 'ఫారం యజమాని',
-  accountOwnerDesc: 'మీ స్వంత ఫారాన్ని సెటప్ చేసి నిర్వహించండి',
-  accountWorkerTitle: 'కార్మికుడు',
-  accountWorkerDesc: 'ఫారంలో చేరి రోజువారీ పనిని నమోదు చేయండి',
+  signupIntentLabel: 'మీరు దేని కోసం వచ్చారు?',
+  signupIntentRequired: 'దయచేసి ఒకటి ఎంచుకోండి',
+  intentOwnFarmTitle: 'నేను నా సొంత ఫారం నడుపుతాను',
+  intentOwnFarmDesc: 'మీ ఫారం, చెరువులు సెటప్ చేయండి',
+  intentWorkOnFarmTitle: 'నేను ఇతరుల ఫారంలో పని చేస్తాను',
+  intentWorkOnFarmDesc: 'చేరడానికి వారి కోడ్ నమోదు చేయండి',
 };
 export default auth;

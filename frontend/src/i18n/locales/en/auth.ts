@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "and",
 
   // ── Account type (Owner / Worker) ─────────────────────────────────────────
-  accountTypeLabel: 'I am a…',
-  accountTypeRequired: 'Please choose an account type',
-  accountOwnerTitle: 'Farm Owner',
-  accountOwnerDesc: 'Set up and manage your own farm',
-  accountWorkerTitle: 'Worker',
-  accountWorkerDesc: 'Join a farm and log daily work',
+  signupIntentLabel: 'What brings you here?',
+  signupIntentRequired: 'Please choose one',
+  intentOwnFarmTitle: 'I run my own farm',
+  intentOwnFarmDesc: 'Set up your farm and ponds',
+  intentWorkOnFarmTitle: "I work on someone's farm",
+  intentWorkOnFarmDesc: 'Enter their code to join',
 };
 export default auth;

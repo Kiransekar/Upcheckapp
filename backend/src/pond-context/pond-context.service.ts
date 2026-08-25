@@ -226,7 +226,8 @@ export class PondContextService {
   }
 
   async getContext(pondId: string, userId: string): Promise<PondContext> {
-    const pond = await this.pondsService.findOne(pondId, userId); // ownership
+    // Dashboard read — READ is enough (owner, manager, worker, viewer).
+    const pond = await this.pondsService.findOneAccessible(pondId, userId, 'READ');
     const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
     const installedAeratorHp =
       pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
@@ -238,7 +239,9 @@ export class PondContextService {
     const [crop, wqRecords, sampling, mortalityAgg, feedAgg, tray] =
       await Promise.all([
         cropId
-          ? this.cropsService.findOne(cropId, userId)
+          // Member-aware crop read: this is a dashboard path and must NOT go
+          // through the VIEW_FINANCIALS-strict cropsService.findOne.
+          ? this.cropsService.findOneAccessible(cropId, userId)
           : Promise.resolve(null),
         // Latest non-null value per WQ parameter across recent records.
         this.wqRepo.find({

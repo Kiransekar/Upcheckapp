@@ -40,9 +40,9 @@ interface DailyWindows {
     evening: boolean;
 }
 
-// A worker never sees WelcomeScreen/CreateFarm/PondSetup (those only gate
-// owner accounts — pendingFarmSetup is only set for accountType==='owner'),
-// so before this session's fix a worker's first app-open had ZERO onboarding
+// Someone who joined an existing farm never sees WelcomeScreen/CreateFarm/
+// PondSetup (pendingFarmSetup is only set when they said they run their own
+// farm), so before this session's fix their first app-open had ZERO onboarding
 // of any kind: no role explanation, no context on the farm they'd joined
 // (docs/ONBOARDING_MODULE_PLAN.md §1.2/Phase 1). This one-time, dismissible
 // interstitial closes that gap without blocking anything — same pattern as
@@ -702,29 +702,24 @@ export const HomeScreen = ({ navigation }: any) => {
                     <View style={styles.ctaIcon}>
                         <MaterialCommunityIcons name="barn" size={28} color={theme.roles.light.primary} />
                     </View>
-                    {user?.accountType === 'worker' ? (
-                        // A worker with no farm membership yet — let them self-serve join
-                        // with a farm code, or ask their owner as before.
-                        <>
-                            <Text style={styles.ctaText}>
-                                {t('home.workerNoFarm', 'Ask your farm owner to add you to a farm to get started.')}
-                            </Text>
-                            <Button
-                                title={t('home.workerJoinFarmCta')}
-                                onPress={() => goRoot('JoinFarm')}
-                                style={styles.ctaBtn}
-                            />
-                        </>
-                    ) : (
-                        <>
-                            <Text style={styles.ctaText}>{t('home.noFarmData')}</Text>
-                            <Button
-                                title={t('home.quickLogCreateFarm')}
-                                onPress={() => goRoot('CreateFarm')}
-                                style={styles.ctaBtn}
-                            />
-                        </>
-                    )}
+                    {/* Both routes, always. The old either/or branched on a global
+                        owner/worker account flag, so someone who picked "worker" at
+                        signup was never shown "Create farm" even after leasing a pond,
+                        and an owner was never shown "Join with code" even when a
+                        neighbour invited them. Neither is a real constraint: any
+                        account can create a farm (becoming its owner) or join one. */}
+                    <Text style={styles.ctaText}>{t('home.noFarmEither')}</Text>
+                    <Button
+                        title={t('home.quickLogCreateFarm')}
+                        onPress={() => goRoot('CreateFarm')}
+                        style={styles.ctaBtn}
+                    />
+                    <Button
+                        title={t('home.workerJoinFarmCta')}
+                        onPress={() => goRoot('JoinFarm')}
+                        variant="outlined"
+                        style={styles.ctaBtn}
+                    />
                 </Card>
             )}
 

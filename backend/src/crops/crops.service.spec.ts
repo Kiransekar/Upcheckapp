@@ -85,6 +85,10 @@ describe('CropsService', () => {
           provide: PondsService,
           useValue: {
             findOne: jest.fn().mockResolvedValue(mockPond),
+            // Member-aware variants — every capability-bearing call site in
+            // CropsService now goes through these.
+            findOneAccessible: jest.fn().mockResolvedValue(mockPond),
+            verifyAccess: jest.fn().mockResolvedValue(undefined),
             verifyOwner: jest.fn().mockResolvedValue(true),
             update: jest.fn().mockResolvedValue(mockPond),
           },
@@ -113,23 +117,24 @@ describe('CropsService', () => {
     it('should create a new crop', async () => {
       const userId = 'user-1';
 
-      pondsService.findOne.mockResolvedValue({} as any);
+      pondsService.findOneAccessible.mockResolvedValue({} as any);
       manager.findOne.mockResolvedValue({ id: 'pond-1', activeCycleId: null });
       manager.create.mockReturnValue(mockCrop);
       manager.save.mockResolvedValue(mockCrop);
 
       const result = await service.create(mockCreateCropDto, userId);
 
-      expect(pondsService.findOne).toHaveBeenCalledWith(
+      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(
         mockCreateCropDto.pondId,
         userId,
+        'WRITE_MANAGEMENT',
       );
       expect(manager.create).toHaveBeenCalled();
       expect(result).toEqual(mockCrop);
     });
 
     it('rejects a second concurrent active cycle for the same pond', async () => {
-      pondsService.findOne.mockResolvedValue({} as any);
+      pondsService.findOneAccessible.mockResolvedValue({} as any);
       // Locked pond row already carries an active cycle.
       manager.findOne.mockResolvedValue({
         id: 'pond-1',
@@ -169,14 +174,15 @@ describe('CropsService', () => {
       const userId = 'user-1';
 
       (repository.findOneBy as jest.Mock).mockResolvedValue(mockCrop);
-      pondsService.findOne.mockResolvedValue({} as any);
+      pondsService.findOneAccessible.mockResolvedValue({} as any);
 
       const result = await service.findOne(cropId, userId);
 
       expect(repository.findOneBy).toHaveBeenCalledWith({ id: cropId });
-      expect(pondsService.findOne).toHaveBeenCalledWith(
+      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(
         mockCrop.pondId,
         userId,
+        'VIEW_FINANCIALS',
       );
       // findOne enriches the entity with a derived `computedDOC` field, so assert
       // the original fields are present rather than strict equality.
@@ -221,7 +227,7 @@ describe('CropsService', () => {
       const userId = 'user-1';
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
-      pondsService.findOne.mockResolvedValue(mockPond as any);
+      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       (repository.delete as jest.Mock).mockResolvedValue({ affected: 1 });
 
       const result = await service.remove(cropId, userId);
@@ -242,7 +248,7 @@ describe('CropsService', () => {
       };
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
-      pondsService.findOne.mockResolvedValue(mockPond as any);
+      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
       jest.spyOn(service, 'findOne').mockResolvedValue(
         Object.assign(new Crop(), mockCrop, {
@@ -267,7 +273,7 @@ describe('CropsService', () => {
   describe('closeCycle', () => {
     it('rejects a second close (idempotent) with ConflictException', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
-      pondsService.findOne.mockResolvedValue(mockPond as any);
+      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       // Guarded UPDATE matched no open row → already closed.
       (repository.update as jest.Mock).mockResolvedValue({ affected: 0 });
 
@@ -278,7 +284,7 @@ describe('CropsService', () => {
 
     it('closes an open cycle and unlinks it from the pond', async () => {
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
-      pondsService.findOne.mockResolvedValue(mockPond as any);
+      pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue({ affected: 1 });
 
       await service.closeCycle('crop-1', '2024-06-01', 'user-1');

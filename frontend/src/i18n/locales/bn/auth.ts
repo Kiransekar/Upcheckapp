@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "এবং",
 
   // ── Account type (RegisterScreen) ─────────────────────────────────────────
-  accountTypeLabel: 'আমি একজন…',
-  accountTypeRequired: 'অনুগ্রহ করে একটি অ্যাকাউন্টের ধরন বেছে নিন',
-  accountOwnerTitle: 'খামার মালিক',
-  accountOwnerDesc: 'নিজের খামার তৈরি ও পরিচালনা করুন',
-  accountWorkerTitle: 'কর্মী',
-  accountWorkerDesc: 'একটি খামারে যোগ দিন ও দৈনিক কাজ লিপিবদ্ধ করুন',
+  signupIntentLabel: 'আপনি কী জন্য এসেছেন?',
+  signupIntentRequired: 'অনুগ্রহ করে একটি বেছে নিন',
+  intentOwnFarmTitle: 'আমি নিজের খামার চালাই',
+  intentOwnFarmDesc: 'আপনার খামার ও পুকুর সেট করুন',
+  intentWorkOnFarmTitle: 'আমি অন্যের খামারে কাজ করি',
+  intentWorkOnFarmDesc: 'যোগ দিতে তাঁদের কোড দিন',
 };
 export default auth;

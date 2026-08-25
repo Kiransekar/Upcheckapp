@@ -10,6 +10,8 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { ReportsService } from './reports.service';
 @Controller('reports')
 export class ReportsController {
@@ -24,6 +26,8 @@ export class ReportsController {
   }
 
   @Get('cycle/:id/analysis')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'VIEW_FINANCIALS')
   async getCycleAnalysis(@CurrentUser() user, @Param('id') id: string) {
     return this.reportsService.getCycleAnalysis(id, user.id);
   }

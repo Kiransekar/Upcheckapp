@@ -23,10 +23,11 @@ export class CreateFarmDto {
   @MaxLength(200)
   name: string;
 
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  farmCode?: string;
+  // NOTE: no `farmCode` here on purpose. It used to be an optional
+  // client-supplied 50-char string that `farms.service.create()` preferred over
+  // `generateFarmCode()`, which defeated the generator's entropy entirely — and
+  // while the farm code doubles as the join credential, that let an owner pick
+  // a trivially guessable one. The code is always generated server-side now.
 
   @IsOptional()
   @IsNumber()

@@ -118,19 +118,15 @@ export class SupabaseAuthController {
   @Throttle(SENSITIVE_THROTTLE)
   @Post('signup')
   async signup(@Body() body: SignupDto) {
-    const { email, password, firstName, lastName, username, accountType } =
-      body;
+    const { email, password, firstName, lastName, username } = body;
 
-    // Default to 'owner' if the client omits it — owners are the gated flow
-    // (first-run farm setup); workers go straight to the dashboard.
-    const account_type: 'owner' | 'worker' =
-      accountType === 'worker' ? 'worker' : 'owner';
-
+    // No `account_type` is written. The owner/worker question on the register
+    // screen is now a first-run routing preference held client-side, not an
+    // auth claim — nothing authorizes on it.
     const result = await this.supabaseAuthService.signUp(email, password, {
       firstName,
       lastName,
       username,
-      account_type,
     });
 
     return {
@@ -590,22 +586,13 @@ export class SupabaseAuthController {
     };
   }
 
-  @Post('update')
-  @UseGuards(SupabaseAuthGuard)
-  async updateUser(
-    @CurrentUser() user: User,
-    @Body() body: { email?: string; password?: string; data?: any },
-  ) {
-    const updatedUser = await this.supabaseAuthService.updateUser(
-      user.id,
-      body,
-    );
-
-    return {
-      message: 'User updated successfully',
-      user: updatedUser,
-    };
-  }
+  // NOTE: `POST /auth/update` was removed. It took an unvalidated
+  // `{ email?, password?, data? }` straight into the service-role admin client
+  // (`supabase.auth.admin.updateUserById`), which let any authenticated user
+  // rewrite their own `user_metadata` (e.g. `account_type`) and change their
+  // email without going through verification. It had no callers — profile
+  // self-service goes through the validated `PATCH /profiles/:id`, and password
+  // changes through `POST /auth/update-password` below.
 
   // ==================== Password Management ====================
 

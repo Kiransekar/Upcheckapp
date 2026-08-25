@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import type { AccountType } from '../../api/auth';
+import type { SignupIntent } from '../../store/authStore';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -16,7 +16,9 @@ import { passwordPolicyError } from '../../features/passwordPolicy';
 
 export const RegisterScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const [accountType, setAccountType] = useState<AccountType | null>(null);
+    // First-run routing only — see SignupIntent. Not sent to the server, and
+    // it grants nothing: either answer can create a farm or join one later.
+    const [intent, setIntent] = useState<SignupIntent | null>(null);
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
@@ -30,7 +32,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
-        if (!accountType) e.accountType = t('auth.accountTypeRequired');
+        if (!intent) e.intent = t('auth.signupIntentRequired');
         if (!firstName.trim()) e.firstName = t('auth.firstNameRequired');
         if (!email.trim()) e.email = t('auth.emailRequired');
         else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.emailInvalid');
@@ -50,7 +52,7 @@ export const RegisterScreen = ({ navigation }: any) => {
         if (!validate()) return;
         clearError();
         try {
-            await signup(email.trim(), password, firstName.trim(), lastName.trim(), accountType!);
+            await signup(email.trim(), password, firstName.trim(), lastName.trim(), intent!);
             setSuccess(true);
         } catch {
             // Error is set in the store
@@ -92,20 +94,21 @@ export const RegisterScreen = ({ navigation }: any) => {
                 </View>
             )}
 
-            {/* Account type — gates the post-registration flow. Owners set up a
-                farm first; workers land straight on the dashboard. */}
-            <Text style={styles.accountTypeLabel}>{t('auth.accountTypeLabel')}</Text>
+            {/* Intent, not an account type: it only picks the first-run step —
+                set up a farm, or enter a code to join one. Nothing about it is
+                permanent, and it is never sent to the server. */}
+            <Text style={styles.accountTypeLabel}>{t('auth.signupIntentLabel')}</Text>
             <View style={styles.accountTypeRow}>
                 {([
-                    { key: 'owner' as const, icon: 'home-account', title: t('auth.accountOwnerTitle'), desc: t('auth.accountOwnerDesc') },
-                    { key: 'worker' as const, icon: 'account-hard-hat', title: t('auth.accountWorkerTitle'), desc: t('auth.accountWorkerDesc') },
+                    { key: 'own_farm' as const, icon: 'home-account', title: t('auth.intentOwnFarmTitle'), desc: t('auth.intentOwnFarmDesc') },
+                    { key: 'work_on_farm' as const, icon: 'account-hard-hat', title: t('auth.intentWorkOnFarmTitle'), desc: t('auth.intentWorkOnFarmDesc') },
                 ]).map((opt) => {
-                    const active = accountType === opt.key;
+                    const active = intent === opt.key;
                     return (
                         <TouchableOpacity
                             key={opt.key}
                             style={[styles.accountCard, active && styles.accountCardActive]}
-                            onPress={() => setAccountType(opt.key)}
+                            onPress={() => setIntent(opt.key)}
                             activeOpacity={0.8}
                             accessibilityRole="radio"
                             accessibilityState={{ selected: active }}
@@ -124,7 +127,7 @@ export const RegisterScreen = ({ navigation }: any) => {
                     );
                 })}
             </View>
-            {errors.accountType && <Text style={styles.accountTypeError}>{errors.accountType}</Text>}
+            {errors.intent && <Text style={styles.accountTypeError}>{errors.intent}</Text>}
 
             <Input
                 label={t('auth.firstNameLabel')}

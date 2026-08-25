@@ -18,7 +18,13 @@ export type AuthStatus =
     | 'authenticated'      // fully logged in
     | 'refreshing';        // access token being refreshed
 
-export type AccountType = 'owner' | 'worker';
+/**
+ * What the person said they were here to do, on the register screen. This is a
+ * FIRST-RUN ROUTING PREFERENCE, not an authorization claim: it decides which
+ * onboarding step they land on and nothing else. Authority always comes from
+ * the per-farm role in farm_members.
+ */
+export type SignupIntent = 'own_farm' | 'work_on_farm';
 
 export interface AuthUser {
     id: string;
@@ -29,7 +35,7 @@ export interface AuthUser {
     emailVerified: boolean;
     // Chosen at sign-up. Owners are gated into first-run farm setup; workers go
     // straight to the dashboard. Read from Supabase user metadata.
-    accountType: AccountType | null;
+
 }
 
 interface AuthState {
@@ -80,7 +86,7 @@ interface AuthState {
     recoverSession: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
     googleLogin: (idToken: string, intent?: 'signin' | 'signup') => Promise<{ requires2FA: boolean; tempToken?: string }>;
-    signup: (email: string, password: string, firstName?: string, lastName?: string, accountType?: AccountType) => Promise<void>;
+    signup: (email: string, password: string, firstName?: string, lastName?: string, intent?: SignupIntent) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: (password?: string) => Promise<void>;
     forgotPassword: (email: string) => Promise<void>;
@@ -133,12 +139,6 @@ const mapSupabaseUser = (user: User): AuthUser => ({
         null,
     provider: (user.app_metadata?.provider as 'email' | 'google' | 'truecaller') || 'email',
     emailVerified: !!user.email_confirmed_at,
-    accountType:
-        user.user_metadata?.account_type === 'worker'
-            ? 'worker'
-            : user.user_metadata?.account_type === 'owner'
-                ? 'owner'
-                : null,
 });
 
 export const useAuthStore = create<AuthState>()(
@@ -286,7 +286,6 @@ export const useAuthStore = create<AuthState>()(
                         avatarUrl: null,
                         provider: 'email',
                         emailVerified: true,
-                        accountType: null,
                     },
                     session: null,
                     accessToken: null,
@@ -358,16 +357,18 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            signup: async (email, password, firstName, lastName, accountType) => {
+            signup: async (email, password, firstName, lastName, intent) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const { data } = await authApi.signup({ email, password, firstName, lastName, accountType });
-                    // Owners must complete first-run farm setup before reaching the
-                    // app; workers are gated into a join-a-farm step instead. Both
-                    // flags are read by RootNavigator once the user is authenticated.
+                    const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    // Route the first run from the stated intent: someone who runs
+                    // their own farm sets one up, someone joining an existing farm
+                    // enters a code. Read by RootNavigator once authenticated. The
+                    // intent is NOT sent to the server and grants nothing — either
+                    // person can do either thing later.
                     set({
-                        pendingFarmSetup: accountType === 'owner',
-                        pendingFarmJoin: accountType === 'worker',
+                        pendingFarmSetup: intent === 'own_farm',
+                        pendingFarmJoin: intent === 'work_on_farm',
                     });
                     if (data.session) {
                         get().setSession(data.session);

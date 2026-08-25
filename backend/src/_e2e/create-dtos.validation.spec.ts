@@ -23,7 +23,6 @@ describe('Create-DTO acceptance through the global ValidationPipe', () => {
   it('Farm: every submitted field is accepted and retained', async () => {
     const payload = {
       name: 'Konaseema Farm',
-      farmCode: 'KF-01',
       areaHectares: 2.5,
       address: 'West Godavari, AP',
       waterSourceType: 'borehole',
@@ -35,6 +34,17 @@ describe('Create-DTO acceptance through the global ValidationPipe', () => {
     const out = await run(CreateFarmDto, { ...payload });
     expect(out).toMatchObject(payload);
     for (const k of Object.keys(payload)) expect(out).toHaveProperty(k); // nothing dropped
+  });
+
+  it('Farm: a client-supplied farmCode is stripped by the pipe', async () => {
+    // The farm code is the join credential; it must always be generated
+    // server-side. It is not on CreateFarmDto, so `whitelist: true` drops it.
+    const out = await run(CreateFarmDto, {
+      name: 'Konaseema Farm',
+      farmCode: 'FARM0001',
+    });
+    expect(out).not.toHaveProperty('farmCode');
+    expect(out).toMatchObject({ name: 'Konaseema Farm' });
   });
 
   it('Pond: every submitted field is accepted and retained', async () => {

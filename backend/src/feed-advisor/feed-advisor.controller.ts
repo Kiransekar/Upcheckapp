@@ -1,5 +1,15 @@
-import { Controller, Get, Post, Patch, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { FeedAdvisorService } from './feed-advisor.service';
 import {
   RationInputDto,
@@ -23,6 +33,8 @@ export class FeedAdvisorController {
 
   /** Generate and persist today's plan for a pond the caller owns. */
   @Post()
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'WRITE_MANAGEMENT')
   generate(@Body() dto: GenerateFeedPlanDto, @CurrentUser() user) {
     return this.service.generate(
       dto.pondId,
@@ -34,12 +46,16 @@ export class FeedAdvisorController {
   }
 
   @Get('pond/:pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   recent(@Param('pondId') pondId: string, @CurrentUser() user) {
     return this.service.recent(pondId, user.id);
   }
 
   /** Log what was actually fed → adherence + rolling-FCR feedback. */
   @Patch(':id/actual')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('FeedPlan', 'id', 'pond.farm.userId', 'WRITE_OPERATIONAL')
   logActual(
     @Param('id') id: string,
     @Body() dto: LogActualDto,
