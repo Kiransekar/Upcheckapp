@@ -590,22 +590,13 @@ export class SupabaseAuthController {
     };
   }
 
-  @Post('update')
-  @UseGuards(SupabaseAuthGuard)
-  async updateUser(
-    @CurrentUser() user: User,
-    @Body() body: { email?: string; password?: string; data?: any },
-  ) {
-    const updatedUser = await this.supabaseAuthService.updateUser(
-      user.id,
-      body,
-    );
-
-    return {
-      message: 'User updated successfully',
-      user: updatedUser,
-    };
-  }
+  // NOTE: `POST /auth/update` was removed. It took an unvalidated
+  // `{ email?, password?, data? }` straight into the service-role admin client
+  // (`supabase.auth.admin.updateUserById`), which let any authenticated user
+  // rewrite their own `user_metadata` (e.g. `account_type`) and change their
+  // email without going through verification. It had no callers — profile
+  // self-service goes through the validated `PATCH /profiles/:id`, and password
+  // changes through `POST /auth/update-password` below.
 
   // ==================== Password Management ====================
 
