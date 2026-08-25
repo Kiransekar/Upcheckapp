@@ -283,21 +283,12 @@ export class SupabaseAuthService {
 
   // ==================== User Management ====================
 
-  async updateUser(
-    userId: string,
-    updates: { email?: string; password?: string; data?: any },
-  ) {
-    const { data, error } = await this.supabase.auth.admin.updateUserById(
-      userId,
-      updates,
-    );
-
-    if (error) {
-      throw new BadRequestException(error.message);
-    }
-
-    return data.user;
-  }
+  // NOTE: `updateUser(userId, updates)` was removed alongside its only caller,
+  // `POST /auth/update`. It forwarded a free-form `updates` object — including
+  // `data` (Supabase `user_metadata`) and `email` — into the service-role admin
+  // client with no whitelist, so it could set arbitrary metadata and bypass
+  // email verification. Anything needing an admin-side user write should take a
+  // validated DTO and whitelist the fields explicitly.
 
   async getUserById(userId: string) {
     const { data, error } = await this.supabase.auth.admin.getUserById(userId);
