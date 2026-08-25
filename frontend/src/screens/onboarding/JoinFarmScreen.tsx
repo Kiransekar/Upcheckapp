@@ -16,7 +16,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { farmMembersApi } from '../../api/farmMembers';
+import { farmMembersApi, inviteRejectionOf } from '../../api/farmMembers';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useUIStore } from '../../store/uiStore';
@@ -50,8 +50,20 @@ export const JoinFarmScreen = ({ navigation }: any) => {
             });
             goToApp();
         } catch (e: any) {
+            // The server distinguishes a wrong code from a code that existed
+            // and is no longer usable. Translate each, so "expired" doesn't
+            // read as "you typed it wrong" and send the worker round in circles.
+            const reason = inviteRejectionOf(e);
+            const REASON_KEY = {
+                expired: 'members.joinExpired',
+                revoked: 'members.joinRevoked',
+                exhausted: 'members.joinExhausted',
+                not_found: 'members.joinNotFound',
+            } as const;
             showToast({
-                message: e?.response?.data?.message ?? t('onboarding.joinFarmError'),
+                message: reason
+                    ? t(REASON_KEY[reason])
+                    : e?.response?.data?.message ?? t('onboarding.joinFarmError'),
                 type: 'error',
             });
         } finally {

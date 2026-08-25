@@ -4,6 +4,7 @@ import { FarmMembersService } from './farm-members.service';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
+import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
 /**
@@ -20,7 +21,7 @@ describe('FarmMembersService — user lookups never select unused columns', () =
   let usersRepo: { findOne: jest.Mock; find?: jest.Mock };
   let membersRepo: { findOne: jest.Mock; find?: jest.Mock; create?: jest.Mock; save?: jest.Mock };
   let farmsRepo: { findOne: jest.Mock };
-  let farmAccess: { assertCanAccessFarm: jest.Mock; getRoleOnFarm: jest.Mock };
+  let farmAccess: Record<string, jest.Mock>;
 
   const PUBLIC_USER_SELECT = {
     id: true,
@@ -35,6 +36,8 @@ describe('FarmMembersService — user lookups never select unused columns', () =
     membersRepo = { findOne: jest.fn() };
     farmsRepo = { findOne: jest.fn() };
     farmAccess = {
+      // listMembers batches pond scopes for the roster.
+      getPondScopesForMembers: jest.fn().mockResolvedValue(new Map()),
       assertCanAccessFarm: jest.fn().mockResolvedValue(undefined),
       getRoleOnFarm: jest.fn().mockResolvedValue('owner'),
     };
@@ -45,6 +48,7 @@ describe('FarmMembersService — user lookups never select unused columns', () =
         { provide: getRepositoryToken(FarmMember), useValue: membersRepo },
         { provide: getRepositoryToken(User), useValue: usersRepo },
         { provide: getRepositoryToken(Farm), useValue: farmsRepo },
+        { provide: getRepositoryToken(Pond), useValue: { find: jest.fn() } },
         { provide: FarmAccessService, useValue: farmAccess },
       ],
     }).compile();

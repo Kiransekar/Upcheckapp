@@ -33,11 +33,32 @@ export const CAPABILITY_ROLES: Record<FarmCapability, FarmRole[]> = {
   OWNER_ONLY: ['owner'],
 };
 
+/**
+ * Does `role` satisfy `capability`?
+ *
+ * `canViewFinancials` is the per-farm cost-visibility grant the matrix comment
+ * above always promised but nothing implemented: null (the default) means
+ * "use the role default", true grants VIEW_FINANCIALS to a role that would not
+ * otherwise have it, false revokes it from a role that would. It is consulted
+ * HERE, in the single place every capability decision passes through, so a
+ * grant cannot mean one thing at the route guard and another in a service.
+ *
+ * The override applies ONLY to VIEW_FINANCIALS, and never to the owner — an
+ * owner cannot be locked out of their own farm's books.
+ */
 export function roleSatisfies(
   role: FarmRole | null,
   capability: FarmCapability,
+  canViewFinancials: boolean | null = null,
 ): boolean {
   if (!role) return false;
+  if (
+    capability === 'VIEW_FINANCIALS' &&
+    canViewFinancials !== null &&
+    role !== 'owner'
+  ) {
+    return canViewFinancials;
+  }
   return CAPABILITY_ROLES[capability].includes(role);
 }
 
