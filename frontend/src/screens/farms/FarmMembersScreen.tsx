@@ -39,6 +39,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [farmCode, setFarmCode] = useState<string | null>(null);
     const [invites, setInvites] = useState<FarmInvite[]>([]);
     const [inviteBusy, setInviteBusy] = useState(false);
+    const [pending, setPending] = useState<FarmMember[]>([]);
     const perms = usePermissions(farmId);
 
     const load = useCallback(async () => {
@@ -86,6 +87,52 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     }, [farmId, perms.canInviteMember]);
 
     useFocusEffect(useCallback(() => { loadInvites(); }, [loadInvites]));
+
+    const loadPending = useCallback(async () => {
+        if (!perms.canInviteMember) return;
+        try {
+            const { data } = await farmMembersApi.listPending(farmId);
+            setPending(data);
+        } catch {
+            // Non-fatal, and expected for a manager on a farm whose owner
+            // restricted approval to themselves — they simply see no queue.
+            setPending([]);
+        }
+    }, [farmId, perms.canInviteMember]);
+
+    useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
+
+    const approve = useCallback(async (m: FarmMember) => {
+        try {
+            await farmMembersApi.approveMember(farmId, m.userId);
+            setPending((cur) => cur.filter((p) => p.id !== m.id));
+            load();
+        } catch (e: any) {
+            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+        }
+    }, [farmId, load, t]);
+
+    const decline = useCallback((m: FarmMember) => {
+        Alert.alert(
+            t('members.declineTitle'),
+            t('members.declineConfirm', { name: fullName(m) }),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('members.decline'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await farmMembersApi.declineMember(farmId, m.userId);
+                            setPending((cur) => cur.filter((p) => p.id !== m.id));
+                        } catch (e: any) {
+                            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+                        }
+                    },
+                },
+            ],
+        );
+    }, [farmId, t]);
 
     const createInvite = useCallback(async () => {
         setInviteBusy(true);
@@ -339,6 +386,39 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 </Card>
             ) : null}
 
+            {/*
+              * "Waiting to be let in" — people who used the farm code while the
+              * farm is on manual approval. They have NO access until approved;
+              * this is the only place they appear at all.
+              */}
+            {pending.length > 0 ? (
+                <View style={styles.pendingSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionLabel}>{t('members.waitingTitle')}</Text>
+                        <Text style={styles.sectionCount}>{pending.length}</Text>
+                    </View>
+                    {pending.map((m) => (
+                        <Card key={m.id} style={styles.pendingCard}>
+                            <Text style={styles.name}>{fullName(m)}</Text>
+                            <Text style={styles.pendingSub}>{t('members.usedYourCode')}</Text>
+                            <View style={styles.pendingActions}>
+                                <Button
+                                    title={t('members.letIn')}
+                                    onPress={() => approve(m)}
+                                    style={styles.pendingBtn}
+                                />
+                                <Button
+                                    title={t('members.decline')}
+                                    onPress={() => decline(m)}
+                                    variant="outlined"
+                                    style={styles.pendingBtn}
+                                />
+                            </View>
+                        </Card>
+                    ))}
+                </View>
+            ) : null}
+
             <FlatList
                 data={members}
                 keyExtractor={(m) => m.id}
@@ -388,6 +468,14 @@ const styles = StyleSheet.create({
     inviteTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     inviteCodeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[3] },
     inviteBtn: { marginTop: theme.spacing[1] },
+    pendingSection: { marginBottom: theme.spacing[3], gap: theme.spacing[2] },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    sectionLabel: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary, letterSpacing: 1, textTransform: 'uppercase' },
+    sectionCount: { ...theme.typeScale.bodySmall, color: theme.roles.light.warningText },
+    pendingCard: { padding: theme.spacing[4], gap: theme.spacing[2], backgroundColor: theme.roles.light.warningBg },
+    pendingSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.warningText },
+    pendingActions: { flexDirection: 'row', gap: theme.spacing[2] },
+    pendingBtn: { flex: 1 },
     addBtn: { marginTop: theme.spacing[2] },
 });
 

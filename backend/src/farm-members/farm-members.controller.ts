@@ -18,6 +18,8 @@ import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { LookupUserDto } from './dto/lookup-user.dto';
 import { JoinFarmDto } from './dto/join-farm.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
+import { JoinPolicyDto } from './dto/join-policy.dto';
+import { ApproveMemberDto } from './dto/approve-member.dto';
 import { FarmInvitesService } from './farm-invites.service';
 
 // Brute-force budget for code redemption; mirrors SENSITIVE_THROTTLE in
@@ -84,6 +86,45 @@ export class FarmMembersController {
     @CurrentUser() user,
   ) {
     return this.invitesService.revoke(farmId, inviteId, user.id);
+  }
+
+  // ============ Waiting to be let in ============
+
+  /** The pending queue: people who used the code but are not in yet. */
+  @Get('farms/:farmId/pending')
+  listPending(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.invitesService.listPending(farmId, user.id);
+  }
+
+  /** Let someone in, optionally promoting them on the way. */
+  @Post('farms/:farmId/pending/:userId/approve')
+  approveMember(
+    @Param('farmId') farmId: string,
+    @Param('userId') userId: string,
+    @Body() dto: ApproveMemberDto,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.approve(farmId, userId, user.id, dto.role);
+  }
+
+  /** Turn someone away; the pending row is deleted, having granted nothing. */
+  @Delete('farms/:farmId/pending/:userId')
+  declineMember(
+    @Param('farmId') farmId: string,
+    @Param('userId') userId: string,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.decline(farmId, userId, user.id);
+  }
+
+  /** Manual vs auto approval, and who may approve. Owner only. */
+  @Post('farms/:farmId/join-policy')
+  setJoinPolicy(
+    @Param('farmId') farmId: string,
+    @Body() dto: JoinPolicyDto,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.setJoinPolicy(farmId, user.id, dto);
   }
 
   /** Retire every active invite for this farm and mint a fresh one. */

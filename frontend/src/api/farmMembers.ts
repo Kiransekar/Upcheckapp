@@ -14,11 +14,23 @@ export interface PublicUser {
     avatarUrl: string | null;
 }
 
+/** Whether a membership grants anything yet. See backend FarmMemberStatus. */
+export type FarmMemberStatus = 'active' | 'pending';
+
+/** How a farm handles someone redeeming its code. */
+export interface JoinPolicy {
+    /** 'manual' queues them for approval; 'auto' admits immediately. */
+    joinApproval: 'manual' | 'auto';
+    /** Who may act on the queue: owner alone, or owner + managers. */
+    joinApprover: 'owner' | 'managers';
+}
+
 export interface FarmMember {
     id: string;
     farmId: string;
     userId: string;
     role: FarmRole;
+    status: FarmMemberStatus;
     createdAt: string;
     user: PublicUser | null;
 }
@@ -104,6 +116,23 @@ export const farmMembersApi = {
 
     revokeInvite: (farmId: string, inviteId: string) =>
         apiClient.delete(`/farms/${farmId}/invites/${inviteId}`),
+
+    // ── Waiting to be let in ──────────────────────────────────
+
+    listPending: (farmId: string) =>
+        apiClient.get<FarmMember[]>(`/farms/${farmId}/pending`),
+
+    approveMember: (farmId: string, userId: string, role?: AssignableRole) =>
+        apiClient.post<FarmMember>(
+            `/farms/${farmId}/pending/${userId}/approve`,
+            role ? { role } : {},
+        ),
+
+    declineMember: (farmId: string, userId: string) =>
+        apiClient.delete(`/farms/${farmId}/pending/${userId}`),
+
+    setJoinPolicy: (farmId: string, policy: Partial<JoinPolicy>) =>
+        apiClient.post<JoinPolicy>(`/farms/${farmId}/join-policy`, policy),
 
     /** Retire every active invite for the farm and mint a fresh one. */
     rotateInvite: (farmId: string, body: CreateInviteBody = {}) =>

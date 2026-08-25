@@ -52,11 +52,34 @@ export class FarmAccessService {
     userId: string,
     farmId: string,
   ): Promise<FarmRole | null> {
+    return (await this.getMembershipOnFarm(userId, farmId)).role;
+  }
+
+  /**
+   * Role PLUS the per-farm financial grant, resolved together.
+   *
+   * Every capability decision needs both — `roleSatisfies` consults
+   * `canViewFinancials` for VIEW_FINANCIALS — and fetching them separately
+   * would mean two queries and two chances for them to disagree.
+   */
+  async getMembershipOnFarm(
+    userId: string,
+    farmId: string,
+  ): Promise<{ role: FarmRole | null; canViewFinancials: boolean | null }> {
     try {
+      // status: 'active' is load-bearing. A 'pending' row is someone who
+      // redeemed the farm code and is WAITING to be let in — it must grant
+      // nothing at all until an owner approves it. Filtering here covers every
+      // capability check in the app, since they all resolve a role through this.
       const member = await this.membersRepo.findOne({
-        where: { farmId, userId },
+        where: { farmId, userId, status: 'active' },
       });
-      if (member) return member.role;
+      if (member) {
+        return {
+          role: member.role,
+          canViewFinancials: member.canViewFinancials ?? null,
+        };
+      }
     } catch (err) {
       if (!isMissingTable(err)) throw err;
       this.logger.warn(
@@ -68,8 +91,10 @@ export class FarmAccessService {
       where: { id: farmId },
       select: { id: true, userId: true },
     });
-    if (farm && farm.userId === userId) return 'owner';
-    return null;
+    if (farm && farm.userId === userId) {
+      return { role: 'owner', canViewFinancials: null };
+    }
+    return { role: null, canViewFinancials: null };
   }
 
   /** Farm ids the user can access (owner or worker), excluding soft-deleted farms. */
@@ -81,7 +106,7 @@ export class FarmAccessService {
     // and each one used to cost 3 sequential round-trips before this fix.
     const [memberFarmIds, ownedIds] = await Promise.all([
       this.membersRepo
-        .find({ where: { userId }, select: { farmId: true } })
+        .find({ where: { userId, status: 'active' }, select: { farmId: true } })
         .then((members) => members.map((m) => m.farmId))
         .catch((err) => {
           if (!isMissingTable(err)) throw err;
@@ -127,7 +152,7 @@ export class FarmAccessService {
     let members: FarmMember[] = [];
     try {
       members = await this.membersRepo.find({
-        where: { userId, farmId: In(accessibleIds) },
+        where: { userId, farmId: In(accessibleIds), status: 'active' },
       });
     } catch (err) {
       if (!isMissingTable(err)) throw err;
@@ -136,6 +161,11 @@ export class FarmAccessService {
       );
     }
     const roleByFarm = new Map(members.map((m) => [m.farmId, m.role]));
+    // Carry the per-farm financial grant alongside the role, so this batch
+    // path reaches the same verdict as assertCanAccessFarm for VIEW_FINANCIALS.
+    const grantByFarm = new Map(
+      members.map((m) => [m.farmId, m.canViewFinancials ?? null]),
+    );
 
     const missing = accessibleIds.filter((id) => !roleByFarm.has(id));
     if (missing.length > 0) {
@@ -147,7 +177,11 @@ export class FarmAccessService {
     }
 
     return accessibleIds.filter((id) =>
-      roleSatisfies(roleByFarm.get(id) ?? null, capability),
+      roleSatisfies(
+        roleByFarm.get(id) ?? null,
+        capability,
+        grantByFarm.get(id) ?? null,
+      ),
     );
   }
 
@@ -165,8 +199,11 @@ export class FarmAccessService {
     if (!farm || farm.deletedAt) {
       throw new NotFoundException(`Farm with ID ${farmId} not found`);
     }
-    const role = await this.getRoleOnFarm(userId, farmId);
-    if (!roleSatisfies(role, capability)) {
+    const { role, canViewFinancials } = await this.getMembershipOnFarm(
+      userId,
+      farmId,
+    );
+    if (!roleSatisfies(role, capability, canViewFinancials)) {
       throw new ForbiddenException(
         'You do not have permission to perform this action on this farm',
       );

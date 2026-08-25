@@ -76,6 +76,39 @@ export class Farm {
   @Column({ name: 'privacy_setting', type: 'text', default: 'private' })
   privacySetting: string;
 
+  /**
+   * What happens when someone redeems this farm's join code.
+   *
+   *   manual — they land in the "waiting to be let in" queue as a `pending`
+   *            member, granting nothing until an owner taps Let in. Default,
+   *            because the code is shareable and an owner should decide who
+   *            actually gets into their farm.
+   *   auto   — they become an active member immediately, which is the old
+   *            pre-approval behaviour. For farms where the code only ever
+   *            circulates among people the owner already trusts.
+   */
+  @Column({ name: 'join_approval', type: 'varchar', length: 10, default: 'manual' })
+  joinApproval: 'manual' | 'auto';
+
+  /**
+   * Who may act on the "waiting to be let in" queue.
+   *
+   *   managers — owner and any manager, matching MANAGE_WORKERS (who can
+   *              already add and remove members directly). The default, since
+   *              tightening it silently would surprise farms that delegate.
+   *   owner    — owner only. For farms where letting someone in is the owner's
+   *              call alone, even though managers still manage everyone else.
+   *
+   * Only the owner can change this — see canApproveJoins / setJoinPolicy.
+   */
+  @Column({
+    name: 'join_approver',
+    type: 'varchar',
+    length: 10,
+    default: 'managers',
+  })
+  joinApprover: 'owner' | 'managers';
+
   @Column({ type: 'jsonb', nullable: true })
   boundary: { latitude: number; longitude: number }[];
 

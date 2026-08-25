@@ -16,6 +16,7 @@ import {
   inviteRejection,
 } from './farm-invite.entity';
 import { FarmMember } from '../farm-access/farm-member.entity';
+import type { FarmRole } from '../farm-access/farm-member.entity';
 import { Farm } from '../farms/farm.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { canAssignRole } from '../farm-access/farm-capability';
@@ -241,13 +242,24 @@ export class FarmInvitesService {
         where: { farmId: farm.id, userId: callerId },
       });
       if (existing) {
-        throw new ConflictException('You are already a member of this farm');
+        throw new ConflictException(
+          existing.status === 'pending'
+            ? 'You have already asked to join this farm. The owner has not let you in yet.'
+            : 'You are already a member of this farm',
+        );
       }
+
+      // The farm decides what redeeming its code actually does. Under
+      // 'manual' (the default) the joiner lands in the waiting queue and
+      // gets NOTHING until someone approves; under 'auto' they are a member
+      // straight away, which is the pre-approval behaviour.
+      const status = farm.joinApproval === 'auto' ? 'active' : 'pending';
 
       const member = manager.create(FarmMember, {
         farmId: farm.id,
         userId: callerId,
         role: invite!.role,
+        status,
         // Attribute the membership to whoever issued the invite, so the roster
         // shows who let this person in instead of a blank.
         addedById: invite!.createdById,
@@ -260,6 +272,7 @@ export class FarmInvitesService {
       return {
         farmId: farm.id,
         role: member.role,
+        status,
         farm: { id: farm.id, name: farm.name },
       };
     });
@@ -288,16 +301,19 @@ export class FarmInvitesService {
       throw new ConflictException('You are already a member of this farm');
     }
 
+    const status = farm.joinApproval === 'auto' ? 'active' : 'pending';
     const member = manager.create(FarmMember, {
       farmId: farm.id,
       userId: callerId,
       role: 'worker',
+      status,
       addedById: null,
     });
     await manager.save(member);
     return {
       farmId: farm.id,
       role: member.role,
+      status,
       farm: { id: farm.id, name: farm.name },
     };
   }
@@ -326,6 +342,135 @@ export class FarmInvitesService {
       maxUses: invite.maxUses,
       usedCount: invite.usedCount,
       createdAt: invite.createdAt,
+    };
+  }
+
+  // ==================== Waiting to be let in ====================
+
+  /**
+   * May this user act on the pending queue?
+   *
+   * MANAGE_WORKERS (owner + manager) is the floor — approving someone is a
+   * member-management action. On top of that the farm's `joinApprover` can
+   * narrow it to the owner alone, for farms where letting a stranger in is the
+   * owner's call even though managers handle everyone else.
+   */
+  private async assertCanApprove(farmId: string, callerId: string) {
+    const farm = await this.farmAccess.assertCanAccessFarm(
+      callerId,
+      farmId,
+      'MANAGE_WORKERS',
+    );
+    if (farm.joinApprover === 'owner') {
+      const role = await this.farmAccess.getRoleOnFarm(callerId, farmId);
+      if (role !== 'owner') {
+        throw new ForbiddenException(
+          'Only the farm owner can let new members in on this farm',
+        );
+      }
+    }
+    return farm;
+  }
+
+  /** The "waiting to be let in" queue for a farm. */
+  async listPending(farmId: string, callerId: string) {
+    await this.assertCanApprove(farmId, callerId);
+    try {
+      return await this.membersRepo.find({
+        where: { farmId, status: 'pending' },
+        order: { createdAt: 'ASC' },
+      });
+    } catch (err) {
+      if (!isMissingTable(err)) throw err;
+      this.logger.warn(
+        'farm_members.status missing — run migrations; no pending queue',
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Let someone in: flip `pending` to `active` and record who approved.
+   *
+   * `role` optionally overrides what the code granted, so an owner can promote
+   * on the way in rather than approving then editing. Bounded by
+   * `canAssignRole` exactly as a direct add would be.
+   */
+  async approve(
+    farmId: string,
+    userId: string,
+    callerId: string,
+    role?: FarmRole,
+  ) {
+    await this.assertCanApprove(farmId, callerId);
+
+    const member = await this.membersRepo.findOne({
+      where: { farmId, userId, status: 'pending' },
+    });
+    if (!member) {
+      throw new NotFoundException('No pending request for that person');
+    }
+
+    if (role && role !== member.role) {
+      const callerRole = await this.farmAccess.getRoleOnFarm(callerId, farmId);
+      if (!canAssignRole(callerRole, role as any)) {
+        throw new ForbiddenException(
+          `Your role (${callerRole ?? 'none'}) cannot assign the "${role}" role`,
+        );
+      }
+      member.role = role;
+    }
+
+    member.status = 'active';
+    // Overwrite the invite issuer with whoever actually let them in — that is
+    // the accountable decision, and the roster shows it.
+    member.addedById = callerId;
+    await this.membersRepo.save(member);
+    return { farmId, userId, role: member.role, status: member.status };
+  }
+
+  /**
+   * Turn someone away. Deletes the pending row rather than marking it
+   * declined: the row granted nothing, keeping it would clutter the queue, and
+   * the person can ask again with a fresh code if the owner changes their mind.
+   */
+  async decline(farmId: string, userId: string, callerId: string) {
+    await this.assertCanApprove(farmId, callerId);
+
+    const member = await this.membersRepo.findOne({
+      where: { farmId, userId, status: 'pending' },
+    });
+    if (!member) {
+      throw new NotFoundException('No pending request for that person');
+    }
+    await this.membersRepo.remove(member);
+    return { farmId, userId, declined: true };
+  }
+
+  /**
+   * Change the farm's join policy. OWNER_ONLY: who may let people in, and
+   * whether approval happens at all, are decisions about the farm itself, not
+   * routine member management — a manager must not be able to switch approval
+   * off and then walk people in.
+   */
+  async setJoinPolicy(
+    farmId: string,
+    callerId: string,
+    policy: { joinApproval?: 'manual' | 'auto'; joinApprover?: 'owner' | 'managers' },
+  ) {
+    await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'OWNER_ONLY');
+
+    const patch: Partial<Farm> = {};
+    if (policy.joinApproval) patch.joinApproval = policy.joinApproval;
+    if (policy.joinApprover) patch.joinApprover = policy.joinApprover;
+    if (Object.keys(patch).length) {
+      await this.farmsRepo.update({ id: farmId }, patch);
+    }
+
+    const farm = await this.farmsRepo.findOne({ where: { id: farmId } });
+    return {
+      joinApproval: farm?.joinApproval ?? 'manual',
+      joinApprover: farm?.joinApprover ?? 'managers',
     };
   }
 }
