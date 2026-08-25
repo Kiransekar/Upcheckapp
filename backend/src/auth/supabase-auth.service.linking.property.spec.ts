@@ -133,6 +133,13 @@ class StatefulSupabaseMock {
         }
         return Promise.resolve({ data: row, error: null });
       },
+      // signInWithTruecaller uses maybeSingle() rather than single(): single()
+      // errors on zero rows AND on duplicates, so a user with two pre-
+      // canonicalization rows would get an opaque failure instead of a login.
+      maybeSingle: () => {
+        const row = self.findRow(filters);
+        return Promise.resolve({ data: row ?? null, error: null });
+      },
       update: (patch: Record<string, unknown>) => {
         updatePatch = patch;
         return builder;
