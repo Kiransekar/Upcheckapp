@@ -31,6 +31,11 @@ const common = {
   status: 'స్థితి',
   actions: 'చర్యలు',
   // Bottom-tab labels
+  tabToday: 'ఈరోజు',
+  tabFarm: 'ఫారం',
+  tabMoney: 'డబ్బు',
+  tabTeam: 'టీం',
+  tabSettings: 'సెట్టింగ్‌లు',
   tabDashboard: 'డాష్‌బోర్డ్',
   tabFarms: 'ఫారాలు',
   tabReports: 'నివేదికలు',

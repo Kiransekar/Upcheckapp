@@ -31,6 +31,11 @@ const common = {
   status: 'நிலை',
   actions: 'செயல்கள்',
   // Bottom-tab labels
+  tabToday: 'இன்று',
+  tabFarm: 'பண்ணை',
+  tabMoney: 'பணம்',
+  tabTeam: 'குழு',
+  tabSettings: 'அமைப்புகள்',
   tabDashboard: 'டாஷ்போர்டு',
   tabFarms: 'பண்ணைகள்',
   tabReports: 'அறிக்கைகள்',

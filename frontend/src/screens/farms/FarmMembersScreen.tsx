@@ -19,6 +19,7 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { farmMembersApi, type FarmMember, type AssignableRole, type FarmInvite } from '../../api/farmMembers';
 import { farmsApi } from '../../api/farms';
+import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canManageMember } from '../../permissions/capabilities';
 
@@ -42,7 +43,13 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [inviteBusy, setInviteBusy] = useState(false);
     const [pending, setPending] = useState<FarmMember[]>([]);
     const [error, setError] = useState<any>(null);
+    // Pond names for the per-member scope line. One fetch for the whole
+    // roster; the backend already batches the scopes themselves.
+    const [ponds, setPonds] = useState<{ id: string; name: string }[]>([]);
     const perms = usePermissions(farmId);
+
+    const pondCount = ponds.length;
+    const pondNameById = new Map(ponds.map((pd) => [pd.id, pd.name]));
 
     const load = useCallback(async () => {
         try {
@@ -107,6 +114,13 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     }, [farmId, perms.canInviteMember]);
 
     useFocusEffect(useCallback(() => { loadPending(); }, [loadPending]));
+
+    useFocusEffect(useCallback(() => {
+        pondsApi
+            .getAll(farmId)
+            .then(({ data }) => setPonds((data as any).data ?? data ?? []))
+            .catch(() => setPonds([]));
+    }, [farmId]));
 
     const approve = useCallback(async (m: FarmMember) => {
         try {
@@ -275,6 +289,30 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         );
     };
 
+    /**
+     * The design's secondary line under each name: the role, then what they can
+     * actually reach. Owners and managers are responsible for the whole farm and
+     * are never pond-scoped, so they always read "all N ponds"; a worker or
+     * viewer with scope rows reads the pond names.
+     *
+     * An empty `pondIds` means ALL ponds — the same semantics as the backend —
+     * so it must not be rendered as "no ponds".
+     */
+    const memberScopeLine = (m: FarmMember): string => {
+        const role = t(`members.role_${m.role}`);
+        const unscoped = m.role === 'owner' || m.role === 'manager' || m.pondIds?.length === 0;
+        if (unscoped) {
+            return pondCount > 0
+                ? `${role} · ${t('members.allPonds', { count: pondCount })}`
+                : role;
+        }
+        const names = m.pondIds
+            .map((id) => pondNameById.get(id))
+            .filter(Boolean)
+            .join(', ');
+        return names ? `${role} · ${names}` : role;
+    };
+
     const renderItem = ({ item }: { item: FarmMember }) => (
         <Card style={styles.row}>
             <View style={[styles.avatar, item.role === 'owner' && styles.avatarOwner]}>
@@ -286,7 +324,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             </View>
             <View style={{ flex: 1 }}>
                 <Text style={styles.name} numberOfLines={1}>{fullName(item)}</Text>
-                <Text style={styles.role} numberOfLines={1}>{t(`members.role_${item.role}`)}</Text>
+                <Text style={styles.role} numberOfLines={1}>{memberScopeLine(item)}</Text>
             </View>
             <View style={styles.rowActions}>
                 {perms.canChangeRoles && item.role !== 'owner' && (

@@ -31,6 +31,11 @@ const common = {
   status: 'অবস্থা',
   actions: 'ক্রিয়া',
   // Bottom-tab labels
+  tabToday: 'আজ',
+  tabFarm: 'খামার',
+  tabMoney: 'টাকা',
+  tabTeam: 'দল',
+  tabSettings: 'সেটিংস',
   tabDashboard: 'ড্যাশবোর্ড',
   tabFarms: 'খামার',
   tabReports: 'প্রতিবেদন',

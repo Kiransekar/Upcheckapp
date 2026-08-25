@@ -46,6 +46,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [diameterM, setDiameterM] = useState('');
     const [depthM, setDepthM] = useState('');
     const [installedAeratorHp, setInstalledAeratorHp] = useState('');
+    const [aeratorCount, setAeratorCount] = useState('');
     const [displayName, setDisplayName] = useState('');
 
     const [computedArea, setComputedArea] = useState(0);
@@ -113,6 +114,16 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         setComputedArea(area);
     }, [geometryType, lengthM, widthM, diameterM]);
 
+    // Derived from the same inputs — no extra state to drift out of sync.
+    const depthNum = parseFloat(depthM) || 0;
+    const volumeM3 = computedArea * depthNum;
+    const hectares = computedArea / 10_000;
+    // Aeration intensity is the number farmers actually judge a pond by, and
+    // it is meaningless until BOTH inputs are present — null, not 0, so the
+    // line is absent rather than reading a confident "0 HP/ha".
+    const hpNum = parseFloat(installedAeratorHp) || 0;
+    const hpPerHa = hpNum > 0 && hectares > 0 ? hpNum / hectares : null;
+
     const handleSave = async () => {
         const newErrors: { displayName?: string; depthM?: string } = {};
         if (!displayName.trim()) {
@@ -139,6 +150,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
                 depthM: parseFloat(depthM),
                 installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
+                aeratorCount: aeratorCount ? parseInt(aeratorCount, 10) : undefined,
                 displayName: displayName.trim(),
             });
             // Pond saved — discard the draft so it isn't restored next time.
@@ -253,19 +265,51 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     required
                 />
 
-                <Input
-                    label={t('ponds.fieldAeratorHp')}
-                    value={installedAeratorHp}
-                    onChangeText={setInstalledAeratorHp}
-                    keyboardType="decimal-pad"
-                    placeholder={t('ponds.placeholderAeratorHp')}
-                    hint={t('ponds.hintAeratorHp')}
-                />
+                {/* Area, volume and hectares together — the design shows all
+                    three because a farmer thinks in hectares, stocking maths
+                    needs m², and water exchange needs m³. Deriving two of them
+                    on a calculator is exactly the friction this removes. */}
+                <View style={styles.metricBand}>
+                    <View style={styles.metric}>
+                        <Text style={styles.metricValue}>{computedArea > 0 ? Math.round(computedArea).toLocaleString() : '0'}</Text>
+                        <Text style={styles.metricLabel}>{t('ponds.metricArea')}</Text>
+                    </View>
+                    <View style={styles.metric}>
+                        <Text style={styles.metricValue}>{volumeM3 > 0 ? Math.round(volumeM3).toLocaleString() : '0'}</Text>
+                        <Text style={styles.metricLabel}>{t('ponds.metricVolume')}</Text>
+                    </View>
+                    <View style={styles.metric}>
+                        <Text style={styles.metricValue}>{hectares > 0 ? hectares.toFixed(2) : '0.00'}</Text>
+                        <Text style={styles.metricLabel}>{t('ponds.metricHectares')}</Text>
+                    </View>
+                </View>
 
-                <Card style={styles.previewCard} variant="flat">
-                    <Text style={styles.previewLabel}>{t('ponds.computedArea')}</Text>
-                    <Text style={styles.previewValue}>{computedArea > 0 ? computedArea.toFixed(2) : '0.00'} m²</Text>
-                </Card>
+                <Text style={styles.label}>{t('ponds.fieldAerators')}</Text>
+                <View style={styles.aeratorRow}>
+                    <View style={{ flex: 1 }}>
+                        <Input
+                            label={t('ponds.fieldAeratorCount')}
+                            value={aeratorCount}
+                            onChangeText={setAeratorCount}
+                            keyboardType="number-pad"
+                            placeholder="0"
+                        />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <Input
+                            label={t('ponds.fieldAeratorHp')}
+                            value={installedAeratorHp}
+                            onChangeText={setInstalledAeratorHp}
+                            keyboardType="decimal-pad"
+                            placeholder={t('ponds.placeholderAeratorHp')}
+                        />
+                    </View>
+                </View>
+                {hpPerHa !== null && (
+                    <Text style={styles.aeratorDerived}>
+                        {t('ponds.hpPerHa', { value: hpPerHa.toFixed(0) })}
+                    </Text>
+                )}
 
                 <Button
                     title={t('ponds.savePond')}
@@ -279,6 +323,25 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    metricBand: {
+        flexDirection: 'row', gap: theme.spacing[4],
+        padding: theme.spacing[4], borderRadius: theme.radius.md,
+        backgroundColor: theme.roles.light.infoBg, marginBottom: theme.spacing[4],
+    },
+    metric: { flex: 1 },
+    metricValue: {
+        ...theme.typeScale.h2, color: theme.roles.light.infoText,
+        fontFamily: 'DMMono-Medium',
+    },
+    metricLabel: {
+        ...theme.typeScale.bodySmall, color: theme.roles.light.infoText,
+        letterSpacing: 1, textTransform: 'uppercase',
+    },
+    aeratorRow: { flexDirection: 'row', gap: theme.spacing[3] },
+    aeratorDerived: {
+        ...theme.typeScale.bodyMedium, color: theme.roles.light.successText,
+        fontWeight: '600', marginBottom: theme.spacing[4],
+    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
