@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -61,28 +62,33 @@ export class FarmsService {
 
   /**
    * Generate a unique 8-character alphanumeric farm code.
+   *
+   * Throws if it cannot find a free code in 10 attempts. It used to fall out of
+   * the loop and return the last (colliding) candidate, which then hit the
+   * UNIQUE constraint on insert and surfaced as an opaque driver error — better
+   * to fail here, where the cause is obvious.
    */
   private async generateFarmCode(): Promise<string> {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded I/O/0/1 for readability
-    let code: string;
-    let attempts = 0;
 
-    do {
-      code = '';
+    for (let attempts = 0; attempts < 10; attempts++) {
+      let code = '';
       const bytes = randomBytes(8);
       for (let i = 0; i < 8; i++) {
         code += chars[bytes[i] % chars.length];
       }
       const existing = await this.farmsRepository.findOneBy({ farmCode: code });
-      if (!existing) break;
-      attempts++;
-    } while (attempts < 10);
+      if (!existing) return code;
+    }
 
-    return code;
+    throw new InternalServerErrorException(
+      'Could not allocate a unique farm code. Please try again.',
+    );
   }
 
   async create(createFarmDto: CreateFarmDto, userId: string) {
-    const farmCode = createFarmDto.farmCode || (await this.generateFarmCode());
+    // Always server-generated — see the NOTE in create-farm.dto.ts.
+    const farmCode = await this.generateFarmCode();
 
     const farm = this.farmsRepository.create({
       name: createFarmDto.name,
