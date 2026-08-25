@@ -158,6 +158,39 @@ export class FarmMembersService {
    * responsible for the whole farm — so setting it on one is refused rather
    * than stored and silently ignored.
    */
+  /**
+   * Grant or revoke cost visibility for one member, overriding the role
+   * default. `null` restores the default (owner + manager see financials).
+   *
+   * OWNER_ONLY, deliberately stricter than MANAGE_WORKERS: who sees the farm's
+   * books is the owner's call, and a manager who could grant it to themselves
+   * or to a worker would make the setting meaningless.
+   */
+  async setFinancialAccess(
+    farmId: string,
+    callerId: string,
+    targetUserId: string,
+    canViewFinancials: boolean | null,
+  ) {
+    await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'OWNER_ONLY');
+
+    const member = await this.membersRepo.findOne({
+      where: { farmId, userId: targetUserId },
+    });
+    if (!member) {
+      throw new NotFoundException('That person is not a member of this farm');
+    }
+    if (member.role === 'owner') {
+      throw new BadRequestException(
+        'The farm owner always has access to their own financials',
+      );
+    }
+
+    member.canViewFinancials = canViewFinancials;
+    await this.membersRepo.save(member);
+    return { farmId, userId: targetUserId, canViewFinancials };
+  }
+
   async setPondScope(
     farmId: string,
     callerId: string,

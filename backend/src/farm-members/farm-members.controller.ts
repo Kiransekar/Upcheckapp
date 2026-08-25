@@ -20,6 +20,7 @@ import { JoinFarmDto } from './dto/join-farm.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { JoinPolicyDto } from './dto/join-policy.dto';
 import { SetPondScopeDto } from './dto/set-pond-scope.dto';
+import { FinancialAccessDto } from './dto/financial-access.dto';
 import { RecoveryContactDto } from './dto/recovery-contact.dto';
 import { FarmRecoveryService } from './farm-recovery.service';
 import { ApproveMemberDto } from './dto/approve-member.dto';
@@ -177,6 +178,22 @@ export class FarmMembersController {
       user.id,
       userId,
       dto.role,
+    );
+  }
+
+  /** Grant or revoke cost visibility for one member. Owner only. */
+  @Patch('farms/:farmId/members/:userId/financials')
+  setFinancialAccess(
+    @Param('farmId') farmId: string,
+    @Param('userId') userId: string,
+    @Body() dto: FinancialAccessDto,
+    @CurrentUser() user,
+  ) {
+    return this.membersService.setFinancialAccess(
+      farmId,
+      user.id,
+      userId,
+      dto.canViewFinancials ?? null,
     );
   }
 

@@ -31,6 +31,12 @@ export interface FarmMember {
     userId: string;
     role: FarmRole;
     status: FarmMemberStatus;
+    /**
+     * Ponds this member is restricted to. EMPTY = every pond on the farm, which
+     * is the default, and what owners and managers always get regardless — see
+     * the backend farm_member_ponds semantics.
+     */
+    pondIds: string[];
     createdAt: string;
     user: PublicUser | null;
 }
@@ -133,6 +139,17 @@ export const farmMembersApi = {
 
     setJoinPolicy: (farmId: string, policy: Partial<JoinPolicy>) =>
         apiClient.post<JoinPolicy>(`/farms/${farmId}/join-policy`, policy),
+
+    /** Restrict a member to specific ponds; an EMPTY array clears the scope. */
+    setPondScope: (farmId: string, userId: string, pondIds: string[]) =>
+        apiClient.patch(`/farms/${farmId}/members/${userId}/ponds`, { pondIds }),
+
+    /**
+     * Per-farm cost visibility override for one member. `null` restores the
+     * role default (owner + manager see financials).
+     */
+    setFinancialAccess: (farmId: string, userId: string, canViewFinancials: boolean | null) =>
+        apiClient.patch(`/farms/${farmId}/members/${userId}/financials`, { canViewFinancials }),
 
     /** Retire every active invite for the farm and mint a fresh one. */
     rotateInvite: (farmId: string, body: CreateInviteBody = {}) =>
