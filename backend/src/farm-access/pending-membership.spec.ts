@@ -19,6 +19,21 @@ const FARM = 'farm-1';
 const OWNER = 'user-owner';
 const JOINER = 'user-joiner';
 
+/**
+ * farm_member_ponds stub with no rows — nobody is pond-scoped, so these tests
+ * exercise role/status only, which is what they are about.
+ */
+const noPondScope = () => ({
+  find: jest.fn(async () => []),
+  delete: jest.fn(),
+  insert: jest.fn(),
+  createQueryBuilder: () => ({
+    innerJoin() { return this; },
+    select() { return this; },
+    getRawMany: async () => [],
+  }),
+});
+
 const ALL_CAPABILITIES: FarmCapability[] = [
   'READ',
   'WRITE_OPERATIONAL',
@@ -71,6 +86,7 @@ function makeService(status: 'active' | 'pending', canViewFinancials: boolean | 
     membersRepo as any,
     farmsRepo as any,
     pondsRepo as any,
+    noPondScope() as any,
   );
 }
 
@@ -176,6 +192,7 @@ describe('W6 — per-farm financial grant', () => {
         membersRepo as any,
         { findOne: jest.fn(async () => ({ id: FARM, userId: OWNER, deletedAt: null })), find: jest.fn(async () => [{ id: FARM }]) } as any,
         { findOne: jest.fn() } as any,
+        noPondScope() as any,
       );
     })();
 
@@ -206,6 +223,7 @@ describe('W6 — per-farm financial grant', () => {
         find: jest.fn(async () => [{ id: FARM }]),
       } as any,
       { findOne: jest.fn() } as any,
+      noPondScope() as any,
     );
 
     await expect(

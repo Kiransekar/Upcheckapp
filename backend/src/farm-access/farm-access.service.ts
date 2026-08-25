@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In } from 'typeorm';
 import { FarmMember, FarmRole } from './farm-member.entity';
+import { FarmMemberPond, SCOPABLE_ROLES } from './farm-member-pond.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmCapability, roleSatisfies } from './farm-capability';
@@ -41,6 +42,8 @@ export class FarmAccessService {
     private readonly farmsRepo: Repository<Farm>,
     @InjectRepository(Pond)
     private readonly pondsRepo: Repository<Pond>,
+    @InjectRepository(FarmMemberPond)
+    private readonly memberPondsRepo: Repository<FarmMemberPond>,
   ) {}
 
   /**
@@ -211,7 +214,12 @@ export class FarmAccessService {
     return farm;
   }
 
-  /** Pond-scoped variant — resolves the pond's farm, then delegates. */
+  /**
+   * Pond-scoped variant — the farm check, then the pond-scoping check.
+   *
+   * The farm check has to pass first: pond scoping NARROWS access within a farm
+   * you already belong to, it never widens it.
+   */
   async assertCanAccessPond(
     userId: string,
     pondId: string,
@@ -222,6 +230,140 @@ export class FarmAccessService {
       throw new NotFoundException(`Pond with ID ${pondId} not found`);
     }
     await this.assertCanAccessFarm(userId, pond.farmId, capability);
+
+    if (!(await this.isPondInScope(userId, pond.farmId, pondId))) {
+      throw new ForbiddenException(
+        'You do not have access to this pond on this farm',
+      );
+    }
     return pond;
+  }
+
+  // ==================== Pond scoping (W4) ====================
+
+  /**
+   * Is this pond within the user's scope on this farm?
+   *
+   * True unless the user holds a scopable role (worker/viewer) AND has at least
+   * one `farm_member_ponds` row — in which case the pond must be among them.
+   * No rows means the whole farm, which is why this needs no backfill: every
+   * membership that existed before this feature keeps exactly its old reach.
+   */
+  private async isPondInScope(
+    userId: string,
+    farmId: string,
+    pondId: string,
+  ): Promise<boolean> {
+    const scoped = await this.getScopedPondIds(userId, farmId);
+    return scoped === null || scoped.has(pondId);
+  }
+
+  /**
+   * The pond ids a user is restricted to on a farm, or null for "all ponds".
+   *
+   * Returns null (unrestricted) for owner and manager regardless of any rows —
+   * they are responsible for the whole farm, and half-applying scoping to them
+   * would be worse than not offering it.
+   */
+  private async getScopedPondIds(
+    userId: string,
+    farmId: string,
+  ): Promise<Set<string> | null> {
+    const { role } = await this.getMembershipOnFarm(userId, farmId);
+    if (!role || !SCOPABLE_ROLES.includes(role as any)) return null;
+
+    try {
+      const rows = await this.memberPondsRepo
+        .createQueryBuilder('mp')
+        .innerJoin(
+          'farm_members',
+          'fm',
+          'fm.id = mp.farm_member_id AND fm.farm_id = :farmId AND fm.user_id = :userId',
+          { farmId, userId },
+        )
+        .select('mp.pond_id', 'pondId')
+        .getRawMany<{ pondId: string }>();
+
+      // No rows = no restriction. This is the default for every member.
+      if (rows.length === 0) return null;
+      return new Set(rows.map((r) => r.pondId));
+    } catch (err) {
+      if (!isMissingTable(err)) throw err;
+      // Deploy-before-migrate: without the table nobody is scoped, which is
+      // exactly the pre-feature behaviour.
+      this.logger.warn(
+        'farm_member_ponds table missing — run migrations; no pond scoping applied',
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Pond ids on `farmId` the user may act on at `capability`, for scoping list
+   * endpoints and farm-level aggregates. Returns every live pond on the farm
+   * when the user is unrestricted.
+   */
+  async getAccessiblePondIds(
+    userId: string,
+    farmId: string,
+    capability: FarmCapability = 'READ',
+  ): Promise<string[]> {
+    // Farm-level permission first; a non-member gets nothing.
+    const { role, canViewFinancials } = await this.getMembershipOnFarm(
+      userId,
+      farmId,
+    );
+    if (!roleSatisfies(role, capability, canViewFinancials)) return [];
+
+    const all = await this.pondsRepo.find({
+      where: { farmId },
+      select: { id: true },
+    });
+    const allIds = all.map((p) => p.id);
+
+    const scoped = await this.getScopedPondIds(userId, farmId);
+    if (scoped === null) return allIds;
+    return allIds.filter((id) => scoped.has(id));
+  }
+
+  /**
+   * Replace a member's pond scope. An empty array clears it, restoring
+   * whole-farm access — the deliberate way to un-scope someone.
+   */
+  async setPondScope(
+    farmMemberId: string,
+    pondIds: string[],
+  ): Promise<string[]> {
+    await this.memberPondsRepo.delete({ farmMemberId });
+    if (pondIds.length > 0) {
+      await this.memberPondsRepo.insert(
+        pondIds.map((pondId) => ({ farmMemberId, pondId })),
+      );
+    }
+    return pondIds;
+  }
+
+  /** Pond ids each of these memberships is restricted to. Empty = all ponds. */
+  async getPondScopesForMembers(
+    farmMemberIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>();
+    if (farmMemberIds.length === 0) return out;
+    try {
+      const rows = await this.memberPondsRepo.find({
+        where: { farmMemberId: In(farmMemberIds) },
+      });
+      for (const r of rows) {
+        const list = out.get(r.farmMemberId) ?? [];
+        list.push(r.pondId);
+        out.set(r.farmMemberId, list);
+      }
+    } catch (err) {
+      if (!isMissingTable(err)) throw err;
+      this.logger.warn(
+        'farm_member_ponds table missing — run migrations; reporting no scopes',
+      );
+    }
+    return out;
   }
 }

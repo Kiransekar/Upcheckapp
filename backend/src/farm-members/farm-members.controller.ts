@@ -19,6 +19,7 @@ import { LookupUserDto } from './dto/lookup-user.dto';
 import { JoinFarmDto } from './dto/join-farm.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { JoinPolicyDto } from './dto/join-policy.dto';
+import { SetPondScopeDto } from './dto/set-pond-scope.dto';
 import { ApproveMemberDto } from './dto/approve-member.dto';
 import { FarmInvitesService } from './farm-invites.service';
 
@@ -174,6 +175,17 @@ export class FarmMembersController {
       userId,
       dto.role,
     );
+  }
+
+  /** Restrict a member to specific ponds; an empty list clears the scope. */
+  @Patch('farms/:farmId/members/:userId/ponds')
+  setPondScope(
+    @Param('farmId') farmId: string,
+    @Param('userId') userId: string,
+  @Body() dto: SetPondScopeDto,
+    @CurrentUser() user,
+  ) {
+    return this.membersService.setPondScope(farmId, user.id, userId, dto.pondIds);
   }
 
   /** Transfer farm ownership to an existing member (owner only). */
