@@ -5,6 +5,7 @@ import {
   Body,
   Param,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,8 @@ import { HarvestRecommendation } from './harvest-recommendation.entity';
 import { PricingService } from '../india/pricing.service';
 import { PondsService } from '../ponds/ponds.service';
 import { OptimizeHarvestTimingDto } from './dto/optimize.dto';
+import { OwnershipGuard } from '../common/guards/ownership.guard';
+import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 
 /** Harvest-Timing Decision Engine (farmer_features_spec.md §1). */
 @Controller('harvest-timing')
@@ -32,6 +35,12 @@ export class HarvestTimingController {
   /**
    * Compute the projection + verdict. Resolves price bands from `region` when
    * `priceBands` is omitted; optionally persists when `persist` + `pondId`.
+   *
+   * No route-level OwnershipGuard: `pondId` is optional here (a pure preview
+   * carries none), and the guard 404s when it cannot resolve a resource id.
+   * The persist branch asserts WRITE_MANAGEMENT on the pond before writing,
+   * which is the enforcement point for the only part of this route that
+   * touches farm data.
    */
   @Post('optimize')
   async optimize(@Body() body: OptimizeHarvestTimingDto, @CurrentUser() user) {
@@ -63,7 +72,8 @@ export class HarvestTimingController {
     const result = this.service.optimize(input);
 
     if (body.persist && body.pondId) {
-      await this.pondsService.findOne(body.pondId, user.id);
+      // Persisting an optimisation result is planning — WRITE_MANAGEMENT.
+      await this.pondsService.verifyAccess(body.pondId, user.id, 'WRITE_MANAGEMENT');
       const saved = await this.repo.save(
         this.repo.create({
           pondId: body.pondId,
@@ -82,8 +92,10 @@ export class HarvestTimingController {
   }
 
   @Get('pond/:pondId')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
   async recent(@Param('pondId') pondId: string, @CurrentUser() user) {
-    await this.pondsService.findOne(pondId, user.id);
+    await this.pondsService.verifyAccess(pondId, user.id, 'READ');
     return this.repo.find({
       where: { pondId },
       order: { createdAt: 'DESC' },

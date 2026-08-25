@@ -86,7 +86,7 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 62 | MEDI | ✅ | Process crash safety | No process-level 'unhandledRejection'/'uncaughtException' handler anywhere in the bac |
 | 63 | MEDI | ✅ | pond-context / overstated data confide | Alkalinity's confidence age uses chemistryAsOf, which is derived solely from the late |
 | 64 | MEDI | ✅ | Entity vs migration divergence (NOT NU | pond.entity.ts marks geometry_type, construction_type, depth_m and calculated_area_m2 |
-| 65 | MEDI | ✅ | Authorization consistency (members loc | Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations,  |
+| 65 | MEDI | ✅* | Authorization consistency (members loc | Engine/finance features (feed-advisor, disease-warning, harvest-timing, simulations,  |
 | 66 | MEDI | ✅ | Shared-catalog integrity (no admin gat | Product entity has no owner column (global catalog) yet POST/PATCH/PATCH:id/stock/DEL |
 | 67 | MEDI | ✅ | Redis fallback recovery | retryStrategy returns null after 3 failures and flips useMemory=true permanently; onc |
 | 68 | MEDI | ✅ | species feeding-rate endpoint dead | getRecommendedFeedingRate calls the service with only averageWeightG and never forwar |
@@ -236,3 +236,18 @@ Legend: ✅ done+tested / ⬜ pending / 🔷 needs-ops-or-external-input
 | 212 | IMPR | ✅ | git hygiene / IDE artifacts | A Kiro IDE working-spec tree (11 files under .kiro/specs, including .config.kiro dotf |
 | 213 | IMPR | ✅ | Content & copy — inconsistent example  | Date-field example/placeholder years are inconsistent across the app: stocking date e |
 | 214 | IMPR | ✅ | Android native SDK in shared bundle | authStore (loaded on every platform at startup) imports TruecallerAuth, whose module  |
+---
+
+## Corrections
+
+**Row 65 (audit #7, "Authorization consistency — members locked out") — marked `✅*`: was only PARTIALLY remediated when first ticked.**
+
+The original pass moved `pnl`, `water-quality`, `feed-records` and `ponds.controller` onto the member-aware paths, but the engine and reporting services were left on the owner-only `pondsService.findOne` / `cropsService.findOne`. Twenty call sites were still owner-only across `crops`, `disease-warning`, `feed-advisor`, `harvest-timing`, `measurement`, `pond-context` and `reports`, so a `manager` could log water quality but was still 403'd starting a cycle, opening a feed plan, or viewing a disease warning on the same pond — the exact symptom the finding describes.
+
+Completed in `fix/manager-role-capabilities` (W1 of `docs/FARM_ACCESS_REMEDIATION_PLAN.md`):
+
+- All 20 sites moved to `findOneAccessible` / `verifyAccess` with an explicit capability matching the route guard.
+- The six controllers that had **no `OwnershipGuard` at all** (`feed-advisor`, `disease-warning`, `measurement`, `pond-context`, `harvest-timing`, `reports`) now declare `@OwnsResource` per route, so the policy is enforced twice and visible where the route is defined.
+- `PondsService.findOne` renamed to `findOneAsOwner`; the owner-only method no longer sits next to `findOneAccessible` under a name that invites misuse. `CropsService.findOne` keeps its name but is documented as the `VIEW_FINANCIALS` economics path.
+- Fixed a gap the plan did not list: `measurement.edit()` authorized via `findOne`, which W1 moved to `READ` — that would have let a **viewer** edit measurements. It now asserts `WRITE_OPERATIONAL` explicitly.
+- Two new regression specs: `farm-access/route-capabilities.spec.ts` pins every route's `@OwnsResource` metadata (including the two routes that intentionally have none), and `farm-access/w1-role-matrix.spec.ts` drives all four roles through the real access chain for each W1 operation.

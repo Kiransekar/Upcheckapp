@@ -75,7 +75,12 @@ function makeService(opts?: { stockingDate?: string }) {
       ? [{ id: 'crop-1', pondId: POND, stockingDate: opts.stockingDate }]
       : [],
   );
-  const pondsService = { findOne: jest.fn().mockResolvedValue({ id: POND }) };
+  const pondsService = {
+    findOne: jest.fn().mockResolvedValue({ id: POND }),
+    // Capability-bearing access check — every MeasurementService call site uses
+    // this now, so the IDOR re-check below is asserted against it.
+    verifyAccess: jest.fn().mockResolvedValue(undefined),
+  };
 
   const service = new MeasurementService(
     measRepo as any,
@@ -180,18 +185,22 @@ describe('MeasurementService', () => {
       valueNum: 7.0,
     });
 
-    // Ownership check passes for the caller's own pond (dto.pondId) but MUST be
-    // re-run against the found row's own pond — which the caller does not own.
-    pondsService.findOne
-      .mockImplementationOnce(async () => ({ id: POND })) // dto.pondId ownership OK
+    // Access check passes for the caller's own pond (dto.pondId) but MUST be
+    // re-run against the found row's own pond — which the caller cannot access.
+    pondsService.verifyAccess
+      .mockImplementationOnce(async () => undefined) // dto.pondId access OK
       .mockImplementationOnce(async () => {
-        throw new BadRequestException('not your pond'); // existing.pondId ownership fails
+        throw new BadRequestException('not your pond'); // existing.pondId access fails
       });
 
     await expect(
       service.create({ id, pondId: POND, param: 'ph', valueNum: 1 }, USER),
     ).rejects.toBeInstanceOf(BadRequestException);
-    expect(pondsService.findOne).toHaveBeenCalledWith('foreign-pond', USER);
+    expect(pondsService.verifyAccess).toHaveBeenCalledWith(
+      'foreign-pond',
+      USER,
+      'WRITE_OPERATIONAL',
+    );
   });
 
   it('derives DOC from the crop stocking date (stocking day = DOC 1)', async () => {

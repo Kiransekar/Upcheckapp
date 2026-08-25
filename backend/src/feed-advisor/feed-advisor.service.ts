@@ -157,7 +157,8 @@ export class FeedAdvisorService {
     userId: string,
     cropId?: string,
   ): Promise<FeedPlan> {
-    await this.pondsService.findOne(pondId, userId);
+    // Generating and persisting a feed plan is planning — WRITE_MANAGEMENT.
+    await this.pondsService.verifyAccess(pondId, userId, 'WRITE_MANAGEMENT');
     const r = this.computeRation(input);
     const plan = this.repo.create({
       pondId,
@@ -177,7 +178,7 @@ export class FeedAdvisorService {
   }
 
   async recent(pondId: string, userId: string): Promise<FeedPlan[]> {
-    await this.pondsService.findOne(pondId, userId);
+    await this.pondsService.verifyAccess(pondId, userId, 'READ');
     return this.repo.find({
       where: { pondId },
       order: { date: 'DESC' },
@@ -192,7 +193,8 @@ export class FeedAdvisorService {
   ): Promise<FeedPlan> {
     const plan = await this.repo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Feed plan not found');
-    await this.pondsService.findOne(plan.pondId, userId);
+    // Recording what was actually fed is field data, not planning.
+    await this.pondsService.verifyAccess(plan.pondId, userId, 'WRITE_OPERATIONAL');
     plan.actualKg = actualKg;
     plan.adherence = round2(
       this.adherence(actualKg, Number(plan.recommendedKg)),

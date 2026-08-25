@@ -51,9 +51,10 @@ export class MeasurementService {
     // identical ownership query for every reading (N+1 on offline sync).
     pondCache?: Set<string>,
   ): Promise<Measurement> {
-    // Ownership — throws if the user does not own the pond.
+    // Access — throws unless the user may write operational data on the pond
+    // (owner, manager or worker). Recording a measurement is field work.
     if (!pondCache?.has(dto.pondId)) {
-      await this.pondsService.findOne(dto.pondId, userId);
+      await this.pondsService.verifyAccess(dto.pondId, userId, 'WRITE_OPERATIONAL');
       pondCache?.add(dto.pondId);
     }
 
@@ -64,7 +65,7 @@ export class MeasurementService {
     if (dto.id) {
       const existing = await this.repo.findOne({ where: { id: dto.id } });
       if (existing) {
-        await this.pondsService.findOne(existing.pondId, userId);
+        await this.pondsService.verifyAccess(existing.pondId, userId, 'WRITE_OPERATIONAL');
         return existing;
       }
     }
@@ -178,7 +179,7 @@ export class MeasurementService {
       // Without a pond we cannot scope ownership; require it.
       throw new NotFoundException('pondId is required');
     }
-    await this.pondsService.findOne(q.pondId, userId);
+    await this.pondsService.verifyAccess(q.pondId, userId, 'READ');
 
     const where: Record<string, unknown> = {
       pondId: q.pondId,
@@ -211,7 +212,7 @@ export class MeasurementService {
   async findOne(id: string, userId: string): Promise<Measurement> {
     const m = await this.repo.findOne({ where: { id } });
     if (!m) throw new NotFoundException('Measurement not found');
-    await this.pondsService.findOne(m.pondId, userId); // ownership
+    await this.pondsService.verifyAccess(m.pondId, userId, 'READ');
     return m;
   }
 
@@ -226,6 +227,15 @@ export class MeasurementService {
     userId: string,
   ): Promise<Measurement> {
     const original = await this.findOne(id, userId);
+
+    // findOne only requires READ, which includes `viewer`. Editing is a write,
+    // so assert the write capability explicitly here rather than inheriting
+    // findOne's weaker check — otherwise a viewer could append corrections.
+    await this.pondsService.verifyAccess(
+      original.pondId,
+      userId,
+      'WRITE_OPERATIONAL',
+    );
 
     const isMissing = !!dto.isMissingReason;
     const { canonicalUnit } = await this.dictionary.validate({
