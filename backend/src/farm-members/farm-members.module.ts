@@ -8,6 +8,7 @@ import { FarmInvite } from './farm-invite.entity';
 import { FarmMembersController } from './farm-members.controller';
 import { FarmMembersService } from './farm-members.service';
 import { FarmInvitesService } from './farm-invites.service';
+import { FarmRecoveryService } from './farm-recovery.service';
 
 /**
  * Team-membership API: look up users, add/remove farm workers, list members,
@@ -17,7 +18,7 @@ import { FarmInvitesService } from './farm-invites.service';
 @Module({
   imports: [TypeOrmModule.forFeature([FarmMember, User, Farm, FarmInvite, Pond])],
   controllers: [FarmMembersController],
-  providers: [FarmMembersService, FarmInvitesService],
-  exports: [FarmMembersService, FarmInvitesService],
+  providers: [FarmMembersService, FarmInvitesService, FarmRecoveryService],
+  exports: [FarmMembersService, FarmInvitesService, FarmRecoveryService],
 })
 export class FarmMembersModule {}

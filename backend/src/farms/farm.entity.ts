@@ -112,6 +112,34 @@ export class Farm {
   @Column({ type: 'jsonb', nullable: true })
   boundary: { latitude: number; longitude: number }[];
 
+  /**
+   * Nominated recovery contact — a member who may claim ownership if the owner
+   * account is lost (phone lost, number changed, person leaves).
+   *
+   * `farm.userId` is single-valued and `transferOwnership` requires the
+   * CURRENT owner to act, so without this a lost owner account means the farm
+   * has no recovery path inside the app at all. Family- and partnership-run
+   * farms are the norm in this market, so that is a real dead end, not a
+   * theoretical one.
+   *
+   * Nullable: recovery is opt-in, and a farm with no nominee simply has none.
+   */
+  @Column({ name: 'recovery_contact_id', type: 'uuid', nullable: true })
+  recoveryContactId: string | null;
+
+  /**
+   * When the recovery contact asked to take over. The claim only completes
+   * after RECOVERY_WAIT_DAYS have passed with no cancellation, so a lost phone
+   * cannot become an instant silent takeover — the real owner has a window to
+   * notice and stop it.
+   */
+  @Column({
+    name: 'recovery_claim_started_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  recoveryClaimStartedAt: Date | null;
+
   @DeleteDateColumn({
     name: 'deleted_at',
     type: 'timestamp with time zone',

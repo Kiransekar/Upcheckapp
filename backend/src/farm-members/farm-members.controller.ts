@@ -20,6 +20,8 @@ import { JoinFarmDto } from './dto/join-farm.dto';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { JoinPolicyDto } from './dto/join-policy.dto';
 import { SetPondScopeDto } from './dto/set-pond-scope.dto';
+import { RecoveryContactDto } from './dto/recovery-contact.dto';
+import { FarmRecoveryService } from './farm-recovery.service';
 import { ApproveMemberDto } from './dto/approve-member.dto';
 import { FarmInvitesService } from './farm-invites.service';
 
@@ -32,6 +34,7 @@ export class FarmMembersController {
   constructor(
     private readonly membersService: FarmMembersService,
     private readonly invitesService: FarmInvitesService,
+    private readonly recoveryService: FarmRecoveryService,
   ) {}
 
   /** Resolve a user to add by their unique id (QR), phone or email. */
@@ -186,6 +189,42 @@ export class FarmMembersController {
     @CurrentUser() user,
   ) {
     return this.membersService.setPondScope(farmId, user.id, userId, dto.pondIds);
+  }
+
+  // ============ Owner recovery (W5) ============
+
+  /** Current recovery state — nominee, claim clock, waiting period. */
+  @Get('farms/:farmId/recovery')
+  recoveryStatus(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.recoveryService.status(farmId, user.id);
+  }
+
+  /** Nominate, or clear with null. Owner only. */
+  @Post('farms/:farmId/recovery-contact')
+  setRecoveryContact(
+    @Param('farmId') farmId: string,
+    @Body() dto: RecoveryContactDto,
+    @CurrentUser() user,
+  ) {
+    return this.recoveryService.setRecoveryContact(farmId, user.id, dto.userId ?? null);
+  }
+
+  /** Nominee starts the waiting period. */
+  @Post('farms/:farmId/recovery/claim')
+  startRecoveryClaim(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.recoveryService.startClaim(farmId, user.id);
+  }
+
+  /** Owner (or the nominee) stops a claim in flight. */
+  @Delete('farms/:farmId/recovery/claim')
+  cancelRecoveryClaim(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.recoveryService.cancelClaim(farmId, user.id);
+  }
+
+  /** Nominee takes over, once the waiting period has elapsed. */
+  @Post('farms/:farmId/recovery/complete')
+  completeRecoveryClaim(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.recoveryService.completeClaim(farmId, user.id);
   }
 
   /** Transfer farm ownership to an existing member (owner only). */
