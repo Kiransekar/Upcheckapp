@@ -1,6 +1,7 @@
 import { Module, Global } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FarmMember } from './farm-member.entity';
+import { FarmMemberPond } from './farm-member-pond.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from './farm-access.service';
@@ -14,7 +15,7 @@ import { FarmAccessService } from './farm-access.service';
  */
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([FarmMember, Farm, Pond])],
+  imports: [TypeOrmModule.forFeature([FarmMember, FarmMemberPond, Farm, Pond])],
   providers: [FarmAccessService],
   exports: [FarmAccessService, TypeOrmModule],
 })

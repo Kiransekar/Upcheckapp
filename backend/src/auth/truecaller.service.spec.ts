@@ -117,37 +117,44 @@ describe('TruecallerService', () => {
   });
 
   describe('verifyAccessToken', () => {
-    const profileApiUrl =
-      'https://api5.truecaller.com/v1/otp/installation/verify/profile';
+    const otpVerifyBase =
+      'https://sdk-otp-verification-noneu.truecaller.com/v1/otp/client/installation/phoneNumberDetail';
+    const defaultClientId = 'e98dcupeqtmcocbxr7qb4g7b4sub8blazhxrt-1ikmw';
 
-    it('returns the verified profile when the API responds 200 with a matching phone', async () => {
+    it('validates the token against phoneNumberDetail/{token} with the clientId header and returns the E.164 phone', async () => {
       mockedAxios.get.mockResolvedValueOnce({
         status: 200,
-        data: {
-          phoneNumber: '+919876543210',
-          firstName: 'Aarav',
-          lastName: 'Sharma',
-          email: 'aarav@example.com',
-        },
+        data: { phoneNumber: '919876543210', countryCode: 'IN' },
       } as any);
       const svc = buildService();
 
       const profile = await svc.verifyAccessToken('tok', '9876543210');
 
+      // The phoneNumberDetail endpoint carries no name — the caller supplies
+      // the user-entered display name, so the service defaults it to 'User'.
       expect(profile.phoneNumber).toBe('+919876543210');
-      expect(profile.firstName).toBe('Aarav');
-      expect(profile.lastName).toBe('Sharma');
-      expect(profile.email).toBe('aarav@example.com');
-      expect(mockedAxios.get).toHaveBeenCalledWith(profileApiUrl, {
-        headers: { Authorization: 'Bearer tok' },
+      expect(profile.firstName).toBe('User');
+      expect(mockedAxios.get).toHaveBeenCalledWith(`${otpVerifyBase}/tok`, {
+        headers: { clientId: defaultClientId },
         validateStatus: expect.any(Function),
       });
     });
 
-    it('throws UnauthorizedException("Invalid access token") on non-2xx', async () => {
+    it('coerces a numeric phoneNumber in the response to a string E.164', async () => {
       mockedAxios.get.mockResolvedValueOnce({
-        status: 401,
-        data: {},
+        status: 200,
+        data: { phoneNumber: 919876543210, countryCode: 'IN' },
+      } as any);
+      const svc = buildService();
+
+      const profile = await svc.verifyAccessToken('tok', '+919876543210');
+      expect(profile.phoneNumber).toBe('+919876543210');
+    });
+
+    it('throws UnauthorizedException("Invalid access token") on non-2xx (e.g. 404 invalid token)', async () => {
+      mockedAxios.get.mockResolvedValueOnce({
+        status: 404,
+        data: { code: 1404, message: 'Invalid access token.' },
       } as any);
       const svc = buildService();
 
@@ -172,7 +179,7 @@ describe('TruecallerService', () => {
     it('throws UnauthorizedException("Invalid Truecaller profile") when phoneNumber is missing', async () => {
       mockedAxios.get.mockResolvedValueOnce({
         status: 200,
-        data: { firstName: 'Aarav' },
+        data: { countryCode: 'IN' },
       } as any);
       const svc = buildService();
 
@@ -186,7 +193,7 @@ describe('TruecallerService', () => {
     it('throws UnauthorizedException("Phone number mismatch") when phones differ after normalization', async () => {
       mockedAxios.get.mockResolvedValueOnce({
         status: 200,
-        data: { phoneNumber: '+918888888888' },
+        data: { phoneNumber: '918888888888', countryCode: 'IN' },
       } as any);
       const svc = buildService();
 
@@ -200,7 +207,7 @@ describe('TruecallerService', () => {
     it('treats +91-prefixed and bare 10-digit numbers as equal', async () => {
       mockedAxios.get.mockResolvedValueOnce({
         status: 200,
-        data: { phoneNumber: '+919876543210' },
+        data: { phoneNumber: '919876543210', countryCode: 'IN' },
       } as any);
       const svc = buildService();
 
@@ -208,18 +215,18 @@ describe('TruecallerService', () => {
       expect(profile.phoneNumber).toBe('+919876543210');
     });
 
-    it('honors a custom TRUECALLER_PROFILE_API_URL env var', async () => {
+    it('honors a custom TRUECALLER_OTP_VERIFY_URL env var', async () => {
       mockedAxios.get.mockResolvedValueOnce({
         status: 200,
-        data: { phoneNumber: '+919876543210' },
+        data: { phoneNumber: '919876543210', countryCode: 'IN' },
       } as any);
-      const customUrl = 'https://example.test/profile';
+      const customBase = 'https://example.test/otp/phoneNumberDetail';
       const svc = buildService({
-        TRUECALLER_PROFILE_API_URL: customUrl,
+        TRUECALLER_OTP_VERIFY_URL: customBase,
       });
       await svc.verifyAccessToken('tok', '9876543210');
       expect(mockedAxios.get).toHaveBeenCalledWith(
-        customUrl,
+        `${customBase}/tok`,
         expect.any(Object),
       );
     });

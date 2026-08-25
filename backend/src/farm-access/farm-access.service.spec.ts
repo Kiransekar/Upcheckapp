@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { FarmAccessService } from './farm-access.service';
 import { FarmMember } from './farm-member.entity';
+import { FarmMemberPond } from './farm-member-pond.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
 
@@ -11,6 +12,7 @@ describe('FarmAccessService', () => {
   let membersRepo: any;
   let farmsRepo: any;
   let pondsRepo: any;
+  let memberPondsRepo: any;
 
   const OWNER = 'owner-1';
   const WORKER = 'worker-1';
@@ -20,7 +22,19 @@ describe('FarmAccessService', () => {
   beforeEach(async () => {
     membersRepo = { findOne: jest.fn(), find: jest.fn() };
     farmsRepo = { findOne: jest.fn(), find: jest.fn() };
-    pondsRepo = { findOne: jest.fn() };
+    pondsRepo = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
+    // No pond-scope rows: every member reaches the whole farm, which is the
+    // default and what these role/status tests are about.
+    memberPondsRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn(),
+      insert: jest.fn(),
+      createQueryBuilder: () => ({
+        innerJoin() { return this; },
+        select() { return this; },
+        getRawMany: async () => [],
+      }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -28,6 +42,7 @@ describe('FarmAccessService', () => {
         { provide: getRepositoryToken(FarmMember), useValue: membersRepo },
         { provide: getRepositoryToken(Farm), useValue: farmsRepo },
         { provide: getRepositoryToken(Pond), useValue: pondsRepo },
+        { provide: getRepositoryToken(FarmMemberPond), useValue: memberPondsRepo },
       ],
     }).compile();
 
@@ -73,6 +88,24 @@ describe('FarmAccessService', () => {
         .mockResolvedValueOnce([{ id: FARM }]) // owned
         .mockResolvedValueOnce([{ id: FARM }]); // live
       expect(await service.getAccessibleFarmIds(OWNER)).toEqual([FARM]);
+    });
+
+    it('scopes the soft-delete check to the caller own farms, not every farm in the database', async () => {
+      // PERF: this used to select EVERY live farm to filter a handful. The
+      // method fires on every list endpoint call (harvests, sampling, ponds,
+      // reports), so its cost grew with total farms across all tenants rather
+      // than with the caller's own — it got slower for everyone each time
+      // anyone signed up.
+      membersRepo.find.mockResolvedValue([{ farmId: FARM }]);
+      farmsRepo.find
+        .mockResolvedValueOnce([]) // owned
+        .mockResolvedValueOnce([{ id: FARM }]); // live, scoped
+
+      await service.getAccessibleFarmIds(WORKER);
+
+      const liveQuery = farmsRepo.find.mock.calls[1][0];
+      expect(liveQuery.where).toHaveProperty('id');
+      expect(liveQuery.where).toHaveProperty('deletedAt');
     });
   });
 

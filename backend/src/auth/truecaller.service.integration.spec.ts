@@ -10,6 +10,11 @@
  * — URL construction, headers, response handling, and error translation —
  * end-to-end against a network interceptor, satisfying task 11.1.
  *
+ * The missed-call/OTP access token is validated against the documented
+ * `GET .../phoneNumberDetail/{accessToken}` endpoint on
+ * `sdk-otp-verification-noneu.truecaller.com`, with the client id sent as
+ * a `clientId` header.
+ *
  * Validates: Requirements 9.1, 9.3, 9.5, 9.6, 9.7, 10.2, 10.3, 10.4
  */
 
@@ -21,8 +26,9 @@ import { TruecallerService } from './truecaller.service';
 
 const API4_HOST = 'https://api4.truecaller.com';
 const API4_PATH = '/v1/key';
-const API5_HOST = 'https://api5.truecaller.com';
-const API5_PATH = '/v1/otp/installation/verify/profile';
+const OTP_HOST = 'https://sdk-otp-verification-noneu.truecaller.com';
+const OTP_PATH_BASE = '/v1/otp/client/installation/phoneNumberDetail';
+const DEFAULT_CLIENT_ID = 'e98dcupeqtmcocbxr7qb4g7b4sub8blazhxrt-1ikmw';
 
 // ──────────────────────────────────────────────────────────────────
 // Helpers
@@ -443,19 +449,13 @@ describe('TruecallerService integration (nock)', () => {
   // verifyAccessToken — OTP flow against api5.truecaller.com
   // ──────────────────────────────────────────────────────────────────
 
-  describe('verifyAccessToken against api5.truecaller.com profile API', () => {
-    it('happy path — returns the profile when api5 responds 200 with a matching phone', async () => {
-      nock(API5_HOST, {
-        reqheaders: { authorization: 'Bearer access-tok-happy' },
+  describe('verifyAccessToken against phoneNumberDetail OTP API', () => {
+    it('happy path — validates token via path segment + clientId header and returns E.164 phone', async () => {
+      nock(OTP_HOST, {
+        reqheaders: { clientid: DEFAULT_CLIENT_ID },
       })
-        .get(API5_PATH)
-        .reply(200, {
-          phoneNumber: '+919876543210',
-          firstName: 'Aarav',
-          lastName: 'Sharma',
-          email: 'aarav@example.com',
-          avatarUrl: 'https://cdn.example/avatar.png',
-        });
+        .get(`${OTP_PATH_BASE}/access-tok-happy`)
+        .reply(200, { phoneNumber: '919876543210', countryCode: 'IN' });
 
       const svc = buildService();
       const profile = await svc.verifyAccessToken(
@@ -463,25 +463,26 @@ describe('TruecallerService integration (nock)', () => {
         '9876543210',
       );
 
+      // Endpoint returns no name — the caller supplies the display name, so
+      // the verifier defaults firstName to 'User'.
       expect(profile.phoneNumber).toBe('+919876543210');
-      expect(profile.firstName).toBe('Aarav');
-      expect(profile.lastName).toBe('Sharma');
-      expect(profile.email).toBe('aarav@example.com');
-      expect(profile.avatarUrl).toBe('https://cdn.example/avatar.png');
+      expect(profile.firstName).toBe('User');
     });
 
     it('Requirement 10.4 — accepts +91-prefixed and bare 10-digit numbers as equal', async () => {
-      nock(API5_HOST)
-        .get(API5_PATH)
-        .reply(200, { phoneNumber: '+919876543210', firstName: 'Aarav' });
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/tok`)
+        .reply(200, { phoneNumber: '919876543210', countryCode: 'IN' });
 
       const svc = buildService();
       const profile = await svc.verifyAccessToken('tok', '9876543210');
       expect(profile.phoneNumber).toBe('+919876543210');
     });
 
-    it('Requirement 10.2 — rejects with "Invalid access token" on HTTP 401', async () => {
-      nock(API5_HOST).get(API5_PATH).reply(401, {});
+    it('Requirement 10.2 — rejects with "Invalid access token" on HTTP 404 (invalid token)', async () => {
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/expired-tok`)
+        .reply(404, { code: 1404, message: 'Invalid access token.' });
 
       const svc = buildService();
       await expect(
@@ -492,8 +493,10 @@ describe('TruecallerService integration (nock)', () => {
       });
     });
 
-    it('Requirement 10.2 — rejects with "Invalid access token" on HTTP 403', async () => {
-      nock(API5_HOST).get(API5_PATH).reply(403, { error: 'forbidden' });
+    it('Requirement 10.2 — rejects with "Invalid access token" on HTTP 404 (invalid partner credentials)', async () => {
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/forbidden-tok`)
+        .reply(404, { code: 404, message: 'Invalid partner credentials.' });
 
       const svc = buildService();
       await expect(
@@ -504,7 +507,7 @@ describe('TruecallerService integration (nock)', () => {
     });
 
     it('Requirement 10.2 — rejects with "Invalid access token" on HTTP 500', async () => {
-      nock(API5_HOST).get(API5_PATH).reply(500, 'internal error');
+      nock(OTP_HOST).get(`${OTP_PATH_BASE}/tok`).reply(500, 'internal error');
 
       const svc = buildService();
       await expect(
@@ -515,9 +518,9 @@ describe('TruecallerService integration (nock)', () => {
     });
 
     it('Requirement 10.3 — rejects with "Invalid Truecaller profile" when phoneNumber is missing', async () => {
-      nock(API5_HOST)
-        .get(API5_PATH)
-        .reply(200, { firstName: 'Aarav', lastName: 'Sharma' });
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/tok`)
+        .reply(200, { countryCode: 'IN' });
 
       const svc = buildService();
       await expect(
@@ -529,7 +532,9 @@ describe('TruecallerService integration (nock)', () => {
     });
 
     it('Requirement 10.3 — rejects with "Invalid Truecaller profile" when phoneNumber is empty string', async () => {
-      nock(API5_HOST).get(API5_PATH).reply(200, { phoneNumber: '' });
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/tok`)
+        .reply(200, { phoneNumber: '', countryCode: 'IN' });
 
       const svc = buildService();
       await expect(
@@ -540,10 +545,9 @@ describe('TruecallerService integration (nock)', () => {
     });
 
     it('Requirement 10.4 — rejects with "Phone number mismatch" when normalized phones differ', async () => {
-      nock(API5_HOST).get(API5_PATH).reply(200, {
-        phoneNumber: '+918888888888',
-        firstName: 'Wrong',
-      });
+      nock(OTP_HOST)
+        .get(`${OTP_PATH_BASE}/tok`)
+        .reply(200, { phoneNumber: '918888888888', countryCode: 'IN' });
 
       const svc = buildService();
       await expect(
@@ -558,7 +562,7 @@ describe('TruecallerService integration (nock)', () => {
       // Connection drops before the response is received; the verifier
       // collapses every network-level failure into the standard 10.2
       // response so no implementation detail leaks to the client.
-      nock(API5_HOST).get(API5_PATH).replyWithError('ECONNRESET');
+      nock(OTP_HOST).get(`${OTP_PATH_BASE}/tok`).replyWithError('ECONNRESET');
 
       const svc = buildService();
       await expect(
@@ -568,17 +572,16 @@ describe('TruecallerService integration (nock)', () => {
       });
     });
 
-    it('honors a custom TRUECALLER_PROFILE_API_URL env var', async () => {
-      const customHost = 'https://staging-api5.example.test';
-      const customPath = '/v1/profile';
-      nock(customHost, {
-        reqheaders: { authorization: 'Bearer staging-tok' },
+    it('honors a custom TRUECALLER_OTP_VERIFY_URL env var', async () => {
+      const customBase = 'https://staging-otp.example.test/v1/phoneNumberDetail';
+      nock('https://staging-otp.example.test', {
+        reqheaders: { clientid: DEFAULT_CLIENT_ID },
       })
-        .get(customPath)
-        .reply(200, { phoneNumber: '+919876543210', firstName: 'Aarav' });
+        .get('/v1/phoneNumberDetail/staging-tok')
+        .reply(200, { phoneNumber: '919876543210', countryCode: 'IN' });
 
       const svc = buildService({
-        TRUECALLER_PROFILE_API_URL: `${customHost}${customPath}`,
+        TRUECALLER_OTP_VERIFY_URL: customBase,
       });
       const profile = await svc.verifyAccessToken(
         'staging-tok',

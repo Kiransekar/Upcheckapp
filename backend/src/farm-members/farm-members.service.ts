@@ -12,8 +12,8 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { canAssignRole, canManageMember } from '../farm-access/farm-capability';
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
+import { Pond } from '../ponds/pond.entity';
 import { AddMemberDto, AssignableRole } from './dto/add-member.dto';
-import { JoinFarmDto } from './dto/join-farm.dto';
 
 /** Public-safe view of a user (never exposes auth/email/phone beyond display). */
 export interface PublicUser {
@@ -57,6 +57,8 @@ export class FarmMembersService {
     private readonly usersRepo: Repository<User>,
     @InjectRepository(Farm)
     private readonly farmsRepo: Repository<Farm>,
+    @InjectRepository(Pond)
+    private readonly pondsRepo: Repository<Pond>,
     private readonly farmAccess: FarmAccessService,
   ) {}
 
@@ -141,38 +143,64 @@ export class FarmMembersService {
     return { ...member, user: toPublicUser(target) };
   }
 
+  // NOTE: `joinFarm` lived here and looked a farm up by `farmCode`, inserting a
+  // `worker` membership with a null `addedById`. It has moved to
+  // FarmInvitesService.join, which redeems a `farm_invites` row instead — so a
+  // join can expire, be revoked, be usage-capped, and be attributed to whoever
+  // issued the invite. The legacy farmCode lookup survives there as a fallback
+  // for the deploy-before-migrate window only.
+
   /**
-   * Self-serve join: a worker enters/scans a farm's join code (the farm's
-   * `farmCode`) and is added as a 'worker' member of that farm. No prior
-   * membership or capability is required — this is the entry point for
-   * someone who isn't a member of anything yet.
+   * Restrict a member to specific ponds, or clear the restriction with an
+   * empty list. MANAGE_WORKERS, same as changing their role.
+   *
+   * Scoping is only meaningful for worker/viewer — owners and managers are
+   * responsible for the whole farm — so setting it on one is refused rather
+   * than stored and silently ignored.
    */
-  async joinFarm(callerId: string, dto: JoinFarmDto) {
-    const farm = await this.farmsRepo.findOne({
-      where: { farmCode: dto.code },
+  async setPondScope(
+    farmId: string,
+    callerId: string,
+    targetUserId: string,
+    pondIds: string[],
+  ) {
+    await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'MANAGE_WORKERS');
+
+    const member = await this.membersRepo.findOne({
+      where: { farmId, userId: targetUserId },
     });
-    if (!farm) {
-      throw new NotFoundException('No farm found for that code');
+    if (!member) {
+      throw new NotFoundException('That person is not a member of this farm');
     }
-    if (farm.userId === callerId) {
-      throw new ConflictException('You already own this farm');
+    if (member.role === 'owner' || member.role === 'manager') {
+      throw new BadRequestException(
+        'Owners and managers always have access to every pond on the farm',
+      );
     }
 
-    const existing = await this.membersRepo.findOne({
-      where: { farmId: farm.id, userId: callerId },
-    });
-    if (existing) {
-      throw new ConflictException('You are already a member of this farm');
+    const callerRole = await this.farmAccess.getRoleOnFarm(callerId, farmId);
+    if (!canManageMember(callerRole, member.role)) {
+      throw new ForbiddenException(
+        `Your role (${callerRole ?? 'none'}) cannot manage a "${member.role}"`,
+      );
     }
 
-    const member = this.membersRepo.create({
-      farmId: farm.id,
-      userId: callerId,
-      role: 'worker',
-      addedById: null,
-    });
-    await this.membersRepo.save(member);
-    return { farmId: farm.id, role: member.role, farm: { id: farm.id, name: farm.name } };
+    // Every pond must belong to THIS farm, or a scope row would point at
+    // another tenant's pond and quietly widen access across farms.
+    if (pondIds.length > 0) {
+      const owned = await this.pondsRepo.find({
+        where: { id: In(pondIds), farmId },
+        select: { id: true },
+      });
+      if (owned.length !== pondIds.length) {
+        throw new BadRequestException(
+          'One or more of those ponds do not belong to this farm',
+        );
+      }
+    }
+
+    await this.farmAccess.setPondScope(member.id, pondIds);
+    return { farmId, userId: targetUserId, pondIds };
   }
 
   /** List members of a farm (any member may view). */
@@ -196,11 +224,21 @@ export class FarmMembersService {
         })
       : [];
     const userById = new Map(users.map((u) => [u.id, u]));
+
+    // Pond scopes for the whole roster in one query — the members screen shows
+    // "Ponds 1, 4, 7" per worker, and doing this per member would be N+1.
+    const scopes = await this.farmAccess.getPondScopesForMembers(
+      members.map((m) => m.id),
+    );
+
     return members.map((m) => ({
       id: m.id,
       farmId: m.farmId,
       userId: m.userId,
       role: m.role,
+      status: m.status,
+      // Empty = every pond on the farm. Owners and managers are never scoped.
+      pondIds: scopes.get(m.id) ?? [],
       createdAt: m.createdAt,
       user: userById.has(m.userId) ? toPublicUser(userById.get(m.userId)!) : null,
     }));

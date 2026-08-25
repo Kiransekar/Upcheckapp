@@ -11,6 +11,7 @@ import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
 import { TruecallerLoginScreen } from '../screens/auth/TruecallerLoginScreen';
+import { TruecallerPhoneScreen } from '../screens/auth/TruecallerPhoneScreen';
 
 // Main Navigation
 import { MainNavigator } from './MainNavigator';
@@ -121,6 +122,7 @@ export type RootStackParamList = {
     ForgotPassword: undefined;
     ResetPassword: undefined;
     TruecallerLogin: undefined;
+    TruecallerPhone: undefined;
     OtpLogin: undefined;
     OtpCallback: undefined;
     TwoFactorChallenge: { tempToken: string };
@@ -301,6 +303,11 @@ const RootNavigator = () => {
                         name="TruecallerLogin"
                         component={TruecallerLoginScreen}
                         options={{ headerShown: true, title: 'Sign in with Truecaller', headerTintColor: theme.roles.light.primary }}
+                    />
+                    <Stack.Screen
+                        name="TruecallerPhone"
+                        component={TruecallerPhoneScreen}
+                        options={{ headerShown: false }}
                     />
                     <Stack.Screen name="OtpLogin" component={OtpLoginScreen} />
                     <Stack.Screen name="OtpCallback" component={OtpCallbackScreen} />

@@ -131,6 +131,37 @@ const auth = {
   expiresIn: '{{seconds}}s లో గడువు ముగుస్తుంది',
   verifyingWithUpcheck: 'Upcheck తో ధృవీకరిస్తోంది...',
   signInWithEmail: 'ఇమెయిల్‌తో సైన్ ఇన్',
+  truecallerNoSession: 'సర్వర్ సెషన్‌ను అందించలేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  truecallerVerificationFailed: 'Truecaller ధృవీకరణ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  networkErrorBody: 'సర్వర్‌ను చేరుకోలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.',
+
+  // ── Truecaller మిస్డ్-కాల్ / OTP (Truecaller కాని యూజర్) ఫ్లో ─────────────
+  tcFallbackCta: 'Truecaller యాప్ లేదా? మిస్డ్ కాల్‌తో ధృవీకరించండి',
+  tcPhoneTitle: 'మీ నంబర్‌ను ధృవీకరించండి',
+  tcPhoneSubtitle:
+    'మీ నంబర్‌ను ధృవీకరించడానికి మేము ఒక చిన్న మిస్డ్ కాల్ చేస్తాం — ఏదీ టైప్ చేయాల్సిన అవసరం లేదు.',
+  tcPhoneLabel: 'మొబైల్ నంబర్',
+  tcFirstNameLabel: 'మొదటి పేరు',
+  tcFirstNamePlaceholder: 'ఉదా. ఆరవ్',
+  tcLastNameLabel: 'ఇంటిపేరు (ఐచ్ఛికం)',
+  tcLastNamePlaceholder: 'ఉదా. శర్మ',
+  tcSendVerification: 'మిస్డ్ కాల్‌తో ధృవీకరించండి',
+  tcCallingTitle: 'మీకు కాల్ చేస్తున్నాం…',
+  tcCallingBody:
+    'మేము {{phone}}కు ఒక చిన్న కాల్ చేస్తున్నాం. తీయవద్దు — మేము దానిని ఆటోమేటిక్‌గా గుర్తిస్తాం.',
+  tcOtpBody: '{{phone}}కు పంపిన కోడ్‌ను నమోదు చేయండి.',
+  tcVerify: 'ధృవీకరించండి',
+  tcChangeNumber: 'వేరే నంబర్‌ను ఉపయోగించండి',
+  tcInvalidPhone: 'చెల్లుబాటు అయ్యే 10-అంకెల మొబైల్ నంబర్‌ను నమోదు చేయండి.',
+  tcFirstNameRequired: 'దయచేసి మీ మొదటి పేరును నమోదు చేయండి.',
+  tcInvalidOtp: 'మీకు వచ్చిన కోడ్‌ను నమోదు చేయండి.',
+  tcVerificationFailed: 'ధృవీకరణ విఫలమైంది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  tcPermissionsRequired:
+    'ధృవీకరణ కాల్‌ను ఆటోమేటిక్‌గా గుర్తించడానికి ఫోన్ మరియు కాల్-లాగ్ అనుమతులు అవసరం. దయచేసి వాటిని ఇవ్వండి, లేదా Truecaller / ఇమెయిల్‌తో సైన్ ఇన్ చేయండి.',
+  tcNoCallDetected:
+    'ధృవీకరణ కాల్‌ను మేము గుర్తించలేకపోయాం. ఈ నంబర్ ఇప్పటికే Truecaller ఉపయోగిస్తే, వెనక్కి వెళ్లి వన్-ట్యాప్ సైన్-ఇన్ వాడండి — లేదా వేరే నంబర్‌ను ప్రయత్నించండి.',
+  tcUnsupported:
+    'మిస్డ్-కాల్ ధృవీకరణ Truecaller SDK కలిగిన Android యాప్ బిల్డ్‌లో మాత్రమే అందుబాటులో ఉంటుంది.',
 
   // ── OtpEntrySection ───────────────────────────────────────────────────────
   enterOtpTitle: 'OTP నమోదు చేయండి',

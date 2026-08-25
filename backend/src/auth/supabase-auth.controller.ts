@@ -400,6 +400,14 @@ export class SupabaseAuthController {
     // Requirement 13.4 message via the validation pipe above; this
     // residual check covers the case where validation has been
     // bypassed (e.g., direct method invocation in tests).
+    // `isMissedCall` distinguishes the two credential channels. For the
+    // missed-call/OTP flow the display name is NOT part of the verified
+    // Truecaller response (the phoneNumberDetail endpoint returns only the
+    // phone number), so — and only here — the user-entered firstName/lastName
+    // from the request body are carried through. This is safe because the
+    // phone number remains the sole server-verified identity used for lookup
+    // and linking; the name is cosmetic profile data, never an auth key.
+    const isMissedCall = !payload && !!accessToken;
     let verifiedProfile: VerifiedTruecallerProfile;
     if (payload) {
       // Flow A (One-Tap) and PROFILE_VERIFIED_BEFORE.
@@ -426,15 +434,17 @@ export class SupabaseAuthController {
       });
     }
 
-    // Requirement 11.1: signInWithTruecaller is called with values
-    // sourced from the *verified* Truecaller profile, never from the
-    // request body. The request body's firstName/lastName are
-    // intentionally ignored here — a malicious client could otherwise
-    // forge identity fields that would later land in the users row.
+    // Requirement 11.1: the phone number (the identity/linking key) is always
+    // sourced from the *verified* Truecaller profile, never the request body.
+    // For One-Tap the whole profile (name/email/avatar) is verified, so the
+    // body is ignored entirely. For missed-call only the phone is verified, so
+    // the user-entered name is accepted (see `isMissedCall` note above).
     const result = await this.supabaseAuthService.signInWithTruecaller({
       phoneNumber: verifiedProfile.phoneNumber,
-      firstName: verifiedProfile.firstName || 'User',
-      lastName: verifiedProfile.lastName,
+      firstName:
+        (isMissedCall && body.firstName) || verifiedProfile.firstName || 'User',
+      lastName:
+        (isMissedCall && body.lastName) || verifiedProfile.lastName,
       email: verifiedProfile.email,
       avatarUrl: verifiedProfile.avatarUrl,
     });
@@ -485,6 +495,57 @@ export class SupabaseAuthController {
       result,
       'Truecaller authentication successful',
     );
+  }
+
+  // ==================== Truecaller account linking ====================
+  // Authenticated: attach a Truecaller-verified phone to the CURRENT user.
+  // The verified phone (never the request body) is the identity; a phone
+  // already owned by another account returns 409 (ConflictException).
+
+  @UseGuards(SupabaseAuthGuard)
+  @Post('link/truecaller/exchange')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(TruecallerInvalidRequestFilter)
+  async linkTruecallerOAuth(
+    @CurrentUser() user: User,
+    @Body(truecallerValidationPipe) body: TruecallerOAuthExchangeDto,
+  ) {
+    const verified = await this.truecallerService.verifyOAuthCode(
+      body.authorizationCode,
+      body.codeVerifier,
+    );
+    return this.supabaseAuthService.linkTruecallerToUser(user.id, {
+      phoneNumber: verified.phoneNumber,
+      firstName: verified.firstName,
+      lastName: verified.lastName,
+      avatarUrl: verified.avatarUrl,
+    });
+  }
+
+  @UseGuards(SupabaseAuthGuard)
+  @Post('link/truecaller')
+  @HttpCode(HttpStatus.OK)
+  @UseFilters(TruecallerInvalidRequestFilter)
+  async linkTruecallerMissedCall(
+    @CurrentUser() user: User,
+    @Body(truecallerValidationPipe) body: TruecallerAuthDto,
+  ) {
+    if (!body.accessToken) {
+      // Only the missed-call (accessToken) channel is accepted here.
+      throw new UnauthorizedException({
+        success: false,
+        message: 'Invalid request',
+      });
+    }
+    const verified = await this.truecallerService.verifyAccessToken(
+      body.accessToken,
+      body.phoneNumber,
+    );
+    return this.supabaseAuthService.linkTruecallerToUser(user.id, {
+      phoneNumber: verified.phoneNumber,
+      firstName: body.firstName || verified.firstName,
+      lastName: body.lastName || verified.lastName,
+    });
   }
 
   // ==================== Session Management ====================

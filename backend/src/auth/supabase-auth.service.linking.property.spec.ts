@@ -83,11 +83,19 @@ class StatefulSupabaseMock {
    * succeeds when Branches 1 or 2 reuse it.
    */
   seedExistingUser(row: UserRow): void {
-    this.usersTable.set(row.id, { ...row });
-    this.authUsers.set(row.id, {
-      id: row.id,
-      email: row.email ?? '',
-      phone: row.phone ?? undefined,
+    // Mirror the service's phone canonicalization (digits, no '+') so a
+    // phone-seeded row is matched by signInWithTruecaller's normalized lookup —
+    // in production the existing row was itself written by the service in this
+    // same canonical form.
+    const canonical: UserRow = {
+      ...row,
+      phone: row.phone ? String(row.phone).replace(/\D/g, '') : row.phone,
+    };
+    this.usersTable.set(canonical.id, { ...canonical });
+    this.authUsers.set(canonical.id, {
+      id: canonical.id,
+      email: canonical.email ?? '',
+      phone: canonical.phone ?? undefined,
     });
   }
 
@@ -125,11 +133,19 @@ class StatefulSupabaseMock {
         }
         return Promise.resolve({ data: row, error: null });
       },
+      // signInWithTruecaller uses maybeSingle() rather than single(): single()
+      // errors on zero rows AND on duplicates, so a user with two pre-
+      // canonicalization rows would get an opaque failure instead of a login.
+      maybeSingle: () => {
+        const row = self.findRow(filters);
+        return Promise.resolve({ data: row ?? null, error: null });
+      },
       update: (patch: Record<string, unknown>) => {
         updatePatch = patch;
         return builder;
       },
       insert: (row: UserRow) => Promise.resolve(self.doInsert(row)),
+      upsert: (row: UserRow) => Promise.resolve(self.doUpsert(row)),
     };
 
     return builder;
@@ -175,6 +191,18 @@ class StatefulSupabaseMock {
     }
     this.usersTable.set(row.id, { ...row });
     return { data: null, error: null };
+  }
+
+  // Mirrors `upsert(row, { onConflict: 'id' })`: update the existing row on an
+  // id conflict (as the handle_new_user trigger's row would be), otherwise
+  // insert (which still enforces the unique-phone invariant via doInsert).
+  private doUpsert(row: UserRow) {
+    const existing = this.usersTable.get(row.id);
+    if (existing) {
+      Object.assign(existing, row);
+      return { data: null, error: null };
+    }
+    return this.doInsert(row);
   }
 
   readonly auth = {
@@ -380,8 +408,14 @@ describe('SupabaseAuthService.signInWithTruecaller property: idempotence + branc
 
         // Exactly one row in the application table whose phone matches
         // the profile, and that row is fully verified per Req 11.2/3/4.
+        // The service stores the canonical (digits-only) phone, so compare
+        // against that form.
+        const canonicalProfilePhone = String(profile.phoneNumber).replace(
+          /\D/g,
+          '',
+        );
         const phoneRows = [...mock.usersTable.values()].filter(
-          (r) => r.phone === profile.phoneNumber,
+          (r) => r.phone === canonicalProfilePhone,
         );
         expect(phoneRows).toHaveLength(1);
         expect(phoneRows[0].phone_verified).toBe(true);
