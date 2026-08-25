@@ -50,6 +50,7 @@ interface FromBuilder {
   select: jest.Mock;
   eq: jest.Mock;
   single: jest.Mock;
+  maybeSingle: jest.Mock;
   update: jest.Mock;
   insert: jest.Mock;
   upsert: jest.Mock;
@@ -83,14 +84,38 @@ function buildMockSupabase(opts: {
   }
 
   const fromMock = jest.fn().mockImplementation((_table: string) => {
+    // Filters are RECORDED, not ignored. The service now performs two lookups
+    // — by phone, then by the internal <digits>@truecaller.temp address — and a
+    // mock that hands back the queued row whatever was asked for cannot tell
+    // that second lookup apart from a lookup on the profile's self-asserted
+    // email. That distinction is the whole account-takeover defence, so the
+    // mock has to honour it: a scripted row is only returned when the queried
+    // value actually matches it.
+    const filters: Array<[string, unknown]> = [];
+
+    const nextResult = () => {
+      const queued = lookupQueue.shift() ?? { data: null, error: null };
+      const row: any = queued?.data;
+      const [col, val] = filters[filters.length - 1] ?? [];
+      if (row && col && row[col as string] !== undefined && row[col as string] !== val) {
+        return { data: null, error: null };
+      }
+      return queued;
+    };
+
     const builder: FromBuilder = {
       select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      single: jest
+      eq: jest.fn().mockImplementation((col: string, val: unknown) => {
+        filters.push([col, val]);
+        return builder;
+      }),
+      single: jest.fn().mockImplementation(() => Promise.resolve(nextResult())),
+      // signInWithTruecaller looks up with maybeSingle() now — single() errors
+      // on both zero rows and duplicates, and a duplicate must not turn a
+      // login into an opaque failure.
+      maybeSingle: jest
         .fn()
-        .mockImplementation(() =>
-          Promise.resolve(lookupQueue.shift() ?? { data: null, error: null }),
-        ),
+        .mockImplementation(() => Promise.resolve(nextResult())),
       update: jest.fn().mockReturnValue({
         eq: jest
           .fn()
@@ -229,6 +254,135 @@ describe('SupabaseAuthService.signInWithTruecaller', () => {
     expect(result.user.id).toBe('fresh-user-id');
     expect(result.user.id).not.toBe('victim-email-id');
     expect(mock.auth.admin.createUser).toHaveBeenCalledTimes(1);
+  });
+
+  // ──────────────────────────────────────────────────────────────────
+  // Returning-login regressions
+  // ──────────────────────────────────────────────────────────────────
+
+  it('logs in a pre-canonicalization account whose stored phone still has a +', async () => {
+    // THE BUG: phone canonicalization (digits only) arrived after these rows
+    // were written, so a missed-call signup left users.phone = "+919876543210"
+    // while login now looks up "919876543210". That misses, we fall through to
+    // createUser, and Supabase rejects the already-taken internal email — which
+    // the user sees as "account already exists" while simply logging in.
+    //
+    // The internal email has ALWAYS been digit-only, so it still matches.
+    const mock = buildMockSupabase({
+      phoneLookup: { data: null, error: null },
+      emailLookup: {
+        data: {
+          id: 'legacy-user-id',
+          email: '919876543210@truecaller.temp',
+          phone: '+919876543210',
+        },
+        error: null,
+      },
+      updateUserResult: {
+        data: {
+          user: { id: 'legacy-user-id', email: '919876543210@truecaller.temp' },
+        },
+        error: null,
+      },
+    });
+    const svc = buildService(mock);
+
+    const result = await svc.signInWithTruecaller(sampleProfile);
+
+    expect(result.user.id).toBe('legacy-user-id');
+    // The whole point: no new account is created.
+    expect(mock.auth.admin.createUser).not.toHaveBeenCalled();
+  });
+
+  it('heals the stored phone to canonical form so the next login hits the fast path', async () => {
+    const updateSpy = jest.fn().mockResolvedValue({ data: null, error: null });
+    const mock = buildMockSupabase({
+      phoneLookup: { data: null, error: null },
+      emailLookup: {
+        data: {
+          id: 'legacy-user-id',
+          email: '919876543210@truecaller.temp',
+          phone: '+919876543210',
+        },
+        error: null,
+      },
+      updateUserResult: {
+        data: {
+          user: { id: 'legacy-user-id', email: '919876543210@truecaller.temp' },
+        },
+        error: null,
+      },
+    });
+    const originalFrom = mock.from;
+    mock.from = jest.fn().mockImplementation((table: string) => {
+      const b: any = originalFrom(table);
+      const realUpdate = b.update;
+      b.update = (patch: any) => {
+        updateSpy(patch);
+        return realUpdate(patch);
+      };
+      return b;
+    }) as any;
+    const svc = buildService(mock);
+
+    await svc.signInWithTruecaller(sampleProfile);
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '919876543210', phone_verified: true }),
+    );
+  });
+
+  it('writes full_name so the app never renders the phone number as a name', async () => {
+    const mock = buildMockSupabase({
+      phoneLookup: {
+        data: { id: 'existing-phone-id', email: '919876543210@truecaller.temp' },
+        error: null,
+      },
+      updateUserResult: {
+        data: {
+          user: { id: 'existing-phone-id', email: '919876543210@truecaller.temp' },
+        },
+        error: null,
+      },
+    });
+    const svc = buildService(mock);
+
+    await svc.signInWithTruecaller(sampleProfile);
+
+    expect(mock.auth.admin.updateUserById).toHaveBeenCalledWith(
+      'existing-phone-id',
+      expect.objectContaining({
+        user_metadata: expect.objectContaining({
+          full_name: 'Aarav Sharma',
+        }),
+      }),
+    );
+  });
+
+  it('does not store the "User" placeholder as a name when Truecaller sent none', async () => {
+    const mock = buildMockSupabase({
+      phoneLookup: {
+        data: { id: 'existing-phone-id', email: '919876543210@truecaller.temp' },
+        error: null,
+      },
+      updateUserResult: {
+        data: {
+          user: { id: 'existing-phone-id', email: '919876543210@truecaller.temp' },
+        },
+        error: null,
+      },
+    });
+    const svc = buildService(mock);
+
+    await svc.signInWithTruecaller({
+      ...sampleProfile,
+      firstName: 'User',
+      lastName: undefined,
+    });
+
+    const meta = (mock.auth.admin.updateUserById as jest.Mock).mock.calls[0][1]
+      .user_metadata;
+    expect(meta.full_name).toBeUndefined();
   });
 
   it('Branch 3 (create-new): returns the freshly created user id (Req 11.4)', async () => {

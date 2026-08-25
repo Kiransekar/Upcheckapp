@@ -404,6 +404,32 @@ export class SupabaseAuthService {
 
   // ==================== Truecaller Auth ====================
 
+  /**
+   * The name to show for a Truecaller account.
+   *
+   * Supabase user_metadata carried only first_name/last_name, and every
+   * consumer that wants a display name reads full_name/name and then falls
+   * back to the email local part. For these accounts that email is the
+   * internal `<digits>@truecaller.temp`, so the fallback rendered the user's
+   * MOBILE NUMBER as their name. Writing full_name here fixes it at the
+   * source, for every reader.
+   *
+   * Returns undefined rather than a placeholder when Truecaller gave us no
+   * name at all, so we never overwrite a good stored name with "User".
+   */
+  private truecallerDisplayName(profile: {
+    firstName?: string;
+    lastName?: string;
+  }): string | undefined {
+    const full = [profile.firstName, profile.lastName]
+      .map((p) => (p ?? '').trim())
+      .filter(Boolean)
+      .join(' ');
+    // 'User' is the controller's placeholder for "Truecaller sent no name";
+    // it is not a name and must not be stored as one.
+    return full && full !== 'User' ? full : undefined;
+  }
+
   async signInWithTruecaller(profile: {
     phoneNumber: string;
     firstName: string;
@@ -418,18 +444,57 @@ export class SupabaseAuthService {
     // two accounts and the second login collides on the internal email.
     const phone = String(profile.phoneNumber ?? '').replace(/\D/g, '');
 
-    // 1. Check if user exists by phone number
-    const { data: existingUser, error: lookupError } = await this.supabase
-      .from('users')
-      .select('*')
-      .eq('phone', phone)
-      .single();
+    // The internal, phone-derived login email. Note this has ALWAYS been
+    // digit-only (the pre-canonicalization code stripped non-digits when
+    // building it), which is what makes it a reliable second lookup key below.
+    const tempEmail = `${phone}@truecaller.temp`;
+
+    // 1. Find the existing account.
+    //
+    // Primary key is the canonical phone. But canonicalization only arrived
+    // recently: rows created before it stored the phone exactly as the SDK
+    // returned it, so a missed-call signup left `users.phone = '+9170...'`
+    // while one-tap now looks up '9170...'. That lookup misses, we fall through
+    // to createUser, and Supabase rejects the ALREADY-TAKEN internal email —
+    // surfacing to the user as "account already exists" while they are simply
+    // logging in. That is the bug this second lookup fixes.
+    //
+    // Matching on `tempEmail` is NOT the account-takeover risk described below:
+    // that email is DERIVED from the Truecaller-verified phone, never from the
+    // profile's self-asserted `email`. It is the same identity, written down
+    // differently.
+    //
+    // maybeSingle(), not single(): single() errors on zero rows AND on
+    // duplicates, so a user who managed to create two rows before
+    // canonicalization would get an opaque failure instead of being logged in.
+    let existingUser: any = null;
+    {
+      const { data: byPhone } = await this.supabase
+        .from('users')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle();
+      existingUser = byPhone ?? null;
+    }
+    if (!existingUser) {
+      const { data: byInternalEmail } = await this.supabase
+        .from('users')
+        .select('*')
+        .eq('email', tempEmail)
+        .maybeSingle();
+      existingUser = byInternalEmail ?? null;
+    }
 
     if (existingUser) {
-      // 2a. Existing user - update phone_verified and create session
+      // 2a. Existing user — verify the phone, and HEAL the stored form so the
+      // next login hits the fast path above instead of relying on the fallback.
       await this.supabase
         .from('users')
-        .update({ phone_verified: true, auth_provider: 'truecaller' })
+        .update({
+          phone,
+          phone_verified: true,
+          auth_provider: 'truecaller',
+        })
         .eq('id', existingUser.id);
 
       return this.createSessionForUser(existingUser.id, profile);
@@ -445,11 +510,10 @@ export class SupabaseAuthService {
     // authenticated, email-verified flow — never implicitly here.
 
     // 3. Create new user, keyed on the verified phone (Requirement 11.4).
-    // Always use a phone-derived internal email — never the profile's
-    // unverified email — so an attacker can't pre-squat a victim's address
-    // in auth.users (which enforces email uniqueness regardless of
+    // `tempEmail` above is the phone-derived internal email — never the
+    // profile's unverified email — so an attacker can't pre-squat a victim's
+    // address in auth.users (which enforces email uniqueness regardless of
     // confirmation) and lock them out of a future signup.
-    const tempEmail = `${phone}@truecaller.temp`;
 
     const { data: newUser, error: createError } =
       await this.supabase.auth.admin.createUser({
@@ -461,6 +525,9 @@ export class SupabaseAuthService {
         user_metadata: {
           first_name: profile.firstName,
           last_name: profile.lastName,
+          // Without full_name every display-name reader falls through to the
+          // email local part, which for these accounts is the phone number.
+          full_name: this.truecallerDisplayName(profile),
           avatar_url: profile.avatarUrl,
           provider: 'truecaller',
           phone_verified: true,
@@ -631,6 +698,10 @@ export class SupabaseAuthService {
         user_metadata: {
           first_name: profile.firstName,
           last_name: profile.lastName,
+          // Backfills full_name for accounts created before it was written,
+          // so an existing user stops seeing their phone number as a name
+          // from their very next login.
+          full_name: this.truecallerDisplayName(profile),
           avatar_url: profile.avatarUrl,
           provider: 'truecaller',
         },

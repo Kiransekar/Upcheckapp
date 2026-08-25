@@ -86,13 +86,47 @@ interface AuthState {
     forgotPassword: (email: string) => Promise<void>;
 }
 
+/**
+ * Truecaller accounts have no real email. They are keyed on the verified phone
+ * and given an internal `<digits>@truecaller.temp` login address, which must
+ * never be shown to the user or treated as a contactable address.
+ */
+const TRUECALLER_INTERNAL_EMAIL = /@truecaller\.temp$/i;
+export const isInternalEmail = (email?: string | null): boolean =>
+    !!email && TRUECALLER_INTERNAL_EMAIL.test(email);
+
+/**
+ * Best display name available, without ever falling back to something that is
+ * really a phone number.
+ *
+ * The old chain ended at `email.split('@')[0]`. For a Truecaller account that
+ * local part IS the mobile number, so anyone who signed in with Truecaller saw
+ * their own phone number as their name across the app.
+ */
+const displayNameOf = (user: User): string => {
+    const meta: any = user.user_metadata ?? {};
+    const fromParts = [meta.first_name, meta.last_name]
+        .map((p: unknown) => (typeof p === 'string' ? p.trim() : ''))
+        .filter(Boolean)
+        .join(' ');
+
+    return (
+        meta.full_name ||
+        meta.name ||
+        fromParts ||
+        // Only a REAL email may seed a name; the internal one would render the
+        // phone number.
+        (!isInternalEmail(user.email) ? user.email?.split('@')[0] : '') ||
+        'You'
+    );
+};
+
 const mapSupabaseUser = (user: User): AuthUser => ({
     id: user.id,
-    email: user.email!,
-    name:
-        user.user_metadata?.full_name ||
-        user.user_metadata?.name ||
-        user.email!.split('@')[0],
+    // Keep the internal address out of the UI entirely — screens read this
+    // field directly to show "your email".
+    email: isInternalEmail(user.email) ? '' : user.email!,
+    name: displayNameOf(user),
     avatarUrl:
         user.user_metadata?.avatar_url ||
         user.user_metadata?.picture ||
@@ -236,8 +270,19 @@ export const useAuthStore = create<AuthState>()(
                 set({
                     user: {
                         id: persisted.userId,
-                        email: persisted.userEmail ?? '',
-                        name: persisted.userEmail ? persisted.userEmail.split('@')[0] : 'You',
+                        // Same rule as mapSupabaseUser: the internal
+                        // `<digits>@truecaller.temp` address is not an email
+                        // and its local part is not a name — it is the user's
+                        // phone number, which is what used to be rendered here
+                        // on every offline rehydrate.
+                        email: isInternalEmail(persisted.userEmail)
+                            ? ''
+                            : persisted.userEmail ?? '',
+                        name:
+                            persisted.userEmail &&
+                            !isInternalEmail(persisted.userEmail)
+                                ? persisted.userEmail.split('@')[0]
+                                : 'You',
                         avatarUrl: null,
                         provider: 'email',
                         emailVerified: true,
