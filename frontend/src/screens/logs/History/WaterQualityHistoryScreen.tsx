@@ -36,12 +36,12 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         color: string;
         get: (r: WaterQualityRecord) => number | undefined;
     }[] = [
-        { key: 'ph', label: t('history.waterQualityMetricPh'), color: '#0D84D6', get: (r) => r.ph },
-        { key: 'do', label: t('history.waterQualityMetricDo'), color: '#27A855', get: (r) => r.dissolvedOxygen },
-        { key: 'temperature', label: t('history.waterQualityMetricTemp'), color: '#F08C00', get: (r) => r.temperature },
+        { key: 'ph', label: t('history.waterQualityMetricPh'), color: theme.roles.light.primary, get: (r) => r.ph },
+        { key: 'do', label: t('history.waterQualityMetricDo'), color: theme.roles.light.successBorder, get: (r) => r.dissolvedOxygen },
+        { key: 'temperature', label: t('history.waterQualityMetricTemp'), color: theme.roles.light.warningBorder, get: (r) => r.temperature },
         { key: 'salinity', label: t('history.waterQualityMetricSalinity'), color: '#9C27B0', get: (r) => r.salinity },
-        { key: 'ammonia', label: 'Ammonia', color: '#E03535', get: (r) => r.ammonia },
-        { key: 'nitrite', label: 'Nitrite', color: '#0EA8D8', get: (r) => r.nitrite },
+        { key: 'ammonia', label: 'Ammonia', color: theme.roles.light.dangerBorder, get: (r) => r.ammonia },
+        { key: 'nitrite', label: 'Nitrite', color: theme.roles.light.borderBrand, get: (r) => r.nitrite },
         { key: 'alkalinity', label: 'Alkalinity', color: '#607D8B', get: (r) => r.alkalinity },
     ];
     const [records, setRecords] = useState<WaterQualityRecord[]>([]);

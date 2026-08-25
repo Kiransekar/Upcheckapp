@@ -23,7 +23,7 @@ const ENGINES: {
   { route: 'Aeration', key: 'aeration', icon: 'fan', tint: '#2196F3' },
   { route: 'Lunar', key: 'lunar', icon: 'moon-waning-crescent', tint: '#5C6BC0' },
   { route: 'CropPnl', key: 'cropPnl', icon: 'cash-multiple', tint: '#00897B' },
-  { route: 'Measurements', key: 'measurements', icon: 'chart-line', tint: '#0D84D6' },
+  { route: 'Measurements', key: 'measurements', icon: 'chart-line', tint: theme.roles.light.primary },
 ];
 
 export const EnginesHubScreen = ({ route, navigation }: any) => {

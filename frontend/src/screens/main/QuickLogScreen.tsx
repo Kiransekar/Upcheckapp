@@ -30,7 +30,7 @@ const ACTIONS: Action[] = [
     { route: 'FeedLog', labelKey: 'ponds.actionFeed', icon: 'corn', tint: '#FF9800' },
     { route: 'DailyRoutine', labelKey: 'ponds.actionDailyRoutine', icon: 'clipboard-check-outline', tint: '#0B8457' },
     { route: 'SamplingLog', labelKey: 'ponds.actionSampling', icon: 'scale', tint: '#4CAF50' },
-    { route: 'Measurements', labelKey: 'ponds.actionMeasurements', icon: 'chart-line', tint: '#0D84D6' },
+    { route: 'Measurements', labelKey: 'ponds.actionMeasurements', icon: 'chart-line', tint: theme.roles.light.primary },
     { route: 'PondDashboard', labelKey: 'home.quickLogOpenPond', icon: 'view-dashboard-outline', tint: '#7C4DFF' },
 ];
 
