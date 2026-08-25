@@ -101,12 +101,20 @@ export class FarmAccessService {
     if (all.size === 0) return [];
 
     // Filter out soft-deleted farms (membership rows may point at them).
+    //
+    // Scoped to the ids we actually care about. This used to select EVERY live
+    // farm in the database to filter a handful — a full table scan on a method
+    // that, as the comment above says, fires on every list endpoint call
+    // (harvests, sampling, ponds, reports…). Cost grew with total farms across
+    // all tenants rather than with the caller's own, so it got slower for
+    // everyone every time anyone signed up.
+    const ids = [...all];
     const live = await this.farmsRepo.find({
-      where: { deletedAt: IsNull() },
+      where: { id: In(ids), deletedAt: IsNull() },
       select: { id: true },
     });
     const liveIds = new Set(live.map((f) => f.id));
-    return [...all].filter((id) => liveIds.has(id));
+    return ids.filter((id) => liveIds.has(id));
   }
 
   /**
