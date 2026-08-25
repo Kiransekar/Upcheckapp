@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "ଏବଂ",
 
   // ── Account type selection ────────────────────────────────────────────────
-  accountTypeLabel: 'ମୁଁ ଜଣେ…',
-  accountTypeRequired: 'ଦୟାକରି ଏକ ଆକାଉଣ୍ଟ ପ୍ରକାର ବାଛନ୍ତୁ',
-  accountOwnerTitle: 'ଫାର୍ମ ମାଲିକ',
-  accountOwnerDesc: 'ଆପଣଙ୍କ ନିଜ ଫାର୍ମ ସେଟଅପ ଓ ପ୍ରବନ୍ଧନ କରନ୍ତୁ',
-  accountWorkerTitle: 'କର୍ମଚାରୀ',
-  accountWorkerDesc: 'ଏକ ଫାର୍ମରେ ଯୋଗ ଦିଅନ୍ତୁ ଓ ଦୈନିକ କାମ ଲଗ କରନ୍ତୁ',
+  signupIntentLabel: 'ଆପଣ କାହିଁକି ଆସିଛନ୍ତି?',
+  signupIntentRequired: 'ଦୟାକରି ଗୋଟିଏ ବାଛନ୍ତୁ',
+  intentOwnFarmTitle: 'ମୁଁ ନିଜ ଫାର୍ମ ଚଳାଏ',
+  intentOwnFarmDesc: 'ଆପଣଙ୍କ ଫାର୍ମ ଓ ପୋଖରୀ ସେଟ କରନ୍ତୁ',
+  intentWorkOnFarmTitle: 'ମୁଁ ଅନ୍ୟର ଫାର୍ମରେ କାମ କରେ',
+  intentWorkOnFarmDesc: 'ଯୋଗ ଦେବାକୁ ସେମାନଙ୍କ କୋଡ୍ ଦିଅନ୍ତୁ',
 };
 export default auth;

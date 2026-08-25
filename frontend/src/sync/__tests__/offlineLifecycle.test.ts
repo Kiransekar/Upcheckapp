@@ -30,7 +30,7 @@ const mockedRequest = (apiClient as any).request as jest.Mock;
 /** Simulate a farmer/worker being logged in on the shared device. */
 const loginAs = (id: string) =>
     useAuthStore.setState({
-        user: { id, email: `${id}@pond.in`, name: id, avatarUrl: null, provider: 'email', emailVerified: true, accountType: 'worker' },
+        user: { id, email: `${id}@pond.in`, name: id, avatarUrl: null, provider: 'email', emailVerified: true },
         isAuthenticated: true,
         status: 'authenticated',
     } as any);

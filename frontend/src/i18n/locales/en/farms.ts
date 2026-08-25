@@ -4,6 +4,7 @@ const farms = {
   ponds: 'Ponds',
   errorTitle: "Couldn't Load Farms",
   emptyTitle: 'No Farms Yet',
+  emptySubtitleEither: "Create your first farm, or join someone else's with their code.",
   emptySubtitle: 'Create your first farm to start managing your ponds and cycles.',
   addFarm: 'Add Farm',
   workerNoFarmSubtitle: 'Ask a farm owner to add you as a team member.',

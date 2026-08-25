@@ -8,6 +8,7 @@ const home = {
   totalPonds: 'Total Ponds',
   lowStockAlerts: 'Low Stock Alerts',
   todayFeed: "Today's Feed (kg)",
+  noFarmEither: 'Set up your own farm, or join one with a code from its owner.',
   noFarmData: 'No farm data available. Create a farm to get started!',
   gettingStartedTitle: 'Getting started',
   checklistPonds: 'Set up your ponds',

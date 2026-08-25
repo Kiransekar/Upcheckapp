@@ -1,6 +1,5 @@
 import {
   IsEmail,
-  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -14,7 +13,7 @@ import {
  * Enforces email format and password strength at the trust boundary — the
  * signup handler previously took an untyped inline body, so the global
  * ValidationPipe validated nothing and weak passwords / malformed emails
- * reached Supabase unchecked. Name/username/accountType stay lenient to match
+ * reached Supabase unchecked. Name/username stay lenient to match
  * what the app sends (whitelist:true strips anything extra).
  */
 export class SignupDto {
@@ -46,7 +45,8 @@ export class SignupDto {
   @IsString()
   username?: string;
 
-  @IsOptional()
-  @IsIn(['owner', 'worker'])
-  accountType?: 'owner' | 'worker';
+  // NOTE: no `accountType`. It was a global owner/worker flag stored in
+  // Supabase user_metadata that gated exactly one endpoint (farm creation)
+  // and contradicted the per-farm role model. Signup intent is now a UI-only
+  // preference — see RegisterScreen — and never becomes an auth claim.
 }

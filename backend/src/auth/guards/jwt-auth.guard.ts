@@ -70,13 +70,14 @@ export class JwtAuthGuard implements CanActivate {
       const supabaseUser = data.user;
       this.logger.debug(`[GUARD] token valid — sub: ${supabaseUser.id}`);
 
+      // `accountType` is deliberately NOT attached. It used to be read off
+      // client-mutable Supabase user_metadata and gated exactly one endpoint
+      // (farm creation). Leaving it off `req.user` means nothing can
+      // accidentally authorize on it later — per-farm role via
+      // FarmAccessService is the only authority.
       req.user = {
         id: supabaseUser.id,
         email: supabaseUser.email,
-        // Already present on the fetched Supabase user — no extra call.
-        // Defaults to 'owner' to match SignupDto's own default when the
-        // metadata is absent (e.g. very old accounts predating accountType).
-        accountType: supabaseUser.user_metadata?.account_type ?? 'owner',
       };
       return true;
     } catch (err: any) {

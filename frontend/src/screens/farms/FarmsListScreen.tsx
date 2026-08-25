@@ -11,14 +11,12 @@ import { Skeleton, SkeletonCard, SkeletonList } from '../../components/ui/Skelet
 import { theme } from '../../theme';
 import { farmsApi, Farm } from '../../api/farms';
 import { useFocusEffect } from '@react-navigation/native';
-import { useAuthStore } from '../../store/authStore';
 
 export const FarmsListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    // Farm creation is owner-only server-side (a worker who created a farm
-    // became its owner — the actual reported bug); hide the entry points for
-    // workers too so the only way to see the action is to be blocked by it.
-    const isWorker = useAuthStore((s) => s.user?.accountType === 'worker');
+    // Farm creation is open to every account — the creator becomes that farm's
+    // owner in farm_members. The old owner-only gate read a global account flag
+    // that no longer exists.
     const [farms, setFarms] = useState<Farm[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -168,7 +166,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
                 {renderSkeleton()}
-                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
+                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
             </ScreenWrapper>
         );
     }
@@ -183,7 +181,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
                 <NetworkError onRetry={handleRetry} />
-                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
+                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
             </ScreenWrapper>
         );
     }
@@ -202,7 +200,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     error={error}
                     onRetry={handleRetry}
                 />
-                {!isWorker && <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />}
+                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
             </ScreenWrapper>
         );
     }
@@ -211,11 +209,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle} numberOfLines={1}>{t('farms.title')}</Text>
-                {!isWorker && (
-                    <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
+                    <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
+                </TouchableOpacity>
             </View>
 
             <FlatList
@@ -232,21 +228,16 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     />
                 }
                 ListEmptyComponent={
-                    isWorker ? (
-                        <EmptyState
-                            icon="barn"
-                            title={t('farms.emptyTitle')}
-                            subtitle={t('farms.workerNoFarmSubtitle', 'Ask a farm owner to add you as a team member.')}
-                        />
-                    ) : (
-                        <EmptyState
-                            icon="barn"
-                            title={t('farms.emptyTitle')}
-                            subtitle={t('farms.emptySubtitle')}
-                            actionLabel={t('farms.addFarm')}
-                            onAction={() => navigation.navigate('CreateFarm')}
-                        />
-                    )
+                    // Nudge the other way in the empty state rather than hiding
+                    // the action: someone here to join a farm needs the code path
+                    // to be visible, and someone here to run one needs to create.
+                    <EmptyState
+                        icon="barn"
+                        title={t('farms.emptyTitle')}
+                        subtitle={t('farms.emptySubtitleEither')}
+                        actionLabel={t('farms.addFarm')}
+                        onAction={() => navigation.navigate('CreateFarm')}
+                    />
                 }
             />
             <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />

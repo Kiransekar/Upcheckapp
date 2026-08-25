@@ -8,6 +8,7 @@ const home = {
   totalPonds: 'ମୋଟ ପୋଖରୀ',
   lowStockAlerts: 'ସ୍ବଳ୍ପ ଷ୍ଟକ ସତର୍କତା',
   todayFeed: 'ଆଜିର ଖାଦ୍ୟ (kg)',
+  noFarmEither: 'ନିଜ ଫାର୍ମ ସେଟ କରନ୍ତୁ, କିମ୍ବା ମାଲିକଙ୍କ କୋଡ୍ ସହିତ ଗୋଟିଏରେ ଯୋଗ ଦିଅନ୍ତୁ।',
   noFarmData: 'ଫାର୍ମ ଡାଟା ଉପଲବ୍ଧ ନାହିଁ। ଆରମ୍ଭ କରିବାକୁ ଏକ ଫାର୍ମ ତୈରି କରନ୍ତୁ!',
   gettingStartedTitle: 'ଆରମ୍ଭ କରନ୍ତୁ',
   checklistPonds: 'ଆପଣଙ୍କର ପୋଖରୀ ସେଟ୍ ଅପ୍ କରନ୍ତୁ',

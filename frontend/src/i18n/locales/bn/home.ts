@@ -8,6 +8,7 @@ const home = {
   totalPonds: 'মোট পুকুর',
   lowStockAlerts: 'কম স্টক সতর্কতা',
   todayFeed: 'আজকের খাবার (kg)',
+  noFarmEither: 'নিজের খামার সেট করুন, বা মালিকের কোড দিয়ে একটিতে যোগ দিন।',
   noFarmData: 'কোনো খামারের তথ্য নেই। শুরু করতে একটি খামার তৈরি করুন!',
   gettingStartedTitle: 'শুরু করুন',
   checklistPonds: 'আপনার পুকুর সেট আপ করুন',

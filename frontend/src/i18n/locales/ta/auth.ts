@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "மற்றும்",
 
   // ── Account type (RegisterScreen) ─────────────────────────────────────────
-  accountTypeLabel: 'நான் ஒரு…',
-  accountTypeRequired: 'கணக்கு வகையைத் தேர்ந்தெடுக்கவும்',
-  accountOwnerTitle: 'பண்ணை உரிமையாளர்',
-  accountOwnerDesc: 'உங்கள் சொந்த பண்ணையை அமைத்து நிர்வகிக்கவும்',
-  accountWorkerTitle: 'பணியாளர்',
-  accountWorkerDesc: 'ஒரு பண்ணையில் சேர்ந்து தினசரி வேலையைப் பதிவு செய்யவும்',
+  signupIntentLabel: 'நீங்கள் எதற்காக வந்தீர்கள்?',
+  signupIntentRequired: 'ஒன்றைத் தேர்ந்தெடுக்கவும்',
+  intentOwnFarmTitle: 'நான் என் சொந்தப் பண்ணையை நடத்துகிறேன்',
+  intentOwnFarmDesc: 'உங்கள் பண்ணையையும் குளங்களையும் அமைக்கவும்',
+  intentWorkOnFarmTitle: 'நான் மற்றவரின் பண்ணையில் வேலை செய்கிறேன்',
+  intentWorkOnFarmDesc: 'சேர அவர்களின் குறியீட்டை உள்ளிடவும்',
 };
 export default auth;

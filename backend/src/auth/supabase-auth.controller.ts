@@ -118,19 +118,15 @@ export class SupabaseAuthController {
   @Throttle(SENSITIVE_THROTTLE)
   @Post('signup')
   async signup(@Body() body: SignupDto) {
-    const { email, password, firstName, lastName, username, accountType } =
-      body;
+    const { email, password, firstName, lastName, username } = body;
 
-    // Default to 'owner' if the client omits it — owners are the gated flow
-    // (first-run farm setup); workers go straight to the dashboard.
-    const account_type: 'owner' | 'worker' =
-      accountType === 'worker' ? 'worker' : 'owner';
-
+    // No `account_type` is written. The owner/worker question on the register
+    // screen is now a first-run routing preference held client-side, not an
+    // auth claim — nothing authorizes on it.
     const result = await this.supabaseAuthService.signUp(email, password, {
       firstName,
       lastName,
       username,
-      account_type,
     });
 
     return {

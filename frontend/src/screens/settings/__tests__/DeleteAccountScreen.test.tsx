@@ -21,7 +21,7 @@ const setUser = (over: Partial<any> = {}) =>
     useAuthStore.setState({
         user: {
             id: 'u1', email: 'ravi@farm.in', name: 'Ravi', avatarUrl: null,
-            provider: 'email', emailVerified: true, accountType: 'owner', ...over,
+            provider: 'email', emailVerified: true, ...over,
         },
     } as any);
 

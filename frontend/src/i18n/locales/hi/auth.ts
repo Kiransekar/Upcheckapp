@@ -194,11 +194,11 @@ const auth = {
   consentAnd: "और",
 
   // ── Account type (role selection) ─────────────────────────────────────────
-  accountTypeLabel: 'मैं हूँ…',
-  accountTypeRequired: 'कृपया एक खाता प्रकार चुनें',
-  accountOwnerTitle: 'फार्म मालिक',
-  accountOwnerDesc: 'अपना फार्म सेट करें और प्रबंधित करें',
-  accountWorkerTitle: 'कर्मचारी',
-  accountWorkerDesc: 'किसी फार्म से जुड़ें और दैनिक काम दर्ज करें',
+  signupIntentLabel: 'आप यहाँ किसलिए आए हैं?',
+  signupIntentRequired: 'कृपया एक चुनें',
+  intentOwnFarmTitle: 'मैं अपना फार्म चलाता हूँ',
+  intentOwnFarmDesc: 'अपना फार्म और तालाब सेट करें',
+  intentWorkOnFarmTitle: 'मैं किसी के फार्म पर काम करता हूँ',
+  intentWorkOnFarmDesc: 'जुड़ने के लिए उनका कोड डालें',
 };
 export default auth;

@@ -8,6 +8,7 @@ const home = {
   totalPonds: 'कुल तालाब',
   lowStockAlerts: 'कम स्टॉक अलर्ट',
   todayFeed: 'आज का आहार (kg)',
+  noFarmEither: 'अपना फार्म सेट करें, या मालिक से कोड लेकर किसी फार्म से जुड़ें।',
   noFarmData: 'कोई फार्म डेटा उपलब्ध नहीं। शुरू करने के लिए एक फार्म बनाएं!',
   gettingStartedTitle: 'शुरुआत करें',
   checklistPonds: 'अपने तालाब सेट करें',

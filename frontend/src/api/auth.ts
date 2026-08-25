@@ -1,6 +1,5 @@
 import apiClient from './client';
 
-export type AccountType = 'owner' | 'worker';
 
 export interface SignupPayload {
     email: string;
@@ -8,7 +7,6 @@ export interface SignupPayload {
     firstName?: string;
     lastName?: string;
     username?: string;
-    accountType?: AccountType;
 }
 
 export interface SigninPayload {
