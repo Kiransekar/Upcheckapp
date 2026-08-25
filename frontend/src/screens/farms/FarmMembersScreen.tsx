@@ -15,6 +15,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { farmMembersApi, type FarmMember, type AssignableRole, type FarmInvite } from '../../api/farmMembers';
 import { farmsApi } from '../../api/farms';
@@ -40,14 +41,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [invites, setInvites] = useState<FarmInvite[]>([]);
     const [inviteBusy, setInviteBusy] = useState(false);
     const [pending, setPending] = useState<FarmMember[]>([]);
+    const [error, setError] = useState<any>(null);
     const perms = usePermissions(farmId);
 
     const load = useCallback(async () => {
         try {
             const { data } = await farmMembersApi.listMembers(farmId);
             setMembers(data);
-        } catch {
-            setMembers([]);
+            setError(null);
+        } catch (e: any) {
+            // Do NOT fall through to the empty state here. A network or server
+            // failure is not "this farm has no members" — telling an owner their
+            // roster is empty when it is not is worse than showing the error.
+            setError(e);
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -426,7 +432,16 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 contentContainerStyle={styles.list}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
                 ListEmptyComponent={
-                    !loading ? <EmptyState icon="account-group-outline" title={t('members.emptyTitle')} subtitle={t('members.emptySub')} /> : null
+                    loading ? null : error ? (
+                        <ErrorState
+                            icon="account-group-outline"
+                            title={t('members.loadErrorTitle')}
+                            error={error}
+                            onRetry={() => { setLoading(true); load(); }}
+                        />
+                    ) : (
+                        <EmptyState icon="account-group-outline" title={t('members.emptyTitle')} subtitle={t('members.emptySub')} />
+                    )
                 }
             />
 
