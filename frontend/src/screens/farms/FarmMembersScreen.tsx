@@ -5,7 +5,7 @@
  * read-only (no add/remove controls).
  */
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, RefreshControl, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -16,10 +16,12 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
-import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/farmMembers';
+import { farmMembersApi, type FarmMember, type AssignableRole, type FarmInvite } from '../../api/farmMembers';
 import { farmsApi } from '../../api/farms';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canManageMember } from '../../permissions/capabilities';
+
+const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const fullName = (m: FarmMember) => {
     const u = m.user;
@@ -35,6 +37,8 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [farmCode, setFarmCode] = useState<string | null>(null);
+    const [invites, setInvites] = useState<FarmInvite[]>([]);
+    const [inviteBusy, setInviteBusy] = useState(false);
     const perms = usePermissions(farmId);
 
     const load = useCallback(async () => {
@@ -62,6 +66,98 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         if (!farmCode) return;
         await Clipboard.setStringAsync(farmCode);
         Alert.alert(t('members.codeCopiedTitle'), t('members.codeCopiedSub'));
+    };
+
+    // ── Invites ────────────────────────────────────────────────
+    // The server returns only usable invites (not revoked, not expired, not
+    // exhausted), newest first, so the head is the one to show.
+    const activeInvite = invites[0] ?? null;
+
+    const loadInvites = useCallback(async () => {
+        if (!perms.canInviteMember) return;
+        try {
+            const { data } = await farmMembersApi.listInvites(farmId);
+            setInvites(data);
+        } catch {
+            // Non-fatal: the roster is the point of this screen. A missing
+            // invites table (migration not yet run) lands here too.
+            setInvites([]);
+        }
+    }, [farmId, perms.canInviteMember]);
+
+    useFocusEffect(useCallback(() => { loadInvites(); }, [loadInvites]));
+
+    const createInvite = useCallback(async () => {
+        setInviteBusy(true);
+        try {
+            // Replaces any existing active invite rather than accumulating
+            // codes nobody is tracking — one live credential per farm is what
+            // an owner can actually reason about.
+            const { data } = await farmMembersApi.rotateInvite(farmId, {});
+            setInvites([data]);
+            await Clipboard.setStringAsync(data.code);
+            Alert.alert(t('members.inviteCreatedTitle'), t('members.inviteCreatedSub'));
+        } catch (e: any) {
+            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.inviteError'));
+        } finally {
+            setInviteBusy(false);
+        }
+    }, [farmId, t]);
+
+    const revokeInvite = useCallback((invite: FarmInvite) => {
+        Alert.alert(
+            t('members.revokeTitle'),
+            t('members.revokeConfirm'),
+            [
+                { text: t('common.cancel'), style: 'cancel' },
+                {
+                    text: t('members.revokeInvite'),
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await farmMembersApi.revokeInvite(farmId, invite.id);
+                            setInvites((cur) => cur.filter((i) => i.id !== invite.id));
+                        } catch (e: any) {
+                            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.inviteError'));
+                        }
+                    },
+                },
+            ],
+        );
+    }, [farmId, t]);
+
+    const copyInvite = async (code: string) => {
+        await Clipboard.setStringAsync(code);
+        Alert.alert(t('members.codeCopiedTitle'), t('members.inviteCopiedSub'));
+    };
+
+    const shareInvite = async (code: string) => {
+        try {
+            await Share.share({ message: t('members.shareInviteMessage', { code, farm: farmName ?? '' }) });
+        } catch {
+            // User dismissed the share sheet — nothing to report.
+        }
+    };
+
+    /** "Expires in 6 days · 1 of 3 used" — expiry and remaining uses at a glance. */
+    const inviteMeta = (invite: FarmInvite) => {
+        const parts: string[] = [];
+        if (invite.expiresAt) {
+            const hours = Math.max(0, Math.round((new Date(invite.expiresAt).getTime() - Date.now()) / 3600_000));
+            parts.push(
+                hours >= 48
+                    ? t('members.expiresInDays', { count: Math.round(hours / 24) })
+                    : t('members.expiresInHours', { count: hours }),
+            );
+        } else {
+            parts.push(t('members.neverExpires'));
+        }
+        parts.push(
+            invite.maxUses > 0
+                ? t('members.usesCount', { used: invite.usedCount, max: invite.maxUses })
+                : t('members.unlimitedUses'),
+        );
+        return parts.join(' · ');
     };
 
     const remove = (m: FarmMember) => {
@@ -171,16 +267,75 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 </View>
             </View>
 
+            {/*
+              * Identity, not credential. The farm code used to double as the
+              * join password; it is now just the farm's public identifier, and
+              * says so. Joining goes through the invite card below.
+              */}
             {farmCode ? (
                 <Card style={styles.codeCard}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.codeLabel}>{t('members.farmCodeLabel')}</Text>
                         <Text style={styles.codeValue}>{farmCode}</Text>
-                        <Text style={styles.codeHint}>{t('members.farmCodeHint')}</Text>
+                        <Text style={styles.codeHint}>{t('members.farmCodeIdentityHint')}</Text>
                     </View>
                     <TouchableOpacity onPress={copyFarmCode} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel={t('members.copyCode')}>
                         <MaterialCommunityIcons name="content-copy" size={22} color={theme.roles.light.primary} />
                     </TouchableOpacity>
+                </Card>
+            ) : null}
+
+            {perms.canInviteMember ? (
+                <Card style={styles.inviteCard}>
+                    <View style={styles.inviteHeader}>
+                        <MaterialCommunityIcons name="ticket-confirmation-outline" size={20} color={theme.roles.light.primary} />
+                        <Text style={styles.inviteTitle}>{t('members.inviteTitle')}</Text>
+                    </View>
+
+                    {activeInvite ? (
+                        <>
+                            <View style={styles.inviteCodeRow}>
+                                <Text style={styles.codeValue} accessibilityLabel={activeInvite.code.split('').join(' ')}>
+                                    {activeInvite.code}
+                                </Text>
+                                <View style={styles.rowActions}>
+                                    <TouchableOpacity
+                                        onPress={() => copyInvite(activeInvite.code)}
+                                        hitSlop={HIT_SLOP}
+                                        accessibilityLabel={t('members.copyCode')}
+                                    >
+                                        <MaterialCommunityIcons name="content-copy" size={22} color={theme.roles.light.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => shareInvite(activeInvite.code)}
+                                        hitSlop={HIT_SLOP}
+                                        accessibilityLabel={t('members.shareInvite')}
+                                    >
+                                        <MaterialCommunityIcons name="share-variant-outline" size={22} color={theme.roles.light.primary} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => revokeInvite(activeInvite)}
+                                        hitSlop={HIT_SLOP}
+                                        accessibilityLabel={t('members.revokeInvite')}
+                                    >
+                                        <MaterialCommunityIcons name="close-circle-outline" size={22} color={theme.roles.light.dangerText} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                            <Text style={styles.codeHint}>{inviteMeta(activeInvite)}</Text>
+                        </>
+                    ) : (
+                        <Text style={styles.codeHint}>{t('members.noActiveInvite')}</Text>
+                    )}
+
+                    <Button
+                        title={activeInvite ? t('members.newInvite') : t('members.createInvite')}
+                        onPress={createInvite}
+                        variant="outlined"
+                        loading={inviteBusy}
+                        disabled={inviteBusy}
+                        style={styles.inviteBtn}
+                    />
                 </Card>
             ) : null}
 
@@ -228,6 +383,11 @@ const styles = StyleSheet.create({
     codeHint: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginTop: theme.spacing[1] },
     name: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     role: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    inviteCard: { padding: theme.spacing[4], marginBottom: theme.spacing[3], gap: theme.spacing[2] },
+    inviteHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+    inviteTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    inviteCodeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing[3] },
+    inviteBtn: { marginTop: theme.spacing[1] },
     addBtn: { marginTop: theme.spacing[2] },
 });
 

@@ -13,7 +13,6 @@ import { canAssignRole, canManageMember } from '../farm-access/farm-capability';
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
 import { AddMemberDto, AssignableRole } from './dto/add-member.dto';
-import { JoinFarmDto } from './dto/join-farm.dto';
 
 /** Public-safe view of a user (never exposes auth/email/phone beyond display). */
 export interface PublicUser {
@@ -141,39 +140,12 @@ export class FarmMembersService {
     return { ...member, user: toPublicUser(target) };
   }
 
-  /**
-   * Self-serve join: a worker enters/scans a farm's join code (the farm's
-   * `farmCode`) and is added as a 'worker' member of that farm. No prior
-   * membership or capability is required — this is the entry point for
-   * someone who isn't a member of anything yet.
-   */
-  async joinFarm(callerId: string, dto: JoinFarmDto) {
-    const farm = await this.farmsRepo.findOne({
-      where: { farmCode: dto.code },
-    });
-    if (!farm) {
-      throw new NotFoundException('No farm found for that code');
-    }
-    if (farm.userId === callerId) {
-      throw new ConflictException('You already own this farm');
-    }
-
-    const existing = await this.membersRepo.findOne({
-      where: { farmId: farm.id, userId: callerId },
-    });
-    if (existing) {
-      throw new ConflictException('You are already a member of this farm');
-    }
-
-    const member = this.membersRepo.create({
-      farmId: farm.id,
-      userId: callerId,
-      role: 'worker',
-      addedById: null,
-    });
-    await this.membersRepo.save(member);
-    return { farmId: farm.id, role: member.role, farm: { id: farm.id, name: farm.name } };
-  }
+  // NOTE: `joinFarm` lived here and looked a farm up by `farmCode`, inserting a
+  // `worker` membership with a null `addedById`. It has moved to
+  // FarmInvitesService.join, which redeems a `farm_invites` row instead — so a
+  // join can expire, be revoked, be usage-capped, and be attributed to whoever
+  // issued the invite. The legacy farmCode lookup survives there as a fallback
+  // for the deploy-before-migrate window only.
 
   /** List members of a farm (any member may view). */
   async listMembers(farmId: string, callerId: string) {

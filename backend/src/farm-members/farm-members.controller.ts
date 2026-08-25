@@ -9,6 +9,7 @@ import {
   Query,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FarmMembersService } from './farm-members.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { AddMemberDto } from './dto/add-member.dto';
@@ -16,10 +17,19 @@ import { ChangeRoleDto } from './dto/change-role.dto';
 import { TransferOwnershipDto } from './dto/transfer-ownership.dto';
 import { LookupUserDto } from './dto/lookup-user.dto';
 import { JoinFarmDto } from './dto/join-farm.dto';
+import { CreateInviteDto } from './dto/create-invite.dto';
+import { FarmInvitesService } from './farm-invites.service';
+
+// Brute-force budget for code redemption; mirrors SENSITIVE_THROTTLE in
+// supabase-auth.controller.ts.
+const JOIN_THROTTLE = { default: { limit: 5, ttl: 60_000 } };
 
 @Controller()
 export class FarmMembersController {
-  constructor(private readonly membersService: FarmMembersService) {}
+  constructor(
+    private readonly membersService: FarmMembersService,
+    private readonly invitesService: FarmInvitesService,
+  ) {}
 
   /** Resolve a user to add by their unique id (QR), phone or email. */
   @Get('farm-members/users/lookup')
@@ -38,10 +48,52 @@ export class FarmMembersController {
     return this.membersService.listMine(user.id);
   }
 
-  /** Self-serve join: enter/scan a farm's join code to become a worker on it. */
+  /**
+   * Redeem an invite code and become a member of that farm.
+   *
+   * Throttled: an 8-char code over a 32-char alphabet is ~10^12 combinations,
+   * which is fine against a rate-limited attacker and not fine against an
+   * unlimited one. Same 5/min bucket the sensitive auth endpoints use.
+   */
+  @Throttle(JOIN_THROTTLE)
   @Post('farm-members/join')
   join(@Body() dto: JoinFarmDto, @CurrentUser() user) {
-    return this.membersService.joinFarm(user.id, dto);
+    return this.invitesService.join(user.id, dto);
+  }
+
+  // ==================== Invites ====================
+
+  @Post('farms/:farmId/invites')
+  createInvite(
+    @Param('farmId') farmId: string,
+    @Body() dto: CreateInviteDto,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.create(farmId, user.id, dto);
+  }
+
+  @Get('farms/:farmId/invites')
+  listInvites(@Param('farmId') farmId: string, @CurrentUser() user) {
+    return this.invitesService.list(farmId, user.id);
+  }
+
+  @Delete('farms/:farmId/invites/:inviteId')
+  revokeInvite(
+    @Param('farmId') farmId: string,
+    @Param('inviteId') inviteId: string,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.revoke(farmId, inviteId, user.id);
+  }
+
+  /** Retire every active invite for this farm and mint a fresh one. */
+  @Post('farms/:farmId/invites/rotate')
+  rotateInvite(
+    @Param('farmId') farmId: string,
+    @Body() dto: CreateInviteDto,
+    @CurrentUser() user,
+  ) {
+    return this.invitesService.rotate(farmId, user.id, dto);
   }
 
   @Get('farms/:farmId/members')
