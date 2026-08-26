@@ -29,6 +29,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
@@ -83,6 +84,10 @@ export const TeamScreen = ({ navigation }: any) => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<FarmMember[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    // Without this the screen rendered its "no farms yet" empty state from
+    // the first frame until the fetch landed — telling a farmer with three
+    // farms they had none, every time they opened the tab.
+    const [isLoading, setIsLoading] = useState(true);
     const [showAllTasks, setShowAllTasks] = useState(false);
 
     const activeScope = scope !== ALL && farms.some((f) => f.id === scope) ? scope : ALL;
@@ -110,6 +115,7 @@ export const TeamScreen = ({ navigation }: any) => {
             ? list.filter((f) => f.id === scope)
             : list;
         if (inScope.length === 0) {
+            setIsLoading(false);
             setRefreshing(false);
             return;
         }
@@ -151,6 +157,7 @@ export const TeamScreen = ({ navigation }: any) => {
         setPendingLeave(per.flatMap((p) => p.leave));
         setTasks(per.flatMap((p) => p.tasks));
         setMembers(per.flatMap((p) => p.members));
+        setIsLoading(false);
         setRefreshing(false);
     }, [scope]);
 
@@ -166,6 +173,18 @@ export const TeamScreen = ({ navigation }: any) => {
             // Non-fatal; the attendance screen shows the authoritative state.
         }
     }, [myAttendance, load]);
+
+    if (isLoading) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.loadingBlock}>
+                    <Skeleton width="100%" height={72} />
+                    <Skeleton width="100%" height={64} />
+                    <Skeleton width="100%" height={64} />
+                </View>
+            </ScreenWrapper>
+        );
+    }
 
     if (!farmId) {
         return (
@@ -328,7 +347,7 @@ export const TeamScreen = ({ navigation }: any) => {
                     <Text style={styles.sectionLabel}>{t('team.tasksToday')}</Text>
                     <View style={styles.sectionRule} />
                     {perms.canManageMembers && (
-                        <TouchableOpacity onPress={() => navigation.navigate('Tasks', { farmId })}>
+                        <TouchableOpacity onPress={() => navigation.navigate('TaskList', { farmId, farmName: primaryFarm?.name })}>
                             <Text style={styles.headerAction}>{t('team.assign')}</Text>
                         </TouchableOpacity>
                     )}
@@ -365,7 +384,7 @@ export const TeamScreen = ({ navigation }: any) => {
                             <TouchableOpacity
                                 key={tk.id}
                                 style={styles.taskRow}
-                                onPress={() => navigation.navigate('TaskDetail', { id: tk.id })}
+                                onPress={() => navigation.navigate('TaskList', { farmId: tk.farmId, farmName: farmName(tk.farmId) })}
                             >
                                 <View
                                     style={[
@@ -427,6 +446,7 @@ const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = 
 );
 
 const styles = StyleSheet.create({
+    loadingBlock: { gap: theme.spacing[3], padding: theme.spacing[4] },
     chips: {
         gap: theme.spacing[2],
         paddingHorizontal: theme.spacing[5],

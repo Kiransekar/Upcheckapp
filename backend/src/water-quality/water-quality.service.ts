@@ -128,6 +128,31 @@ export class WaterQualityService {
       }
     }
 
+    // A newer reading of the same pond SUPERSEDES the older one's alerts.
+    //
+    // Without this, logging a low DO raised a critical alert that nothing ever
+    // cleared: the farmer aerated, logged a healthy reading, and every screen
+    // reading the persisted stream still showed the pond red. The live
+    // briefing recomputes from the latest reading and was already correct, so
+    // the two disagreed about the same pond on the same screen.
+    //
+    // Superseding on EVERY new reading — not only on a good one — is the whole
+    // rule: the alerts below are raised from this record, so after this line
+    // the pond's water-quality alerts describe exactly the latest measurement.
+    // Best-effort: failing to clear history must not fail the reading itself.
+    try {
+      await this.alertsService.supersedeOpenAlerts(
+        userId,
+        pond.id,
+        'water_quality',
+      );
+    } catch (error) {
+      this.logger.error(
+        `Failed to supersede water quality alerts (pond ${pond.id}): ${error}`,
+        (error as Error)?.stack,
+      );
+    }
+
     // Create alerts (non-blocking — errors are caught and logged)
     for (const alert of alerts) {
       try {

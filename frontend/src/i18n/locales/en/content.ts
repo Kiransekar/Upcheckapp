@@ -109,6 +109,10 @@ const content = {
     statusOpen: 'Open',
     statusInProgress: 'In Progress',
     statusDone: 'Done',
+
+    // Tapping advances a task; a long press undoes a mis-tap.
+
+    revertHint: "Long press to move it back",
     // Delete confirmation
     deleteAlertTitle: 'Delete Task',
     deleteAlertMessage: 'Delete "{{title}}"?',

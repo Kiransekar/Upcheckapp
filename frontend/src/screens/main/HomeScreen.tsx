@@ -237,10 +237,21 @@ export const HomeScreen = ({ navigation }: any) => {
         );
     }, [scopeFarms, perms.canManageOperations]);
 
+    /**
+     * Can the Getting Started checklist still appear at all?
+     *
+     * It is retired, or the farmer is a worker who never sees it. Either way
+     * the three fetches below have nothing to fill, and skipping them takes
+     * three round trips off every visit to Today for the whole life of the
+     * account. They cannot be skipped once it is merely COMPLETE — the
+     * completeness is what they measure.
+     */
+    const checklistPossible = !checklistHidden && perms.canManageOperations;
+
     // Planned vs. actual pond count for the selected farm — one of the
     // Getting Started checklist items below.
     const fetchPlannedPondCount = useCallback(() => {
-        if (!selectedFarm?.id) {
+        if (!selectedFarm?.id || !checklistPossible) {
             setPlannedPondCount(null);
             return;
         }
@@ -248,7 +259,7 @@ export const HomeScreen = ({ navigation }: any) => {
             .getById(selectedFarm.id)
             .then(({ data }) => setPlannedPondCount(data.plannedPondCount ?? null))
             .catch(() => setPlannedPondCount(null));
-    }, [selectedFarm?.id]);
+    }, [selectedFarm?.id, checklistPossible]);
 
     // Cross-pond alert summary for the "Needs Attention" card. Mirrors
     // MorningBriefingScreen's merge (live + persisted, deduped by pond, kept
@@ -424,7 +435,7 @@ export const HomeScreen = ({ navigation }: any) => {
     // analytics count).
     useEffect(() => {
         const firstPond = selectedFarm?.id ? ponds.find((p) => p.farmId === selectedFarm.id) : ponds[0];
-        if (!firstPond) {
+        if (!firstPond || !checklistPossible) {
             setHasLoggedSomething(false);
             return;
         }
@@ -434,11 +445,11 @@ export const HomeScreen = ({ navigation }: any) => {
                 data.lastFeedAt != null || data.waterQuality?.recordedAt != null || data.samplingAt != null,
             ))
             .catch(() => setHasLoggedSomething(false));
-    }, [selectedFarm?.id, ponds]);
+    }, [selectedFarm?.id, ponds, checklistPossible]);
 
     // "Invited your team" — more than just the owner as a farm member.
     const fetchInvitedWorker = useCallback(() => {
-        if (!selectedFarm?.id) {
+        if (!selectedFarm?.id || !checklistPossible) {
             setHasInvitedWorker(null);
             return;
         }
@@ -446,7 +457,7 @@ export const HomeScreen = ({ navigation }: any) => {
             .listMembers(selectedFarm.id)
             .then(({ data }) => setHasInvitedWorker(data.length > 1))
             .catch(() => setHasInvitedWorker(false));
-    }, [selectedFarm?.id]);
+    }, [selectedFarm?.id, checklistPossible]);
 
     useFocusEffect(fetchInvitedWorker);
 
