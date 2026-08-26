@@ -184,6 +184,12 @@ const home = {
   openCount: "{{count}} बाकी",
   taskDue: "{{date}} तक",
   onDuty: "ड्यूटी पर",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "आज के लॉग",
+  hideChecklist: "छिपाएँ",
+  hideChecklistTitle: "सेटअप सूची छिपाएँ?",
+  hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",
+  hideChecklistConfirm: "हमेशा के लिए छिपाएँ",
 };
 
 export default home;

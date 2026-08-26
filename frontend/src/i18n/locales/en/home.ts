@@ -186,6 +186,12 @@ const home = {
   openCount: "{{count}} open",
   taskDue: "due {{date}}",
   onDuty: "On duty",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "Logs today",
+  hideChecklist: "Hide",
+  hideChecklistTitle: "Hide the setup list?",
+  hideChecklistBody: "It will not come back. You can still set up ponds, log readings and invite your team from the Farm and Team tabs.",
+  hideChecklistConfirm: "Hide for good",
 };
 
 export default home;

@@ -184,6 +184,12 @@ const home = {
   openCount: "{{count}} ବାକି",
   taskDue: "{{date}} ସୁଦ୍ଧା",
   onDuty: "ଡ୍ୟୁଟିରେ",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "ଆଜିର ଲଗ",
+  hideChecklist: "ଲୁଚାନ୍ତୁ",
+  hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
+  hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",
+  hideChecklistConfirm: "ସବୁଦିନ ପାଇଁ ଲୁଚାନ୍ତୁ",
 };
 
 export default home;

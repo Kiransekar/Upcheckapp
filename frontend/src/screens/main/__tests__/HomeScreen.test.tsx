@@ -1,35 +1,31 @@
-// Getting Started checklist (onboarding-plan Phase 2) + worker first-run
-// interstitial (Phase 1). The checklist replaces the earlier pond-count-only
-// nudge with real activation milestones (ponds set up / logged something /
-// invited a worker) and disappears entirely once all are done — unlike a
-// reminder, a finished checklist has nothing left to say. The worker
-// interstitial closes the "workers get zero onboarding" gap found in
-// docs/ONBOARDING_MODULE_PLAN.md §1.2.
+// Today — artboard 1b (frontend/design/today-page.png).
+//
+// The screen is: header (date · farms · ponds / "All farms" / Filter) → the
+// "Do this first" hero → "Then" → "My tasks" → the stat band. Nothing else.
+// Everything that used to live below the band — the stat grid, farm-at-a-
+// glance, the pond carousel, moon phase, quick actions, the worker tiles and
+// the attendance/leave cards — is gone; the tab bar and Settings carry those.
+//
+// The two behaviours worth pinning down here are the ones that were wrong:
+// Today opens on EVERY farm combined, and Filter narrows it.
 jest.mock('../../../api/farms', () => ({
     farmsApi: { getAll: jest.fn(), getById: jest.fn() },
 }));
 jest.mock('../../../api/ponds', () => ({
     pondsApi: { getMine: jest.fn() },
 }));
-jest.mock('../../../api/reports', () => ({
-    reportsApi: { getDashboardSummary: jest.fn() },
-}));
 jest.mock('../../../api/pondContext', () => ({
-    // forFarm backs artboard 1b's biomass figure — one batched call per farm.
-    pondContextApi: { get: jest.fn(), forFarm: jest.fn().mockResolvedValue({ data: [] }) },
+    // forFarm backs the biomass and logs-today figures — one batched call per farm.
+    pondContextApi: { get: jest.fn(), forFarm: jest.fn() },
 }));
 jest.mock('../../../api/attendance', () => ({
-    // "On duty" in the 1b stat band.
-    attendanceApi: { getAll: jest.fn().mockResolvedValue({ data: [] }) },
+    attendanceApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: { listMembers: jest.fn() },
 }));
 jest.mock('../../../api/alertCenter', () => ({
     alertCenterApi: { liveBriefing: jest.fn(), briefing: jest.fn() },
-}));
-jest.mock('../../../api/waterQuality', () => ({
-    waterQualityApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/tasks', () => ({
     tasksApi: { getAll: jest.fn() },
@@ -43,23 +39,23 @@ jest.mock('@react-navigation/native', () => {
         ...actual,
         useFocusEffect: (effect: () => void) => {
             const React = require('react');
-            React.useEffect(effect, []);
+            React.useEffect(effect, [effect]);
         },
     };
 });
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { HomeScreen, WORKER_WELCOME_FLAG } from '../HomeScreen';
+import { HomeScreen, WORKER_WELCOME_FLAG, CHECKLIST_HIDDEN_FLAG } from '../HomeScreen';
 import { farmsApi } from '../../../api/farms';
 import { pondsApi } from '../../../api/ponds';
-import { reportsApi } from '../../../api/reports';
 import { pondContextApi } from '../../../api/pondContext';
+import { attendanceApi } from '../../../api/attendance';
 import { farmMembersApi } from '../../../api/farmMembers';
 import { alertCenterApi } from '../../../api/alertCenter';
-import { waterQualityApi } from '../../../api/waterQuality';
 import { tasksApi } from '../../../api/tasks';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
@@ -68,12 +64,12 @@ import { useAuthStore } from '../../../store/authStore';
 const mockedGetAll = farmsApi.getAll as jest.Mock;
 const mockedGetById = farmsApi.getById as jest.Mock;
 const mockedGetMine = pondsApi.getMine as jest.Mock;
-const mockedDashboard = reportsApi.getDashboardSummary as jest.Mock;
 const mockedPondContext = pondContextApi.get as jest.Mock;
+const mockedForFarm = pondContextApi.forFarm as jest.Mock;
+const mockedAttendance = attendanceApi.getAll as jest.Mock;
 const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
 const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
 const mockedBriefing = alertCenterApi.briefing as jest.Mock;
-const mockedWqGetAll = waterQualityApi.getAll as jest.Mock;
 const mockedTasksGetAll = tasksApi.getAll as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
@@ -86,7 +82,9 @@ const TEST_SAFE_AREA_METRICS = {
 
 const navigation = { navigate: jest.fn(), getParent: () => undefined };
 const FARM = { id: 'farm-1', name: "Ravi's Farm" };
+const FARM_2 = { id: 'farm-2', name: 'Kakinada East' };
 const POND = { id: 'p1', farmId: 'farm-1', name: 'Pond 1', displayName: 'Pond 1' };
+const POND_2 = { id: 'p2', farmId: 'farm-2', name: 'Pond 2', displayName: 'Pond 2' };
 
 const emptyPondContext = {
     doc: null, waterQuality: null, freeAmmoniaMgL: null, abwG: null, livePopulation: null,
@@ -102,31 +100,148 @@ const renderScreen = () =>
         </SafeAreaProvider>,
     );
 
+/** Everything quiet: no farms, no ponds, no alerts, no tasks. */
+const resetMocks = async () => {
+    jest.clearAllMocks();
+    await AsyncStorage.clear();
+    // Retired by default so it does not collide with assertions about the
+    // sections above it; its own describe block clears the flag.
+    await AsyncStorage.setItem(CHECKLIST_HIDDEN_FLAG, '1');
+    useActiveFarmStore.setState({ selectedFarm: null } as any);
+    useAuthStore.setState({ user: { id: 'owner-1', email: 'o@pond.in' } } as any);
+    useMembershipStore.setState({
+        memberships: [
+            { farmId: 'farm-1', role: 'owner', farm: FARM },
+            { farmId: 'farm-2', role: 'owner', farm: FARM_2 },
+        ],
+        loaded: true, loading: false,
+    } as any);
+    mockedGetAll.mockResolvedValue({ data: [FARM] });
+    mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
+    mockedGetMine.mockResolvedValue({ data: [POND] });
+    mockedPondContext.mockResolvedValue({ data: emptyPondContext });
+    mockedForFarm.mockResolvedValue({ data: [] });
+    mockedAttendance.mockResolvedValue({ data: [] });
+    mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] });
+    mockedLiveBriefing.mockResolvedValue({ data: [] });
+    mockedBriefing.mockResolvedValue({ data: [] });
+    mockedTasksGetAll.mockResolvedValue({ data: [] });
+};
+
+describe('HomeScreen — farm scope', () => {
+    beforeEach(async () => {
+        await resetMocks();
+        mockedGetAll.mockResolvedValue({ data: [FARM, FARM_2] });
+        mockedGetMine.mockResolvedValue({ data: [POND, POND_2] });
+        // The active farm is already set app-wide — Today must NOT inherit it
+        // as a filter. That inheritance was the reported bug.
+        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
+        mockedForFarm.mockImplementation((farmId: string) =>
+            Promise.resolve({
+                data: [{ ...emptyPondContext, cropId: 'c1', biomassKg: farmId === 'farm-1' ? 400 : 600 }],
+            }),
+        );
+    });
+
+    it('opens on every farm combined, whatever the app-wide active farm is', async () => {
+        const { findByText } = renderScreen();
+
+        expect(await findByText('All farms')).toBeTruthy();
+        // 400 + 600 — both farms, not just the active one.
+        expect(await findByText('1,000')).toBeTruthy();
+        expect(mockedForFarm).toHaveBeenCalledWith('farm-1');
+        expect(mockedForFarm).toHaveBeenCalledWith('farm-2');
+    });
+
+    it('narrows to one farm when it is picked from the Filter', async () => {
+        const { findByText, getByText, queryByText } = renderScreen();
+        await findByText('All farms');
+
+        fireEvent.press(getByText('Filter'));
+        fireEvent.press(await findByText('Kakinada East'));
+
+        // The title is the scope, so the picked farm replaces "All farms".
+        await waitFor(() => expect(queryByText('All farms')).toBeNull());
+        expect(await findByText('600')).toBeTruthy();
+    });
+
+    it('keeps another farm\'s emergency out of the hero once narrowed', async () => {
+        mockedLiveBriefing.mockResolvedValue({
+            data: [{
+                pondId: 'p1', source: 'wq', topTitle: 'Start the aerators', topSeverity: 'critical',
+                alertCount: 1, steps: ['Oxygen has fallen to 2.8 mg/L.'],
+            }],
+        });
+
+        const { findByText, getByText, queryByText } = renderScreen();
+        expect(await findByText('Start the aerators')).toBeTruthy();
+
+        fireEvent.press(getByText('Filter'));
+        fireEvent.press(await findByText('Kakinada East'));
+
+        // p1 belongs to farm-1. Leaving it in the hero of farm-2 would tell a
+        // farmer the wrong pond is dying.
+        await waitFor(() => expect(queryByText('Start the aerators')).toBeNull());
+    });
+
+    it('counts only what is in scope in the header', async () => {
+        const { findByText, getByText, queryByText } = renderScreen();
+        expect(await findByText(/2 farms · 2 ponds/)).toBeTruthy();
+
+        fireEvent.press(getByText('Filter'));
+        fireEvent.press(await findByText('Kakinada East'));
+
+        // One farm in scope: saying "2 farms" would contradict the title above it.
+        await waitFor(() => expect(queryByText(/2 farms/)).toBeNull());
+        expect(await findByText(/1 pond/)).toBeTruthy();
+    });
+
+    it('offers no Filter at all with a single farm', async () => {
+        mockedGetAll.mockResolvedValue({ data: [FARM] });
+        const { findByText, queryByText } = renderScreen();
+        await findByText('All farms');
+        expect(queryByText('Filter')).toBeNull();
+    });
+});
+
+describe('HomeScreen — the stat band', () => {
+    beforeEach(async () => {
+        await resetMocks();
+        mockedForFarm.mockResolvedValue({
+            data: [
+                // Logged today.
+                { ...emptyPondContext, cropId: 'c1', biomassKg: 9180, lastFeedAt: new Date().toISOString() },
+                // Stocked but nothing recorded.
+                { ...emptyPondContext, cropId: 'c2', biomassKg: null },
+                // Not stocked — no round to miss, so out of the denominator.
+                { ...emptyPondContext, cropId: null },
+            ],
+        });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
+        mockedAttendance.mockResolvedValue({ data: [{ userId: 'a' }, { userId: 'a' }, { userId: 'b' }] });
+    });
+
+    it('shows biomass, logs today and on duty', async () => {
+        const { findByText } = renderScreen();
+
+        expect(await findByText('9,180')).toBeTruthy();
+        // 1 of the 2 STOCKED ponds has been logged; the fallow one is excluded.
+        expect(await findByText(' / 2')).toBeTruthy();
+        // Two distinct people checked in out of three on the roster — the same
+        // person twice in a day is one person on duty.
+        expect(await findByText(' / 3')).toBeTruthy();
+    });
+});
+
 describe('HomeScreen — Getting Started checklist', () => {
     beforeEach(async () => {
-        jest.clearAllMocks();
-        await AsyncStorage.clear();
+        await resetMocks();
+        await AsyncStorage.removeItem(CHECKLIST_HIDDEN_FLAG);
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
-        // Getting Started is gated behind canManageOperations (owner/manager) —
-        // a plain membership-less state no longer shows it at all.
-        useMembershipStore.setState({
-            memberships: [{ farmId: 'farm-1', role: 'owner', farm: FARM }],
-            loaded: true, loading: false,
-        } as any);
-        mockedGetAll.mockResolvedValue({ data: [FARM] });
-        mockedDashboard.mockResolvedValue({
-            data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
-        });
-        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // just the owner
-        mockedLiveBriefing.mockResolvedValue({ data: [] });
-        mockedBriefing.mockResolvedValue({ data: [] });
-        mockedWqGetAll.mockResolvedValue({ data: [] });
     });
 
     it('shows the checklist with pond setup unfinished and everything else undone', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] }); // 1 of 3 ponds
 
         const { findByText } = renderScreen();
 
@@ -137,11 +252,10 @@ describe('HomeScreen — Getting Started checklist', () => {
         expect(await findByText('Invite your team')).toBeTruthy();
     });
 
-    it('marks items done as their real milestones are met, without hiding the card until all are done', async () => {
+    it('marks items done as their real milestones are met, without hiding until all are', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } }); // ponds: done
-        mockedGetMine.mockResolvedValue({ data: [POND] });
-        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } }); // log: done
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // invite: still not done
+        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } });
+        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // invite: not done
 
         const { findByText } = renderScreen();
 
@@ -150,35 +264,17 @@ describe('HomeScreen — Getting Started checklist', () => {
 
     it('disappears entirely once every milestone is complete', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
         mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } });
         mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
 
         const { queryByText, findByText } = renderScreen();
-        await findByText('Active Ponds'); // wait for the dashboard to settle
+        await findByText('All farms'); // wait for the screen to settle
 
-        // Home now also fires the alerts + daily-progress fetches on focus,
-        // lengthening the promise chain before hasLoggedSomething/hasInvitedWorker
-        // settle — the default 1s waitFor window was occasionally too tight.
         await waitFor(() => expect(queryByText('Getting started')).toBeNull(), { timeout: 3000 });
-    });
-
-    it('dismisses for this visit without navigating anywhere', async () => {
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
-
-        const { findByText, findByLabelText, queryByText } = renderScreen();
-        await findByText('Getting started');
-
-        fireEvent.press(await findByLabelText('Dismiss'));
-
-        await waitFor(() => expect(queryByText('Getting started')).toBeNull());
-        expect(navigation.navigate).not.toHaveBeenCalled();
     });
 
     it('tapping the unfinished ponds item navigates to PondSetup with only the remaining count', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Set up your ponds'));
@@ -188,7 +284,6 @@ describe('HomeScreen — Getting Started checklist', () => {
 
     it('tapping the unfinished log item navigates to QuickLog', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Log your first reading'));
@@ -198,36 +293,63 @@ describe('HomeScreen — Getting Started checklist', () => {
 
     it('tapping the unfinished invite item navigates to AddWorker with the farm id', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Invite your team'));
 
         expect(navigation.navigate).toHaveBeenCalledWith('AddWorker', { farmId: 'farm-1' });
     });
+
+    // Hiding is permanent, so it asks first — and a farmer who taps Hide by
+    // mistake and then cancels must keep their checklist.
+    it('asks before hiding, and keeps the list if the farmer cancels', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+        const { findByText, queryByText } = renderScreen();
+        fireEvent.press(await findByText('Hide'));
+
+        expect(alert).toHaveBeenCalled();
+        expect(alert.mock.calls[0][0]).toBe('Hide the setup list?');
+        expect(queryByText('Getting started')).toBeTruthy();
+        expect(await AsyncStorage.getItem(CHECKLIST_HIDDEN_FLAG)).toBeNull();
+        alert.mockRestore();
+    });
+
+    it('never comes back once the farmer confirms', async () => {
+        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 3 } });
+        // Take the confirm button the screen offered and press it.
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons) => {
+            const confirm = (buttons ?? []).find((b) => b.text === 'Hide for good');
+            confirm?.onPress?.();
+        });
+
+        const { findByText, queryByText } = renderScreen();
+        fireEvent.press(await findByText('Hide'));
+
+        await waitFor(() => expect(queryByText('Getting started')).toBeNull());
+        await waitFor(async () =>
+            expect(await AsyncStorage.getItem(CHECKLIST_HIDDEN_FLAG)).toBe('1'),
+        );
+        alert.mockRestore();
+
+        // And it stays gone on the next visit.
+        const second = renderScreen();
+        await second.findByText('All farms');
+        expect(second.queryByText('Getting started')).toBeNull();
+    });
 });
 
 describe('HomeScreen — worker first-run interstitial', () => {
     beforeEach(async () => {
-        jest.clearAllMocks();
-        await AsyncStorage.clear();
+        await resetMocks();
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
-        mockedGetAll.mockResolvedValue({ data: [FARM] });
-        mockedDashboard.mockResolvedValue({
-            data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
-        });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
-        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] });
-        mockedLiveBriefing.mockResolvedValue({ data: [] });
-        mockedBriefing.mockResolvedValue({ data: [] });
-        mockedWqGetAll.mockResolvedValue({ data: [] });
+        useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in' } } as any);
     });
 
     it("shows the worker's farm name and role on first login", async () => {
         useMembershipStore.setState({
-            memberships: [{ farmId: 'farm-1', role: 'worker', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
             loaded: true, loading: false,
         } as any);
 
@@ -238,60 +360,46 @@ describe('HomeScreen — worker first-run interstitial', () => {
 
     it('never shows again once dismissed', async () => {
         useMembershipStore.setState({
-            memberships: [{ farmId: 'farm-1', role: 'worker', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
             loaded: true, loading: false,
         } as any);
         await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1');
 
         const { queryByText, findByText } = renderScreen();
-        await findByText('Active Ponds'); // wait for the dashboard to settle
+        await findByText('All farms');
 
         expect(queryByText(/You're part of/)).toBeNull();
     });
 
     it('does not show for an owner', async () => {
         useMembershipStore.setState({
-            memberships: [{ farmId: 'farm-1', role: 'owner', farm: { id: 'farm-1', name: "Ravi's Farm" } }],
+            memberships: [{ farmId: 'farm-1', role: 'owner', farm: FARM }],
             loaded: true, loading: false,
         } as any);
 
         const { queryByText, findByText } = renderScreen();
-        await findByText('Active Ponds');
+        await findByText('All farms');
 
         expect(queryByText(/You're part of/)).toBeNull();
     });
 });
 
-describe('HomeScreen — worker dashboard v1 (#48)', () => {
+describe('HomeScreen — my tasks', () => {
     beforeEach(async () => {
-        jest.clearAllMocks();
-        await AsyncStorage.clear();
-        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
+        await resetMocks();
         useAuthStore.setState({ user: { id: 'worker-1', email: 'w@pond.in' } } as any);
-        useMembershipStore.setState({
-            memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
-            loaded: true, loading: false,
-        } as any);
-        mockedGetAll.mockResolvedValue({ data: [FARM] });
-        mockedDashboard.mockResolvedValue({
-            data: { activePondsCount: 1, totalPondsCount: 1, lowStockAlerts: 0, todayFeedUsage: 0 },
-        });
-        mockedGetMine.mockResolvedValue({ data: [POND] });
-        mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
-        mockedPondContext.mockResolvedValue({ data: emptyPondContext });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
-        mockedLiveBriefing.mockResolvedValue({ data: [] });
-        mockedBriefing.mockResolvedValue({ data: [] });
-        mockedWqGetAll.mockResolvedValue({ data: [] });
-        await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1'); // interstitial already seen
+        await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1');
     });
 
-    it("shows the worker's open/in-progress assigned task count", async () => {
+    // "N open" counts what still needs DOING. A task already finished and
+    // handed on for verification is not open work for the person who did it,
+    // even though it stays in the list with a Verify button for whoever checks.
+    it('counts only work still to do', async () => {
         mockedTasksGetAll.mockResolvedValue({
             data: [
-                { id: 't1', status: 'open' },
-                { id: 't2', status: 'in_progress' },
-                { id: 't3', status: 'done' },
+                { id: 't1', status: 'open', title: 'Check trays' },
+                { id: 't2', status: 'in_progress', title: 'Top up lime' },
+                { id: 't3', status: 'done', title: 'Sampling' },
             ],
         });
 
@@ -301,45 +409,44 @@ describe('HomeScreen — worker dashboard v1 (#48)', () => {
         expect(mockedTasksGetAll).toHaveBeenCalledWith('farm-1', { assignedToId: 'worker-1' });
     });
 
-    it('tapping "My tasks" navigates to TaskList filtered to this worker', async () => {
-        mockedTasksGetAll.mockResolvedValue({ data: [] });
+    it('opens the task list filtered to this person, not the whole farm', async () => {
+        mockedTasksGetAll.mockResolvedValue({
+            // farmId comes back on every task; the row carries it through so
+            // the list opens the right farm.
+            data: [{ id: 't1', farmId: 'farm-1', status: 'open', title: 'Check trays' }],
+        });
 
         const { findByText } = renderScreen();
-        fireEvent.press(await findByText('My tasks'));
+        fireEvent.press(await findByText('Open'));
 
         expect(navigation.navigate).toHaveBeenCalledWith('TaskList', {
             farmId: 'farm-1', farmName: "Ravi's Farm", assignedToId: 'worker-1',
         });
     });
+});
 
-    it('shows real, interactive attendance and leave entry points', async () => {
-        mockedTasksGetAll.mockResolvedValue({ data: [] });
+describe('HomeScreen — first run', () => {
+    beforeEach(resetMocks);
 
-        const { getAllByText } = renderScreen();
-
-        expect(getAllByText('Attendance').length).toBeGreaterThan(0);
-        expect(getAllByText('Leave').length).toBeGreaterThan(0);
-    });
-
-    it('navigates to Attendance when the attendance tile is tapped', async () => {
-        mockedTasksGetAll.mockResolvedValue({ data: [] });
+    it('offers both create-a-farm and join-a-farm when there are none', async () => {
+        mockedGetAll.mockResolvedValue({ data: [] });
+        mockedGetMine.mockResolvedValue({ data: [] });
 
         const { findByText } = renderScreen();
-        fireEvent.press(await findByText('Attendance'));
 
-        expect(navigation.navigate).toHaveBeenCalledWith('Attendance', {
-            farmId: 'farm-1', farmName: "Ravi's Farm",
-        });
+        expect(await findByText('Create a farm')).toBeTruthy();
+        expect(await findByText('Join with a code')).toBeTruthy();
     });
 
-    it('navigates to LeaveRequests when the leave tile is tapped', async () => {
-        mockedTasksGetAll.mockResolvedValue({ data: [] });
+    // A failed request is not an empty account. Falling through to the
+    // create-a-farm screen would tell an owner who is merely offline to
+    // re-create the farm they already have.
+    it('offers a retry instead of the create-a-farm screen when the load fails', async () => {
+        mockedGetAll.mockRejectedValue(new Error('offline'));
 
-        const { findByText } = renderScreen();
-        fireEvent.press(await findByText('Leave'));
+        const { findByText, queryByText } = renderScreen();
 
-        expect(navigation.navigate).toHaveBeenCalledWith('LeaveRequests', {
-            farmId: 'farm-1', farmName: "Ravi's Farm",
-        });
+        expect(await findByText("Couldn't load your dashboard")).toBeTruthy();
+        expect(queryByText('Create a farm')).toBeNull();
     });
 });

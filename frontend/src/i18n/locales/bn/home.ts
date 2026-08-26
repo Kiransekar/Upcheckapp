@@ -184,6 +184,12 @@ const home = {
   openCount: "{{count}} বাকি",
   taskDue: "{{date}} এর মধ্যে",
   onDuty: "দায়িত্বে",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "আজকের লগ",
+  hideChecklist: "লুকান",
+  hideChecklistTitle: "সেটআপ তালিকা লুকাবেন?",
+  hideChecklistBody: "এটি আর ফিরে আসবে না। পুকুর তৈরি, রিডিং নথিভুক্ত করা ও দলকে ডাকা খামার ও দল ট্যাব থেকে এখনও করা যাবে।",
+  hideChecklistConfirm: "চিরতরে লুকান",
 };
 
 export default home;

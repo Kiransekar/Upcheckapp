@@ -31,15 +31,21 @@ export interface ThenListProps {
     items: BriefingItem[];
     farmNameForPond?: (pondId: string | null) => string | undefined;
     onOpen: (item: BriefingItem) => void;
+    /** Opens the full briefing. Home shows a top-N; this is the rest of it. */
+    onSeeAll?: () => void;
 }
 
-export const ThenList: React.FC<ThenListProps> = ({ items, farmNameForPond, onOpen }) => {
+export const ThenList: React.FC<ThenListProps> = ({ items, farmNameForPond, onOpen, onSeeAll }) => {
     const { t } = useTranslation();
     if (items.length === 0) return null;
 
     return (
         <>
-            <SectionHeader label={t('home.then')} />
+            <SectionHeader
+                label={t('home.then')}
+                actionLabel={onSeeAll ? t('home.viewAll') : undefined}
+                onAction={onSeeAll}
+            />
             {items.map((item, i) => {
                 const farm = farmNameForPond?.(item.pondId);
                 // `steps[0]` is the engine's plain-language reason — the number

@@ -184,6 +184,12 @@ const home = {
   openCount: "{{count}} మిగిలాయి",
   taskDue: "{{date}} లోపు",
   onDuty: "విధిలో",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "నేటి నమోదులు",
+  hideChecklist: "దాచు",
+  hideChecklistTitle: "సెటప్ జాబితా దాచాలా?",
+  hideChecklistBody: "ఇది మళ్ళీ రాదు. చెరువులు ఏర్పాటు చేయడం, రీడింగ్‌లు నమోదు చేయడం, జట్టును పిలవడం ఫారం, జట్టు ట్యాబ్‌లలో ఇంకా ఉంటాయి.",
+  hideChecklistConfirm: "శాశ్వతంగా దాచు",
 };
 
 export default home;

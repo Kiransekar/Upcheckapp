@@ -184,6 +184,12 @@ const home = {
   openCount: "{{count}} மீதம்",
   taskDue: "{{date}} வரை",
   onDuty: "பணியில்",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "இன்றைய பதிவுகள்",
+  hideChecklist: "மறை",
+  hideChecklistTitle: "அமைப்புப் பட்டியலை மறைக்கவா?",
+  hideChecklistBody: "இது மீண்டும் வராது. குளங்கள் அமைப்பது, அளவீடு பதிவது, குழுவை அழைப்பது எல்லாம் பண்ணை மற்றும் குழு தாவல்களில் தொடரும்.",
+  hideChecklistConfirm: "நிரந்தரமாக மறை",
 };
 
 export default home;
