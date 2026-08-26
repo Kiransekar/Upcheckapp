@@ -167,6 +167,12 @@ const home = {
   weeklyChemistryDaysAgo: '{{days}} দিন আগে',
   weeklyChemistryOverdue: 'বকেয়া — {{days}} দিন আগে',
   weeklyChemistryNone: 'এখনো লগ করা হয়নি',
+
+  // Empty first-run dashboard (artboard 09)
+  noFarmsYet: "এখনো কোনো খামার নেই",
+  createFarmCardSub: "আপনার পুকুর সেট করে লেখা শুরু করুন",
+  joinCodeCardTitle: "কোড দিয়ে যোগ দিন",
+  joinCodeCardSub: "অন্য কারও চালানো খামারে কাজ করুন",
 };
 
 export default home;

@@ -167,6 +167,12 @@ const home = {
   weeklyChemistryDaysAgo: '{{days}} ଦିନ ପୂର୍ବେ',
   weeklyChemistryOverdue: 'ବକେୟା — {{days}} ଦିନ ପୂର୍ବେ',
   weeklyChemistryNone: 'ଏପର୍ଯ୍ୟନ୍ତ ଲଗ୍ ହୋଇନାହିଁ',
+
+  // Empty first-run dashboard (artboard 09)
+  noFarmsYet: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଫାର୍ମ ନାହିଁ",
+  createFarmCardSub: "ଆପଣଙ୍କ ପୋଖରୀ ସେଟ୍ କରି ଲେଖିବା ଆରମ୍ଭ କରନ୍ତୁ",
+  joinCodeCardTitle: "କୋଡ୍ ଦେଇ ଯୋଗ ଦିଅନ୍ତୁ",
+  joinCodeCardSub: "ଅନ୍ୟ କେହି ଚଳାଉଥିବା ଫାର୍ମରେ କାମ କରନ୍ତୁ",
 };
 
 export default home;

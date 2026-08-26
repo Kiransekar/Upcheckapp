@@ -53,5 +53,8 @@ const common = {
   syncFailedBody: '{{count}}টি রেকর্ড সিঙ্ক করা যায়নি। এখন আবার চেষ্টা করবেন?',
   syncFailedBanner: 'রেকর্ডে মনোযোগ দিন',
   syncFailedA11y: '{{count}}টি রেকর্ড সিঙ্ক হয়নি, আবার চেষ্টা করতে ট্যাপ করুন',
+
+  // Shared onboarding action (artboards 01, 03, 05)
+  continue: "চালিয়ে যান",
 };
 export default common;

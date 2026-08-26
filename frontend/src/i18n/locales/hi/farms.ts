@@ -101,5 +101,14 @@ const farms = {
   pondActive: "सक्रिय",
   showMorePonds: "{{count}} और तालाब दिखाएँ",
   showMorePonds_one: "{{count}} और तालाब दिखाएँ",
+
+  // Create-farm step 1 of 2 (artboard 05)
+  stepOfTwo: "चरण {{n}} / 2",
+  stepFarmTitle: "आपका फ़ार्म",
+  fieldAreaHectares: "क्षेत्रफल हेक्टेयर में",
+  areaHint: "कुल ज़मीन, बंधे और नालों समेत।",
+  useCurrentLocation: "मौजूदा जगह इस्तेमाल करें",
+  mapPlaceholder: "जगह तय होते ही नक्शा दिखेगा",
+  farmNamePlaceholder: "आप इस फ़ार्म को क्या कहते हैं",
 };
 export default farms;

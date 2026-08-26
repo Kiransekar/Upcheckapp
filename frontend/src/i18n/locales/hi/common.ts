@@ -53,5 +53,8 @@ const common = {
   syncFailedBody: '{{count}} रिकॉर्ड सिंक नहीं हो सके। अभी पुनः प्रयास करें?',
   syncFailedBanner: 'रिकॉर्ड पर ध्यान दें',
   syncFailedA11y: '{{count}} रिकॉर्ड सिंक नहीं हुए, पुनः प्रयास के लिए टैप करें',
+
+  // Shared onboarding action (artboards 01, 03, 05)
+  continue: "जारी रखें",
 };
 export default common;

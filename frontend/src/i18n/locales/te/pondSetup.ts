@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'చెల్లుబాటు అయ్యే సంఖ్య నమోదు చేయండి',
   errHp: 'ఒక్కో ఏరేటర్‌కు HP నమోదు చేయండి',
   errSave: 'ఈ చెరువును సేవ్ చేయలేకపోయాం. దయచేసి మళ్ళీ ప్రయత్నించండి.',
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "మీ చెరువులు",
+  namePattern: "పేరు నమూనా",
+  prefixPlaceholder: "ఉపసర్గ",
+  namesLabel: "పేర్లు",
+  pondsToCreate: "సృష్టించాల్సిన చెరువులు",
+  areaPlaceholder: "విస్తీర్ణం m²",
+  areaOptionalNote: "విస్తీర్ణం ఇప్పుడు తప్పనిసరి కాదు. చెరువులో పిల్లలు వేసేటప్పుడు జోడించవచ్చు.",
+  createFarmCta: "ఫారమ్ సృష్టించండి",
+  errPrefix: "1–4 అక్షరాలు లేదా అంకెలు ఉపయోగించండి",
+  errPondsPartial: "ఫారమ్ సృష్టించబడింది, కానీ {{count}} చెరువులను జోడించలేకపోయాము. ఫారమ్ స్క్రీన్ నుండి జోడించండి.",
 };
 export default pondSetup;

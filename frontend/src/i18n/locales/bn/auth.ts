@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'আপনার খামার ও পুকুর সেট করুন',
   intentWorkOnFarmTitle: 'আমি অন্যের খামারে কাজ করি',
   intentWorkOnFarmDesc: 'যোগ দিতে তাঁদের কোড দিন',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "পুরো নাম",
+  fullNamePlaceholder: "আপনার নাম",
+  fullNameRequired: "আপনার নাম লিখুন",
+  emailVerifyNote: "আমরা এই ঠিকানায় একটি যাচাই লিঙ্ক পাঠাব।",
+  orDivider: "অথবা",
+  signInPrompt: "আগে থেকেই অ্যাকাউন্ট আছে?",
 };
 export default auth;

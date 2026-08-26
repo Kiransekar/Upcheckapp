@@ -101,5 +101,14 @@ const farms = {
   pondActive: "క్రియాశీలం",
   showMorePonds: "మరో {{count}} చెరువులు చూపించు",
   showMorePonds_one: "మరో {{count}} చెరువు చూపించు",
+
+  // Create-farm step 1 of 2 (artboard 05)
+  stepOfTwo: "దశ {{n}} / 2",
+  stepFarmTitle: "మీ ఫారమ్",
+  fieldAreaHectares: "విస్తీర్ణం హెక్టార్లలో",
+  areaHint: "మొత్తం భూమి, గట్లు మరియు కాలువలతో సహా.",
+  useCurrentLocation: "ప్రస్తుత లొకేషన్‌ను ఉపయోగించండి",
+  mapPlaceholder: "లొకేషన్ సెట్ అయ్యాక మ్యాప్ కనిపిస్తుంది",
+  farmNamePlaceholder: "ఈ ఫారమ్‌ను మీరు ఏమని పిలుస్తారు",
 };
 export default farms;
