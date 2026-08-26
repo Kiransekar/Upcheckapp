@@ -79,7 +79,6 @@ import { MorningBriefingScreen } from '../screens/engines/MorningBriefingScreen'
 
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
-import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { HelpScreen } from '../screens/settings/HelpScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
@@ -200,7 +199,6 @@ export type RootStackParamList = {
     MorningBriefing: undefined;
 
     Profile: undefined;
-    Settings: undefined;
     Notifications: undefined;
     Help: undefined;
     About: undefined;
@@ -389,7 +387,6 @@ const RootNavigator = () => {
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" component={ProfileScreen} />
                     <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-                    <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="Help" component={HelpScreen} />
                     <Stack.Screen name="About" component={AboutScreen} />

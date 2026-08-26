@@ -142,6 +142,16 @@ const settings = {
   deleteAccountButton: 'என் கணக்கை நிரந்தரமாக நீக்கு',
   deleteAccountWrongPassword: 'கடவுச்சொல் தவறானது.',
   deleteAccountError:"உங்கள் கணக்கை நீக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · அப்செக்",
+  edit: "திருத்து",
+  ownerOfFarms: "{{count}} பண்ணைகளின் உரிமையாளர்",
+  ownerOfFarms_one: "{{count}} பண்ணையின் உரிமையாளர்",
+  languageWholeApp: "பணியாளர்கள் பார்ப்பது உட்பட, ஆப் முழுவதும் மாறும்.",
+  signOutConfirm: "இந்தச் சாதனத்தில் அப்செக்கிலிருந்து வெளியேறவா?",
+  toolsSection: "கருவிகள்",
+  farmSection: "பண்ணை",
 };
 
 export default settings;

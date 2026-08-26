@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'பரிவர்த்தனைகள் இல்லை',
   noTransactionsSubtitle: 'பண்ணை நிதியை கண்காணிக்கத் தொடங்க முதல் வருமானம் அல்லது செலவை சேர்க்கவும்.',
   loadError: 'பரிவர்த்தனைகளை ஏற்ற முடியவில்லை.',
+
+  // Money — artboard 3d
+  moneyTitle: "பணம்",
+  addEntry: "பதிவு சேர்",
+  netSoFar: "இதுவரை நிகர",
+  whereItWent: "எங்கே சென்றது",
+  creditOutstanding: "வியாபாரி கடன் நிலுவை",
+  creditDue: "{{dealer}} · {{date}} அன்று",
+  creditDealers: "{{count}} வியாபாரிகளிடம்",
+  creditDealers_one: "ஒரு வியாபாரி",
+  recentEntries: "சமீபத்திய பதிவுகள்",
+  seeAll: "அனைத்தும் ›",
+  noEntries: "இந்தப் பண்ணைக்கு இன்னும் எதுவும் பதிவாகவில்லை.",
+  noFarmTitle: "பண்ணை தேர்ந்தெடுக்கவில்லை",
+  noFarmSub: "பணத்தைப் பார்க்க ஒரு பண்ணையைத் தேர்ந்தெடுக்கவும்.",
 };
 export default finance;

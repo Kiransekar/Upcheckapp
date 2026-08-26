@@ -142,6 +142,16 @@ const settings = {
   deleteAccountButton: 'ମୋ ଆକାଉଣ୍ଟ ସ୍ଥାୟୀ ଭାବେ ବିଲୋପ କରନ୍ତୁ',
   deleteAccountWrongPassword: 'ପାସୱାର୍ଡ ଭୁଲ୍।',
   deleteAccountError:"ଆପଣଙ୍କ ଖାତା ବିଲୋପ କରାଯାଇପାରିଲା ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · ଅପଚେକ",
+  edit: "ସମ୍ପାଦନା",
+  ownerOfFarms: "{{count}} ଫାର୍ମର ମାଲିକ",
+  ownerOfFarms_one: "{{count}} ଫାର୍ମର ମାଲିକ",
+  languageWholeApp: "ୱର୍କରମାନେ ଯାହା ଦେଖନ୍ତି ସେହା ସହିତ ପୁରା ଆପ ବଦଳିଯାଏ।",
+  signOutConfirm: "ଏହି ଡିଭାଇସରେ ଅପଚେକରୁ ସାଇନ ଆଉଟ କରିବେ?",
+  toolsSection: "ଉପକରଣ",
+  farmSection: "ଫାର୍ମ",
 };
 
 export default settings;

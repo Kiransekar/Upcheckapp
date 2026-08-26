@@ -393,7 +393,7 @@ export const HomeScreen = ({ navigation }: any) => {
         ...(perms.canManageOperations
             ? [{ icon: 'chart-timeline-variant' as const, label: t('home.actionSimulate'), screen: 'SimulationList', isTab: false, color: theme.roles.light.successText }]
             : []),
-        { icon: 'cog-outline' as const, label: t('home.actionSettings'), screen: 'Settings', isTab: false, color: theme.roles.light.warningText },
+        { icon: 'cog-outline' as const, label: t('home.actionSettings'), screen: 'Settings', isTab: true, color: theme.roles.light.warningText },
     ];
 
     return (
@@ -409,7 +409,7 @@ export const HomeScreen = ({ navigation }: any) => {
                         {user?.name || user?.email?.split('@')[0] || t('home.farmerFallback')}
                     </Text>
                 </View>
-                <TouchableOpacity onPress={() => navigation.getParent()?.navigate('Settings') ?? navigation.navigate('Settings')} style={styles.avatar} accessibilityRole="button" accessibilityLabel={t('common.settings', 'Settings')}>
+                <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.avatar} accessibilityRole="button" accessibilityLabel={t('common.settings', 'Settings')}>
                     <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
                 </TouchableOpacity>
             </View>

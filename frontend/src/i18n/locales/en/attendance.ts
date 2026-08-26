@@ -15,6 +15,18 @@ const attendance = {
   teamTodayTitle: "Team today",
   teamTodayEmpty: 'No one has checked in yet today.',
   myHistoryTitle: 'My history',
+
+  // Attendance — artboard 3b
+  yourShift: "Your shift",
+  stillInFor: "Still checked in · {{elapsed}} so far",
+  stillInShort: "Still in",
+  presentOf: "{{present}} / {{total}} in",
+  noRecordToday: "No record today",
+  you: "You",
+  colIn: "In",
+  colOut: "Out",
+  noHistory: "Nothing recorded yet.",
+  showEarlier: "Show earlier days",
 };
 
 export default attendance;
