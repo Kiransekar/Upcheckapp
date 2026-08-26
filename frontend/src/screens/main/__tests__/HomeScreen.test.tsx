@@ -15,7 +15,12 @@ jest.mock('../../../api/reports', () => ({
     reportsApi: { getDashboardSummary: jest.fn() },
 }));
 jest.mock('../../../api/pondContext', () => ({
-    pondContextApi: { get: jest.fn() },
+    // forFarm backs artboard 1b's biomass figure — one batched call per farm.
+    pondContextApi: { get: jest.fn(), forFarm: jest.fn().mockResolvedValue({ data: [] }) },
+}));
+jest.mock('../../../api/attendance', () => ({
+    // "On duty" in the 1b stat band.
+    attendanceApi: { getAll: jest.fn().mockResolvedValue({ data: [] }) },
 }));
 jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: { listMembers: jest.fn() },

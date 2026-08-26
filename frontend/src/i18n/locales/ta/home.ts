@@ -173,6 +173,17 @@ const home = {
   createFarmCardSub: "உங்கள் குளங்களை அமைத்துப் பதிவு செய்யத் தொடங்குங்கள்",
   joinCodeCardTitle: "குறியீட்டுடன் சேரவும்",
   joinCodeCardSub: "வேறொருவர் நடத்தும் பண்ணையில் வேலை செய்யுங்கள்",
+
+  // Home — artboard 1b
+  allFarms: "எல்லா பண்ணைகளும்",
+  filter: "வடிகட்டு",
+  then: "பிறகு",
+  open: "திற",
+  verify: "சரிபார்",
+  myTasks: "என் பணிகள்",
+  openCount: "{{count}} மீதம்",
+  taskDue: "{{date}} வரை",
+  onDuty: "பணியில்",
 };
 
 export default home;

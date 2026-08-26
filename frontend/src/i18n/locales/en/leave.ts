@@ -28,6 +28,9 @@ const leave = {
   noReason: "No reason given",
   nobodyAway: "Nobody else is on leave this week",
   awayThisWeek: "On leave this week: {{names}}",
+
+  // Requester name
+  unknownPerson: "Unknown member",
 };
 
 export default leave;

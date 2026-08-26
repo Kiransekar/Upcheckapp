@@ -28,6 +28,9 @@ const leave = {
   noReason: "காரணம் தரப்படவில்லை",
   nobodyAway: "இந்த வாரம் வேறு யாரும் விடுப்பில் இல்லை",
   awayThisWeek: "இந்த வாரம் விடுப்பில்: {{names}}",
+
+  // Requester name
+  unknownPerson: "அறியப்படாத உறுப்பினர்",
 };
 
 export default leave;

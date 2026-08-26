@@ -173,6 +173,17 @@ const home = {
   createFarmCardSub: "మీ చెరువులను సెటప్ చేసి నమోదు ప్రారంభించండి",
   joinCodeCardTitle: "కోడ్‌తో చేరండి",
   joinCodeCardSub: "వేరొకరు నడిపే ఫారమ్‌లో పని చేయండి",
+
+  // Home — artboard 1b
+  allFarms: "అన్ని ఫారంలు",
+  filter: "వడపోత",
+  then: "తరువాత",
+  open: "తెరువు",
+  verify: "ధృవీకరించు",
+  myTasks: "నా పనులు",
+  openCount: "{{count}} మిగిలాయి",
+  taskDue: "{{date}} లోపు",
+  onDuty: "విధిలో",
 };
 
 export default home;

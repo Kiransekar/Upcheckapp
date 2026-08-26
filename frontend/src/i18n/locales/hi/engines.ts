@@ -32,8 +32,6 @@ const engines = {
   },
   routine: {
     title: 'दैनिक दिनचर्या',
-    nextPhaseIn: 'अगला {{phase}} {{days}}d में',
-    moltingHint: 'मोल्टिंग विंडो — नरम खोल की संभावना; हैंडलिंग व ग्रेडिंग कम करें।',
     doneToday: 'आज पूर्ण',
     waterCheck: 'जल जाँच',
     waterCheckLog: 'DO, pH, लवणता और तापमान दर्ज करें',

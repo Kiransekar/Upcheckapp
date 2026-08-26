@@ -32,6 +32,7 @@ import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
 import { tasksApi, type Task } from '../../api/tasks';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
+import { personName } from '../../utils/personName';
 
 /** Tasks the design treats as "still to do" for the per-person tallies. */
 const OPEN_STATUSES = ['open', 'in_progress'];
@@ -46,11 +47,7 @@ const elapsedSince = (iso: string): string => {
 const hhmm = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-const memberName = (m?: FarmMember) => {
-    const u = m?.user;
-    if (!u) return '';
-    return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || '';
-};
+const memberName = (m?: FarmMember) => personName(m?.user, "");
 
 /** Status pill colour — the design uses colour AND the word, never colour alone. */
 const STATUS_COLOR: Record<string, string> = {

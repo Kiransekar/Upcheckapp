@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { PublicUser } from './farmMembers';
 
 export interface AttendanceRecord {
     id: string;
@@ -6,6 +7,8 @@ export interface AttendanceRecord {
     userId: string;
     checkInAt: string;
     checkOutAt: string | null;
+    /** Loaded by the server so every screen can show a name, not a uuid. */
+    user?: PublicUser | null;
     createdAt: string;
 }
 

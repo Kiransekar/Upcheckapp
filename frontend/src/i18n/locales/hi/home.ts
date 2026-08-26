@@ -173,6 +173,17 @@ const home = {
   createFarmCardSub: "अपने तालाब सेट करें और दर्ज करना शुरू करें",
   joinCodeCardTitle: "कोड से शामिल हों",
   joinCodeCardSub: "किसी और के चलाए फ़ार्म पर काम करें",
+
+  // Home — artboard 1b
+  allFarms: "सभी फ़ार्म",
+  filter: "छाँटें",
+  then: "फिर",
+  open: "खोलें",
+  verify: "जाँचें",
+  myTasks: "मेरे कार्य",
+  openCount: "{{count}} बाकी",
+  taskDue: "{{date}} तक",
+  onDuty: "ड्यूटी पर",
 };
 
 export default home;

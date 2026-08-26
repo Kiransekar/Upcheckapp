@@ -173,6 +173,17 @@ const home = {
   createFarmCardSub: "ଆପଣଙ୍କ ପୋଖରୀ ସେଟ୍ କରି ଲେଖିବା ଆରମ୍ଭ କରନ୍ତୁ",
   joinCodeCardTitle: "କୋଡ୍ ଦେଇ ଯୋଗ ଦିଅନ୍ତୁ",
   joinCodeCardSub: "ଅନ୍ୟ କେହି ଚଳାଉଥିବା ଫାର୍ମରେ କାମ କରନ୍ତୁ",
+
+  // Home — artboard 1b
+  allFarms: "ସବୁ ଫାର୍ମ",
+  filter: "ଛାଣନ୍ତୁ",
+  then: "ତାପରେ",
+  open: "ଖୋଲନ୍ତୁ",
+  verify: "ଯାଞ୍ଚ",
+  myTasks: "ମୋର କାର୍ଯ୍ୟ",
+  openCount: "{{count}} ବାକି",
+  taskDue: "{{date}} ସୁଦ୍ଧା",
+  onDuty: "ଡ୍ୟୁଟିରେ",
 };
 
 export default home;

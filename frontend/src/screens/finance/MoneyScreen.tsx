@@ -22,6 +22,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Icon } from '../../components/ui/Icon';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
+import { formatDate } from '../../utils/formatDate';
 import { reportsApi, type FinancialReport } from '../../api/reports';
 import { transactionsApi, type Transaction } from '../../api/transactions';
 import { creditApi, type CreditLedger } from '../../api/credit';
@@ -57,7 +58,7 @@ const inr = (n: number): string => {
 };
 
 const shortDate = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    formatDate(iso);
 
 export const MoneyScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();

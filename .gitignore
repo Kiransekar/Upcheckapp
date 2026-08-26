@@ -64,3 +64,8 @@ Upcheck_Architecture_UX_Document.docx
 
 # IDE working-spec artifacts
 .kiro/
+
+# See backend/.gitignore — non-dot-prefixed env files.
+env
+frontend/env
+backend/env

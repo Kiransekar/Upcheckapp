@@ -55,3 +55,7 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 typeorm.local.ts
+
+# Secret-bearing env files that are NOT dot-prefixed. `.env` was already
+# ignored; these are not, and a `git add -A` published them once.
+env

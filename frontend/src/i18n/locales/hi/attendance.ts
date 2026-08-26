@@ -27,6 +27,10 @@ const attendance = {
   colOut: "प्रस्थान",
   noHistory: "अभी तक कुछ दर्ज नहीं।",
   showEarlier: "पिछले दिन दिखाएँ",
+
+  // Names and error state
+  unknownPerson: "अज्ञात सदस्य",
+  loadFailed: "आपकी उपस्थिति लोड नहीं हो सकी।",
 };
 
 export default attendance;

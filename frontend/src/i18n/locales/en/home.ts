@@ -175,6 +175,17 @@ const home = {
   createFarmCardSub: "Set up your ponds and start logging",
   joinCodeCardTitle: "Join with a code",
   joinCodeCardSub: "Work on a farm someone else runs",
+
+  // Home — artboard 1b
+  allFarms: "All farms",
+  filter: "Filter",
+  then: "Then",
+  open: "Open",
+  verify: "Verify",
+  myTasks: "My tasks",
+  openCount: "{{count}} open",
+  taskDue: "due {{date}}",
+  onDuty: "On duty",
 };
 
 export default home;

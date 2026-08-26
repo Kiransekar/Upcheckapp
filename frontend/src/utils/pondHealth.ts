@@ -44,9 +44,21 @@ export const HEALTH_TEXT: Record<PondHealth, string> = {
     fallow: theme.roles.light.textTertiary,
 };
 
-/** An empty pond is empty whatever the alerts say. */
+/**
+ * An empty pond is empty whatever the alerts say — and "empty" means it has no
+ * cycle running, which is `activeCycleId` and nothing else.
+ *
+ * This used to also treat `status === 'fallow'` as empty. Those two fields
+ * describe the same fact and were allowed to disagree: the backend set
+ * `activeCycleId` when a cycle started but left `status` at 'fallow', so a
+ * stocked pond rendered as empty on Farms, on Ponds and on the pond page, and
+ * every one of them kept offering "Start a cycle" for a pond that had one.
+ *
+ * The backend now keeps `status` in step. Reading only `activeCycleId` here
+ * means rows written before that fix still display correctly.
+ */
 const isFallow = (pond: Pick<Pond, 'status' | 'activeCycleId'>): boolean =>
-    pond.status === 'fallow' || !pond.activeCycleId;
+    !pond.activeCycleId;
 
 export const healthOf = (
     pond: Pick<Pond, 'status' | 'activeCycleId'>,

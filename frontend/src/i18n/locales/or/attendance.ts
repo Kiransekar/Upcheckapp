@@ -27,6 +27,10 @@ const attendance = {
   colOut: "ଯିବା",
   noHistory: "ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ।",
   showEarlier: "ପୂର୍ବ ଦିନଗୁଡ଼ିକ ଦେଖାନ୍ତୁ",
+
+  // Names and error state
+  unknownPerson: "ଅଜଣା ସଦସ୍ୟ",
+  loadFailed: "ଆପଣଙ୍କ ଉପସ୍ଥିତି ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ।",
 };
 
 export default attendance;

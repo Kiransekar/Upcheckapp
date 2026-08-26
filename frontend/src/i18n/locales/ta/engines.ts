@@ -32,8 +32,6 @@ const engines = {
   },
   routine: {
     title: 'தினசரி வழக்கம்',
-    nextPhaseIn: 'அடுத்து {{phase}} {{days}}d இல்',
-    moltingHint: 'ஓடு உரிக்கும் காலம் — மென்மையான ஓடு; கையாளுதல் & தரப்படுத்தலைக் குறைக்கவும்.',
     doneToday: 'இன்று முடிந்தது',
     waterCheck: 'நீர் சோதனை',
     waterCheckLog: 'DO, pH, உப்புத்தன்மை, வெப்பநிலை பதிவு செய்யவும்',

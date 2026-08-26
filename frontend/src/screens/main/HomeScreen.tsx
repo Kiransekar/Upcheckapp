@@ -11,6 +11,11 @@ import { MoonPhaseCard } from '../../components/ui/MoonPhaseCard';
 import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
 import { FarmContextBar } from '../../components/dashboard/FarmContextBar';
 import { NextActionCard, rankActions } from '../../components/dashboard/NextActionCard';
+import { ThenList } from '../../components/dashboard/ThenList';
+import { MyTasksList } from '../../components/dashboard/MyTasksList';
+import { TodayStats } from '../../components/dashboard/TodayStats';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { formatWeekday } from '../../utils/formatDate';
 import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
@@ -23,6 +28,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
 import { farmMembersApi } from '../../api/farmMembers';
+import { attendanceApi } from '../../api/attendance';
 import { tasksApi, type Task } from '../../api/tasks';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { waterQualityApi } from '../../api/waterQuality';
@@ -91,6 +97,12 @@ export const HomeScreen = ({ navigation }: any) => {
     const perms = usePermissions(selectedFarm?.id);
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [ponds, setPonds] = useState<Pond[]>([]);
+    // The full farm list — 1b's header counts them and the Filter switches
+    // between them, and "Then" resolves each alert's farm name against it.
+    const [farms, setFarms] = useState<{ id: string; name: string }[]>([]);
+    const [showFarmFilter, setShowFarmFilter] = useState(false);
+    const [homeBiomassKg, setHomeBiomassKg] = useState<number | null>(null);
+    const [onDutyToday, setOnDutyToday] = useState<{ present: number; total: number } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     // "Getting Started" checklist (onboarding-plan Phase 2, extending the
@@ -144,6 +156,7 @@ export const HomeScreen = ({ navigation }: any) => {
             let farmId = selectedFarm?.id;
             if (!farmId) {
                 const { data: farms } = await farmsApi.getAll();
+                setFarms(Array.isArray(farms) ? farms : []);
                 const first = Array.isArray(farms) ? farms[0] : undefined;
                 if (first) {
                     farmId = first.id;
@@ -166,6 +179,63 @@ export const HomeScreen = ({ navigation }: any) => {
     const fetchPonds = useCallback(() => {
         pondsApi.getMine().then(({ data }) => setPonds(data)).catch(() => setPonds([]));
     }, []);
+
+    // The farm list, always — the summary effect only fetched it when no farm
+    // was selected yet, so on every later load the header's farm count and the
+    // Filter list would have been empty.
+    const fetchFarms = useCallback(() => {
+        farmsApi
+            .getAll()
+            .then(({ data }) => setFarms(Array.isArray(data) ? data : []))
+            .catch(() => setFarms([]));
+    }, []);
+
+    /**
+     * The two figures in artboard 1b's closing band.
+     *
+     * Both are enrichment: they load after the page has painted and are simply
+     * absent if they fail. Neither is worth blocking Home on, and TodayStats
+     * hides the band unless it has something real to show.
+     */
+    const fetchTodayStats = useCallback(async () => {
+        const scope = selectedFarm?.id ? [{ id: selectedFarm.id }] : farms;
+        if (scope.length === 0) return;
+
+        // One batched pond-context call per farm — see pondContextApi.forFarm.
+        const contexts = (
+            await Promise.all(
+                scope.map((f) => pondContextApi.forFarm(f.id).then((r) => r.data).catch(() => [])),
+            )
+        ).flat();
+        const sampled = contexts
+            .map((c) => c.biomassKg)
+            .filter((v): v is number => typeof v === 'number');
+        // null, not 0 — an owner who has not sampled should see nothing here
+        // rather than a confident zero next to a stocked pond.
+        setHomeBiomassKg(sampled.length ? sampled.reduce((a, b) => a + b, 0) : null);
+
+        // "On duty" is a manager's view of the roster, so it is gated the same
+        // way the roster itself is.
+        if (!perms.canManageOperations) {
+            setOnDutyToday(null);
+            return;
+        }
+        const rosters = await Promise.all(
+            scope.map(async (f) => {
+                const [att, members] = await Promise.all([
+                    attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => []),
+                    farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => []),
+                ]);
+                return { present: new Set(att.map((a) => a.userId)).size, total: members.length };
+            }),
+        );
+        const total = rosters.reduce((a, r) => a + r.total, 0);
+        setOnDutyToday(
+            total > 0
+                ? { present: rosters.reduce((a, r) => a + r.present, 0), total }
+                : null,
+        );
+    }, [selectedFarm?.id, farms, perms.canManageOperations]);
 
     // Planned vs. actual pond count for the selected farm — one of the
     // Getting Started checklist items below.
@@ -227,6 +297,7 @@ export const HomeScreen = ({ navigation }: any) => {
         useCallback(() => {
             fetchSummary();
             fetchPonds();
+            fetchFarms();
             fetchPlannedPondCount();
             fetchAlerts();
         }, [fetchSummary, fetchPonds, fetchPlannedPondCount, fetchAlerts]),
@@ -236,6 +307,7 @@ export const HomeScreen = ({ navigation }: any) => {
         setIsRefreshing(true);
         fetchSummary();
         fetchPonds();
+        fetchFarms();
         fetchPlannedPondCount();
         fetchAlerts();
     }, [fetchSummary, fetchPonds, fetchPlannedPondCount, fetchAlerts]);
@@ -249,14 +321,27 @@ export const HomeScreen = ({ navigation }: any) => {
     const nextActions = rankActions(alerts).filter(
         (a) => !deferred.includes(a.pondId ?? a.topTitle),
     );
+    // Everything after the hero's one item — artboard 1b's "Then" list.
+    const thenActions = nextActions.slice(1);
+
     // Each item carries the farm it came from — Home spans every farm, so an
     // action without its farm name is ambiguous the moment you have two.
+    // Resolves against the FULL farm list, not just the selected one: an alert
+    // from another farm previously rendered with no farm at all.
     const farmNameForPond = (pondId: string | null) => {
         if (!pondId) return undefined;
         const pond = ponds.find((pd) => pd.id === pondId);
         if (!pond) return selectedFarm?.name;
-        return pond.farmId === selectedFarm?.id ? selectedFarm?.name : undefined;
+        return farms.find((f) => f.id === pond.farmId)?.name ?? selectedFarm?.name;
     };
+
+    /** "Wed 25 Aug · 3 farms · 24 ponds" — the header's context line. */
+    const homeEyebrow = React.useMemo(() => {
+        const parts = [formatWeekday(new Date())];
+        if (farms.length) parts.push(t('farms.countFarms', { count: farms.length }));
+        if (ponds.length) parts.push(t('farms.countPonds', { count: ponds.length }));
+        return parts.join(' · ');
+    }, [farms.length, ponds.length, t]);
 
     const pondsForSelectedFarm = selectedFarm?.id
         ? ponds.filter((p) => p.farmId === selectedFarm.id).length
@@ -380,19 +465,41 @@ export const HomeScreen = ({ navigation }: any) => {
     // tasks right on Home instead of requiring a drill into Farms → Farm →
     // Tasks to discover them. Re-fetches on focus (screen stays mounted).
     const fetchMyTasks = useCallback(() => {
-        if (!perms.isWorker || !selectedFarm?.id || !user?.id) {
+        // Was gated on `perms.isWorker`. Artboard 1b gives "My tasks" to
+        // EVERYONE — an owner is assigned work too, and hiding their own tasks
+        // from them was the reason this section only ever appeared for workers.
+        if (!user?.id) {
             setMyOpenTasks(null);
             return;
         }
-        tasksApi.getAll(selectedFarm.id, { assignedToId: user.id })
-            .then(({ data }) => {
-                const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
-                setMyOpenTasks(list.filter((t: Task) => t.status === 'open' || t.status === 'in_progress'));
-            })
+        // Home spans every farm, so ask each one. `verified` is excluded but
+        // `done` is NOT: a finished task waiting on a verifier is precisely
+        // what 1b's "Verify" button is for.
+        const scope = selectedFarm?.id ? [{ id: selectedFarm.id }] : farms;
+        if (scope.length === 0) {
+            setMyOpenTasks(null);
+            return;
+        }
+        Promise.all(
+            scope.map((f) =>
+                tasksApi
+                    .getAll(f.id, { assignedToId: user.id })
+                    .then(({ data }) => (Array.isArray(data) ? data : (data as any)?.data ?? []))
+                    .catch(() => [] as Task[]),
+            ),
+        )
+            .then((lists) =>
+                setMyOpenTasks(
+                    lists.flat().filter((task: Task) => task.status !== 'verified'),
+                ),
+            )
             .catch(() => setMyOpenTasks(null));
-    }, [perms.isWorker, selectedFarm?.id, user?.id]);
+    }, [selectedFarm?.id, farms, user?.id]);
 
     useFocusEffect(useCallback(() => { fetchMyTasks(); }, [fetchMyTasks]));
+
+    // Enrichment — loads after the page paints, absent if it fails.
+    useFocusEffect(useCallback(() => { fetchTodayStats(); }, [fetchTodayStats]));
 
     // Root-stack screens (CreateFarm, PondDashboard, Settings…) live above the
     // tab navigator; navigate via the parent so they resolve from a tab.
@@ -420,23 +527,45 @@ export const HomeScreen = ({ navigation }: any) => {
                 <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
             }
         >
-            <View style={styles.header}>
-                <View style={styles.headerText}>
-                    <Text style={styles.greeting}>{t('home.greeting')}</Text>
-                    <Text style={styles.userName} numberOfLines={1}>
-                        {user?.name || user?.email?.split('@')[0] || t('home.farmerFallback')}
-                    </Text>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.avatar} accessibilityRole="button" accessibilityLabel={t('common.settings', 'Settings')}>
-                    <MaterialCommunityIcons name="account-circle" size={40} color={theme.roles.light.primary} />
-                </TouchableOpacity>
-            </View>
+            {/*
+              * Artboard 1b's header. The old one greeted the farmer by name,
+              * which is the least useful thing a working screen can say at
+              * 05:00. The eyebrow answers "what day is it and how much am I
+              * responsible for"; the title answers "whose farm am I looking
+              * at" — "All farms" until they narrow it.
+              */}
+            <ScreenHeader
+                eyebrow={homeEyebrow}
+                title={selectedFarm?.name ?? t('home.allFarms')}
+                actionLabel={farms.length > 1 ? t('home.filter') : undefined}
+                onAction={() => setShowFarmFilter((v) => !v)}
+                onMore={() => navigation.navigate('Settings')}
+            />
 
-            {/* "Which farm am I on, and what's my role here?" — a persistent
-                context bar with a role badge, plus an inline switcher for
-                multi-farm members. This is the core fix for the owner-vs-worker
-                ambiguity: role is now a distinct colored badge, not a faint line. */}
-            <FarmContextBar />
+            {/* The farm switcher the header's "Filter" opens. It replaces the
+                always-visible FarmContextBar: 1b puts the current farm in the
+                title, so a permanent second bar restating it was a duplicate. */}
+            {showFarmFilter && (
+                <View style={styles.filterList}>
+                    <TouchableOpacity
+                        style={styles.filterRow}
+                        onPress={() => { setSelectedFarm(null as any); setShowFarmFilter(false); }}
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.filterLabel}>{t('home.allFarms')}</Text>
+                    </TouchableOpacity>
+                    {farms.map((f) => (
+                        <TouchableOpacity
+                            key={f.id}
+                            style={styles.filterRow}
+                            onPress={() => { setSelectedFarm({ id: f.id, name: f.name }); setShowFarmFilter(false); }}
+                            accessibilityRole="button"
+                        >
+                            <Text style={styles.filterLabel}>{f.name}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
 
             {/* "Do this first" — the redesign's centrepiece (artboard 1b).
                 Home used to open on a LIST of alerts, which makes the farmer
@@ -462,9 +591,27 @@ export const HomeScreen = ({ navigation }: any) => {
                 reachable via a "Today" tap five sections down
                 (docs/UI_UX_AUDIT.md homepage redesign, Phase 1). Reuses the same
                 alert-center data MorningBriefingScreen already shows in full. */}
+            {/*
+              * "Then" — the rest of the queue, after the hero has taken the top
+              * item. This replaces the old "Needs Attention" card, which listed
+              * alert titles in identical styling with no farm and no reason, so
+              * every row had to be opened to find out whether it mattered.
+              */}
             {!alertsLoading && (
-                <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot('MorningBriefing')}>
-                    {alerts.length === 0 ? (
+                thenActions.length > 0 ? (
+                    <ThenList
+                        items={thenActions}
+                        farmNameForPond={farmNameForPond}
+                        onOpen={(item) =>
+                            item.pondId
+                                ? goRoot('PondDashboard', { pondId: item.pondId })
+                                : goRoot('MorningBriefing')
+                        }
+                    />
+                ) : nextActions.length === 0 ? (
+                    // All clear is a RESULT, not an empty list — and it only
+                    // means anything once there is something to be clear about.
+                    <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot('MorningBriefing')}>
                         <Card style={styles.allClearCard}>
                             <MaterialCommunityIcons name="check-circle-outline" size={22} color={theme.roles.light.successText} />
                             <View style={styles.allClearText}>
@@ -472,22 +619,28 @@ export const HomeScreen = ({ navigation }: any) => {
                                 <Text style={styles.allClearBody}>{t('home.allClearBody', 'No issues need your attention right now.')}</Text>
                             </View>
                         </Card>
-                    ) : (
-                        <Card style={styles.attentionCard}>
-                            <Text style={styles.attentionTitle}>{t('home.needsAttentionTitle', 'Needs Attention')}</Text>
-                            {alerts.map((item, i) => (
-                                <View key={item.pondId ?? i} style={[styles.attentionRow, i > 0 && styles.attentionRowBorder]}>
-                                    <View style={[styles.severityDot, { backgroundColor: SEVERITY_COLOR[item.topSeverity] }]} />
-                                    <Text style={styles.attentionRowText} numberOfLines={1}>{item.topTitle}</Text>
-                                    {item.alertCount > 1 && (
-                                        <Text style={styles.attentionMore}>{t('home.moreAlerts', { count: item.alertCount - 1 })}</Text>
-                                    )}
-                                </View>
-                            ))}
-                        </Card>
-                    )}
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                ) : null
             )}
+
+            {/* "My tasks" — mine only. The Team tab shows the whole team's. */}
+            <MyTasksList
+                tasks={myOpenTasks ?? []}
+                farmNameForTask={(task) => farms.find((f) => f.id === task.farmId)?.name}
+                onOpen={(task) =>
+                    goRoot('TaskList', {
+                        farmId: task.farmId,
+                        farmName: farms.find((f) => f.id === task.farmId)?.name,
+                        // Carry the assignee through — without it this opens the
+                        // whole farm's task list, which is the Team tab's job.
+                        assignedToId: user?.id,
+                    })
+                }
+            />
+
+            {/* The two figures that close 1b. "Logs today" is absent — see the
+                note in TodayStats for why it is not approximated. */}
+            <TodayStats biomassKg={homeBiomassKg} onDuty={onDutyToday} />
 
             {/* "Today's Logs" — minimal morning/afternoon/evening progress for the
                 representative pond, plus the weekly chemistry check freshness,
@@ -624,23 +777,32 @@ export const HomeScreen = ({ navigation }: any) => {
             {perms.isWorker && selectedFarm?.id && (
                 <>
                     <Text style={styles.sectionTitle}>{t('home.workerDashboardTitle')}</Text>
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => goRoot('TaskList', { farmId: selectedFarm.id, farmName: selectedFarm.name, assignedToId: user?.id })}
-                    >
-                        <Card style={styles.workerModuleCard}>
-                            <MaterialCommunityIcons name="clipboard-check-outline" size={28} color={theme.roles.light.primary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.workerModuleTitle}>{t('home.myTasksTitle')}</Text>
-                                <Text style={styles.workerModuleSub}>
-                                    {myOpenTasks == null
-                                        ? t('home.myTasksLoading')
-                                        : t('home.myTasksCount', { count: myOpenTasks.length })}
-                                </Text>
-                            </View>
-                            <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
-                        </Card>
-                    </TouchableOpacity>
+                    {/*
+                      * The "My tasks" CARD that used to sit here is gone — the
+                      * MyTasksList section above replaces it, for everyone
+                      * rather than workers only. Keeping both meant Home showed
+                      * the same "2 open" twice.
+                      *
+                      * A tile stays, though. MyTasksList renders nothing when
+                      * there is nothing assigned, and without this a worker with
+                      * an empty list would have no route to their task list at
+                      * all — the entry point would vanish exactly when they are
+                      * looking for work to pick up.
+                      */}
+                    <View style={styles.workerModuleRow}>
+                        <TouchableOpacity
+                            style={styles.workerTileWrap}
+                            activeOpacity={0.7}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('home.myTasksTitle')}
+                            onPress={() => goRoot('TaskList', { farmId: selectedFarm.id, farmName: selectedFarm.name, assignedToId: user?.id })}
+                        >
+                            <Card style={styles.workerTile}>
+                                <MaterialCommunityIcons name="clipboard-check-outline" size={24} color={theme.roles.light.primary} />
+                                <Text style={styles.workerTileText}>{t('home.myTasksTitle')}</Text>
+                            </Card>
+                        </TouchableOpacity>
+                    </View>
                     <View style={styles.workerModuleRow}>
                         <TouchableOpacity
                             style={styles.workerTileWrap}
@@ -855,6 +1017,20 @@ export const HomeScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+    filterList: {
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
+    },
+    filterRow: {
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.surfaceVariant,
+        minHeight: 48,
+        justifyContent: 'center',
+    },
+    filterLabel: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary },
     allClearCard: {
         flexDirection: 'row',
         alignItems: 'center',

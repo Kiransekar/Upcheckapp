@@ -5,6 +5,21 @@ import { AttendanceRecord } from './attendance.entity';
 import { CheckInDto } from './dto/check-in.dto';
 import { CheckOutDto } from './dto/check-out.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { istDayRangeUtc } from '../common/ist-date';
+
+/**
+ * Only the fields needed to show a name. A bare relation load selects every
+ * mapped User column — including password_hash, and including columns a
+ * not-yet-run migration may not have created. Mirrors PUBLIC_USER_SELECT in
+ * farm-members.service.ts.
+ */
+const PUBLIC_USER_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  username: true,
+  avatarUrl: true,
+} as const;
 
 /**
  * Postgres "undefined_table" (42P01) — same pattern as farm-access.service.ts
@@ -109,6 +124,8 @@ export class AttendanceService {
           ...(date ? { checkInAt: dayRange(date) } : {}),
         },
         order: { checkInAt: 'DESC' },
+        relations: { user: true },
+        select: { user: PUBLIC_USER_SELECT },
       });
     } catch (err) {
       if (!isMissingTable(err)) throw err;
@@ -133,6 +150,8 @@ export class AttendanceService {
           ...(date ? { checkInAt: dayRange(date) } : {}),
         },
         order: { checkInAt: 'DESC' },
+        relations: { user: true },
+        select: { user: PUBLIC_USER_SELECT },
       });
     } catch (err) {
       if (!isMissingTable(err)) throw err;
@@ -146,7 +165,6 @@ export class AttendanceService {
 
 /** [00:00, 24:00) UTC range for a plain `YYYY-MM-DD` day string. */
 function dayRange(date: string) {
-  const start = new Date(`${date}T00:00:00.000Z`);
-  const end = new Date(`${date}T23:59:59.999Z`);
+  const { start, end } = istDayRangeUtc(date);
   return Between(start, end);
 }

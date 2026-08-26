@@ -27,6 +27,10 @@ const attendance = {
   colOut: "வெளியேற்றம்",
   noHistory: "இன்னும் எதுவும் பதிவாகவில்லை.",
   showEarlier: "முந்தைய நாட்களைக் காட்டு",
+
+  // Names and error state
+  unknownPerson: "அறியப்படாத உறுப்பினர்",
+  loadFailed: "உங்கள் வருகையை ஏற்ற முடியவில்லை.",
 };
 
 export default attendance;

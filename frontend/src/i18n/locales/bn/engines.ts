@@ -32,8 +32,6 @@ const engines = {
   },
   routine: {
     title: 'দৈনিক রুটিন',
-    nextPhaseIn: 'পরবর্তী {{phase}} {{days}}d-এ',
-    moltingHint: 'খোলস বদলের সময় — নরম খোলস; হ্যান্ডলিং ও গ্রেডিং কমান।',
     doneToday: 'আজ সম্পন্ন',
     waterCheck: 'জল পরীক্ষা',
     waterCheckLog: 'DO, pH, লবণাক্ততা ও তাপমাত্রা লিপিবদ্ধ করুন',

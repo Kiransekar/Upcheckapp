@@ -30,6 +30,7 @@ import { leaveRequestsApi, type LeaveRequest, type LeaveRequestStatus } from '..
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { usePermissions } from '../../hooks/usePermissions';
 import { todayLocalISODate } from '../../utils/localDate';
+import { personName } from '../../utils/personName';
 
 const c = theme.roles.light;
 
@@ -44,12 +45,6 @@ const dayCount = (start: string, end: string): number => {
     const ms = Date.parse(end) - Date.parse(start);
     if (Number.isNaN(ms) || ms < 0) return 1;
     return Math.round(ms / 86_400_000) + 1;
-};
-
-const memberName = (m: FarmMember): string => {
-    const u = m.user;
-    if (!u) return m.userId.slice(0, 8);
-    return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || m.userId.slice(0, 8);
 };
 
 /** Does [start,end] overlap the next seven days? */
@@ -98,9 +93,13 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
     const nameFor = useMemo(() => {
-        const byUser = new Map(members.map((m) => [m.userId, memberName(m)]));
-        return (userId: string) => byUser.get(userId) ?? userId.slice(0, 8);
-    }, [members]);
+        const byUser = new Map(members.map((m) => [m.userId, m.user]));
+        // The request carries its own requester now; the roster is only a
+        // fallback for a member whose relation failed to load. Neither path
+        // ends at a uuid — see utils/personName.
+        return (r: LeaveRequest) =>
+            personName(r.user ?? byUser.get(r.userId), t('leave.unknownPerson'));
+    }, [members, t]);
 
     /** Who is away in the next week — the context a manager needs to decide. */
     const awayThisWeek = useMemo(() => approved.filter(isThisWeek), [approved]);
@@ -163,7 +162,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
                             pending.map((r) => (
                                 <View key={r.id} style={styles.pendingCard}>
                                     <Text style={styles.pendingName} numberOfLines={1}>
-                                        {nameFor(r.userId)}
+                                        {nameFor(r)}
                                     </Text>
                                     <Text style={styles.pendingRange}>
                                         {t('leave.dateRange', { start: r.startDate, end: r.endDate })}
@@ -235,7 +234,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
                         {awayThisWeek.length === 0
                             ? t('leave.nobodyAway')
                             : t('leave.awayThisWeek', {
-                                  names: awayThisWeek.map((r) => nameFor(r.userId)).join(', '),
+                                  names: awayThisWeek.map((r) => nameFor(r)).join(', '),
                               })}
                     </Text>
                 )}

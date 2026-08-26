@@ -27,6 +27,10 @@ const attendance = {
   colOut: "Out",
   noHistory: "Nothing recorded yet.",
   showEarlier: "Show earlier days",
+
+  // Names and error state
+  unknownPerson: "Unknown member",
+  loadFailed: "Could not load your attendance.",
 };
 
 export default attendance;

@@ -173,6 +173,17 @@ const home = {
   createFarmCardSub: "আপনার পুকুর সেট করে লেখা শুরু করুন",
   joinCodeCardTitle: "কোড দিয়ে যোগ দিন",
   joinCodeCardSub: "অন্য কারও চালানো খামারে কাজ করুন",
+
+  // Home — artboard 1b
+  allFarms: "সব খামার",
+  filter: "ছাঁকুন",
+  then: "তারপর",
+  open: "খুলুন",
+  verify: "যাচাই",
+  myTasks: "আমার কাজ",
+  openCount: "{{count}} বাকি",
+  taskDue: "{{date}} এর মধ্যে",
+  onDuty: "দায়িত্বে",
 };
 
 export default home;

@@ -20,6 +20,7 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { StatRow } from '../../components/ui/StatRow';
 import { theme } from '../../theme';
+import { formatDate } from '../../utils/formatDate';
 
 const c = theme.roles.light;
 
@@ -145,10 +146,7 @@ export const SimulationResultsScreen = ({ route, navigation }: any) => {
                     trailing={
                         runAt
                             ? t('simulations.results.runOn', {
-                                  date: new Date(runAt).toLocaleDateString(undefined, {
-                                      day: 'numeric',
-                                      month: 'short',
-                                  }),
+                                  date: formatDate(runAt),
                               })
                             : undefined
                     }

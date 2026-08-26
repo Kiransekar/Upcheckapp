@@ -27,6 +27,10 @@ const attendance = {
   colOut: "వెళ్ళిక",
   noHistory: "ఇంకా ఏమీ నమోదు కాలేదు.",
   showEarlier: "గత రోజులు చూపించు",
+
+  // Names and error state
+  unknownPerson: "తెలియని సభ్యుడు",
+  loadFailed: "మీ హాజరును లోడ్ చేయలేకపోయాము.",
 };
 
 export default attendance;

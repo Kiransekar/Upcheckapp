@@ -21,7 +21,7 @@ describe('SupabaseAuthService.signInWithIdToken — sign-in intent gate', () => 
   let signInWithIdTokenMock: jest.Mock;
 
   const buildService = () => {
-    createClientMock.mockReturnValueOnce({
+    createClientMock.mockReturnValue({
       auth: { signInWithIdToken: signInWithIdTokenMock },
     });
     const config = new ConfigService({

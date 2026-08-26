@@ -27,6 +27,10 @@ const attendance = {
   colOut: "প্রস্থান",
   noHistory: "এখনও কিছু নথিভুক্ত হয়নি।",
   showEarlier: "আগের দিনগুলি দেখান",
+
+  // Names and error state
+  unknownPerson: "অজানা সদস্য",
+  loadFailed: "আপনার উপস্থিতি লোড করা যায়নি।",
 };
 
 export default attendance;
