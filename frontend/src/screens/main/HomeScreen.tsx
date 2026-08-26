@@ -747,6 +747,10 @@ export const HomeScreen = ({ navigation }: any) => {
                     <MyTasksList
                         tasks={myOpenTasks ?? []}
                         farmNameForTask={(task) => farms.find((f) => f.id === task.farmId)?.name}
+                        // The whole board, not just mine — an owner who has
+                        // handed every task to someone else still has to see
+                        // whether it is getting done.
+                        onSeeAll={() => navigation.navigate('Team')}
                         onOpen={(task) =>
                             goRoot('TaskList', {
                                 farmId: task.farmId,

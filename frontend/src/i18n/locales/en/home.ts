@@ -189,6 +189,7 @@ const home = {
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "Logs today",
   // The hero before there is anything to raise an alert about
+  noTasksAssigned: "Nothing assigned to you today.",
   startHere: "Start here",
   stepPondsTitle: "Add your ponds",
   stepPondsWhy: "Upcheck watches water, feed and growth pond by pond. There is nothing to watch yet.",

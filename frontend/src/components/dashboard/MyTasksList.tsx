@@ -24,6 +24,13 @@ export interface MyTasksListProps {
     /** Resolve a task's farm for the meta line — Home spans every farm. */
     farmNameForTask?: (task: Task) => string | undefined;
     onOpen: (task: Task) => void;
+    /**
+     * Opens the whole team's task board. Present even with nothing assigned:
+     * an owner who has assigned all the work to other people has an EMPTY "my
+     * tasks" and still needs to see whether any of it is happening, and with
+     * the section hidden entirely there was no route to it from Today at all.
+     */
+    onSeeAll?: () => void;
     /** How many to show before the list is cut off. */
     limit?: number;
 }
@@ -35,10 +42,26 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
     tasks,
     farmNameForTask,
     onOpen,
+    onSeeAll,
     limit = 4,
 }) => {
     const { t } = useTranslation();
-    if (tasks.length === 0) return null;
+
+    if (tasks.length === 0) {
+        // Nothing assigned to you is not nothing to say — it is "the work is
+        // elsewhere", and the way to check on it is one tap.
+        if (!onSeeAll) return null;
+        return (
+            <>
+                <SectionHeader
+                    label={t('home.myTasks')}
+                    actionLabel={t('home.viewAll')}
+                    onAction={onSeeAll}
+                />
+                <Text style={styles.empty}>{t('home.noTasksAssigned')}</Text>
+            </>
+        );
+    }
 
     // Anything waiting on a verification decision comes first — it is blocking
     // somebody else's work, which nothing further down this list is.
@@ -58,6 +81,8 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
             <SectionHeader
                 label={t('home.myTasks')}
                 trailing={openCount > 0 ? t('home.openCount', { count: openCount }) : undefined}
+                actionLabel={onSeeAll ? t('home.viewAll') : undefined}
+                onAction={onSeeAll}
             />
             {visible.map((task) => {
                 const farm = farmNameForTask?.(task);
@@ -108,6 +133,12 @@ const styles = StyleSheet.create({
     text: { flex: 1, minWidth: 0 },
     title: { ...theme.typeScale.labelLarge, fontSize: 15, color: theme.roles.light.textPrimary },
     meta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    empty: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+    },
     action: {
         borderWidth: 1.5,
         borderColor: theme.roles.light.borderStrong,

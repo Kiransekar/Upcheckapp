@@ -187,6 +187,7 @@ const home = {
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "నేటి నమోదులు",
   // The hero before there is anything to raise an alert about
+  noTasksAssigned: "ఈరోజు మీకు ఏమీ కేటాయించలేదు.",
   startHere: "ఇక్కడ మొదలుపెట్టండి",
   stepPondsTitle: "మీ చెరువులను చేర్చండి",
   stepPondsWhy: "అప్‌చెక్ ప్రతి చెరువు నీరు, మేత, పెరుగుదలను విడిగా గమనిస్తుంది. ఇప్పుడు గమనించడానికి ఏమీ లేదు.",

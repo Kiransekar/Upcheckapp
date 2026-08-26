@@ -187,6 +187,7 @@ const home = {
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "आज के लॉग",
   // The hero before there is anything to raise an alert about
+  noTasksAssigned: "आज आपको कुछ नहीं सौंपा गया।",
   startHere: "यहाँ से शुरू करें",
   stepPondsTitle: "अपने तालाब जोड़ें",
   stepPondsWhy: "अपचेक हर तालाब का पानी, दाना और बढ़त अलग-अलग देखता है। अभी देखने को कुछ नहीं है।",

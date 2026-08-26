@@ -187,6 +187,7 @@ const home = {
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "ଆଜିର ଲଗ",
   // The hero before there is anything to raise an alert about
+  noTasksAssigned: "ଆଜି ଆପଣଙ୍କୁ କିଛି ଦିଆଯାଇନାହିଁ।",
   startHere: "ଏଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ",
   stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
   stepPondsWhy: "ଅପଚେକ ପ୍ରତ୍ୟେକ ପୋଖରୀର ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ଅଲଗା ଅଲଗା ଦେଖେ। ଏବେ ଦେଖିବାକୁ କିଛି ନାହିଁ।",
