@@ -110,6 +110,30 @@ describe('AttendanceService', () => {
       );
     });
 
+    // The month calendar asks for a whole month in one request. Without a
+    // range the screen would fire 31 single-day calls to paint itself.
+    it('filters on an inclusive IST day range when given from/to', async () => {
+      attendanceRepo.find.mockResolvedValue([]);
+
+      await service.findAllForFarm('owner-1', 'farm-1', undefined, '2026-08-01', '2026-08-31');
+
+      const where = attendanceRepo.find.mock.calls[0][0].where;
+      expect(where.checkInAt).toBeDefined();
+      // Between(start, end) — IST midnight on the 1st through IST 23:59:59.999
+      // on the 31st, expressed in UTC.
+      const [start, end] = where.checkInAt.value;
+      expect(start.toISOString()).toBe('2026-07-31T18:30:00.000Z');
+      expect(end.toISOString()).toBe('2026-08-31T18:29:59.999Z');
+    });
+
+    it('applies no date filter at all when neither date nor range is given', async () => {
+      attendanceRepo.find.mockResolvedValue([]);
+
+      await service.findMine('worker-1', 'farm-1');
+
+      expect(attendanceRepo.find.mock.calls[0][0].where.checkInAt).toBeUndefined();
+    });
+
     it('findAllForFarm requires WRITE_MANAGEMENT (owner/manager only)', async () => {
       attendanceRepo.find.mockResolvedValue([]);
 

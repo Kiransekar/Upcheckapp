@@ -84,6 +84,9 @@ const finance = {
   addEntry: "Add entry",
   netSoFar: "Net so far",
   whereItWent: "Where it went",
+  allFarms: "All farms",
+  byFarm: "By farm",
+  farmInOut: "In {{income}} · Out {{expense}}",
   creditOutstanding: "Dealer credit outstanding",
   creditDue: "{{dealer}} · due {{date}}",
   creditDealers: "Across {{count}} dealers",
@@ -91,7 +94,7 @@ const finance = {
   recentEntries: "Recent entries",
   seeAll: "All ›",
   noEntries: "Nothing recorded for this farm yet.",
-  noFarmTitle: "No farm selected",
-  noFarmSub: "Choose a farm to see its money.",
+  noFarmTitle: "No farms yet",
+  noFarmSub: "Add a farm to start tracking money.",
 };
 export default finance;

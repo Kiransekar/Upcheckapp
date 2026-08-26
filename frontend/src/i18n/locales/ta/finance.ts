@@ -84,6 +84,9 @@ const finance = {
   addEntry: "பதிவு சேர்",
   netSoFar: "இதுவரை நிகர",
   whereItWent: "எங்கே சென்றது",
+  allFarms: "அனைத்துப் பண்ணைகள்",
+  byFarm: "பண்ணை வாரியாக",
+  farmInOut: "வரவு {{income}} · செலவு {{expense}}",
   creditOutstanding: "வியாபாரி கடன் நிலுவை",
   creditDue: "{{dealer}} · {{date}} அன்று",
   creditDealers: "{{count}} வியாபாரிகளிடம்",
@@ -91,7 +94,7 @@ const finance = {
   recentEntries: "சமீபத்திய பதிவுகள்",
   seeAll: "அனைத்தும் ›",
   noEntries: "இந்தப் பண்ணைக்கு இன்னும் எதுவும் பதிவாகவில்லை.",
-  noFarmTitle: "பண்ணை தேர்ந்தெடுக்கவில்லை",
-  noFarmSub: "பணத்தைப் பார்க்க ஒரு பண்ணையைத் தேர்ந்தெடுக்கவும்.",
+  noFarmTitle: "இன்னும் பண்ணை இல்லை",
+  noFarmSub: "பணத்தைக் கண்காணிக்க ஒரு பண்ணையைச் சேர்க்கவும்.",
 };
 export default finance;

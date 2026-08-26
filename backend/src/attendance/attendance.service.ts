@@ -114,14 +114,20 @@ export class AttendanceService {
   }
 
   /** The caller's own attendance records for a farm, most recent first. */
-  async findMine(callerId: string, farmId: string, date?: string) {
+  async findMine(
+    callerId: string,
+    farmId: string,
+    date?: string,
+    from?: string,
+    to?: string,
+  ) {
     await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'READ');
     try {
       return await this.attendanceRepo.find({
         where: {
           farmId,
           userId: callerId,
-          ...(date ? { checkInAt: dayRange(date) } : {}),
+          ...window(date, from, to),
         },
         order: { checkInAt: 'DESC' },
         relations: { user: true },
@@ -137,7 +143,13 @@ export class AttendanceService {
   }
 
   /** Every farm member's attendance for a farm (owner/manager only). */
-  async findAllForFarm(callerId: string, farmId: string, date?: string) {
+  async findAllForFarm(
+    callerId: string,
+    farmId: string,
+    date?: string,
+    from?: string,
+    to?: string,
+  ) {
     await this.farmAccess.assertCanAccessFarm(
       callerId,
       farmId,
@@ -147,7 +159,7 @@ export class AttendanceService {
       return await this.attendanceRepo.find({
         where: {
           farmId,
-          ...(date ? { checkInAt: dayRange(date) } : {}),
+          ...window(date, from, to),
         },
         order: { checkInAt: 'DESC' },
         relations: { user: true },
@@ -163,8 +175,24 @@ export class AttendanceService {
   }
 }
 
-/** [00:00, 24:00) UTC range for a plain `YYYY-MM-DD` day string. */
-function dayRange(date: string) {
-  const { start, end } = istDayRangeUtc(date);
-  return Between(start, end);
+/**
+ * The check-in window to filter on, as a TypeORM `where` fragment.
+ *
+ * `date` is one IST day. `from`/`to` are an inclusive IST day range, which
+ * is what a month view asks for — the calendar needs every day at once, and
+ * 31 single-day requests to paint one screen is not a thing to ship. Either
+ * end may be omitted; with neither, the filter is absent and every record for
+ * the farm comes back, exactly as before.
+ */
+function window(date?: string, from?: string, to?: string) {
+  if (date) {
+    const { start, end } = istDayRangeUtc(date);
+    return { checkInAt: Between(start, end) };
+  }
+  if (!from && !to) return {};
+  // A half-open request still has to be a range, so widen the missing end to
+  // something no real record sits outside of.
+  const start = from ? istDayRangeUtc(from).start : new Date(0);
+  const end = to ? istDayRangeUtc(to).end : new Date(8.64e15);
+  return { checkInAt: Between(start, end) };
 }

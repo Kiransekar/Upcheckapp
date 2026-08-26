@@ -68,7 +68,14 @@ function chainFor(role: FarmRole | null) {
     pondsRepo as any,
     noPondScope() as any,
   );
-  const farmsService = new FarmsService(farmsRepo as any, farmAccess);
+  // FarmsService now also writes the owner's farm_members row on create. This
+  // matrix only exercises capability checks, so a stub repository is enough.
+  const ownerMembershipRepo = { insert: jest.fn() };
+  const farmsService = new FarmsService(
+    farmsRepo as any,
+    ownerMembershipRepo as any,
+    farmAccess,
+  );
 
   // PondsService only needs its own repo + FarmsService for this path.
   const pondsService = Object.create(PondsService.prototype) as PondsService;

@@ -17,9 +17,16 @@ export const attendanceApi = {
     mine: (farmId: string, date?: string) =>
         apiClient.get<AttendanceRecord[]>('/attendance/mine', { params: { farmId, date } }),
 
-    /** Every member's attendance for a farm (owner/manager only). */
-    getAll: (farmId: string, date?: string) =>
-        apiClient.get<AttendanceRecord[]>('/attendance', { params: { farmId, date } }),
+    /**
+     * Every member's attendance for a farm (owner/manager only).
+     *
+     * `date` is one day; `from`/`to` an inclusive day range. The month
+     * calendar in AttendanceLogScreen needs the whole month in one call.
+     */
+    getAll: (farmId: string, date?: string, from?: string, to?: string) =>
+        apiClient.get<AttendanceRecord[]>('/attendance', {
+            params: { farmId, date, from, to },
+        }),
 
     checkOut: (id: string) => apiClient.post<AttendanceRecord>(`/attendance/${id}/check-out`, {}),
 };

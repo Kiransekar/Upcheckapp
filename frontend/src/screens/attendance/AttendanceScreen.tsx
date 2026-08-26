@@ -33,15 +33,17 @@ import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { todayLocalISODate } from '../../utils/localDate';
 import { personName } from '../../utils/personName';
+// Not `toLocaleTimeString(undefined, …)`: that asks for the DEVICE locale, and
+// Hermes ships without full ICU data for every Indian language — the same call
+// is what took the Simulations screen down in Tamil. formatDate.ts formats in
+// the app's chosen language and falls back to plain text instead of throwing.
+import { formatDate, formatTime } from '../../utils/formatDate';
 
 /** Days of own history before "Show earlier days". */
 const HISTORY_DAYS = 6;
 
-const formatTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
 const formatDay = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    formatDate(iso, { weekday: 'short', day: 'numeric', month: 'short' });
 
 /** "6h 27m" — how long the open shift has been running. */
 const elapsedSince = (iso: string): string => {
@@ -232,12 +234,22 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
 
                 {perms.canManageOperations && (
                     <>
+                        {/*
+                          * Today is as far as this screen goes on purpose —
+                          * "who is in now" is its whole job. Anything with a
+                          * date range in it (a month, one person's hours, an
+                          * export) lives in the log.
+                          */}
                         <SectionHeader
                             label={t('attendance.teamTodayTitle')}
                             trailing={t('attendance.presentOf', {
                                 present: presentCount,
                                 total: teamRows.length,
                             })}
+                            actionLabel={t('attendance.viewLog')}
+                            onAction={() =>
+                                navigation.navigate('AttendanceLog', { farmId, farmName })
+                            }
                         />
                         {teamRows.length === 0 ? (
                             <Text style={styles.empty}>{t('attendance.teamTodayEmpty')}</Text>

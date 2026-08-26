@@ -25,13 +25,13 @@ import { theme } from '../../theme';
 export type IconName =
     // navigation / chrome
     | 'flag' | 'grid_view' | 'edit_note' | 'currency_rupee' | 'groups' | 'settings'
-    | 'arrow_back' | 'arrow_forward' | 'chevron_right' | 'expand_more' | 'more_vert'
+    | 'arrow_back' | 'arrow_forward' | 'chevron_left' | 'chevron_right' | 'expand_more' | 'more_vert'
     | 'menu' | 'add' | 'check' | 'cancel' | 'close'
     // domain
     | 'water_drop' | 'grain' | 'set_meal' | 'grass' | 'agriculture' | 'science'
     | 'scale' | 'warehouse' | 'waves'
     // state / meta
-    | 'schedule' | 'warning' | 'checklist' | 'check_circle' | 'radio_button_unchecked'
+    | 'schedule' | 'sort' | 'warning' | 'checklist' | 'check_circle' | 'radio_button_unchecked'
     | 'event_busy' | 'event_available' | 'insights' | 'show_chart' | 'assessment'
     | 'dashboard' | 'receipt_long' | 'account_balance' | 'account_circle'
     | 'lightbulb' | 'workspace_premium' | 'key' | 'qr_code_2' | 'share'

@@ -84,6 +84,9 @@ const finance = {
   addEntry: "এন্ট্রি যোগ করুন",
   netSoFar: "এ পর্যন্ত নিট",
   whereItWent: "কোথায় গেল",
+  allFarms: "সব খামার",
+  byFarm: "খামার অনুযায়ী",
+  farmInOut: "আয় {{income}} · ব্যয় {{expense}}",
   creditOutstanding: "ডিলার বাকি",
   creditDue: "{{dealer}} · {{date}} তারিখে",
   creditDealers: "{{count}} জন ডিলারের কাছে",
@@ -91,7 +94,7 @@ const finance = {
   recentEntries: "সাম্প্রতিক এন্ট্রি",
   seeAll: "সব ›",
   noEntries: "এই খামারের জন্য এখনও কিছু নথিভুক্ত হয়নি।",
-  noFarmTitle: "কোনো খামার নির্বাচিত নয়",
-  noFarmSub: "টাকা দেখতে একটি খামার বেছে নিন।",
+  noFarmTitle: "এখনও কোনো খামার নেই",
+  noFarmSub: "টাকার হিসাব রাখতে একটি খামার যোগ করুন।",
 };
 export default finance;

@@ -7,8 +7,15 @@
  * screenful — net, then where the money went, then what is owed — and hands
  * the list off behind "All ›".
  *
- * Every figure here is farm-scoped and gated on VIEW_FINANCIALS, the same
- * capability that decides whether this tab exists at all.
+ * It opens on EVERY farm combined, not on the active one. A farmer with three
+ * farms was reading three separate Money tabs and adding them up in their head
+ * to answer "am I making money", which is the one question this screen exists
+ * for. The scope chips narrow to a single farm; the by-farm rows underneath
+ * the combined total say which farm the number came from.
+ *
+ * Every figure here is gated on VIEW_FINANCIALS — per farm. A farm whose
+ * report we cannot read is in neither the total nor the by-farm list, so the
+ * rows always add up to the hero figure.
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
@@ -26,6 +33,7 @@ import { formatDate } from '../../utils/formatDate';
 import { reportsApi, type FinancialReport } from '../../api/reports';
 import { transactionsApi, type Transaction } from '../../api/transactions';
 import { creditApi, type CreditLedger } from '../../api/credit';
+import { farmsApi, type Farm } from '../../api/farms';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -33,6 +41,9 @@ const c = theme.roles.light;
 
 /** Recent entries shown before "All ›" takes over. */
 const RECENT_COUNT = 6;
+
+/** Scope value meaning "every farm I can see financials for". */
+const ALL = 'all';
 
 /**
  * Cost-category ribbon. Six colours, cycled — the seventh category and beyond
@@ -57,43 +68,120 @@ const inr = (n: number): string => {
     return `${sign}₹${Math.round(a)}`;
 };
 
-const shortDate = (iso: string) =>
-    formatDate(iso);
+const shortDate = (iso: string) => formatDate(iso);
+
+/**
+ * Add up N farms into one report.
+ *
+ * `profit` is summed rather than recomputed as revenue − expenses: the backend
+ * decides what counts as profit for a farm, and this screen must not quietly
+ * disagree with the per-farm figure sitting right below the total.
+ */
+export const combineReports = (reports: FinancialReport[]): FinancialReport | null => {
+    if (reports.length === 0) return null;
+    const byCategory: Record<string, number> = {};
+    let revenue = 0;
+    let totalExpenses = 0;
+    let profit = 0;
+    for (const r of reports) {
+        revenue += Number(r.revenue || 0);
+        totalExpenses += Number(r.totalExpenses || 0);
+        profit += Number(r.profit || 0);
+        for (const row of r.expensesByCategory ?? []) {
+            byCategory[row.category] = (byCategory[row.category] || 0) + Number(row.amount || 0);
+        }
+    }
+    return {
+        revenue,
+        totalExpenses,
+        profit,
+        expensesByCategory: Object.keys(byCategory).map((category) => ({
+            category,
+            amount: byCategory[category],
+        })),
+    };
+};
 
 export const MoneyScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
     const selectedFarm = useActiveFarmStore((s) => s.selectedFarm);
-    const farmId = route?.params?.farmId ?? selectedFarm?.id;
-    const farmName = route?.params?.farmName ?? selectedFarm?.name;
-    const perms = usePermissions(farmId);
 
-    const [report, setReport] = useState<FinancialReport | null>(null);
-    const [entries, setEntries] = useState<Transaction[]>([]);
+    // A caller that navigates here with an explicit farm means it — "show me
+    // THIS farm's money". Everything else opens combined.
+    const [scope, setScope] = useState<string>(route?.params?.farmId ?? ALL);
+
+    const [farms, setFarms] = useState<Farm[]>([]);
+    const [reports, setReports] = useState<Record<string, FinancialReport>>({});
+    const [allEntries, setAllEntries] = useState<Transaction[]>([]);
     const [credit, setCredit] = useState<CreditLedger[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Farms whose financials actually loaded. A worker-only farm 403s on the
+    // report; leaving it out of both the total and the list keeps the two
+    // consistent with each other.
+    const visibleFarms = useMemo(() => farms.filter((f) => reports[f.id]), [farms, reports]);
+
+    // A scope pinned to a farm that has since disappeared would show an empty
+    // screen with no way back, so fall through to combined.
+    const activeScope =
+        scope !== ALL && visibleFarms.some((f) => f.id === scope) ? scope : ALL;
+
+    const scopedFarms = useMemo(
+        () => (activeScope === ALL ? visibleFarms : visibleFarms.filter((f) => f.id === activeScope)),
+        [activeScope, visibleFarms],
+    );
+
+    // Writing an entry needs one specific farm even when we are showing all of
+    // them — the active farm is the farmer's own answer to "which one".
+    const writeFarm =
+        scopedFarms.find((f) => f.id === activeScope) ??
+        visibleFarms.find((f) => f.id === selectedFarm?.id) ??
+        visibleFarms[0];
+    const perms = usePermissions(writeFarm?.id);
+
     const load = useCallback(async () => {
-        if (!farmId) {
-            setLoading(false);
-            setRefreshing(false);
-            return;
-        }
-        const [reportRes, txRes, creditRes] = await Promise.all([
-            reportsApi.getFinancialReport(farmId).catch(() => ({ data: null as FinancialReport | null })),
-            transactionsApi.getAll(farmId).catch(() => ({ data: [] as Transaction[] })),
+        const farmRes = await farmsApi.getAll().catch(() => ({ data: [] as Farm[] }));
+        const list = farmRes.data ?? [];
+        setFarms(list);
+
+        const [reportPairs, txRes, creditRes] = await Promise.all([
+            Promise.all(
+                list.map((farm) =>
+                    reportsApi
+                        .getFinancialReport(farm.id)
+                        .then((r) => [farm.id, r.data] as const)
+                        .catch(() => null),
+                ),
+            ),
+            // No farmId — the backend already scopes this to the farms where
+            // the caller may view financials, so one call covers every farm.
+            transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
             // Credit is a separate ledger and may simply not exist for a farmer
             // who buys nothing on account.
             creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
         ]);
-        setReport(reportRes.data);
-        setEntries(txRes.data);
-        setCredit(creditRes.data);
+
+        const next: Record<string, FinancialReport> = {};
+        for (const pair of reportPairs) if (pair) next[pair[0]] = pair[1];
+        setReports(next);
+        setAllEntries(txRes.data ?? []);
+        setCredit(creditRes.data ?? []);
         setLoading(false);
         setRefreshing(false);
-    }, [farmId]);
+    }, []);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
+
+    const report = useMemo(
+        () => combineReports(scopedFarms.map((f) => reports[f.id])),
+        [scopedFarms, reports],
+    );
+
+    const entries = useMemo(
+        () => (activeScope === ALL ? allEntries : allEntries.filter((tx) => tx.farmId === activeScope)),
+        [allEntries, activeScope],
+    );
 
     /** Categories sorted biggest-first, with each one's share of the total. */
     const breakdown = useMemo(() => {
@@ -126,27 +214,24 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     const margin =
         report && report.revenue > 0 ? Math.round((report.profit / report.revenue) * 100) : null;
 
+    const scopeName =
+        activeScope === ALL
+            ? t('finance.allFarms')
+            : visibleFarms.find((f) => f.id === activeScope)?.name;
+
     const header = (
         <ScreenHeader
-            eyebrow={farmName ?? null}
+            eyebrow={scopeName ?? null}
             title={t('finance.moneyTitle')}
-            actionLabel={perms.canViewFinancials ? t('finance.addEntry') : undefined}
-            onAction={() => navigation.navigate('Transactions', { farmId, farmName })}
+            actionLabel={writeFarm && perms.canViewFinancials ? t('finance.addEntry') : undefined}
+            onAction={() =>
+                navigation.navigate('Transactions', {
+                    farmId: writeFarm?.id,
+                    farmName: writeFarm?.name,
+                })
+            }
         />
     );
-
-    if (!farmId) {
-        return (
-            <ScreenWrapper scroll={false} padded={false}>
-                {header}
-                <EmptyState
-                    icon="cash-multiple"
-                    title={t('finance.noFarmTitle')}
-                    subtitle={t('finance.noFarmSub')}
-                />
-            </ScreenWrapper>
-        );
-    }
 
     if (loading) {
         return (
@@ -161,9 +246,48 @@ export const MoneyScreen = ({ navigation, route }: any) => {
         );
     }
 
+    if (visibleFarms.length === 0) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <EmptyState
+                    icon="cash-multiple"
+                    title={t('finance.noFarmTitle')}
+                    subtitle={t('finance.noFarmSub')}
+                />
+            </ScreenWrapper>
+        );
+    }
+
     return (
         <ScreenWrapper scroll={false} padded={false}>
             {header}
+            {/*
+              * Scope chips. Only worth the row when there is more than one farm
+              * to switch between — with one farm, "All farms" and its name are
+              * the same view under two labels.
+              */}
+            {visibleFarms.length > 1 && (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chips}
+                >
+                    <Chip
+                        label={t('finance.allFarms')}
+                        active={activeScope === ALL}
+                        onPress={() => setScope(ALL)}
+                    />
+                    {visibleFarms.map((farm) => (
+                        <Chip
+                            key={farm.id}
+                            label={farm.name}
+                            active={activeScope === farm.id}
+                            onPress={() => setScope(farm.id)}
+                        />
+                    ))}
+                </ScrollView>
+            )}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
@@ -194,6 +318,53 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                     </View>
                 </View>
 
+                {/*
+                  * Which farm the combined number came from, worst first — the
+                  * farm losing money is the one worth opening. Tapping a row is
+                  * the same as tapping its chip, so a farmer can drill in where
+                  * they noticed the problem.
+                  */}
+                {activeScope === ALL && visibleFarms.length > 1 && (
+                    <>
+                        <SectionHeader label={t('finance.byFarm')} />
+                        {[...visibleFarms]
+                            .sort((a, b) => reports[a.id].profit - reports[b.id].profit)
+                            .map((farm) => {
+                                const r = reports[farm.id];
+                                return (
+                                    <TouchableOpacity
+                                        key={farm.id}
+                                        style={styles.farmRow}
+                                        onPress={() => setScope(farm.id)}
+                                        accessibilityRole="button"
+                                    >
+                                        <View style={{ flex: 1, minWidth: 0 }}>
+                                            <Text style={styles.farmName} numberOfLines={1}>
+                                                {farm.name}
+                                            </Text>
+                                            <Text style={styles.farmMeta} numberOfLines={1}>
+                                                {t('finance.farmInOut', {
+                                                    income: inr(r.revenue),
+                                                    expense: inr(r.totalExpenses),
+                                                })}
+                                            </Text>
+                                        </View>
+                                        <Text
+                                            style={[
+                                                styles.farmNet,
+                                                { color: r.profit >= 0 ? c.successText : c.dangerText },
+                                            ]}
+                                        >
+                                            {r.profit >= 0 ? '+' : ''}
+                                            {inr(r.profit)}
+                                        </Text>
+                                        <Icon name="chevron_right" size={20} color={c.textTertiary} />
+                                    </TouchableOpacity>
+                                );
+                            })}
+                    </>
+                )}
+
                 {breakdown.length > 0 && (
                     <>
                         <SectionHeader label={t('finance.whereItWent')} />
@@ -221,7 +392,12 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 {outstanding.total > 0 && (
                     <TouchableOpacity
                         style={styles.creditRow}
-                        onPress={() => navigation.navigate('Transactions', { farmId, farmName })}
+                        onPress={() =>
+                            navigation.navigate('Transactions', {
+                                farmId: writeFarm?.id,
+                                farmName: writeFarm?.name,
+                            })
+                        }
                         accessibilityRole="button"
                     >
                         <Icon name="account_balance" size={22} color={c.dangerText} />
@@ -246,39 +422,72 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 <SectionHeader
                     label={t('finance.recentEntries')}
                     actionLabel={t('finance.seeAll')}
-                    onAction={() => navigation.navigate('Transactions', { farmId, farmName })}
+                    onAction={() =>
+                        navigation.navigate('Transactions', {
+                            // "All ›" from a combined view must not silently
+                            // narrow to one farm — pass no farm and let the
+                            // ledger show everything, matching the total above.
+                            farmId: activeScope === ALL ? undefined : writeFarm?.id,
+                            farmName: activeScope === ALL ? undefined : writeFarm?.name,
+                        })
+                    }
                 />
                 {recent.length === 0 ? (
                     <Text style={styles.empty}>{t('finance.noEntries')}</Text>
                 ) : (
-                    recent.map((tx) => (
-                        <View key={tx.id} style={styles.entry}>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text style={styles.entryTitle} numberOfLines={1}>
-                                    {tx.description || tx.category}
-                                </Text>
-                                <Text style={styles.entryMeta} numberOfLines={1}>
-                                    {[shortDate(tx.transactionDate), tx.paymentMethod]
-                                        .filter(Boolean)
-                                        .join(' · ')}
+                    recent.map((tx) => {
+                        // In the combined view a row without its farm is
+                        // ambiguous — two farms both buy feed.
+                        const farm =
+                            activeScope === ALL
+                                ? visibleFarms.find((f) => f.id === tx.farmId)?.name
+                                : undefined;
+                        return (
+                            <View key={tx.id} style={styles.entry}>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={styles.entryTitle} numberOfLines={1}>
+                                        {tx.description || tx.category}
+                                    </Text>
+                                    <Text style={styles.entryMeta} numberOfLines={1}>
+                                        {[shortDate(tx.transactionDate), farm, tx.paymentMethod]
+                                            .filter(Boolean)
+                                            .join(' · ')}
+                                    </Text>
+                                </View>
+                                <Text
+                                    style={[
+                                        styles.entryAmount,
+                                        { color: tx.type === 'income' ? c.successText : c.dangerText },
+                                    ]}
+                                >
+                                    {tx.type === 'income' ? '+' : '−'}
+                                    {inr(Math.abs(Number(tx.amount)))}
                                 </Text>
                             </View>
-                            <Text
-                                style={[
-                                    styles.entryAmount,
-                                    { color: tx.type === 'income' ? c.successText : c.dangerText },
-                                ]}
-                            >
-                                {tx.type === 'income' ? '+' : '−'}
-                                {inr(Math.abs(Number(tx.amount)))}
-                            </Text>
-                        </View>
-                    ))
+                        );
+                    })
                 )}
             </ScrollView>
         </ScreenWrapper>
     );
 };
+
+const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({
+    label,
+    active,
+    onPress,
+}) => (
+    <TouchableOpacity
+        style={[styles.chip, active && styles.chipActive]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+    >
+        <Text style={[styles.chipLabel, active && styles.chipLabelActive]} numberOfLines={1}>
+            {label}
+        </Text>
+    </TouchableOpacity>
+);
 
 const HeroStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     <View style={styles.heroStat}>
@@ -295,6 +504,26 @@ const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[16], backgroundColor: c.surface },
     skeleton: { padding: theme.spacing[4] },
     mb: { marginBottom: theme.spacing[3] },
+
+    chips: {
+        gap: theme.spacing[2],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2],
+        backgroundColor: c.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
+    },
+    chip: {
+        borderWidth: 1.5,
+        borderColor: c.borderDefault,
+        borderRadius: theme.radius.xs,
+        paddingHorizontal: theme.spacing[3],
+        justifyContent: 'center',
+        minHeight: 36,
+    },
+    chipActive: { borderColor: c.borderStrong, backgroundColor: c.surfaceVariant },
+    chipLabel: { ...theme.typeScale.labelMedium, color: c.textSecondary },
+    chipLabelActive: { color: c.textPrimary },
 
     hero: {
         backgroundColor: c.successBg,
@@ -330,6 +559,20 @@ const styles = StyleSheet.create({
     heroStat: { flex: 1, minWidth: 0 },
     heroStatValue: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textPrimary },
     heroStatLabel: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textSecondary },
+
+    farmRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2.5],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 56,
+    },
+    farmName: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textPrimary },
+    farmMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary },
+    farmNet: { fontFamily: 'DMMono-Medium', fontSize: 15 },
 
     ribbon: {
         flexDirection: 'row',
