@@ -77,5 +77,28 @@ const ponds = {
   economicsTitle: 'நிதி',
   viewExpenses: 'செலவுகள்',
   harvestPlans: 'அறுவடை திட்டங்கள்',
+
+  // Pond — artboard p1
+  title: "குளம்",
+  readAgo: "{{ago}} முன்பு படிக்கப்பட்டது",
+  markDone: "முடிந்தது",
+  doc: "நாள்",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW கி",
+  metricSurvivalPct: "உயிர்பிழைப்பு %",
+  metricBiomassKg: "உயிர்த்திணிவு கிகி",
+  moreLogTypes: "மேலும் {{count}} பதிவு வகைகள்",
+  latestReading: "சமீபத்திய நீர் அளவீடு",
+  agoShort: "{{ago}} முன்பு",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "வெப்பம் °C",
+  wqSalt: "உப்பு ppt",
+  moneyForPond: "இந்தக் குளத்தின் பணம்",
+  spentThisCycle: "இந்தச் சுழற்சியில் {{amount}}",
+  harvestPlan: "அறுவடைத் திட்டம்",
+  windowOpensIn: "{{count}} நாட்களில் திறக்கும்",
+  windowOpensIn_one: "நாளை திறக்கும்",
+  windowOpen: "இப்போது திறந்துள்ளது",
 };
 export default ponds;

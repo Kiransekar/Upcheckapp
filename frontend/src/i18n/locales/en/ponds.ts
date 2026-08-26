@@ -77,5 +77,28 @@ const ponds = {
   economicsTitle: 'Finances',
   viewExpenses: 'Expenses',
   harvestPlans: 'Harvest Plans',
+
+  // Pond — artboard p1
+  title: "Pond",
+  readAgo: "Read {{ago}} ago",
+  markDone: "Done",
+  doc: "Doc",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW g",
+  metricSurvivalPct: "Survival %",
+  metricBiomassKg: "Biomass kg",
+  moreLogTypes: "{{count}} more log types",
+  latestReading: "Latest water reading",
+  agoShort: "{{ago}} ago",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "Temp °C",
+  wqSalt: "Salt ppt",
+  moneyForPond: "Money for this pond",
+  spentThisCycle: "{{amount}} this cycle",
+  harvestPlan: "Harvest plan",
+  windowOpensIn: "Window opens in {{count}} days",
+  windowOpensIn_one: "Window opens tomorrow",
+  windowOpen: "Window is open",
 };
 export default ponds;

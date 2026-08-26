@@ -54,4 +54,14 @@ export interface DataConfidence {
 export const pondContextApi = {
   /** Latest-input snapshot for a pond (engines prefill from this). */
   get: (pondId: string) => apiClient.get<PondContext>(`/pond-context/${pondId}`),
+
+  /**
+   * Every readable pond on a farm, in one request.
+   *
+   * The Farms and Ponds screens need day / DO / biomass for the whole farm at
+   * once; asking pond by pond was 9-24 round trips on the app's two busiest
+   * screens. The server applies the same per-pond READ check either way.
+   */
+  forFarm: (farmId: string) =>
+    apiClient.get<PondContext[]>('/pond-context', { params: { farmId } }),
 };
