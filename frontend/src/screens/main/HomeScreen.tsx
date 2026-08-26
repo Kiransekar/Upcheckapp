@@ -12,7 +12,6 @@ import { FarmGlanceCards } from '../../components/dashboard/FarmGlanceCards';
 import { FarmContextBar } from '../../components/dashboard/FarmContextBar';
 import { NextActionCard, rankActions } from '../../components/dashboard/NextActionCard';
 import { Button } from '../../components/ui/Button';
-import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
@@ -27,41 +26,7 @@ import { tasksApi, type Task } from '../../api/tasks';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { waterQualityApi } from '../../api/waterQuality';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
-import Svg, { Ellipse, Path } from 'react-native-svg';
-
-/**
- * The empty first-run dashboard (artboard 09). An outline pond rather than a
- * warning glyph: nothing has gone wrong, there is simply nothing here yet, and
- * an alert icon on a brand-new account reads as a fault.
- */
-const EmptyPondArt = () => (
-    <Svg width={120} height={72} viewBox="0 0 120 72" fill="none">
-        <Ellipse cx={60} cy={40} rx={46} ry={24} stroke={theme.roles.light.borderStrong} strokeWidth={1.6} />
-        <Path d="M26 40c6-4 12-4 18 0s12 4 18 0 12-4 18 0" stroke={theme.roles.light.borderStrong} strokeWidth={1.6} strokeLinecap="round" />
-        <Path d="M34 50c5-3 10-3 15 0s10 3 15 0" stroke={theme.roles.light.borderStrong} strokeWidth={1.6} strokeLinecap="round" />
-        <Path d="M14 34c0-4 2-8 6-11" stroke={theme.roles.light.borderStrong} strokeWidth={1.6} strokeLinecap="round" />
-        <Path d="M106 34c0-4-2-8-6-11" stroke={theme.roles.light.borderStrong} strokeWidth={1.6} strokeLinecap="round" />
-    </Svg>
-);
-
-const EmptyChoice = ({ icon, title, subtitle, onPress }: {
-    icon: IconName; title: string; subtitle: string; onPress: () => void;
-}) => (
-    <TouchableOpacity
-        style={styles.emptyChoice}
-        onPress={onPress}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={`${title}. ${subtitle}`}
-    >
-        <Icon name={icon} size={26} color={theme.roles.light.primary} />
-        <View style={styles.emptyChoiceText}>
-            <Text style={styles.emptyChoiceTitle}>{title}</Text>
-            <Text style={styles.emptyChoiceSub}>{subtitle}</Text>
-        </View>
-        <Icon name="chevron_right" size={22} color={theme.roles.light.textTertiary} />
-    </TouchableOpacity>
-);
+import { ONBOARDING_FLAG } from '../onboarding/WelcomeScreen';
 
 const SEVERITY_RANK: Record<AlertSeverity, number> = { critical: 3, watch: 2, info: 1 };
 const SEVERITY_COLOR: Record<AlertSeverity, string> = {
@@ -81,7 +46,8 @@ interface DailyWindows {
 // farm), so before this session's fix their first app-open had ZERO onboarding
 // of any kind: no role explanation, no context on the farm they'd joined
 // (docs/ONBOARDING_MODULE_PLAN.md §1.2/Phase 1). This one-time, dismissible
-// interstitial closes that gap without blocking anything.
+// interstitial closes that gap without blocking anything — same pattern as
+// ONBOARDING_FLAG, just keyed separately since it's a different milestone.
 export const WORKER_WELCOME_FLAG = '@upcheck:worker_welcomed';
 
 export const HomeScreen = ({ navigation }: any) => {
@@ -354,6 +320,22 @@ export const HomeScreen = ({ navigation }: any) => {
     // that gates those actions (docs/UI_UX_AUDIT.md homepage redesign).
     const showGettingStarted =
         !nudgeDismissed && !!selectedFarm?.id && perms.canManageOperations && !checklistLoading && checklistDoneCount < checklistItems.length;
+
+    // First-run: a brand-new farmer with no farms and who hasn't seen the welcome
+    // gets a one-time guided intro. The flag is set inside WelcomeScreen.
+    useEffect(() => {
+        (async () => {
+            try {
+                if (await AsyncStorage.getItem(ONBOARDING_FLAG)) return;
+                const { data: farms } = await farmsApi.getAll();
+                if (Array.isArray(farms) && farms.length === 0) {
+                    (navigation.getParent() ?? navigation).navigate('Welcome');
+                }
+            } catch {
+                /* non-blocking; onboarding is a nicety, never a gate */
+            }
+        })();
+    }, []);
 
     // Worker first-run interstitial: only once, only for a worker who has
     // resolved a farm (so there's a real name/role to show), never re-shown
@@ -755,30 +737,29 @@ export const HomeScreen = ({ navigation }: any) => {
                     </Card>
                 </View>
             ) : (
-                /* Artboard 09 — the first-run dashboard. Two routes, always:
-                   the old either/or branched on a global owner/worker flag, so
-                   someone who picked "worker" at signup was never shown "Create
-                   farm" even after leasing a pond. Neither is a real constraint —
-                   any account can create a farm or join one. Both are offered as
-                   equals rather than a primary button and a lesser outlined one. */
-                <View style={styles.emptyFarms}>
-                    <EmptyPondArt />
-                    <Text style={styles.emptyTitle}>{t('home.noFarmsYet')}</Text>
-                    <View style={styles.emptyCards}>
-                        <EmptyChoice
-                            icon="warehouse"
-                            title={t('home.quickLogCreateFarm')}
-                            subtitle={t('home.createFarmCardSub')}
-                            onPress={() => goRoot('CreateFarm')}
-                        />
-                        <EmptyChoice
-                            icon="qr_code_scanner"
-                            title={t('home.joinCodeCardTitle')}
-                            subtitle={t('home.joinCodeCardSub')}
-                            onPress={() => goRoot('JoinFarm')}
-                        />
+                <Card style={styles.ctaCard}>
+                    <View style={styles.ctaIcon}>
+                        <MaterialCommunityIcons name="barn" size={28} color={theme.roles.light.primary} />
                     </View>
-                </View>
+                    {/* Both routes, always. The old either/or branched on a global
+                        owner/worker account flag, so someone who picked "worker" at
+                        signup was never shown "Create farm" even after leasing a pond,
+                        and an owner was never shown "Join with code" even when a
+                        neighbour invited them. Neither is a real constraint: any
+                        account can create a farm (becoming its owner) or join one. */}
+                    <Text style={styles.ctaText}>{t('home.noFarmEither')}</Text>
+                    <Button
+                        title={t('home.quickLogCreateFarm')}
+                        onPress={() => goRoot('CreateFarm')}
+                        style={styles.ctaBtn}
+                    />
+                    <Button
+                        title={t('home.workerJoinFarmCta')}
+                        onPress={() => goRoot('JoinFarm')}
+                        variant="outlined"
+                        style={styles.ctaBtn}
+                    />
+                </Card>
             )}
 
             {/* Farm-at-a-glance includes expenses + P&L, so it's owner/manager only
@@ -1104,28 +1085,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     ctaBtn: { alignSelf: 'stretch', marginTop: theme.spacing[2] },
-    emptyFarms: { alignItems: 'center', paddingVertical: theme.spacing[8], marginBottom: theme.spacing[4] },
-    emptyTitle: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-        marginTop: theme.spacing[4],
-        marginBottom: theme.spacing[6],
-    },
-    emptyCards: { alignSelf: 'stretch', gap: theme.spacing[3] },
-    emptyChoice: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: theme.spacing[3],
-        minHeight: 72,
-        padding: theme.spacing[4],
-        borderRadius: theme.radius.md,
-        borderWidth: 1,
-        borderColor: theme.roles.light.borderStrong,
-        backgroundColor: theme.roles.light.surface,
-    },
-    emptyChoiceText: { flex: 1, minWidth: 0, gap: 2 },
-    emptyChoiceTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
-    emptyChoiceSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     workerWelcomeCard: {
         alignItems: 'center',
         padding: theme.spacing[5],
