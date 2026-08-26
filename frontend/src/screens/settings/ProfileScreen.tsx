@@ -264,7 +264,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             <View style={styles.headerBackground}>
                 <View style={styles.headerTop}>
                     <Text style={styles.headerTitle}>{t('settings.profile')}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+                    <TouchableOpacity onPress={() => navigation.navigate('MainApp', { screen: 'Settings' })}>
                         <MaterialCommunityIcons name="cog" size={24} color={theme.roles.light.surface} />
                     </TouchableOpacity>
                 </View>

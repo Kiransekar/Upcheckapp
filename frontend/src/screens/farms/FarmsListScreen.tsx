@@ -1,236 +1,225 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated, ActivityIndicator } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+/**
+ * Farms — artboard 4a.
+ *
+ * The old screen was a list of names: farm, address, pond count. That answers
+ * "which farms do I have", which a farmer already knows. The redesign answers
+ * "which farm needs me" — every card opens on stocked / biomass / act-now and a
+ * strip of one bar per pond, so the worst farm is visible before any tap.
+ *
+ * Cost of that: three list-wide calls plus one batched pond-context call per
+ * farm, instead of the twenty-odd per-pond calls the same data used to imply.
+ */
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    RefreshControl,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Card } from '../../components/ui/Card';
-import { FAB } from '../../components/ui/FAB';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SummaryRow } from '../../components/ui/SummaryRow';
+import { StatRow } from '../../components/ui/StatRow';
+import { Icon } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
-import { Skeleton, SkeletonCard, SkeletonList } from '../../components/ui/Skeleton';
+import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
-import { farmsApi, Farm } from '../../api/farms';
-import { useFocusEffect } from '@react-navigation/native';
+import { farmsApi, type Farm } from '../../api/farms';
+import { pondsApi, type Pond } from '../../api/ponds';
+import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
+import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { useMembershipStore } from '../../store/membershipStore';
+import {
+    buildPondRows,
+    rollUpFarm,
+    HEALTH_COLOR,
+    type FarmRollup,
+    type PondHealth,
+} from '../../utils/pondHealth';
+import type { FarmRole } from '../../api/farmMembers';
+
+interface FarmCardData {
+    farm: Farm;
+    role: FarmRole | null;
+    roll: FarmRollup;
+}
+
+/** 1,234 — thousands separators, because biomass is read at a glance. */
+const kg = (n: number) => n.toLocaleString('en-IN');
 
 export const FarmsListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    // Farm creation is open to every account — the creator becomes that farm's
-    // owner in farm_members. The old owner-only gate read a global account flag
-    // that no longer exists.
+    const roleForFarm = useMembershipStore((s) => s.roleForFarm);
+    const loadMemberships = useMembershipStore((s) => s.load);
+
     const [farms, setFarms] = useState<Farm[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [ponds, setPonds] = useState<Pond[]>([]);
+    const [briefing, setBriefing] = useState<BriefingItem[]>([]);
+    const [contexts, setContexts] = useState<PondContext[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<any>(null);
-    const [isOffline, setIsOffline] = useState(false);
+    const [offline, setOffline] = useState(false);
 
-    // Animation refs
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(0.95)).current;
-
-    // Simple in-memory cache (session-level, not stale)
-    const cacheRef = useRef<{ data: Farm[]; timestamp: number } | null>(null);
-    const CACHE_TTL = 30000; // 30 seconds - short to avoid staleness
-
-    const fadeIn = useCallback(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 300,
-                useNativeDriver: true,
-            }),
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                friction: 8,
-                tension: 100,
-                useNativeDriver: true,
-            }),
-        ]).start();
-    }, [fadeAnim, scaleAnim]);
-
-    const fetchFarms = useCallback(async (forceRefresh = false) => {
-        // Check cache first (unless forcing refresh)
-        if (!forceRefresh && cacheRef.current) {
-            const { data, timestamp } = cacheRef.current;
-            const now = Date.now();
-            if (now - timestamp < CACHE_TTL) {
-                setFarms(data);
-                setIsLoading(false);
-                fadeIn();
-                return;
-            }
-        }
-
+    const load = useCallback(async () => {
         setError(null);
-        setIsOffline(false);
-
+        setOffline(false);
         try {
-            const { data } = await farmsApi.getAll();
-            setFarms(data);
-            // Update cache
-            cacheRef.current = { data, timestamp: Date.now() };
-            fadeIn();
+            // The farm list is the only fatal call. Everything after it is
+            // enrichment — a farmer on a flaky connection should still see their
+            // farms, with the numbers missing, rather than an error page.
+            const farmsRes = await farmsApi.getAll();
+            setFarms(farmsRes.data);
+            // Paint the farms now. The figures arrive a moment later and fill
+            // in — waiting for all of them before showing anything is what made
+            // this screen feel slow.
+            setLoading(false);
+
+            const [pondsRes, briefingRes, ctxs] = await Promise.all([
+                pondsApi.getMine().catch(() => ({ data: [] as Pond[] })),
+                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                // One batched call per farm for the standing biomass. Each is a
+                // whole farm's ponds server-side, so this is farms-many
+                // requests, not ponds-many.
+                Promise.all(
+                    farmsRes.data.map((f) =>
+                        pondContextApi
+                            .forFarm(f.id)
+                            .then((r) => r.data)
+                            .catch(() => [] as PondContext[]),
+                    ),
+                ),
+            ]);
+            setPonds(pondsRes.data);
+            setBriefing(briefingRes.data);
+            setContexts(ctxs.flat());
         } catch (err: any) {
-            const statusCode = err?.response?.status;
-            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
-                setIsOffline(true);
-            }
+            if (!err?.response) setOffline(true);
             setError(err);
         } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+            setLoading(false);
+            setRefreshing(false);
         }
-    }, [fadeIn]);
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
-            fetchFarms();
-        }, [fetchFarms])
+            loadMemberships();
+            load();
+        }, [load, loadMemberships]),
     );
 
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchFarms(true);
-    }, [fetchFarms]);
+    const cards: FarmCardData[] = useMemo(() => {
+        const rows = buildPondRows(ponds, contexts, briefing);
+        return farms.map((farm) => ({
+            farm,
+            role: roleForFarm(farm.id),
+            roll: rollUpFarm(rows.filter((r) => r.pond.farmId === farm.id)),
+        }));
+    }, [farms, ponds, contexts, briefing, roleForFarm]);
 
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchFarms(true);
-    }, [fetchFarms]);
+    /** "3 farms · 24 ponds · 31.6 ha" — the eyebrow above the title. */
+    const eyebrow = useMemo(() => {
+        if (!farms.length) return null;
+        const area = farms.reduce((a, f) => a + (Number(f.areaHectares) || 0), 0);
+        const parts = [
+            t('farms.countFarms', { count: farms.length }),
+            t('farms.countPonds', { count: ponds.length }),
+        ];
+        if (area > 0) parts.push(t('farms.countHectares', { area: area.toFixed(1) }));
+        return parts.join(' · ');
+    }, [farms, ponds.length, t]);
 
-    const renderSkeleton = () => (
-        <View style={styles.listContent}>
-            <SkeletonList count={3} />
-        </View>
-    );
-
-    const renderFarmCard = useCallback(({ item, index }: { item: Farm; index: number }) => {
-        const animStyle = {
-            opacity: fadeAnim,
-            transform: [{ scale: scaleAnim }],
+    const totals = useMemo(() => {
+        const actNow = cards.reduce((a, c) => a + c.roll.actNow, 0);
+        const farmsAffected = cards.filter((c) => c.roll.actNow > 0).length;
+        const biomassCards = cards.filter((c) => c.roll.biomassKg != null);
+        const biomass = biomassCards.reduce((a, c) => a + (c.roll.biomassKg ?? 0), 0);
+        return {
+            actNow,
+            farmsAffected,
+            biomassKg: biomassCards.length ? biomass : null,
         };
+    }, [cards]);
 
-        const areaHectares = Number(item.areaHectares) || 0;
-        const pondCount = item.ponds?.length || 0;
+    const openFarm = (farm: Farm) =>
+        navigation.navigate('FarmDetail', { farmId: farm.id, farmName: farm.name });
 
-        return (
-            <Animated.View style={animStyle}>
-                <TouchableOpacity
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('FarmDetail', { farmId: item.id, farmName: item.name })}
-                >
-                    <Card style={styles.card}>
-                        <View style={styles.cardHeader}>
-                            <View style={styles.iconContainer}>
-                                <MaterialCommunityIcons name="barn" size={24} color={theme.roles.light.primary} />
-                            </View>
-                            <View style={styles.cardTitleContainer}>
-                                <Text style={styles.farmName}>{item.name}</Text>
-                                {item.address ? (
-                                    <View style={styles.locationRow}>
-                                        <MaterialCommunityIcons name="map-marker-outline" size={14} color={theme.roles.light.textSecondary} />
-                                        <Text style={styles.farmLocation}>{item.address}</Text>
-                                    </View>
-                                ) : null}
-                            </View>
-                            <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
-                        </View>
-                        <View style={styles.cardFooter}>
-                            <View style={styles.statItem}>
-                                <MaterialCommunityIcons name="water-outline" size={16} color={theme.roles.light.textSecondary} />
-                                <Text style={styles.statsText}>
-                                    <Text style={styles.statsValue}>{pondCount}</Text> {t('farms.ponds')}
-                                </Text>
-                            </View>
-                            {areaHectares > 0 && (
-                                <View style={styles.statItem}>
-                                    <MaterialCommunityIcons name="ruler-square" size={16} color={theme.roles.light.textSecondary} />
-                                    <Text style={styles.statsText}>
-                                        <Text style={styles.statsValue}>{areaHectares.toFixed(1)}</Text> ha
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    </Card>
-                </TouchableOpacity>
-            </Animated.View>
-        );
-    }, [navigation, fadeAnim, scaleAnim]);
+    const header = (
+        <ScreenHeader
+            eyebrow={eyebrow}
+            title={t('farms.yourFarms')}
+            actionLabel={t('farms.addFarm')}
+            onAction={() => navigation.navigate('CreateFarm')}
+        />
+    );
 
-    if (isLoading) {
+    if (loading) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                    </TouchableOpacity>
+                {header}
+                <View style={styles.skeleton}>
+                    <SkeletonList count={3} />
                 </View>
-                {renderSkeleton()}
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
             </ScreenWrapper>
         );
     }
 
-    if (isOffline) {
+    if (offline) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                    </TouchableOpacity>
-                </View>
-                <NetworkError onRetry={handleRetry} />
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
+                {header}
+                <NetworkError
+                    onRetry={() => {
+                        setLoading(true);
+                        load();
+                    }}
+                />
             </ScreenWrapper>
         );
     }
 
-    if (error && farms.length === 0) {
+    if (error && !farms.length) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
-                <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t('farms.title')}</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                        <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                    </TouchableOpacity>
-                </View>
+                {header}
                 <ErrorState
                     title={t('farms.errorTitle')}
                     error={error}
-                    onRetry={handleRetry}
+                    onRetry={() => {
+                        setLoading(true);
+                        load();
+                    }}
                 />
-                <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
             </ScreenWrapper>
         );
     }
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle} numberOfLines={1}>{t('farms.title')}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('CreateFarm')}>
-                    <MaterialCommunityIcons name="plus" size={24} color={theme.roles.light.primary} />
-                </TouchableOpacity>
-            </View>
-
-            <FlatList
-                data={farms}
-                keyExtractor={(item) => item.id}
-                renderItem={renderFarmCard}
-                contentContainerStyle={styles.listContent}
+            {header}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl
-                        refreshing={isRefreshing}
-                        onRefresh={handleRefresh}
+                        refreshing={refreshing}
+                        onRefresh={() => {
+                            setRefreshing(true);
+                            load();
+                        }}
                         colors={[theme.roles.light.primary]}
                         tintColor={theme.roles.light.primary}
                     />
                 }
-                ListEmptyComponent={
-                    // Nudge the other way in the empty state rather than hiding
-                    // the action: someone here to join a farm needs the code path
-                    // to be visible, and someone here to run one needs to create.
+            >
+                {!farms.length ? (
                     <EmptyState
                         icon="barn"
                         title={t('farms.emptyTitle')}
@@ -238,87 +227,220 @@ export const FarmsListScreen = ({ navigation }: any) => {
                         actionLabel={t('farms.addFarm')}
                         onAction={() => navigation.navigate('CreateFarm')}
                     />
-                }
-            />
-            <FAB icon="plus" onPress={() => navigation.navigate('CreateFarm')} />
+                ) : (
+                    <>
+                        {/*
+                          * The two facts worth putting above every farm card.
+                          * The design has a third — daily log completion — which
+                          * no endpoint reports yet; a plausible-looking number
+                          * there would be worse than its absence.
+                          */}
+                        {totals.actNow > 0 && (
+                            <SummaryRow
+                                icon="warning"
+                                title={t('farms.pondsNeedYou', { count: totals.actNow })}
+                                subtitle={t('farms.acrossFarms', {
+                                    count: totals.farmsAffected,
+                                    total: farms.length,
+                                })}
+                                value={String(totals.actNow)}
+                                tone="danger"
+                            />
+                        )}
+                        {totals.biomassKg != null && (
+                            <SummaryRow
+                                icon="scale"
+                                title={t('farms.standingBiomass', { kg: kg(totals.biomassKg) })}
+                                subtitle={t('farms.standingBiomassSub')}
+                                divider="strong"
+                            />
+                        )}
+
+                        {cards.map((card) => (
+                            <FarmCard key={card.farm.id} data={card} onPress={() => openFarm(card.farm)} />
+                        ))}
+
+                        <Legend />
+
+                        <TouchableOpacity
+                            style={styles.joinBtn}
+                            onPress={() => navigation.navigate('JoinFarm')}
+                            accessibilityRole="button"
+                        >
+                            <Text style={styles.joinLabel}>{t('farms.joinWithCode')}</Text>
+                        </TouchableOpacity>
+                    </>
+                )}
+            </ScrollView>
         </ScreenWrapper>
     );
 };
 
+/**
+ * One farm. The left border is the farm's worst pond — a red edge down the side
+ * of the card is readable from further away than any number on it.
+ */
+const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data, onPress }) => {
+    const { t } = useTranslation();
+    const { farm, role, roll } = data;
+    const worst: PondHealth = roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : 'fine';
+
+    const subtitle = [farm.address, role ? t(`members.role_${role}`) : null]
+        .filter(Boolean)
+        .join(' · ');
+
+    // Third column: the problem if there is one, otherwise the all-clear. The
+    // design swaps the figure for words here precisely because "0 act now" is a
+    // worse way to say "all fine".
+    const third =
+        roll.actNow > 0
+            ? { value: String(roll.actNow), label: t('farms.actNow'), tone: 'danger' as const }
+            : roll.watch > 0
+              ? { value: String(roll.watch), label: t('farms.watch'), tone: 'warning' as const }
+              : {
+                    value: t('farms.allFine'),
+                    label: t('farms.status'),
+                    tone: 'success' as const,
+                    text: true,
+                };
+
+    return (
+        <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onPress}
+            accessibilityRole="button"
+            style={[styles.card, { borderLeftColor: HEALTH_COLOR[worst] }]}
+        >
+            <View style={styles.cardHead}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.farmName} numberOfLines={1}>
+                        {farm.name}
+                    </Text>
+                    {!!subtitle && (
+                        <Text style={styles.farmMeta} numberOfLines={1}>
+                            {subtitle}
+                        </Text>
+                    )}
+                </View>
+                <Icon name="chevron_right" size={22} color={theme.roles.light.textDisabled} />
+            </View>
+
+            <StatRow
+                stats={[
+                    {
+                        value: String(roll.stocked),
+                        unit: `/${roll.total}`,
+                        label: t('farms.stocked'),
+                    },
+                    {
+                        value: roll.biomassKg != null ? kg(roll.biomassKg) : '—',
+                        label: t('farms.biomassKg'),
+                    },
+                    third,
+                ]}
+            />
+
+            <PondStrip strip={roll.strip} />
+        </TouchableOpacity>
+    );
+};
+
+/** One bar per pond, worst first. A farm's shape in a single glance. */
+const PondStrip: React.FC<{ strip: PondHealth[] }> = ({ strip }) => {
+    if (!strip.length) return null;
+    return (
+        <View style={styles.strip}>
+            {strip.map((health, i) => (
+                <View
+                    key={i}
+                    style={[styles.stripBar, { backgroundColor: HEALTH_COLOR[health] }]}
+                />
+            ))}
+        </View>
+    );
+};
+
+const Legend: React.FC = () => {
+    const { t } = useTranslation();
+    const entries: [PondHealth, string][] = [
+        ['critical', t('farms.actNow')],
+        ['watch', t('farms.watch')],
+        ['fine', t('farms.fine')],
+        ['fallow', t('farms.fallow')],
+    ];
+    return (
+        <View style={styles.legend}>
+            {entries.map(([health, label]) => (
+                <View key={health} style={styles.legendItem}>
+                    <View style={[styles.legendSwatch, { backgroundColor: HEALTH_COLOR[health] }]} />
+                    <Text style={styles.legendLabel}>{label}</Text>
+                </View>
+            ))}
+        </View>
+    );
+};
+
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: theme.spacing[4],
-        paddingHorizontal: theme.spacing[4],
-        backgroundColor: theme.roles.light.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-    },
-    headerTitle: {
-        ...theme.typeScale.h2,
-        color: theme.roles.light.textPrimary,
-    },
-    listContent: {
-        padding: theme.spacing[4],
-        paddingBottom: 100,
-    },
+    content: { paddingBottom: theme.spacing[24], backgroundColor: theme.roles.light.surface },
+    skeleton: { padding: theme.spacing[4] },
     card: {
-        marginBottom: theme.spacing[4],
-        padding: 0,
-        overflow: 'hidden',
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: theme.spacing[4],
+        borderLeftWidth: 3,
         borderBottomWidth: 1,
         borderBottomColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surface,
+        paddingTop: theme.spacing[3],
+        paddingBottom: 14,
     },
-    iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: theme.roles.light.infoBg,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: theme.spacing[4],
+    cardHead: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: theme.spacing[2.5],
+        paddingHorizontal: theme.spacing[5],
+        paddingLeft: 17,
     },
-    cardTitleContainer: {
-        flex: 1,
+    farmName: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
+    farmMeta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    strip: {
+        flexDirection: 'row',
+        gap: 3,
+        paddingHorizontal: theme.spacing[5],
+        paddingLeft: 17,
+        marginTop: theme.spacing[1],
     },
-    farmName: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-        marginBottom: 2,
-    },
-    locationRow: {
+    stripBar: { flex: 1, height: 7 },
+    legend: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        flexWrap: 'wrap',
+        gap: theme.spacing[2],
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[3],
+        paddingBottom: theme.spacing[1.5],
     },
-    farmLocation: {
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1.5] },
+    legendSwatch: { width: 9, height: 9 },
+    legendLabel: {
         ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textSecondary,
+        fontSize: 11,
+        color: theme.roles.light.textTertiary,
+        marginRight: theme.spacing[1.5],
     },
-    cardFooter: {
-        flexDirection: 'row',
-        padding: theme.spacing[4],
-        backgroundColor: theme.roles.light.surfaceVariant,
-        gap: theme.spacing[6],
-    },
-    statItem: {
-        flexDirection: 'row',
+    joinBtn: {
+        marginHorizontal: theme.spacing[5],
+        marginTop: theme.spacing[1.5],
+        borderWidth: 1.5,
+        borderColor: theme.roles.light.borderStrong,
+        borderRadius: theme.radius.xs,
+        paddingVertical: theme.spacing[3],
         alignItems: 'center',
-        gap: 6,
+        minHeight: 44,
+        justifyContent: 'center',
     },
-    statsText: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-    },
-    statsValue: {
+    joinLabel: {
         ...theme.typeScale.labelLarge,
+        fontSize: 15,
         color: theme.roles.light.textPrimary,
     },
 });
+
+export default FarmsListScreen;

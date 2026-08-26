@@ -23,6 +23,10 @@ const calculators = {
       title: 'ବୃଦ୍ଧି ଓ ଅମଳ',
       description: 'ପ୍ରତ୍ୟାଶିତ ଅମଳ, ବୃଦ୍ଧି ଅଭିକ୍ଷେପ, ବାୟୋମାସ ଓ ଖାଦ୍ୟ ହାର',
     },
+  
+    // artboard p2
+    eyebrow: "ଉପକରଣ",
+    prefillNote: "ପ୍ରତ୍ୟେକ କାଲକୁଲେଟର ପୋଖରୀରୁ ସଂଖ୍ୟା ନେଇପାରେ, ତେଣୁ ଆପଣ କେବଳ ଯାହା ପରୀକ୍ଷା କରୁଛନ୍ତି ତାହା ଟାଇପ କରନ୍ତୁ।",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'ଗଣିତ ବାୟୋମାସ ଶୂନ ବା ଋଣ। ଇନ୍‌ପୁଟ ଯାଞ୍ଚ କରନ୍ତୁ।',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+  
+    // artboard p3
+    shortTitle: "ଦୈନିକ ଖାଦ୍ୟ",
+    eyebrow: "କାଲକୁଲେଟର",
+    fromThePond: "ପୋଖରୀରୁ",
+    whatYouAreTesting: "ଆପଣ ଯାହା ପରୀକ୍ଷା କରୁଛନ୍ତି",
+    filledFromPond: "ବଛା ପୋଖରୀରୁ ପୂରଣ ହୋଇଛି",
+    filledFromPondDay: "ବଛା ପୋଖରୀରୁ · ଦିନ {{day}}",
+    typedByYou: "ଆପଣ ଟାଇପ କରିଛନ୍ତି",
+    labelCountShort: "ସଂଖ୍ୟା",
+    labelFeedingRateShort: "ଖାଦ୍ୟ ହାର (% BW)",
+    biomassKg: "ବାୟୋମାସ କିଗ୍ରା",
+    perMealKg: "ପ୍ରତି ଭୋଜନ କିଗ୍ରା",
+    meals: "ଭୋଜନ",
+    logThisAmount: "{{kg}} କିଗ୍ରା ଲିପିବଦ୍ଧ କରନ୍ତୁ",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "ପ୍ରଥମେ ଏକ ପୋଖରୀ ବାଛନ୍ତୁ",
+  changePond: "ବଦଳାନ୍ତୁ",
+  pondDay: "ଦିନ {{day}}",
+  pondMbw: "MBW {{mbw}} ଗ୍ରା",
+  pondBiomass: "{{kg}} କିଗ୍ରା",
+  pondNoData: "ଏହି ପୋଖରୀ ପାଇଁ ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ",
+  noPonds: "ସଂଖ୍ୟା ନେବା ପାଇଁ କୌଣସି ମହଜୁଦ ପୋଖରୀ ନାହିଁ।",
 };
 export default calculators;

@@ -9,6 +9,7 @@ import { WaterQualityRecord } from '../water-quality/water-quality-record.entity
 import { PondsService } from '../ponds/ponds.service';
 import { CropsService } from '../crops/crops.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 export interface PondContext {
   pondId: string;
@@ -123,7 +124,47 @@ export class PondContextService {
     private readonly pondsService: PondsService,
     private readonly cropsService: CropsService,
     private readonly calc: ShrimpCalculationsService,
+    private readonly farmAccess: FarmAccessService,
   ) {}
+
+  /**
+   * Every pond on a farm the caller may READ, in one request.
+   *
+   * The redesigned Farms and Ponds screens open on per-pond numbers — day, DO,
+   * biomass — for the whole farm at once. Asking for them one pond at a time
+   * meant 9–24 round trips on the two most-visited screens in the app, which
+   * on a rural connection is the entire load time.
+   *
+   * The per-pond work is unchanged and so is the access check: each snapshot
+   * still goes through getContext, which enforces READ and pond scoping. A
+   * pond that fails (deleted mid-flight, scoped out) is dropped rather than
+   * failing the batch — a partial farm view beats a blank screen.
+   */
+  async getFarmContexts(
+    farmId: string,
+    userId: string,
+  ): Promise<PondContext[]> {
+    const pondIds = await this.farmAccess.getAccessiblePondIds(
+      userId,
+      farmId,
+      'READ',
+    );
+
+    // Each context fans out to ~6 queries of its own, so a 24-pond farm would
+    // put ~144 in flight at once and starve the connection pool. Chunk it.
+    // ponytail: fixed chunk of 6; make it configurable only if a farm ever
+    // gets big enough for the round-trip count to matter again.
+    const out: PondContext[] = [];
+    for (let i = 0; i < pondIds.length; i += 6) {
+      const batch = await Promise.all(
+        pondIds.slice(i, i + 6).map((id) =>
+          this.getContext(id, userId).catch(() => null),
+        ),
+      );
+      out.push(...(batch.filter(Boolean) as PondContext[]));
+    }
+    return out;
+  }
 
   /**
    * Resolve each water-quality parameter to its latest NON-NULL value across

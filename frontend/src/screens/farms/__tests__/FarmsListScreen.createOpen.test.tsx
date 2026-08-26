@@ -60,13 +60,20 @@ describe('FarmsListScreen — farm creation is open to every account', () => {
         expect(queryByText('Ask a farm owner to add you as a team member.')).toBeNull();
     });
 
-    it('routes to CreateFarm from the empty-state action', async () => {
+    it('routes to CreateFarm from every entry point on an empty screen', async () => {
         (farmsApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
 
-        const { getByText } = renderScreen();
-        await waitFor(() => expect(getByText('Add Farm')).toBeTruthy());
+        const { getAllByText } = renderScreen();
+        // Two, deliberately: the header action (artboard 4a) and the empty
+        // state's own. Someone opening the app for the first time reads the
+        // middle of the screen, not the chrome — and W3 is about the entry
+        // points ALWAYS being there, so asserting both is the stronger check.
+        await waitFor(() => expect(getAllByText('Add Farm')).toHaveLength(2));
 
-        fireEvent.press(getByText('Add Farm'));
-        expect(navigation.navigate).toHaveBeenCalledWith('CreateFarm');
+        for (const button of getAllByText('Add Farm')) {
+            navigation.navigate.mockClear();
+            fireEvent.press(button);
+            expect(navigation.navigate).toHaveBeenCalledWith('CreateFarm');
+        }
     });
 });

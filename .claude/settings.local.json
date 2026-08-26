@@ -19,5 +19,9 @@
       "Bash(xargs cat)",
       "Bash(EXPO_DEBUG=1 npx expo config)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "supabase"
+  ],
+  "enableAllProjectMcpServers": true
 }

@@ -4,6 +4,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { Icon } from '../../components/ui/Icon';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
@@ -24,7 +26,7 @@ const derivePrefix = (name: string) => {
 
 export const CreatePondScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { farmId } = route.params;
+    const { farmId, farmName, pondCount } = route.params;
 
     // Per-farm draft key so an interrupted farmer (call, app kill, network drop)
     // doesn't lose their in-progress pond. Only plain text/selection fields are
@@ -48,6 +50,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [installedAeratorHp, setInstalledAeratorHp] = useState('');
     const [aeratorCount, setAeratorCount] = useState('');
     const [displayName, setDisplayName] = useState('');
+
+    const [overrideAreaM2, setOverrideAreaM2] = useState('');
+    const [showOverride, setShowOverride] = useState(false);
 
     const [computedArea, setComputedArea] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
@@ -111,8 +116,12 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
             const r = d / 2;
             area = Math.PI * r * r;
         }
-        setComputedArea(area);
-    }, [geometryType, lengthM, widthM, diameterM]);
+        // A surveyed figure is a measurement of the real pond; the calculated
+        // one is a rectangle's worth of arithmetic. Where both exist the survey
+        // wins, because every stocking and dosing figure downstream reads it.
+        const surveyed = parseFloat(overrideAreaM2) || 0;
+        setComputedArea(surveyed > 0 ? surveyed : area);
+    }, [geometryType, lengthM, widthM, diameterM, overrideAreaM2]);
 
     // Derived from the same inputs — no extra state to drift out of sync.
     const depthNum = parseFloat(depthM) || 0;
@@ -149,6 +158,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 widthM: (geometryType === 'rectangular' || geometryType === 'raceway') && widthM ? parseFloat(widthM) : undefined,
                 diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
                 depthM: parseFloat(depthM),
+                overrideAreaM2: parseFloat(overrideAreaM2) > 0 ? parseFloat(overrideAreaM2) : undefined,
                 installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
                 aeratorCount: aeratorCount ? parseInt(aeratorCount, 10) : undefined,
                 displayName: displayName.trim(),
@@ -165,13 +175,16 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>{t('ponds.addPond')}</Text>
-                <View style={{ width: 40 }} />
-            </View>
+            <ScreenHeader
+                eyebrow={
+                    [farmName, pondCount != null ? t('ponds.nthPond', { n: pondCount + 1 }) : null]
+                        .filter(Boolean)
+                        .join(' · ') || null
+                }
+                title={t('ponds.addPond')}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
             <ScrollView contentContainerStyle={styles.content}>
                 <Input
@@ -208,6 +221,26 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                             color={geometryType === 'circular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
                         />
                         <Text style={[styles.toggleText, geometryType === 'circular' && styles.toggleTextActive]}>{t('ponds.shapeCircular')}</Text>
+                    </TouchableOpacity>
+                    {/*
+                      * Irregular is the fourth shape in the design, and the one
+                      * that matters most in practice: a great many real ponds
+                      * are not rectangles, and without this option their owner
+                      * has to pretend otherwise and accept a wrong area. There
+                      * is no formula for it, so the surveyed area below becomes
+                      * the source instead of an override.
+                      */}
+                    <TouchableOpacity
+                        style={[styles.toggleBtn, geometryType === 'irregular' && styles.toggleActive]}
+                        onPress={() => setGeometryType('irregular')}
+                        activeOpacity={0.7}
+                    >
+                        <MaterialCommunityIcons
+                            name="pentagon-outline"
+                            size={22}
+                            color={geometryType === 'irregular' ? theme.roles.light.primary : theme.roles.light.textSecondary}
+                        />
+                        <Text style={[styles.toggleText, geometryType === 'irregular' && styles.toggleTextActive]}>{t('ponds.shapeIrregular')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.toggleBtn, geometryType === 'raceway' && styles.toggleActive]}
@@ -311,13 +344,49 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     </Text>
                 )}
 
+                {/*
+                  * "Surveyed area is different". The calculated figure is a
+                  * rectangle's worth of maths; a survey is a measurement of the
+                  * actual pond. Where they disagree the survey wins, and every
+                  * stocking and dosing calculation downstream depends on which
+                  * number is stored — so this cannot stay a backend-only field.
+                  * For an irregular pond it is not an override at all: it is
+                  * the only way to state the area.
+                  */}
+                {geometryType === 'irregular' || showOverride ? (
+                    <Input
+                        label={t('ponds.fieldSurveyedArea')}
+                        value={overrideAreaM2}
+                        onChangeText={setOverrideAreaM2}
+                        keyboardType="decimal-pad"
+                        placeholder={t('ponds.placeholderDecimal')}
+                        required={geometryType === 'irregular'}
+                    />
+                ) : (
+                    <TouchableOpacity
+                        style={styles.overrideRow}
+                        onPress={() => setShowOverride(true)}
+                        accessibilityRole="button"
+                    >
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.overrideTitle}>{t('ponds.surveyedDifferent')}</Text>
+                            <Text style={styles.overrideSub}>{t('ponds.surveyedDifferentSub')}</Text>
+                        </View>
+                        <Icon name="chevron_right" size={22} color={theme.roles.light.textDisabled} />
+                    </TouchableOpacity>
+                )}
+            </ScrollView>
+
+            {/* The design pins Create pond to the bottom: the form is longer
+                than a screen, and burying the only way to finish under it is
+                what made people abandon halfway. */}
+            <View style={styles.footer}>
                 <Button
                     title={t('ponds.savePond')}
                     onPress={handleSave}
                     loading={isLoading}
-                    style={styles.saveBtn}
                 />
-            </ScrollView>
+            </View>
         </ScreenWrapper>
     );
 };
@@ -342,21 +411,23 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium, color: theme.roles.light.successText,
         fontWeight: '600', marginBottom: theme.spacing[4],
     },
-    header: {
+    overrideRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: theme.spacing[4],
+        gap: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
+        paddingVertical: theme.spacing[3],
+        minHeight: 48,
+    },
+    overrideTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    overrideSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    footer: {
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
         backgroundColor: theme.roles.light.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-    },
-    backBtn: {
-        padding: theme.spacing[4],
-    },
-    headerTitle: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
+        paddingHorizontal: theme.spacing[4],
+        paddingVertical: theme.spacing[3],
     },
     content: {
         padding: theme.spacing[4],
@@ -416,8 +487,5 @@ const styles = StyleSheet.create({
     previewValue: {
         ...theme.typeScale.h2,
         color: theme.roles.light.primary,
-    },
-    saveBtn: {
-        marginTop: theme.spacing[4],
     },
 });

@@ -15,6 +15,18 @@ const attendance = {
   teamTodayTitle: 'இன்றைய குழு',
   teamTodayEmpty: 'இன்று யாரும் இன்னும் வருகை பதிவு செய்யவில்லை.',
   myHistoryTitle: 'எனது வரலாறு',
+
+  // Attendance — artboard 3b
+  yourShift: "உங்கள் பணிநேரம்",
+  stillInFor: "இன்னும் உள்ளே · இதுவரை {{elapsed}}",
+  stillInShort: "உள்ளே",
+  presentOf: "{{total}} இல் {{present}} பேர்",
+  noRecordToday: "இன்று பதிவு இல்லை",
+  you: "நீங்கள்",
+  colIn: "வருகை",
+  colOut: "வெளியேற்றம்",
+  noHistory: "இன்னும் எதுவும் பதிவாகவில்லை.",
+  showEarlier: "முந்தைய நாட்களைக் காட்டு",
 };
 
 export default attendance;

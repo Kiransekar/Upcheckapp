@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'लंबित',
   status_approved: 'स्वीकृत',
   status_rejected: 'अस्वीकृत',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} दिन",
+  dayCount_one: "{{count}} दिन",
+  noReason: "कोई कारण नहीं दिया",
+  nobodyAway: "इस हफ़्ते कोई और छुट्टी पर नहीं है",
+  awayThisWeek: "इस हफ़्ते छुट्टी पर: {{names}}",
 };
 
 export default leave;

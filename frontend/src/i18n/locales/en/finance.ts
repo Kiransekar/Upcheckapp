@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'No Transactions',
   noTransactionsSubtitle: 'Add your first income or expense to start tracking farm finances.',
   loadError: 'Failed to load transactions.',
+
+  // Money — artboard 3d
+  moneyTitle: "Money",
+  addEntry: "Add entry",
+  netSoFar: "Net so far",
+  whereItWent: "Where it went",
+  creditOutstanding: "Dealer credit outstanding",
+  creditDue: "{{dealer}} · due {{date}}",
+  creditDealers: "Across {{count}} dealers",
+  creditDealers_one: "One dealer",
+  recentEntries: "Recent entries",
+  seeAll: "All ›",
+  noEntries: "Nothing recorded for this farm yet.",
+  noFarmTitle: "No farm selected",
+  noFarmSub: "Choose a farm to see its money.",
 };
 export default finance;

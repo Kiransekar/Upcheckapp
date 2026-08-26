@@ -86,6 +86,26 @@ const members = {
     allEmptyTitle: 'No workers yet',
     allEmptySub: 'Add workers to your farms to see everyone here.',
     allFarmMemberCountLabel: 'Team: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "Anyone with this joins as a worker",
+  shareCode: "Share code",
+  newCode: "New code",
+  onThisFarm: "On this farm",
+  tapToEdit: "Tap any member to change their role or the ponds they can log.",
+  inviteByIdentifier: "Invite by Email/Username",
+  roleSection: "Role",
+  roleNote: "What they can do across the whole farm.",
+  pondsSection: "Ponds they can log",
+  allPondsAction: "All ponds",
+  scopeAllNote: "Every pond on this farm. Tick some to narrow it.",
+  scopeSomeNote: "Only the ponds ticked below.",
+  noPondsToScope: "This farm has no ponds yet.",
+  scopeError: "Could not change which ponds they can reach.",
+  financialsSection: "Costs and money",
+  financialsToggle: "Can see costs and money",
+  financialsNote: "Off by default for workers and viewers.",
+  financialsError: "Could not change their money access.",
 };
 
 export default members;

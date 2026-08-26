@@ -1,168 +1,300 @@
+/**
+ * Simulation result — artboard p5.
+ *
+ * The old screen led with a bare "profit difference" number and then four
+ * metric tiles. The design's insight is that a difference means nothing without
+ * the thing it differs FROM, so this leads with the difference and then shows
+ * the two profits side by side as bars: grey is what you make anyway, green is
+ * what the change adds. That is the sentence the screen exists to say.
+ *
+ * The engine's risk warning is given its own block rather than a footnote. A
+ * run that says "+₹5,300, unless FCR slips past 1.45" is a different answer
+ * from "+₹5,300", and the caveat has to survive being skimmed.
+ */
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { MetricCard } from '../../components/ui/MetricCard';
-import { Card } from '../../components/ui/Card';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { StatRow } from '../../components/ui/StatRow';
 import { theme } from '../../theme';
+
+const c = theme.roles.light;
+
+const inr = (n: number): string => {
+    const a = Math.abs(n);
+    if (a >= 1e7) return `₹${(a / 1e7).toFixed(2)}Cr`;
+    if (a >= 1e5) return `₹${(a / 1e5).toFixed(2)}L`;
+    return `₹${Math.round(a).toLocaleString('en-IN')}`;
+};
+
+const signed = (n: number): string => `${n >= 0 ? '+' : '−'}${inr(n)}`;
 
 export const SimulationResultsScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { resultData } = route.params;
+    const { resultData, scenarioType, pondId } = route.params ?? {};
 
     if (!resultData) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text>{t('simulations.results.noData')}</Text>
-            </View>
+            <ScreenWrapper>
+                <Text style={styles.noData}>{t('simulations.results.noData')}</Text>
+            </ScreenWrapper>
         );
     }
 
+    // A saved simulation and a fresh run have different shapes; read either.
+    const r = resultData.result ?? {};
+    const num = (fresh: any, saved: any): number => Number(fresh ?? saved ?? 0);
+
+    const diff = num(r.profitDifference, resultData.resultProfitDiff);
+    const baseline = num(r.baselineNetProfit, undefined);
+    const simulated = num(r.simulatedNetProfit, resultData.resultNetProfit);
+    const biomass = num(r.projectedBiomass, resultData.resultProjectedBiomass);
+    const fcr = num(r.projectedFcr, resultData.resultProjectedFcr);
+    const revenue = num(r.totalRevenue, resultData.resultTotalRevenue);
+    const cost = num(r.totalCost, resultData.resultTotalCost);
+    const risk: string | undefined = r.riskWarning;
+    const type: string = scenarioType ?? resultData.scenarioType ?? resultData.simulation?.scenarioType;
+    const gain = diff >= 0;
+
+    // Bar widths are shares of the larger of the two, so the comparison is a
+    // real one — scaling each to its own width would make them look equal.
+    const largest = Math.max(Math.abs(baseline), Math.abs(simulated), 1);
+
+    const runAt = resultData.simulation?.createdAt ?? resultData.createdAt;
+
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('simulations.results.title')}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('MainApp', { screen: 'Dashboard' })} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="home-outline" size={24} color={theme.roles.light.primary} />
-                </TouchableOpacity>
-            </View>
+            <ScreenHeader
+                eyebrow={type ? t(`simulations.q.${type}.title`, { defaultValue: type }) : null}
+                title={t('simulations.results.shortTitle')}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
-            <ScrollView contentContainerStyle={styles.content}>
-                <View style={styles.summaryContainer}>
-                    <Text style={styles.summaryTitle}>{t('simulations.results.profitDifference')}</Text>
-                    <Text style={styles.summaryValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-                        {(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0) >= 0 ? '+' : ''}
-                        {Math.round(resultData.result?.profitDifference ?? resultData.resultProfitDiff ?? 0).toLocaleString()}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+                <View style={[styles.hero, !gain && styles.heroLoss]}>
+                    <Text style={[styles.heroLabel, !gain && styles.heroLabelLoss]}>
+                        {t('simulations.results.profitDifference')}
                     </Text>
-                    <Text style={styles.summarySubtext}>{t('simulations.results.vsBaseline')}</Text>
-                </View>
-
-                <Text style={styles.sectionTitle}>{t('simulations.results.sectionResults')}</Text>
-                <View style={styles.metricsGrid}>
-                    <MetricCard
-                        label={t('simulations.results.labelProjectedBiomass')}
-                        value={Math.round(resultData.result?.projectedBiomass ?? resultData.resultProjectedBiomass ?? 0).toLocaleString()}
-                        unit="kg"
-                        status="safe"
-                    />
-                    <MetricCard
-                        label={t('simulations.results.labelProjectedFcr')}
-                        value={(resultData.result?.projectedFcr ?? resultData.resultProjectedFcr ?? 0).toFixed(2)}
-                    />
-                    <MetricCard
-                        label={t('simulations.results.labelTotalRevenue')}
-                        value={Math.round(resultData.result?.totalRevenue ?? resultData.resultTotalRevenue ?? 0).toLocaleString()}
-                    />
-                    <MetricCard
-                        label={t('simulations.results.labelTotalCost')}
-                        value={Math.round(resultData.result?.totalCost ?? resultData.resultTotalCost ?? 0).toLocaleString()}
-                    />
-                </View>
-
-                <Card style={styles.inputsCard}>
-                    <Text style={styles.sectionTitle}>{t('simulations.results.sectionProfitComparison')}</Text>
-                    <View style={styles.row}>
-                        <Text style={styles.paramLabel}>{t('simulations.results.labelBaselineProfit')}</Text>
-                        <Text style={styles.paramValue}>{Math.round(resultData.result?.baselineNetProfit ?? 0).toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.row}>
-                        <Text style={styles.paramLabel}>{t('simulations.results.labelSimulatedProfit')}</Text>
-                        <Text style={styles.paramValue}>{Math.round(resultData.result?.simulatedNetProfit ?? resultData.resultNetProfit ?? 0).toLocaleString()}</Text>
-                    </View>
-                    {(resultData.result?.riskWarning) && (
-                        <View style={[styles.row, { borderBottomWidth: 0 }]}>
-                            <Text style={[styles.paramLabel, { color: theme.roles.light.dangerText }]}>{t('simulations.results.labelRiskWarning')}</Text>
-                            <Text style={[styles.paramValue, { color: theme.roles.light.dangerText, flex: 1, textAlign: 'right' }]}>{resultData.result.riskWarning}</Text>
-                        </View>
+                    <Text
+                        style={[styles.heroValue, !gain && styles.heroValueLoss]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.5}
+                    >
+                        {signed(diff)}
+                    </Text>
+                    {!!type && (
+                        <Text style={styles.heroDesc}>{t(`simulations.q.${type}.desc`, { defaultValue: '' })}</Text>
                     )}
-                </Card>
+                </View>
+
+                <SectionHeader label={t('simulations.results.whatItPredicts')} />
+                <StatRow
+                    divider
+                    stats={[
+                        { value: Math.round(biomass).toLocaleString('en-IN'), label: t('simulations.results.labelProjectedBiomass') },
+                        { value: fcr ? fcr.toFixed(2) : '—', label: t('simulations.results.labelProjectedFcr') },
+                        { value: inr(revenue), label: t('simulations.results.labelTotalRevenue') },
+                        { value: inr(cost), label: t('simulations.results.labelTotalCost') },
+                    ]}
+                />
+
+                <SectionHeader label={t('simulations.results.againstDoingNothing')} />
+                <View style={styles.compareRow}>
+                    <Text style={styles.compareLabel}>{t('simulations.results.labelBaselineProfit')}</Text>
+                    <Text style={styles.compareValue}>{inr(baseline)}</Text>
+                </View>
+                <View style={styles.compareRow}>
+                    <Text style={[styles.compareLabel, styles.compareLabelStrong]}>
+                        {t('simulations.results.labelSimulatedProfit')}
+                    </Text>
+                    <Text style={[styles.compareValue, { color: gain ? c.successText : c.dangerText }]}>
+                        {inr(simulated)}
+                    </Text>
+                </View>
+
+                <View style={styles.bars}>
+                    <View style={[styles.bar, { width: `${(Math.abs(baseline) / largest) * 100}%`, backgroundColor: c.textDisabled }]} />
+                    <View
+                        style={[
+                            styles.bar,
+                            {
+                                width: `${(Math.abs(simulated) / largest) * 100}%`,
+                                backgroundColor: gain ? c.successText : c.dangerText,
+                            },
+                        ]}
+                    />
+                </View>
+                <Text style={styles.barsNote}>
+                    {gain ? t('simulations.results.barsNote') : t('simulations.results.barsNoteLoss')}
+                </Text>
+
+                {!!risk && (
+                    <View style={styles.risk}>
+                        <Text style={styles.riskLabel}>{t('simulations.results.labelRiskWarning')}</Text>
+                        <Text style={styles.riskBody}>{risk}</Text>
+                    </View>
+                )}
+
+                <SectionHeader
+                    label={t('simulations.results.whatYouChanged')}
+                    trailing={
+                        runAt
+                            ? t('simulations.results.runOn', {
+                                  date: new Date(runAt).toLocaleDateString(undefined, {
+                                      day: 'numeric',
+                                      month: 'short',
+                                  }),
+                              })
+                            : undefined
+                    }
+                />
+                <Changes data={resultData} />
+
+                <View style={styles.actions}>
+                    <TouchableOpacity
+                        style={styles.keepBtn}
+                        onPress={() => navigation.navigate('SimulationList')}
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.keepLabel}>{t('simulations.results.keepPlan')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.againBtn}
+                        onPress={() =>
+                            navigation.replace('SimulationCreate', { pondId, scenarioType: type })
+                        }
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.againLabel}>{t('simulations.results.runAgain')}</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
+/** The inputs this run actually used — only the ones that were set. */
+const Changes: React.FC<{ data: any }> = ({ data }) => {
+    const { t } = useTranslation();
+    const sim = data.simulation ?? data;
+    const rows: [string, string][] = [];
+    if (sim.inputFeedPrice != null) rows.push([t('simulations.create.labelFeedPrice'), `₹${sim.inputFeedPrice}`]);
+    if (sim.inputSellingPrice != null) rows.push([t('simulations.create.labelSellingPrice'), `₹${sim.inputSellingPrice}`]);
+    if (sim.inputStockingDensity != null)
+        rows.push([t('simulations.create.labelStockingDensity'), String(sim.inputStockingDensity)]);
+    if (sim.inputGrowthRate != null)
+        rows.push([t('simulations.create.labelGrowthImprovement'), `${sim.inputGrowthRate}%`]);
+
+    if (!rows.length) return null;
+    return (
+        <>
+            {rows.map(([label, value]) => (
+                <View key={label} style={styles.compareRow}>
+                    <Text style={styles.compareLabel}>{label}</Text>
+                    <Text style={styles.compareValue}>{value}</Text>
+                </View>
+            ))}
+        </>
+    );
+};
+
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+    content: { paddingBottom: theme.spacing[16], backgroundColor: c.surface },
+    noData: { ...theme.typeScale.bodyLarge, color: c.textTertiary, textAlign: 'center' },
+
+    hero: {
+        backgroundColor: c.successBg,
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
+        paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
     },
-    backBtn: {
-        padding: theme.spacing[4],
+    heroLoss: { backgroundColor: c.dangerBg },
+    heroLabel: {
+        ...theme.typeScale.labelSmall,
+        fontFamily: 'DMSans-SemiBold',
+        fontSize: 10,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        color: c.successText,
     },
-    title: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-    },
-    content: {
-        padding: theme.spacing[4],
-        paddingBottom: theme.spacing[12],
-    },
-    summaryContainer: {
-        backgroundColor: theme.roles.light.primary,
-        padding: theme.spacing[8],
-        borderRadius: theme.radius.lg,
+    heroLabelLoss: { color: c.dangerText },
+    heroValue: { fontFamily: 'DMMono-Medium', fontSize: 40, lineHeight: 48, color: c.successText },
+    heroValueLoss: { color: c.dangerText },
+    heroDesc: { ...theme.typeScale.bodyMedium, color: c.textSecondary, marginTop: theme.spacing[1] },
+
+    compareRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: theme.spacing[8],
-        elevation: 4,
-        shadowColor: theme.roles.light.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-    },
-    summaryTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.surface,
-        opacity: 0.9,
-        marginBottom: theme.spacing[2],
-    },
-    summaryValue: {
-        fontSize: 56,
-        fontWeight: '800',
-        color: theme.roles.light.surface,
-    },
-    summarySubtext: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.surface,
-        opacity: 0.9,
-        marginTop: -4,
-    },
-    sectionTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[4],
-    },
-    metricsGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
         gap: theme.spacing[3],
-        marginBottom: theme.spacing[6],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2.5],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 44,
     },
-    inputsCard: {
-        backgroundColor: theme.roles.light.surface,
+    compareLabel: { ...theme.typeScale.bodyMedium, flex: 1, minWidth: 0, color: c.textSecondary },
+    compareLabelStrong: { ...theme.typeScale.labelLarge, color: c.textPrimary },
+    compareValue: { fontFamily: 'DMMono-Medium', fontSize: 15, color: c.textPrimary },
+
+    bars: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3], gap: 4 },
+    bar: { height: 12, borderRadius: 2, minWidth: 4 },
+    barsNote: {
+        ...theme.typeScale.bodySmall,
+        color: c.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[2],
     },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+
+    risk: {
+        backgroundColor: c.warningBg,
+        borderLeftWidth: 3,
+        borderLeftColor: c.warningBorder,
+        marginTop: theme.spacing[4],
+        paddingLeft: 17,
+        paddingRight: theme.spacing[5],
         paddingVertical: theme.spacing[3],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
     },
-    paramLabel: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
+    riskLabel: {
+        ...theme.typeScale.labelSmall,
+        fontFamily: 'DMSans-SemiBold',
+        fontSize: 10,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        color: c.warningText,
     },
-    paramValue: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textPrimary,
-        fontWeight: '600',
+    riskBody: { ...theme.typeScale.bodyMedium, color: c.warningText },
+
+    actions: {
+        flexDirection: 'row',
+        gap: theme.spacing[2],
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[6],
     },
+    keepBtn: {
+        flex: 2,
+        backgroundColor: c.primaryHover,
+        borderRadius: theme.radius.xs,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 48,
+    },
+    keepLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textInverse },
+    againBtn: {
+        flex: 1,
+        borderWidth: 1.5,
+        borderColor: c.borderStrong,
+        borderRadius: theme.radius.xs,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 48,
+    },
+    againLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textSecondary },
 });
+
+export default SimulationResultsScreen;

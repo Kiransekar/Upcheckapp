@@ -15,6 +15,18 @@ const attendance = {
   teamTodayTitle: 'ఈరోజు టీం',
   teamTodayEmpty: 'ఈరోజు ఇంకా ఎవరూ చెక్ ఇన్ చేయలేదు.',
   myHistoryTitle: 'నా చరిత్ర',
+
+  // Attendance — artboard 3b
+  yourShift: "మీ షిఫ్ట్",
+  stillInFor: "ఇంకా చెక్ ఇన్‌లో · ఇప్పటివరకు {{elapsed}}",
+  stillInShort: "లోపల",
+  presentOf: "{{total}} లో {{present}} మంది",
+  noRecordToday: "ఈరోజు రికార్డు లేదు",
+  you: "మీరు",
+  colIn: "రాక",
+  colOut: "వెళ్ళిక",
+  noHistory: "ఇంకా ఏమీ నమోదు కాలేదు.",
+  showEarlier: "గత రోజులు చూపించు",
 };
 
 export default attendance;

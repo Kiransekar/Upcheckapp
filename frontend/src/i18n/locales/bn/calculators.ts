@@ -23,6 +23,10 @@ const calculators = {
       title: 'বৃদ্ধি ও ফসল',
       description: 'প্রত্যাশিত ফসল, বৃদ্ধির প্রক্ষেপণ, বায়োমাস ও খাওয়ানোর হার',
     },
+  
+    // artboard p2
+    eyebrow: "সরঞ্জাম",
+    prefillNote: "প্রতিটি ক্যালকুলেটর পুকুর থেকে সংখ্যা নিতে পারে, তাই আপনি শুধু যা পরীক্ষা করছেন তা লিখবেন।",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'গণনাকৃত বায়োমাস শূন্য বা ঋণাত্মক। ইনপুট যাচাই করুন।',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+  
+    // artboard p3
+    shortTitle: "দৈনিক খাবার",
+    eyebrow: "ক্যালকুলেটর",
+    fromThePond: "পুকুর থেকে",
+    whatYouAreTesting: "আপনি যা পরীক্ষা করছেন",
+    filledFromPond: "বেছে নেওয়া পুকুর থেকে পূরণ হয়েছে",
+    filledFromPondDay: "বেছে নেওয়া পুকুর থেকে · দিন {{day}}",
+    typedByYou: "আপনি লিখেছেন",
+    labelCountShort: "সংখ্যা",
+    labelFeedingRateShort: "খাওয়ানোর হার (% BW)",
+    biomassKg: "বায়োমাস কেজি",
+    perMealKg: "প্রতি বেলা কেজি",
+    meals: "বেলা",
+    logThisAmount: "{{kg}} কেজি নথিভুক্ত করুন",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "প্রথমে একটি পুকুর বেছে নিন",
+  changePond: "বদলান",
+  pondDay: "দিন {{day}}",
+  pondMbw: "MBW {{mbw}} গ্রা",
+  pondBiomass: "{{kg}} কেজি",
+  pondNoData: "এই পুকুরের জন্য এখনও কিছু নথিভুক্ত হয়নি",
+  noPonds: "সংখ্যা নেওয়ার মতো কোনো মজুত পুকুর নেই।",
 };
 export default calculators;

@@ -80,6 +80,26 @@ const members = {
     allEmptyTitle: 'இன்னும் பணியாளர்கள் இல்லை',
     allEmptySub: 'உங்கள் பண்ணைகளில் பணியாளர்களைச் சேர்க்கவும், அவர்கள் இங்கே தோன்றுவார்கள்.',
     allFarmMemberCountLabel: 'குழு: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "இது இருப்பவர் பணியாளராகச் சேருவார்",
+  shareCode: "குறியீட்டைப் பகிர்",
+  newCode: "புதிய குறியீடு",
+  onThisFarm: "இந்தப் பண்ணையில்",
+  tapToEdit: "எந்த உறுப்பினரையும் தட்டி அவரது பங்கு அல்லது குளங்களை மாற்றவும்.",
+  inviteByIdentifier: "மின்னஞ்சல்/பயனர்பெயரால் அழை",
+  roleSection: "பங்கு",
+  roleNote: "பண்ணை முழுவதும் அவர் என்ன செய்யலாம்.",
+  pondsSection: "அவர் பதிவு செய்யக்கூடிய குளங்கள்",
+  allPondsAction: "எல்லா குளங்களும்",
+  scopeAllNote: "இந்தப் பண்ணையின் ஒவ்வொரு குளமும். குறைக்க சிலவற்றைத் தேர்வு செய்யவும்.",
+  scopeSomeNote: "கீழே தேர்ந்தெடுத்த குளங்கள் மட்டும்.",
+  noPondsToScope: "இந்தப் பண்ணையில் இன்னும் குளங்கள் இல்லை.",
+  scopeError: "குளம் அணுகலை மாற்ற முடியவில்லை.",
+  financialsSection: "செலவும் பணமும்",
+  financialsToggle: "செலவும் பணமும் பார்க்கலாம்",
+  financialsNote: "பணியாளர் மற்றும் பார்வையாளருக்கு இயல்பாக அணைக்கப்பட்டுள்ளது.",
+  financialsError: "பண அணுகலை மாற்ற முடியவில்லை.",
 };
 
 export default members;

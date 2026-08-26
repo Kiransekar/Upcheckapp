@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'মুলতুবি',
   status_approved: 'অনুমোদিত',
   status_rejected: 'প্রত্যাখ্যাত',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} দিন",
+  dayCount_one: "{{count}} দিন",
+  noReason: "কোনো কারণ দেওয়া হয়নি",
+  nobodyAway: "এই সপ্তাহে আর কেউ ছুটিতে নেই",
+  awayThisWeek: "এই সপ্তাহে ছুটিতে: {{names}}",
 };
 
 export default leave;

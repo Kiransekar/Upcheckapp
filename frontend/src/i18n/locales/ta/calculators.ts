@@ -23,6 +23,10 @@ const calculators = {
       title: 'வளர்ச்சி & அறுவடை',
       description: 'எதிர்பார்க்கப்படும் அறுவடை, வளர்ச்சி கணிப்பு, உயிரி நிறை & தீவன விகிதம்',
     },
+  
+    // artboard p2
+    eyebrow: "கருவிகள்",
+    prefillNote: "ஒவ்வொரு கால்குலேட்டரும் குளத்திலிருந்து எண்களை எடுக்கும், நீங்கள் சோதிப்பதை மட்டும் தட்டச்சு செய்யுங்கள்.",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'கணக்கிடப்பட்ட உயிரி நிறை பூஜ்யம் அல்லது எதிர்மறையாக உள்ளது. உள்ளீடுகளை சரிபார்க்கவும்.',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+  
+    // artboard p3
+    shortTitle: "தினசரி தீவனம்",
+    eyebrow: "கால்குலேட்டர்",
+    fromThePond: "குளத்திலிருந்து",
+    whatYouAreTesting: "நீங்கள் சோதிப்பது",
+    filledFromPond: "தேர்ந்தெடுத்த குளத்திலிருந்து நிரப்பப்பட்டது",
+    filledFromPondDay: "தேர்ந்தெடுத்த குளத்திலிருந்து · நாள் {{day}}",
+    typedByYou: "நீங்கள் தட்டச்சு செய்தது",
+    labelCountShort: "எண்ணிக்கை",
+    labelFeedingRateShort: "தீவன விகிதம் (% BW)",
+    biomassKg: "உயிர்த்திணிவு கிகி",
+    perMealKg: "ஒரு வேளைக்கு கிகி",
+    meals: "வேளைகள்",
+    logThisAmount: "{{kg}} கிகி பதிவு செய்",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "முதலில் ஒரு குளத்தைத் தேர்வு செய்",
+  changePond: "மாற்று",
+  pondDay: "நாள் {{day}}",
+  pondMbw: "MBW {{mbw}} கி",
+  pondBiomass: "{{kg}} கிகி",
+  pondNoData: "இந்தக் குளத்திற்கு இன்னும் எதுவும் பதிவாகவில்லை",
+  noPonds: "எண்களை எடுக்க இருப்பு உள்ள குளம் இல்லை.",
 };
 export default calculators;

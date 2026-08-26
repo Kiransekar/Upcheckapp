@@ -8,7 +8,12 @@ import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 jest.mock('../../../api/farmMembers', () => ({
-    farmMembersApi: { listMembers: jest.fn(), removeMember: jest.fn() },
+    farmMembersApi: {
+        listMembers: jest.fn(),
+        removeMember: jest.fn(),
+        listInvites: jest.fn().mockResolvedValue({ data: [] }),
+        listPending: jest.fn().mockResolvedValue({ data: [] }),
+    },
 }));
 jest.mock('../../../api/farms', () => ({
     farmsApi: { getById: jest.fn().mockResolvedValue({ data: { farmCode: 'ABCD2345' } }) },

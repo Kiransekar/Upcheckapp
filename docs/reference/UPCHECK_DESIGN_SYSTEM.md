@@ -50,8 +50,12 @@ Rules: body never below 14 sp; primary metrics large and high-contrast; line len
 
 ## 4. Iconography (the emoji replacement)
 
-- **Single source:** `@expo/vector-icons` → **MaterialCommunityIcons** (already the app's icon set). No other icon library, no emoji, no image-as-icon.
-- **Consistency:** pick one weight/style per context; don't mix filled and outline arbitrarily. Standard sizes: 20 (inline), 24 (list/action), 26–28 (FAB/feature tiles).
+- **Two sets, during the redesign migration.** The design canvas names its icons in **Material Symbols Rounded** terms (`edit_note`, `currency_rupee`, `water_drop`), whose names and glyph shapes differ from MaterialCommunityIcons. Translating each one by hand would drift from the drawings, so redesigned screens use `components/ui/Icon.tsx` and screens not yet redesigned keep MaterialCommunityIcons.
+  - **Rule:** one set per screen. Mixing them *within* a screen is the thing to avoid; two sets across an app mid-migration is less jarring than half-converting a screen.
+  - Material Symbols is a **ligature font** — `Icon` renders the icon's NAME as text, which is why it is a `<Text>`. It inherits colour and sizes with `fontSize`, and sets `allowFontScaling={false}`: a 24 px glyph at 200 % OS text size breaks every row it sits in.
+  - `IconName` is a closed union, so a typo fails the build rather than rendering the literal word.
+- **No emoji, no image-as-icon**, in either set.
+- **Consistency:** pick one weight/style per context; don't mix filled and outline arbitrarily. Standard sizes: 20 (inline), 22 (nav/row), 24 (list/action), 26–28 (FAB/feature tiles).
 - **Domain icon vocabulary** (use these consistently so farmers learn them once):
 
 | Concept | Icon | Concept | Icon |
@@ -121,7 +125,7 @@ Subtle and fast (target 2 GB devices): 150–250 ms transitions, standard easing
 ## 10. Anti-"vibe-coded" checklist (every screen must pass)
 
 1. **Zero emojis** anywhere on the screen or in its copy.
-2. All icons from MaterialCommunityIcons, consistent weight and size.
+2. All icons from ONE set on that screen — `components/ui/Icon` (Material Symbols) if it has been redesigned, MaterialCommunityIcons if it has not — at consistent weight and size.
 3. All colors from theme tokens — no stray hex.
 4. All type from `typeScale` — no ad-hoc sizes; numerals large and legible.
 5. Consistent 16 dp screen padding and 4 dp-grid spacing; everything aligned.

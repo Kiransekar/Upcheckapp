@@ -80,6 +80,26 @@ const members = {
     allEmptyTitle: 'अभी कोई वर्कर नहीं',
     allEmptySub: 'अपने फार्मों में वर्कर जोड़ें ताकि वे यहाँ दिखें।',
     allFarmMemberCountLabel: 'टीम: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "जिसके पास यह कोड है वह वर्कर के रूप में जुड़ेगा",
+  shareCode: "कोड साझा करें",
+  newCode: "नया कोड",
+  onThisFarm: "इस फ़ार्म पर",
+  tapToEdit: "किसी भी सदस्य पर टैप करके उसकी भूमिका या तालाब बदलें।",
+  inviteByIdentifier: "ईमेल/यूज़रनेम से बुलाएँ",
+  roleSection: "भूमिका",
+  roleNote: "वे पूरे फ़ार्म पर क्या कर सकते हैं।",
+  pondsSection: "वे जिन तालाबों में लॉग कर सकते हैं",
+  allPondsAction: "सभी तालाब",
+  scopeAllNote: "इस फ़ार्म का हर तालाब। सीमित करने के लिए कुछ चुनें।",
+  scopeSomeNote: "सिर्फ़ नीचे चुने गए तालाब।",
+  noPondsToScope: "इस फ़ार्म में अभी कोई तालाब नहीं है।",
+  scopeError: "तालाब पहुँच नहीं बदल सके।",
+  financialsSection: "लागत और पैसा",
+  financialsToggle: "लागत और पैसा देख सकते हैं",
+  financialsNote: "वर्कर और व्यूअर के लिए डिफ़ॉल्ट रूप से बंद।",
+  financialsError: "पैसे की पहुँच नहीं बदल सके।",
 };
 
 export default members;

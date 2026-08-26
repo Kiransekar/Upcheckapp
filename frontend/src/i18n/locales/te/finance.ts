@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'లావాదేవీలు లేవు',
   noTransactionsSubtitle: 'ఫారం ఆర్థిక వ్యవహారాలు ట్రాక్ చేయడానికి మీ మొదటి ఆదాయం లేదా ఖర్చు జోడించండి.',
   loadError: 'లావాదేవీలు లోడ్ చేయడం విఫలమైంది.',
+
+  // Money — artboard 3d
+  moneyTitle: "డబ్బు",
+  addEntry: "ఎంట్రీ చేర్చు",
+  netSoFar: "ఇప్పటివరకు నికర",
+  whereItWent: "ఎక్కడికి పోయింది",
+  creditOutstanding: "డీలర్ అప్పు బాకీ",
+  creditDue: "{{dealer}} · {{date}} న",
+  creditDealers: "{{count}} డీలర్లలో",
+  creditDealers_one: "ఒక డీలర్",
+  recentEntries: "ఇటీవలి ఎంట్రీలు",
+  seeAll: "అన్నీ ›",
+  noEntries: "ఈ ఫారంకు ఇంకా ఏమీ నమోదు కాలేదు.",
+  noFarmTitle: "ఫారం ఎంచుకోలేదు",
+  noFarmSub: "డబ్బు చూడటానికి ఒక ఫారం ఎంచుకోండి.",
 };
 export default finance;

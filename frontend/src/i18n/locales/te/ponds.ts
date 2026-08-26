@@ -77,5 +77,35 @@ const ponds = {
   economicsTitle: 'ఆర్థికం',
   viewExpenses: 'ఖర్చులు',
   harvestPlans: 'పంట కోత ప్రణాళికలు',
+
+  // Pond — artboard p1
+  title: "చెరువు",
+  readAgo: "{{ago}} క్రితం చదివారు",
+  markDone: "అయ్యింది",
+  doc: "రోజు",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW గ్రా",
+  metricSurvivalPct: "బతికినవి %",
+  metricBiomassKg: "బయోమాస్ కిగ్రా",
+  moreLogTypes: "మరో {{count}} లాగ్ రకాలు",
+  latestReading: "తాజా నీటి రీడింగ్",
+  agoShort: "{{ago}} క్రితం",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "ఉష్ణోగ్రత °C",
+  wqSalt: "ఉప్పు ppt",
+  moneyForPond: "ఈ చెరువు డబ్బు",
+  spentThisCycle: "ఈ సైకిల్‌లో {{amount}}",
+  harvestPlan: "హార్వెస్ట్ ప్లాన్",
+  windowOpensIn: "{{count}} రోజుల్లో విండో తెరుచుకుంటుంది",
+  windowOpensIn_one: "రేపు విండో తెరుచుకుంటుంది",
+  windowOpen: "విండో తెరిచి ఉంది",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}వ చెరువు",
+  shapeIrregular: "క్రమరహిత",
+  fieldSurveyedArea: "సర్వే చేసిన విస్తీర్ణం (m²)",
+  surveyedDifferent: "సర్వే విస్తీర్ణం వేరుగా ఉంది",
+  surveyedDifferentSub: "లెక్కించిన విస్తీర్ణాన్ని మార్చండి",
 };
 export default ponds;

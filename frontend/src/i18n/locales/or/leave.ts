@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'ବିଚାରାଧୀନ',
   status_approved: 'ଅନୁମୋଦିତ',
   status_rejected: 'ପ୍ରତ୍ୟାଖ୍ୟାତ',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} ଦିନ",
+  dayCount_one: "{{count}} ଦିନ",
+  noReason: "କୌଣସି କାରଣ ଦିଆଯାଇନାହିଁ",
+  nobodyAway: "ଏହି ସପ୍ତାହରେ ଆଉ କେହି ଛୁଟିରେ ନାହାଁନ୍ତି",
+  awayThisWeek: "ଏହି ସପ୍ତାହରେ ଛୁଟିରେ: {{names}}",
 };
 
 export default leave;
