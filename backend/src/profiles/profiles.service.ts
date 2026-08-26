@@ -155,4 +155,64 @@ export class ProfilesService {
       await manager.query(`DELETE FROM profiles WHERE id = $1`, [userId]);
     });
   }
+
+  /**
+   * The only preference keys a client may write. Anything else in the body is
+   * dropped rather than merged.
+   *
+   * `users.preferences` is free-form jsonb, so merging whatever arrives would
+   * let a caller write `{ roles: ["admin"] }` onto their own row. That is
+   * harmless today — nothing reads preferences for authorization — and a latent
+   * privilege escalation the moment somebody does. W3 already had to remove one
+   * client-supplied flag (`accountType`) that had been wired into an
+   * authorization check; this whitelist, and
+   * `preferences-not-authorization.spec.ts`, are what stop this becoming the
+   * second.
+   */
+  private static readonly WRITABLE_PREFERENCE_KEYS = [
+    'onboardingIntent',
+  ] as const;
+
+  /** Current preferences for a user, defaulting to {} when the row has none. */
+  async getPreferences(userId: string): Promise<Record<string, unknown>> {
+    const rows: { preferences: Record<string, unknown> | null }[] =
+      await this.dataSource.query(
+        `SELECT preferences FROM users WHERE id = $1`,
+        [userId],
+      );
+    return rows[0]?.preferences ?? {};
+  }
+
+  /**
+   * Merge whitelisted keys into one user's preferences.
+   *
+   * Merge rather than replace, and merged in SQL rather than read-modify-write:
+   * `jsonb || jsonb` is applied by Postgres inside the statement, so a
+   * concurrent write to a different key cannot be silently lost between our
+   * read and our write.
+   */
+  async setPreferences(
+    userId: string,
+    patch: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const allowed: Record<string, unknown> = {};
+    for (const key of ProfilesService.WRITABLE_PREFERENCE_KEYS) {
+      if (patch[key] !== undefined) allowed[key] = patch[key];
+    }
+    // Nothing writable was sent — return what is stored rather than issuing an
+    // UPDATE that would only bump updated_at.
+    if (Object.keys(allowed).length === 0) {
+      return this.getPreferences(userId);
+    }
+
+    const rows: { preferences: Record<string, unknown> }[] =
+      await this.dataSource.query(
+        `UPDATE users
+            SET preferences = COALESCE(preferences, '{}'::jsonb) || $2::jsonb
+          WHERE id = $1
+      RETURNING preferences`,
+        [userId, JSON.stringify(allowed)],
+      );
+    return rows[0]?.preferences ?? allowed;
+  }
 }

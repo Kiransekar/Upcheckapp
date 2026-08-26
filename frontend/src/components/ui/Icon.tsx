@@ -35,7 +35,10 @@ export type IconName =
     | 'event_busy' | 'event_available' | 'insights' | 'show_chart' | 'assessment'
     | 'dashboard' | 'receipt_long' | 'account_balance' | 'account_circle'
     | 'lightbulb' | 'workspace_premium' | 'key' | 'qr_code_2' | 'share'
-    | 'content_copy' | 'person_add' | 'badge' | 'delete';
+    | 'content_copy' | 'person_add' | 'badge' | 'delete'
+    // first-run onboarding — see docs/design/onboarding/*.html
+    | 'translate' | 'home_work' | 'engineering' | 'visibility' | 'location_on'
+    | 'remove' | 'qr_code_scanner' | 'cloud_off' | 'notifications';
 
 export interface IconProps {
     name: IconName;
