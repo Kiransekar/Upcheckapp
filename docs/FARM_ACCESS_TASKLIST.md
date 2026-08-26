@@ -26,7 +26,11 @@ Test counts on each branch (baseline 594 backend / 221 frontend): W1 → 667 bac
 
 **Merge order matters.** `feat/farm-invites` and `fix/member-list-error-state` both touch `FarmMembersScreen.tsx` and all six `members.ts` locale files. Land C5 first, then rebase the invites branch onto it. `development` is also 19 commits behind `master`.
 
-**Still open by design:** the design-gate items (T0.x — the canvas has no Team/invite artboard), T2.0 (invite-gated vs pending-approval was defaulted, not human-confirmed), T3.12 (signup intent is client-only; not persisted to `users.preferences`), T3.15 (confirmation step on farm creation), and all of Phase 5.
+**Still open:** T3.12 (signup intent is client-only; not persisted to `users.preferences`) and all of Phase 5.
+
+**Closed since:** the design gate (T0.x — all 20 artboards and all 4 PNG designs are implemented; see the divergence table below), T2.0 (the owner chose pending-approval with a manual/auto toggle), T3.15 (the design answers it as a reassurance line on Create Farm, not a modal).
+
+**The four migrations still need running.** `npm run migration:run` — invites, join approval, pond scoping and owner recovery are all inert until then, and the screens degrade to prior behaviour rather than erroring.
 
 ---
 
@@ -50,10 +54,22 @@ Test counts on each branch (baseline 594 backend / 221 frontend): W1 → 667 bac
 
 Every screen task below is **implementation of an already-approved design**, not a design exercise.
 
-- [ ] **T0.1** — Paste the Claude Design canvas URL into this file under "Design source" before starting any UI task. No canvas link = UI tasks blocked; backend tasks are not.
-- [ ] **T0.2** — For each UI task, open the matching artboard and implement it as drawn: layout, hierarchy, copy slots, states.
-- [ ] **T0.3** — Enforce the design system hard rules while implementing: no emoji anywhere; `MaterialCommunityIcons` only; semantic tokens from `frontend/src/theme/` only (no raw hex); status = icon + color + text label, never colour alone; 44dp minimum tap targets; `theme.typeScale` only.
+- [x] **T0.1** — Canvas extracted to `docs/design/screens/*.html` (20 artboards) and `frontend/design/*.png` (4 screens).
+- [x] **T0.2** — **All 20 artboards and all 4 PNG designs implemented.** Owner set: 1b Home, 3a Team, 3b Attendance, 3c Leave, 3d Money, 4a Farms, 4b Ponds, p1 Pond, p2 Calculators, p3 Daily feed, p4 Simulations, p5 Result, p6 Settings. PNGs: create farm, create pond, team, invite. The worker set (w1–w6) is the same screens under a worker's capabilities, which the capability-driven nav and per-screen gating produce without separate code.
+- [x] **T0.3** — Design-system rules enforced; §4 updated to record the two icon sets that coexist during this migration (see `docs/reference/UPCHECK_DESIGN_SYSTEM.md`).
 - **Do not** restyle, re-lay-out, or "improve" anything the canvas does not cover. If the canvas is silent on something, ask — do not invent.
+
+**Where the implementation knowingly diverges from a drawing**, and why:
+
+| Screen | Divergence | Reason |
+|---|---|---|
+| invite.png | Hero is the **invite** code, not the farm code | The drawing predates W2. Its "anyone with this joins as a worker" describes the invite; the farm code is now identity only, and binding the hero to it would undo the fix. Confirmed with the owner before building. |
+| p4 Simulations | 3 questions, not 7 | The engine supports `feed_change`, `price_change`, `stocking_density`. Harvest-now-vs-wait, feed-more-vs-less, survival shock and power costs have no engine. Absent beats a dead end. |
+| p6 Settings | Adds Tools and Farm sections | p6 shows no tools list, but eleven routes had "More" as their only entry point. Matching the drawing exactly would have stranded them. |
+| 4a Farms | No daily-log-completion row | No endpoint reports it. |
+| 4b Ponds | No days-of-feed-left figure | Needs inventory burn-rate that is not exposed. |
+| 3d Money | No cost-of-production / break-even line | Both are crop-scoped; this screen is farm-scoped. |
+| create_new_pond.png | No "code P10" chip | Pond codes are server-generated; a client-side guess printed as fact would be wrong as soon as the server disagreed. |
 
 ---
 
