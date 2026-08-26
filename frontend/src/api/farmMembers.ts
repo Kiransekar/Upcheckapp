@@ -112,10 +112,7 @@ export const farmMembersApi = {
         apiClient.post(`/farms/${farmId}/transfer-ownership`, { newOwnerUserId }),
 
     joinFarm: (code: string) =>
-        // `status` is 'pending' when the farm requires approval (the default) —
-        // the join has NOT taken effect yet in that case. It was missing from this
-        // type, so callers could not tell the two outcomes apart.
-        apiClient.post<{ farmId: string; role: FarmRole; status: FarmMemberStatus; farm: { id: string; name: string } }>(
+        apiClient.post<{ farmId: string; role: FarmRole; farm: { id: string; name: string } }>(
             '/farm-members/join',
             { code },
         ),

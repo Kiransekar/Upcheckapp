@@ -23,6 +23,9 @@ import { Button } from '../../components/ui/Button';
 import { Icon, IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 
+/** Kept for the older first-run gate on HomeScreen; see that screen. */
+export const ONBOARDING_FLAG = '@upcheck:onboarded';
+
 const PROPS: { icon: IconName; key: string }[] = [
     { icon: 'water_drop', key: 'onboarding.welcomeProp1' },
     { icon: 'show_chart', key: 'onboarding.welcomeProp2' },

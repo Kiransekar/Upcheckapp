@@ -7,7 +7,7 @@
  * instead of front-loaded into a tour nobody reads carefully on day one.
  *
  * Persisted per `flagKey` in AsyncStorage (same pattern as WelcomeScreen's
- * flags) — once dismissed, gone forever on this device, not just
+ * ONBOARDING_FLAG) — once dismissed, gone forever on this device, not just
  * for the session. Renders nothing until the flag check resolves, and
  * nothing at all if the flag is already set — so there's no flash of a hint
  * that's about to disappear.
