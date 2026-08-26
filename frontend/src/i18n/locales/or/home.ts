@@ -186,6 +186,17 @@ const home = {
   onDuty: "ଡ୍ୟୁଟିରେ",
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "ଆଜିର ଲଗ",
+  // The hero before there is anything to raise an alert about
+  startHere: "ଏଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ",
+  stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
+  stepPondsWhy: "ଅପଚେକ ପ୍ରତ୍ୟେକ ପୋଖରୀର ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ଅଲଗା ଅଲଗା ଦେଖେ। ଏବେ ଦେଖିବାକୁ କିଛି ନାହିଁ।",
+  stepPondsCta: "ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
+  stepCycleTitle: "{{pond}} ରେ ଏକ ଚକ୍ର ଆରମ୍ଭ କରନ୍ତୁ",
+  stepCycleWhy: "ଖାଲି ପୋଖରୀରେ ବାୟୋମାସ ନାହିଁ, ଖାଦ୍ୟ ଯୋଜନା ନାହିଁ, ଚେତାବନୀ ବି ନାହିଁ। ଚକ୍ର ତିନୋଟିକୁ ଆରମ୍ଭ କରେ।",
+  stepCycleCta: "ଚକ୍ର ଆରମ୍ଭ କରନ୍ତୁ",
+  stepLogTitle: "ଆଜିର ରିଡିଂ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+  stepLogWhy: "ଆଜି କିଛି ଲିପିବଦ୍ଧ ହୋଇନାହିଁ। ଏଠାକାର ପ୍ରତ୍ୟେକ ଚେତାବନୀ ଅମ୍ଳଜାନ ଓ pH ରୁ ହିଁ ତିଆରି।",
+  stepLogCta: "ଏବେ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
   hideChecklist: "ଲୁଚାନ୍ତୁ",
   hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
   hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",

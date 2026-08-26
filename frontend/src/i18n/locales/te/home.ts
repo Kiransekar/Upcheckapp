@@ -186,6 +186,17 @@ const home = {
   onDuty: "విధిలో",
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "నేటి నమోదులు",
+  // The hero before there is anything to raise an alert about
+  startHere: "ఇక్కడ మొదలుపెట్టండి",
+  stepPondsTitle: "మీ చెరువులను చేర్చండి",
+  stepPondsWhy: "అప్‌చెక్ ప్రతి చెరువు నీరు, మేత, పెరుగుదలను విడిగా గమనిస్తుంది. ఇప్పుడు గమనించడానికి ఏమీ లేదు.",
+  stepPondsCta: "చెరువులు చేర్చు",
+  stepCycleTitle: "{{pond}} లో సైకిల్ మొదలుపెట్టు",
+  stepCycleWhy: "ఖాళీ చెరువులో బయోమాస్ ఉండదు, మేత ప్రణాళిక ఉండదు, హెచ్చరికా ఉండదు. సైకిల్ మూడింటినీ మొదలుపెడుతుంది.",
+  stepCycleCta: "సైకిల్ మొదలుపెట్టు",
+  stepLogTitle: "నేటి రీడింగ్‌లు నమోదు చేయండి",
+  stepLogWhy: "ఈరోజు ఏమీ నమోదు కాలేదు. ఇక్కడి ప్రతి హెచ్చరిక ఆక్సిజన్, pH నుంచే వస్తుంది.",
+  stepLogCta: "ఇప్పుడు నమోదు చేయి",
   hideChecklist: "దాచు",
   hideChecklistTitle: "సెటప్ జాబితా దాచాలా?",
   hideChecklistBody: "ఇది మళ్ళీ రాదు. చెరువులు ఏర్పాటు చేయడం, రీడింగ్‌లు నమోదు చేయడం, జట్టును పిలవడం ఫారం, జట్టు ట్యాబ్‌లలో ఇంకా ఉంటాయి.",

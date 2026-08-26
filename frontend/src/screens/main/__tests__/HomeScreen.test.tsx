@@ -425,6 +425,98 @@ describe('HomeScreen — my tasks', () => {
     });
 });
 
+// A new account has no alerts, so the hero stood empty and "All clear" took
+// its place — telling a farmer nothing had gone wrong on a farm nothing was
+// watching yet. The hero now carries the setup step blocking everything else.
+describe('HomeScreen — the hero before there is any data', () => {
+    beforeEach(async () => {
+        await resetMocks();
+        useActiveFarmStore.setState({ selectedFarm: FARM } as any);
+    });
+
+    it('asks for ponds when the farm has none', async () => {
+        mockedGetMine.mockResolvedValue({ data: [] });
+        mockedForFarm.mockResolvedValue({ data: [] });
+
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText('Add your ponds')).toBeTruthy();
+        expect(await findByText('Start here')).toBeTruthy();
+        expect(queryByText('All clear')).toBeNull();
+    });
+
+    it('asks for a cycle when the ponds are all empty', async () => {
+        mockedForFarm.mockResolvedValue({ data: [{ ...emptyPondContext, cropId: null }] });
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Stock a cycle in Pond 1')).toBeTruthy();
+    });
+
+    it('sends the farmer to start a cycle on that exact pond', async () => {
+        mockedForFarm.mockResolvedValue({ data: [{ ...emptyPondContext, cropId: null }] });
+
+        const { findByText } = renderScreen();
+        fireEvent.press(await findByText('Start a cycle'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('CreateCycle', { pondId: 'p1' });
+    });
+
+    it('asks for today\'s readings once a pond is stocked but unlogged', async () => {
+        mockedForFarm.mockResolvedValue({ data: [{ ...emptyPondContext, cropId: 'c1' }] });
+
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Log today’s readings')).toBeTruthy();
+    });
+
+    it('falls back to All clear once the day is logged and nothing is wrong', async () => {
+        mockedForFarm.mockResolvedValue({
+            data: [{ ...emptyPondContext, cropId: 'c1', lastFeedAt: new Date().toISOString() }],
+        });
+
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText('All clear')).toBeTruthy();
+        expect(queryByText('Start here')).toBeNull();
+    });
+
+    // A real alert always outranks a setup step: something is actually wrong
+    // in a pond, which is not a thing to show behind "add your ponds".
+    it('yields to a real alert', async () => {
+        mockedGetMine.mockResolvedValue({ data: [] });
+        mockedForFarm.mockResolvedValue({ data: [] });
+        mockedLiveBriefing.mockResolvedValue({
+            data: [{
+                pondId: 'p1', source: 'wq', topTitle: 'Start the aerators', topSeverity: 'critical',
+                alertCount: 1, steps: ['Oxygen has fallen to 2.8 mg/L.'],
+            }],
+        });
+
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText('Start the aerators')).toBeTruthy();
+        expect(queryByText('Add your ponds')).toBeNull();
+    });
+
+    // Ponds and cycles are owner/manager work. Telling a worker to do them is
+    // worse than telling them nothing.
+    it('shows a worker no setup step they cannot act on', async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: FARM }],
+            loaded: true, loading: false,
+        } as any);
+        await AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1');
+        mockedGetMine.mockResolvedValue({ data: [] });
+        mockedForFarm.mockResolvedValue({ data: [] });
+
+        const { findByText, queryByText } = renderScreen();
+        await findByText('All farms');
+
+        expect(queryByText('Add your ponds')).toBeNull();
+    });
+});
+
 describe('HomeScreen — first run', () => {
     beforeEach(resetMocks);
 

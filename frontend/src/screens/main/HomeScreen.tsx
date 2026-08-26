@@ -8,6 +8,7 @@ import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { NextActionCard, rankActions } from '../../components/dashboard/NextActionCard';
+import { HeroCard } from '../../components/dashboard/HeroCard';
 import { ThenList } from '../../components/dashboard/ThenList';
 import { MyTasksList } from '../../components/dashboard/MyTasksList';
 import { TodayStats } from '../../components/dashboard/TodayStats';
@@ -328,6 +329,63 @@ export const HomeScreen = ({ navigation }: any) => {
     // Everything after the hero's one item — artboard 1b's "Then" list.
     const thenActions = nextActions.slice(1);
 
+    /**
+     * The setup step standing between this account and a screen with anything
+     * on it, or null once there is none.
+     *
+     * A new farmer has no alerts, so the hero was empty and "All clear" took
+     * its place — which claims nothing has gone wrong on a farm nothing is
+     * watching yet. Today's job is "the next decision"; on day one the next
+     * decision is setup, so it belongs in the hero like any other.
+     *
+     * Ordered by what unblocks the most: a pond can hold a cycle, a cycle can
+     * be logged against, a log produces the readings every alert comes from.
+     * `logsToday` counts STOCKED ponds, so its total doubles as "is anything
+     * stocked" — it is null only until the enrichment call lands, and a hero
+     * that flashes the wrong step for one frame is worse than one that waits.
+     */
+    const firstStep = React.useMemo(() => {
+        if (isLoading || scopeFarms.length === 0 || logsToday == null) return null;
+        const farm = scopeFarm ?? scopeFarms[0];
+
+        if (scopePonds.length === 0) {
+            // A worker cannot create ponds. Telling them to is worse than
+            // telling them nothing, so they get the calm state instead.
+            if (!perms.canManageOperations) return null;
+            return {
+                key: 'ponds',
+                farm: farm?.name,
+                headline: t('home.stepPondsTitle'),
+                why: t('home.stepPondsWhy'),
+                cta: t('home.stepPondsCta'),
+                go: () => goRoot('PondSetup', { farmId: farm!.id, totalPonds: 1 }),
+            };
+        }
+        if (logsToday.total === 0) {
+            if (!perms.canManageOperations) return null;
+            const pond = scopePonds[0];
+            return {
+                key: 'cycle',
+                farm: farms.find((f) => f.id === pond.farmId)?.name,
+                headline: t('home.stepCycleTitle', { pond: pond.displayName || pond.name }),
+                why: t('home.stepCycleWhy'),
+                cta: t('home.stepCycleCta'),
+                go: () => goRoot('CreateCycle', { pondId: pond.id }),
+            };
+        }
+        if (logsToday.done === 0) {
+            return {
+                key: 'log',
+                farm: farm?.name,
+                headline: t('home.stepLogTitle'),
+                why: t('home.stepLogWhy'),
+                cta: t('home.stepLogCta'),
+                go: () => goRoot('QuickLog'),
+            };
+        }
+        return null;
+    }, [isLoading, scopeFarms, scopeFarm, scopePonds, logsToday, farms, perms.canManageOperations, t]);
+
     // Each item carries the farm it came from — Home spans every farm, so an
     // action without its farm name is ambiguous the moment you have two.
     // Resolves against the FULL farm list, not just the one in scope: an alert
@@ -631,6 +689,22 @@ export const HomeScreen = ({ navigation }: any) => {
                         />
                     )}
 
+                    {/* Before there is anything to raise an alert about, the hero
+                        carries the setup step blocking everything else instead.
+                        A new account has no alerts, and this slot standing empty
+                        is what made a fresh Today read as broken. No "Later":
+                        there is nothing to defer this in favour of. */}
+                    {!alertsLoading && nextActions.length === 0 && !!firstStep && (
+                        <HeroCard
+                            eyebrow={t('home.startHere')}
+                            farm={firstStep.farm}
+                            headline={firstStep.headline}
+                            why={firstStep.why}
+                            primaryLabel={firstStep.cta}
+                            onPrimary={firstStep.go}
+                        />
+                    )}
+
                     {/*
                       * "Then" — the rest of the queue, after the hero has taken the
                       * top item. This replaces the old "Needs Attention" card, which
@@ -651,9 +725,12 @@ export const HomeScreen = ({ navigation }: any) => {
                                         : goRoot('MorningBriefing')
                                 }
                             />
-                        ) : nextActions.length === 0 ? (
+                        ) : nextActions.length === 0 && !firstStep ? (
                             // All clear is a RESULT, not an empty list — and it only
-                            // means anything once there is something to be clear about.
+                            // means anything once there is something to be clear
+                            // about. With setup unfinished it claimed nothing had
+                            // gone wrong on a farm nothing was watching yet, so it
+                            // waits until the hero has no setup step left to show.
                             <TouchableOpacity activeOpacity={0.85} onPress={() => goRoot('MorningBriefing')}>
                                 <Card style={styles.allClearCard}>
                                     <MaterialCommunityIcons name="check-circle-outline" size={22} color={theme.roles.light.successText} />

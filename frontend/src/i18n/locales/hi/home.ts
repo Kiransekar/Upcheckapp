@@ -186,6 +186,17 @@ const home = {
   onDuty: "ड्यूटी पर",
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "आज के लॉग",
+  // The hero before there is anything to raise an alert about
+  startHere: "यहाँ से शुरू करें",
+  stepPondsTitle: "अपने तालाब जोड़ें",
+  stepPondsWhy: "अपचेक हर तालाब का पानी, दाना और बढ़त अलग-अलग देखता है। अभी देखने को कुछ नहीं है।",
+  stepPondsCta: "तालाब जोड़ें",
+  stepCycleTitle: "{{pond}} में साइकिल शुरू करें",
+  stepCycleWhy: "खाली तालाब में न बायोमास होता है, न दाना योजना, न कोई चेतावनी। साइकिल तीनों शुरू करती है।",
+  stepCycleCta: "साइकिल शुरू करें",
+  stepLogTitle: "आज की रीडिंग दर्ज करें",
+  stepLogWhy: "आज कुछ दर्ज नहीं हुआ। यहाँ की हर चेतावनी ऑक्सीजन और पीएच से ही बनती है।",
+  stepLogCta: "अभी दर्ज करें",
   hideChecklist: "छिपाएँ",
   hideChecklistTitle: "सेटअप सूची छिपाएँ?",
   hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",

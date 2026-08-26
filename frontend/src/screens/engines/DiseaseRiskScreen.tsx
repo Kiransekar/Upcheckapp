@@ -17,6 +17,7 @@ import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
 import { diseaseWarningApi, type DiseaseIndicators, type DiseaseRisk } from '../../api/diseaseWarning';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const INDICATORS: { key: keyof DiseaseIndicators; tkey: string }[] = [
   { key: 'tempDrop3in48h', tkey: 'ind_tempDrop' },
@@ -52,7 +53,10 @@ export const DiseaseRiskScreen = ({ route }: any) => {
   const toggle = (k: string) => setSelected((s) => ({ ...s, [k]: !s[k] }));
 
   // Pre-flag measurable indicators from the latest water-quality log.
-  useEffect(() => {
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen
+  // mounted once opened, so a mount-only effect never ran again: log a
+  // reading, come back, and this still advised on the older numbers.
+  useFocusEffect(useCallback(() => {
     if (!pondId) return;
     pondContextApi.get(pondId).then(({ data }) => {
       setCtx(data);
@@ -62,7 +66,7 @@ export const DiseaseRiskScreen = ({ route }: any) => {
         doBelow4: wq?.dissolvedOxygen != null ? wq.dissolvedOxygen < 4 : s.doBelow4,
       }));
     }).catch(() => {});
-  }, [pondId]);
+  }, [pondId]));
 
   const compute = useCallback(async () => {
     setLoading(true);

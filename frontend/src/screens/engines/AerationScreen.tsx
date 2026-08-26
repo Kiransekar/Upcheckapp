@@ -18,6 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { aerationApi, type AerationAdequacy } from '../../api/aeration';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
   if (v != null) setter(String(v));
@@ -39,7 +40,10 @@ export const AerationScreen = ({ route }: any) => {
   const [power, setPower] = useState<{ cost: number; costPerKg: number | null } | null>(null);
   const [ctx, setCtx] = useState<PondContext | null>(null);
 
-  useEffect(() => {
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen
+  // mounted once opened, so a mount-only effect never ran again: log a
+  // reading, come back, and this still advised on the older numbers.
+  useFocusEffect(useCallback(() => {
     if (!pondId) return;
     pondContextApi.get(pondId).then(({ data }) => {
       setCtx(data);
@@ -48,7 +52,7 @@ export const AerationScreen = ({ route }: any) => {
       fill(data.areaM2, setArea);
       fill(data.installedAeratorHp, setInstalledHp);
     }).catch(() => {});
-  }, [pondId]);
+  }, [pondId]));
 
   const compute = useCallback(async () => {
     setLoading(true);

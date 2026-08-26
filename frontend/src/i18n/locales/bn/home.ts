@@ -186,6 +186,17 @@ const home = {
   onDuty: "দায়িত্বে",
   // Artboard 1b stat band + the compact Getting Started list
   logsToday: "আজকের লগ",
+  // The hero before there is anything to raise an alert about
+  startHere: "এখান থেকে শুরু করুন",
+  stepPondsTitle: "আপনার পুকুর যোগ করুন",
+  stepPondsWhy: "আপচেক প্রতিটি পুকুরের জল, খাবার ও বৃদ্ধি আলাদা করে দেখে। এখনও দেখার কিছু নেই।",
+  stepPondsCta: "পুকুর যোগ করুন",
+  stepCycleTitle: "{{pond}} এ একটি চক্র শুরু করুন",
+  stepCycleWhy: "খালি পুকুরে বায়োমাস নেই, খাবারের পরিকল্পনা নেই, সতর্কবার্তাও নেই। চক্র তিনটিই শুরু করে।",
+  stepCycleCta: "চক্র শুরু করুন",
+  stepLogTitle: "আজকের রিডিং নথিভুক্ত করুন",
+  stepLogWhy: "আজ কিছু নথিভুক্ত হয়নি। এখানকার প্রতিটি সতর্কবার্তা অক্সিজেন ও পিএইচ থেকেই তৈরি।",
+  stepLogCta: "এখনই নথিভুক্ত করুন",
   hideChecklist: "লুকান",
   hideChecklistTitle: "সেটআপ তালিকা লুকাবেন?",
   hideChecklistBody: "এটি আর ফিরে আসবে না। পুকুর তৈরি, রিডিং নথিভুক্ত করা ও দলকে ডাকা খামার ও দল ট্যাব থেকে এখনও করা যাবে।",
