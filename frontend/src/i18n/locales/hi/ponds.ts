@@ -100,5 +100,12 @@ const ponds = {
   windowOpensIn: "{{count}} दिनों में विंडो खुलेगी",
   windowOpensIn_one: "कल विंडो खुलेगी",
   windowOpen: "विंडो खुली है",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}वाँ तालाब",
+  shapeIrregular: "अनियमित",
+  fieldSurveyedArea: "सर्वे किया क्षेत्र (m²)",
+  surveyedDifferent: "सर्वे किया क्षेत्र अलग है",
+  surveyedDifferentSub: "गणना किए क्षेत्र को बदलें",
 };
 export default ponds;

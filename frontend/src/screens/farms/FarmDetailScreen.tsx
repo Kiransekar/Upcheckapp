@@ -229,7 +229,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                         <Tile icon="currency_rupee" label={t('farms.money')} onPress={() => navigation.navigate('Transactions', { farmId, farmName })} />
                     )}
                     {perms.canCreatePond && (
-                        <Tile icon="add" label={t('farms.addPond')} onPress={() => navigation.navigate('CreatePond', { farmId })} />
+                        <Tile icon="add" label={t('farms.addPond')} onPress={() => navigation.navigate('CreatePond', { farmId, farmName, pondCount: ponds.length })} />
                     )}
                 </View>
 
@@ -268,7 +268,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                         title={t('farms.noPondsTitle')}
                         subtitle={t('farms.noPondsSubtitle')}
                         actionLabel={perms.canCreatePond ? t('farms.addPond') : undefined}
-                        onAction={perms.canCreatePond ? () => navigation.navigate('CreatePond', { farmId }) : undefined}
+                        onAction={perms.canCreatePond ? () => navigation.navigate('CreatePond', { farmId, farmName, pondCount: ponds.length }) : undefined}
                     />
                 ) : (
                     <>

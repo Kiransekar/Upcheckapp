@@ -100,5 +100,12 @@ const ponds = {
   windowOpensIn: "Window opens in {{count}} days",
   windowOpensIn_one: "Window opens tomorrow",
   windowOpen: "Window is open",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}th pond",
+  shapeIrregular: "Irregular",
+  fieldSurveyedArea: "Surveyed area (m²)",
+  surveyedDifferent: "Surveyed area is different",
+  surveyedDifferentSub: "Override the calculated area",
 };
 export default ponds;

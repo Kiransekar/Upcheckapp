@@ -80,6 +80,26 @@ const members = {
     allEmptyTitle: 'এখনও কোনো কর্মী নেই',
     allEmptySub: 'আপনার খামারে কর্মী যোগ করুন, তারা এখানে দেখাবে।',
     allFarmMemberCountLabel: 'দল: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "এটি যার কাছে আছে সে কর্মী হিসেবে যোগ দেবে",
+  shareCode: "কোড শেয়ার করুন",
+  newCode: "নতুন কোড",
+  onThisFarm: "এই খামারে",
+  tapToEdit: "যেকোনো সদস্যে ট্যাপ করে তার ভূমিকা বা পুকুর বদলান।",
+  inviteByIdentifier: "ইমেল/ইউজারনেম দিয়ে ডাকুন",
+  roleSection: "ভূমিকা",
+  roleNote: "পুরো খামারে তারা কী করতে পারে।",
+  pondsSection: "যে পুকুরে তারা লগ করতে পারে",
+  allPondsAction: "সব পুকুর",
+  scopeAllNote: "এই খামারের প্রতিটি পুকুর। সীমিত করতে কয়েকটি বাছুন।",
+  scopeSomeNote: "শুধু নিচে বাছাই করা পুকুরগুলি।",
+  noPondsToScope: "এই খামারে এখনও কোনো পুকুর নেই।",
+  scopeError: "পুকুরের অ্যাক্সেস বদলানো গেল না।",
+  financialsSection: "খরচ ও টাকা",
+  financialsToggle: "খরচ ও টাকা দেখতে পারে",
+  financialsNote: "কর্মী ও দর্শকের জন্য ডিফল্টভাবে বন্ধ।",
+  financialsError: "টাকার অ্যাক্সেস বদলানো গেল না।",
 };
 
 export default members;

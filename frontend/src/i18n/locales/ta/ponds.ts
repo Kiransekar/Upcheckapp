@@ -100,5 +100,12 @@ const ponds = {
   windowOpensIn: "{{count}} நாட்களில் திறக்கும்",
   windowOpensIn_one: "நாளை திறக்கும்",
   windowOpen: "இப்போது திறந்துள்ளது",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}வது குளம்",
+  shapeIrregular: "ஒழுங்கற்ற",
+  fieldSurveyedArea: "அளந்த பரப்பு (m²)",
+  surveyedDifferent: "அளந்த பரப்பு வேறாக உள்ளது",
+  surveyedDifferentSub: "கணக்கிட்ட பரப்பை மாற்று",
 };
 export default ponds;

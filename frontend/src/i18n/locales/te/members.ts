@@ -80,6 +80,26 @@ const members = {
     allEmptyTitle: 'ఇంకా వర్కర్లు లేరు',
     allEmptySub: 'మీ ఫారాలలో వర్కర్లను చేర్చండి, వారు ఇక్కడ కనిపిస్తారు.',
     allFarmMemberCountLabel: 'టీం: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "ఇది ఉన్నవారు వర్కర్‌గా చేరతారు",
+  shareCode: "కోడ్ షేర్ చేయి",
+  newCode: "కొత్త కోడ్",
+  onThisFarm: "ఈ ఫారంలో",
+  tapToEdit: "ఏ సభ్యుడినైనా తాకి వారి పాత్ర లేదా చెరువులు మార్చండి.",
+  inviteByIdentifier: "ఇమెయిల్/యూజర్‌నేమ్‌తో ఆహ్వానించు",
+  roleSection: "పాత్ర",
+  roleNote: "ఫారం మొత్తం మీద వారు ఏమి చేయగలరు.",
+  pondsSection: "వారు నమోదు చేయగల చెరువులు",
+  allPondsAction: "అన్ని చెరువులు",
+  scopeAllNote: "ఈ ఫారంలోని ప్రతి చెరువు. తగ్గించడానికి కొన్ని ఎంచుకోండి.",
+  scopeSomeNote: "కింద ఎంచుకున్న చెరువులు మాత్రమే.",
+  noPondsToScope: "ఈ ఫారంలో ఇంకా చెరువులు లేవు.",
+  scopeError: "చెరువు యాక్సెస్ మార్చలేకపోయాము.",
+  financialsSection: "ఖర్చు మరియు డబ్బు",
+  financialsToggle: "ఖర్చు మరియు డబ్బు చూడగలరు",
+  financialsNote: "వర్కర్లు మరియు వ్యూయర్లకు డిఫాల్ట్‌గా ఆఫ్.",
+  financialsError: "డబ్బు యాక్సెస్ మార్చలేకపోయాము.",
 };
 
 export default members;

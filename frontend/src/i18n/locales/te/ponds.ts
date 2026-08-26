@@ -100,5 +100,12 @@ const ponds = {
   windowOpensIn: "{{count}} రోజుల్లో విండో తెరుచుకుంటుంది",
   windowOpensIn_one: "రేపు విండో తెరుచుకుంటుంది",
   windowOpen: "విండో తెరిచి ఉంది",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}వ చెరువు",
+  shapeIrregular: "క్రమరహిత",
+  fieldSurveyedArea: "సర్వే చేసిన విస్తీర్ణం (m²)",
+  surveyedDifferent: "సర్వే విస్తీర్ణం వేరుగా ఉంది",
+  surveyedDifferentSub: "లెక్కించిన విస్తీర్ణాన్ని మార్చండి",
 };
 export default ponds;

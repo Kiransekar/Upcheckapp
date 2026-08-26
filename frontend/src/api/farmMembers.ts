@@ -37,6 +37,13 @@ export interface FarmMember {
      * the backend farm_member_ponds semantics.
      */
     pondIds: string[];
+    /**
+     * Per-farm override for cost visibility (W6). `null` means "whatever the
+     * role implies" — owner and manager see financials, worker and viewer do
+     * not. `true` grants it to someone whose role would not, `false` takes it
+     * from a manager. Owner-only to set.
+     */
+    canViewFinancials: boolean | null;
     createdAt: string;
     user: PublicUser | null;
 }

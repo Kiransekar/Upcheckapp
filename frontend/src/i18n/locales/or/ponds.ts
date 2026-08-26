@@ -100,5 +100,12 @@ const ponds = {
   windowOpensIn: "{{count}} ଦିନରେ ୱିଣ୍ଡୋ ଖୋଲିବ",
   windowOpensIn_one: "ଆସନ୍ତାକାଲି ୱିଣ୍ଡୋ ଖୋଲିବ",
   windowOpen: "ୱିଣ୍ଡୋ ଖୋଲା ଅଛି",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}ତମ ପୋଖରୀ",
+  shapeIrregular: "ଅନିୟମିତ",
+  fieldSurveyedArea: "ସର୍ଭେ କରାଯାଇଥିବା କ୍ଷେତ୍ର (m²)",
+  surveyedDifferent: "ସର୍ଭେ କ୍ଷେତ୍ର ଅଲଗା",
+  surveyedDifferentSub: "ଗଣନା କରାଯାଇଥିବା କ୍ଷେତ୍ର ବଦଳାନ୍ତୁ",
 };
 export default ponds;
