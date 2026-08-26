@@ -57,6 +57,13 @@ export const Input: React.FC<InputProps> = ({
                 )}
 
                 <TextInput
+                    // The visible label is a sibling <Text>, which React Native
+                    // does not associate with the field — so every Input in the
+                    // app announced itself to a screen reader as an unnamed edit
+                    // box. Default it here rather than at ~20 call sites; an
+                    // explicit accessibilityLabel in props still wins, because
+                    // the spread below comes after.
+                    accessibilityLabel={label}
                     style={[
                         styles.input,
                         leftIcon && styles.inputWithLeftIcon,
