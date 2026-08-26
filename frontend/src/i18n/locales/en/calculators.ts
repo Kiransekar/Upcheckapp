@@ -23,6 +23,10 @@ const calculators = {
       title: 'Growth & Harvest',
       description: 'Expected harvest, growth projection, biomass & feeding rate',
     },
+  
+    // artboard p2
+    eyebrow: "Tools",
+    prefillNote: "Every calculator can pull its numbers from a pond, so you only type what you are testing.",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'Computed biomass is zero or negative. Check inputs.',
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
+  
+    // artboard p3
+    shortTitle: "Daily feed",
+    eyebrow: "Calculator",
+    fromThePond: "From the pond",
+    whatYouAreTesting: "What you are testing",
+    filledFromPond: "Filled from the pond you picked",
+    filledFromPondDay: "Filled from the pond you picked · day {{day}}",
+    typedByYou: "Typed by you",
+    labelCountShort: "Count",
+    labelFeedingRateShort: "Feeding rate (% BW)",
+    biomassKg: "Biomass kg",
+    perMealKg: "Per meal kg",
+    meals: "Meals",
+    logThisAmount: "Log {{kg}} kg",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "Pick a pond first",
+  changePond: "Change",
+  pondDay: "Day {{day}}",
+  pondMbw: "MBW {{mbw}} g",
+  pondBiomass: "{{kg}} kg",
+  pondNoData: "Nothing logged for this pond yet",
+  noPonds: "No stocked ponds to pull numbers from.",
 };
 export default calculators;

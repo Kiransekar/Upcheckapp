@@ -23,6 +23,10 @@ const calculators = {
       title: 'వృద్ధి & పంట',
       description: 'అంచనా పంట, వృద్ధి అంచనా, బయోమాస్ & దాణా రేటు',
     },
+  
+    // artboard p2
+    eyebrow: "సాధనాలు",
+    prefillNote: "ప్రతి కాలిక్యులేటర్ చెరువు నుండి సంఖ్యలు తీసుకోగలదు, మీరు పరీక్షిస్తున్నది మాత్రమే టైప్ చేయండి.",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'లెక్కించిన బయోమాస్ సున్నా లేదా ప్రతికూలంగా ఉంది. ఇన్‌పుట్‌లు తనిఖీ చేయండి.',
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
+  
+    // artboard p3
+    shortTitle: "రోజువారీ మేత",
+    eyebrow: "కాలిక్యులేటర్",
+    fromThePond: "చెరువు నుండి",
+    whatYouAreTesting: "మీరు పరీక్షిస్తున్నది",
+    filledFromPond: "ఎంచుకున్న చెరువు నుండి నింపబడింది",
+    filledFromPondDay: "ఎంచుకున్న చెరువు నుండి · రోజు {{day}}",
+    typedByYou: "మీరు టైప్ చేసినది",
+    labelCountShort: "సంఖ్య",
+    labelFeedingRateShort: "మేత రేటు (% BW)",
+    biomassKg: "బయోమాస్ కిగ్రా",
+    perMealKg: "ఒక్కో మేతకు కిగ్రా",
+    meals: "మేతలు",
+    logThisAmount: "{{kg}} కిగ్రా నమోదు చేయి",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "ముందుగా ఒక చెరువు ఎంచుకోండి",
+  changePond: "మార్చు",
+  pondDay: "రోజు {{day}}",
+  pondMbw: "MBW {{mbw}} గ్రా",
+  pondBiomass: "{{kg}} కిగ్రా",
+  pondNoData: "ఈ చెరువుకు ఇంకా ఏమీ నమోదు కాలేదు",
+  noPonds: "సంఖ్యలు తీసుకోవడానికి నిల్వ ఉన్న చెరువు లేదు.",
 };
 export default calculators;

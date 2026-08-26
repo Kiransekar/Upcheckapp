@@ -1,51 +1,91 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+/**
+ * Simulations — artboard p4.
+ *
+ * The old screen was a list of saved runs plus a "+" that opened a form asking
+ * for a scenario enum and a pond UUID. The design's argument is that a farmer
+ * does not arrive thinking "feed_change"; they arrive thinking "is cheaper feed
+ * worth it?". So the questions come first, grouped by whether the cycle is
+ * running, and the pond is chosen once at the top.
+ *
+ * DISCREPANCY, deliberate: the artboard lists seven questions. The simulation
+ * engine supports three scenario types (feed_change, price_change,
+ * stocking_density). The other four — harvest now vs wait, feed more vs less,
+ * survival shock, power costs — have no engine behind them, so they are not
+ * here. The design's shape is kept; the questions are worded to match what the
+ * engine actually computes rather than promising four runs that cannot happen.
+ */
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Card } from '../../components/ui/Card';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { PondPicker } from '../../components/ui/PondPicker';
+import { Icon } from '../../components/ui/Icon';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { FAB } from '../../components/ui/FAB';
 import { theme } from '../../theme';
-import { simulationsApi, SavedSimulation } from '../../api/simulations';
+import { simulationsApi, type SavedSimulation, type SimulationScenarioType } from '../../api/simulations';
 
-export const SimulationListScreen = ({ navigation }: any) => {
+const c = theme.roles.light;
+
+interface Question {
+    scenario: SimulationScenarioType;
+    /** Colour of the leading bar — matches the design's grouping. */
+    accent: string;
+    /** Before stocking, or during the cycle. */
+    group: 'running' | 'planning';
+}
+
+const QUESTIONS: Question[] = [
+    { scenario: 'feed_change', accent: c.primaryHover, group: 'running' },
+    { scenario: 'price_change', accent: c.primaryHover, group: 'running' },
+    { scenario: 'stocking_density', accent: c.successBorder, group: 'planning' },
+];
+
+const inr = (n: number): string => {
+    const a = Math.abs(n);
+    const sign = n < 0 ? '−' : '+';
+    if (a >= 1e5) return `${sign}₹${(a / 1e5).toFixed(2)}L`;
+    if (a >= 1e3) return `${sign}₹${Math.round(a).toLocaleString('en-IN')}`;
+    return `${sign}₹${Math.round(a)}`;
+};
+
+export const SimulationListScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-
+    const [pondId, setPondId] = useState<string | null>(route?.params?.pondId ?? null);
     const [simulations, setSimulations] = useState<SavedSimulation[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    // A load failure must render an error+retry block, not the "create your first
-    // simulation" empty state — the two are indistinguishable to the farmer otherwise.
+    const [refreshing, setRefreshing] = useState(false);
+    // A load failure must render error+retry, not the "create your first
+    // simulation" empty state — the two are indistinguishable to the farmer.
     const [error, setError] = useState<any>(null);
 
-    const fetchSimulations = useCallback(async () => {
+    const load = useCallback(async () => {
         setError(null);
         try {
             const { data } = await simulationsApi.getAll();
             setSimulations(data);
         } catch (err) {
-            console.log('Failed to fetch simulations', err);
             setError(err);
         } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+            setRefreshing(false);
         }
     }, []);
 
-    const onRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchSimulations();
-    }, [fetchSimulations]);
+    useFocusEffect(useCallback(() => { load(); }, [load]));
 
-    useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            fetchSimulations();
-        });
-        return unsubscribe;
-    }, [navigation]);
+    const handlePond = useCallback((id: string) => setPondId(id), []);
 
-    const handleDelete = (item: SavedSimulation) => {
+    const ask = (question: Question) => {
+        if (!pondId) {
+            Alert.alert(t('simulations.list.pickPondTitle'), t('simulations.list.pickPondBody'));
+            return;
+        }
+        navigation.navigate('SimulationCreate', { pondId, scenarioType: question.scenario });
+    };
+
+    const remove = (item: SavedSimulation) => {
         Alert.alert(t('simulations.list.deleteTitle'), t('simulations.list.deleteMessage'), [
             { text: t('common.cancel'), style: 'cancel' },
             {
@@ -55,7 +95,7 @@ export const SimulationListScreen = ({ navigation }: any) => {
                     try {
                         await simulationsApi.delete(item.id);
                         setSimulations((prev) => prev.filter((s) => s.id !== item.id));
-                    } catch (error) {
+                    } catch {
                         Alert.alert(t('common.error'), t('simulations.list.errorDelete'));
                     }
                 },
@@ -63,144 +103,158 @@ export const SimulationListScreen = ({ navigation }: any) => {
         ]);
     };
 
-    const renderItem = ({ item }: { item: SavedSimulation }) => (
-        <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate('SimulationResults', { resultData: item })}
-            onLongPress={() => handleDelete(item)}
-        >
-            <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{item.scenarioType.replace(/_/g, ' ')} — {new Date(item.createdAt).toLocaleDateString()}</Text>
-                <MaterialCommunityIcons name="chevron-right" size={24} color={theme.roles.light.textDisabled} />
-            </View>
-            <View style={styles.statsRow}>
-                <View style={styles.stat}>
-                    <MaterialCommunityIcons name="target" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>{item.resultProjectedBiomass !== null && item.resultProjectedBiomass !== undefined ? t('simulations.list.statBiomass', { value: item.resultProjectedBiomass.toFixed(1) }) : t('simulations.list.statNa')}</Text>
+    const questionRows = (group: Question['group']) =>
+        QUESTIONS.filter((q) => q.group === group).map((q) => (
+            <TouchableOpacity
+                key={q.scenario}
+                style={styles.question}
+                onPress={() => ask(q)}
+                accessibilityRole="button"
+            >
+                <View style={[styles.accent, { backgroundColor: q.accent }]} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.questionTitle}>{t(`simulations.q.${q.scenario}.title`)}</Text>
+                    <Text style={styles.questionDesc}>{t(`simulations.q.${q.scenario}.desc`)}</Text>
                 </View>
-                <View style={styles.stat}>
-                    <MaterialCommunityIcons name="cash" size={16} color={theme.roles.light.textSecondary} />
-                    <Text style={styles.statText}>{t('simulations.list.statProfit', { value: item.resultNetProfit !== null && item.resultNetProfit !== undefined ? item.resultNetProfit.toFixed(0) : t('simulations.list.statNa') })}</Text>
-                </View>
-            </View>
-        </TouchableOpacity>
+                <Icon name="chevron_right" size={22} color={c.textDisabled} />
+            </TouchableOpacity>
+        ));
+
+    const header = (
+        <ScreenHeader
+            eyebrow={t('simulations.list.eyebrow')}
+            title={t('simulations.list.title')}
+            onBack={() => navigation.goBack()}
+            accessibilityBackLabel={t('common.back')}
+        />
     );
+
+    if (error && simulations.length === 0) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <ErrorState title={t('simulations.list.title')} error={error} onRetry={load} />
+            </ScreenWrapper>
+        );
+    }
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel={t('common.back', 'Back')}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('simulations.list.title')}</Text>
-                <View style={{ width: 40 }} />
-            </View>
+            {header}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
+                }
+            >
+                <Text style={styles.intro}>{t('simulations.list.intro')}</Text>
 
-            {isLoading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={theme.roles.light.primary} />
-                </View>
-            ) : error && simulations.length === 0 ? (
-                <ErrorState error={error} onRetry={fetchSimulations} />
-            ) : (
-                <FlatList
-                    data={simulations}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={
-                        <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />
-                    }
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="chart-timeline-variant-shimmer" size={64} color={theme.roles.light.borderDefault} />
-                            <Text style={styles.emptyTitle}>{t('simulations.list.emptyTitle')}</Text>
-                            <Text style={styles.emptyDesc}>{t('simulations.list.emptyDesc')}</Text>
-                        </View>
-                    }
-                />
-            )}
+                <PondPicker pondId={pondId} onChange={handlePond} stockedOnly />
 
-            <FAB
-                icon="plus"
-                onPress={() => navigation.navigate('SimulationCreate')}
-            />
+                <SectionHeader label={t('simulations.list.whileRunning')} />
+                {questionRows('running')}
+
+                <SectionHeader label={t('simulations.list.beforeStocking')} />
+                {questionRows('planning')}
+
+                <SectionHeader label={t('simulations.list.saved')} />
+                {simulations.length === 0 ? (
+                    <Text style={styles.empty}>{t('simulations.list.emptyDesc')}</Text>
+                ) : (
+                    simulations.map((sim) => {
+                        const diff = sim.resultProfitDiff ?? 0;
+                        return (
+                            <TouchableOpacity
+                                key={sim.id}
+                                style={styles.saved}
+                                onPress={() => navigation.navigate('SimulationResults', { resultData: sim })}
+                                onLongPress={() => remove(sim)}
+                                accessibilityRole="button"
+                            >
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={styles.savedTitle} numberOfLines={1}>
+                                        {t(`simulations.q.${sim.scenarioType}.title`, {
+                                            defaultValue: sim.scenarioType.replace(/_/g, ' '),
+                                        })}
+                                    </Text>
+                                    <Text style={styles.savedMeta} numberOfLines={1}>
+                                        {new Date(sim.createdAt).toLocaleDateString(undefined, {
+                                            day: 'numeric',
+                                            month: 'short',
+                                        })}
+                                        {sim.resultProjectedBiomass != null
+                                            ? ` · ${t('simulations.list.statBiomass', {
+                                                  value: sim.resultProjectedBiomass.toFixed(0),
+                                              })}`
+                                            : ''}
+                                    </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text
+                                        style={[
+                                            styles.savedDiff,
+                                            { color: diff >= 0 ? c.successText : c.dangerText },
+                                        ]}
+                                    >
+                                        {inr(diff)}
+                                    </Text>
+                                    <Text style={styles.savedVs}>{t('simulations.results.vsBaseline')}</Text>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    })
+                )}
+            </ScrollView>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: theme.spacing[4],
+    content: { paddingBottom: theme.spacing[16], backgroundColor: c.surface },
+    intro: {
+        ...theme.typeScale.bodyMedium,
+        color: c.textSecondary,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
+        borderBottomColor: c.borderDefault,
     },
-    backBtn: {
-        padding: theme.spacing[4],
-    },
-    title: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    listContent: {
-        padding: theme.spacing[4],
-        paddingBottom: 100,
-    },
-    card: {
-        backgroundColor: theme.roles.light.surface,
-        padding: theme.spacing[4],
-        borderRadius: theme.radius.md,
-        marginBottom: theme.spacing[4],
-        borderWidth: 1,
-        borderColor: theme.roles.light.borderDefault,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: theme.spacing[3],
-    },
-    cardTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-    },
-    statsRow: {
-        flexDirection: 'row',
-        gap: theme.spacing[6],
-    },
-    stat: {
+    question: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: theme.spacing[3],
+        paddingRight: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 56,
     },
-    statText: {
+    accent: { width: 4, alignSelf: 'stretch' },
+    questionTitle: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textPrimary },
+    questionDesc: { ...theme.typeScale.bodySmall, color: c.textTertiary },
+
+    saved: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2.5],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 48,
+    },
+    savedTitle: { ...theme.typeScale.labelLarge, color: c.textPrimary },
+    savedMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary },
+    savedDiff: { fontFamily: 'DMMono-Medium', fontSize: 15 },
+    savedVs: { ...theme.typeScale.bodySmall, fontSize: 10, color: c.textDisabled },
+
+    empty: {
         ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-    },
-    emptyState: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: 80,
-    },
-    emptyTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginTop: theme.spacing[4],
-        marginBottom: theme.spacing[2],
-    },
-    emptyDesc: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-        textAlign: 'center',
-        paddingHorizontal: theme.spacing[8],
+        color: c.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
     },
 });
+
+export default SimulationListScreen;

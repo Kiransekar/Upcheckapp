@@ -1,53 +1,95 @@
-import React, { useState } from 'react';
+/**
+ * Run a simulation — the form behind one question on p4.
+ *
+ * Two things the old screen did that the design specifically argues against:
+ *
+ *  - it asked the farmer to type a pond UUID. Nobody knows their pond's UUID.
+ *    The pond now arrives from the question they tapped, and the picker is
+ *    there to change it.
+ *  - it showed all four variables for every scenario, so three of them were
+ *    always irrelevant. Each question now shows only the number it is about,
+ *    with the pond's current value as the starting point.
+ */
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Card } from '../../components/ui/Card';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { PondPicker } from '../../components/ui/PondPicker';
 import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
-import { simulationsApi, SimulationScenarioType } from '../../api/simulations';
+import { simulationsApi, type SimulationScenarioType } from '../../api/simulations';
+import type { PondContext } from '../../api/pondContext';
 
-export const SimulationCreateScreen = ({ navigation }: any) => {
+const c = theme.roles.light;
+
+/** Which variable each question is actually about. */
+const SCENARIO_FIELD: Record<SimulationScenarioType, 'feedPrice' | 'sellingPrice' | 'stockingDensity'> = {
+    feed_change: 'feedPrice',
+    price_change: 'sellingPrice',
+    stocking_density: 'stockingDensity',
+};
+
+export const SimulationCreateScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+    const scenarioType: SimulationScenarioType = route?.params?.scenarioType ?? 'feed_change';
+    const field = SCENARIO_FIELD[scenarioType];
 
-    const [pondId, setPondId] = useState('');
-    const [scenarioType, setScenarioType] = useState<SimulationScenarioType>('feed_change');
-    const [feedPrice, setFeedPrice] = useState('');
+    const [pondId, setPondId] = useState<string | null>(route?.params?.pondId ?? null);
+    const [context, setContext] = useState<PondContext | null>(null);
+    const [value, setValue] = useState('');
     const [growthImprovement, setGrowthImprovement] = useState('');
-    const [sellingPrice, setSellingPrice] = useState('');
-    const [stockingDensity, setStockingDensity] = useState('');
-
     const [isLoading, setIsLoading] = useState(false);
 
-    const scenarioOptions: { label: string; value: SimulationScenarioType }[] = [
-        { label: t('simulations.create.scenarioFeedChange'), value: 'feed_change' },
-        { label: t('simulations.create.scenarioPriceChange'), value: 'price_change' },
-        { label: t('simulations.create.scenarioStockingDensity'), value: 'stocking_density' },
-    ];
+    const handlePond = useCallback(
+        (id: string, ctx: PondContext | null) => {
+            setPondId(id);
+            if (!ctx) return;
+            setContext(ctx);
+            // Start from what the pond is doing today, so the farmer edits a
+            // real number rather than inventing one.
+            if (field === 'feedPrice' && ctx.crop?.feedPriceRpPerKg != null) {
+                setValue((v) => v || String(ctx.crop!.feedPriceRpPerKg));
+            }
+        },
+        [field],
+    );
 
-    const handleRunSimulation = async () => {
-        if (!pondId.trim()) {
+    /** Today's value for the variable under test, for the "currently" line. */
+    const currentValue =
+        field === 'feedPrice' && context?.crop?.feedPriceRpPerKg != null
+            ? `₹${context.crop.feedPriceRpPerKg}`
+            : null;
+
+    const run = async () => {
+        if (!pondId) {
             Alert.alert(t('simulations.create.validationTitle'), t('simulations.create.errorPondId'));
+            return;
+        }
+        const parsed = parseFloat(value);
+        if (!parsed || parsed <= 0) {
+            Alert.alert(t('simulations.create.validationTitle'), t(`simulations.q.${scenarioType}.errorValue`));
             return;
         }
 
         setIsLoading(true);
         try {
             const { data } = await simulationsApi.run({
-                pondId: pondId.trim(),
+                pondId,
                 scenarioType,
                 variables: {
-                    feedPrice: feedPrice ? parseFloat(feedPrice) : undefined,
-                    growthImprovement: growthImprovement ? parseFloat(growthImprovement) : undefined,
-                    sellingPrice: sellingPrice ? parseFloat(sellingPrice) : undefined,
-                    stockingDensity: stockingDensity ? parseFloat(stockingDensity) : undefined,
+                    [field]: parsed,
+                    ...(growthImprovement ? { growthImprovement: parseFloat(growthImprovement) } : {}),
                 },
             });
-            navigation.navigate('SimulationResults', { resultData: data });
+            navigation.replace('SimulationResults', { resultData: data, scenarioType, pondId });
         } catch (error: any) {
-            Alert.alert(t('simulations.create.simFailedTitle'), error.response?.data?.message || t('simulations.create.errorSimFailed'));
+            Alert.alert(
+                t('simulations.create.simFailedTitle'),
+                error.response?.data?.message || t('simulations.create.errorSimFailed'),
+            );
         } finally {
             setIsLoading(false);
         }
@@ -55,130 +97,90 @@ export const SimulationCreateScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('simulations.create.title')}</Text>
-                <View style={{ width: 40 }} />
-            </View>
+            <ScreenHeader
+                eyebrow={t('simulations.create.eyebrow')}
+                title={t(`simulations.q.${scenarioType}.title`)}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
-            <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.subtitle}>{t('simulations.create.subtitle')}</Text>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+            >
+                <Text style={styles.intro}>{t(`simulations.q.${scenarioType}.desc`)}</Text>
 
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionPond')}</Text>
+                <PondPicker pondId={pondId} onChange={handlePond} stockedOnly />
+
+                <SectionHeader label={t('simulations.create.whatYouAreChanging')} />
+                <View style={styles.form}>
                     <Input
-                        label={t('simulations.create.labelPondId')}
-                        value={pondId}
-                        onChangeText={setPondId}
-                        placeholder={t('simulations.create.placeholderPondId')}
+                        label={t(`simulations.q.${scenarioType}.label`)}
+                        value={value}
+                        onChangeText={setValue}
+                        keyboardType="decimal-pad"
+                        required
                     />
-                </Card>
-
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionScenario')}</Text>
-                    <View style={styles.row}>
-                        {scenarioOptions.map(opt => (
-                            <TouchableOpacity
-                                key={opt.value}
-                                style={[styles.scenarioPill, scenarioType === opt.value && styles.scenarioPillActive]}
-                                onPress={() => setScenarioType(opt.value)}
-                            >
-                                <Text style={[styles.scenarioPillText, scenarioType === opt.value && styles.scenarioPillTextActive]}>{opt.label}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-                </Card>
-
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('simulations.create.sectionVariables')}</Text>
-                    {(scenarioType === 'feed_change') && (
-                        <>
-                            <Input label={t('simulations.create.labelFeedPrice')} value={feedPrice} onChangeText={setFeedPrice} keyboardType="decimal-pad" placeholder="e.g. 15000" />
-                            <Input label={t('simulations.create.labelGrowthImprovement')} value={growthImprovement} onChangeText={setGrowthImprovement} keyboardType="decimal-pad" placeholder="e.g. 10" />
-                        </>
+                    {!!currentValue && (
+                        <Text style={styles.current}>
+                            {t('simulations.create.currently', { value: currentValue })}
+                        </Text>
                     )}
-                    {(scenarioType === 'price_change') && (
-                        <Input label={t('simulations.create.labelSellingPrice')} value={sellingPrice} onChangeText={setSellingPrice} keyboardType="decimal-pad" placeholder="e.g. 80000" />
-                    )}
-                    {(scenarioType === 'stocking_density') && (
-                        <Input label={t('simulations.create.labelStockingDensity')} value={stockingDensity} onChangeText={setStockingDensity} keyboardType="number-pad" placeholder="e.g. 120" />
-                    )}
-                </Card>
 
-                <Button
-                    title={t('simulations.create.runSimulation')}
-                    onPress={handleRunSimulation}
-                    loading={isLoading}
-                    style={styles.runBtn}
-                    icon="chart-timeline-variant"
-                />
+                    {/* Growth only moves in the feed scenarios; asking about it
+                        on a stocking-density run would be noise. */}
+                    {scenarioType === 'feed_change' && (
+                        <Input
+                            label={t('simulations.create.labelGrowthImprovement')}
+                            value={growthImprovement}
+                            onChangeText={setGrowthImprovement}
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                        />
+                    )}
+
+                    <TouchableOpacity
+                        style={[styles.runBtn, isLoading && styles.runBusy]}
+                        onPress={run}
+                        disabled={isLoading}
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.runLabel}>{t('simulations.create.runSimulation')}</Text>
+                    </TouchableOpacity>
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: theme.spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
-    },
-    backBtn: {
-        padding: theme.spacing[4],
-    },
-    title: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-    },
-    content: {
-        padding: theme.spacing[4],
-        paddingBottom: theme.spacing[12],
-    },
-    subtitle: {
+    content: { paddingBottom: theme.spacing[16], backgroundColor: c.surface },
+    intro: {
         ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-        marginBottom: theme.spacing[6],
-    },
-    card: {
-        marginBottom: theme.spacing[6],
-    },
-    sectionTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[4],
-    },
-    row: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: theme.spacing[3],
-    },
-    halfCol: {
-        flex: 1,
-    },
-    scenarioPill: {
-        paddingHorizontal: theme.spacing[4],
+        color: c.textSecondary,
+        paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[3],
-        borderRadius: theme.radius.full,
-        backgroundColor: theme.roles.light.borderDefault,
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
     },
-    scenarioPillActive: {
-        backgroundColor: theme.roles.light.primary,
-    },
-    scenarioPillText: {
-        ...theme.typeScale.labelMedium,
-        color: theme.roles.light.textSecondary,
-    },
-    scenarioPillTextActive: {
-        color: theme.roles.light.surface,
+    form: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[1] },
+    current: {
+        ...theme.typeScale.bodySmall,
+        color: c.textTertiary,
+        marginTop: -theme.spacing[2],
+        marginBottom: theme.spacing[3],
     },
     runBtn: {
-        marginTop: theme.spacing[4],
-        marginBottom: theme.spacing[8],
+        marginTop: theme.spacing[2],
+        backgroundColor: c.primaryHover,
+        borderRadius: theme.radius.xs,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 48,
     },
+    runBusy: { opacity: 0.6 },
+    runLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textInverse },
 });
+
+export default SimulationCreateScreen;
