@@ -53,5 +53,8 @@ const common = {
   syncFailedBody: '{{count}} record(s) could not be synced. Retry now?',
   syncFailedBanner: 'Records need attention',
   syncFailedA11y: '{{count}} records failed to sync, tap to retry',
+
+  // Shared onboarding action (artboards 01, 03, 05)
+  continue: "Continue",
 };
 export default common;

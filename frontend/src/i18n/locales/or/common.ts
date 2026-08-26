@@ -53,5 +53,8 @@ const common = {
   syncFailedBody: '{{count}} ରେକର୍ଡ ସିଙ୍କ ହୋଇପାରିଲା ନାହିଁ। ବର୍ତ୍ତମାନ ପୁଣି ଚେଷ୍ଟା କରିବେ?',
   syncFailedBanner: 'ରେକର୍ଡ ଉପରେ ଧ୍ୟାନ ଦିଅନ୍ତୁ',
   syncFailedA11y: '{{count}} ରେକର୍ଡ ସିଙ୍କ ହେଲା ନାହିଁ, ପୁଣି ଚେଷ୍ଟା କରିବାକୁ ଟାପ୍ କରନ୍ତୁ',
+
+  // Shared onboarding action (artboards 01, 03, 05)
+  continue: "ଜାରି ରଖନ୍ତୁ",
 };
 export default common;

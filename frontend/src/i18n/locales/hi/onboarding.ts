@@ -9,6 +9,30 @@ const onboarding = {
   joinFarmSuccessTitle: 'आप फार्म से जुड़ गए',
   joinFarmSuccessSub: 'अब आप {{name}} पर वर्कर हैं।',
   joinFarmError: 'इस कोड से नहीं जुड़ सके। कोड जांचें और फिर से प्रयास करें।',
+
+  // First-run onboarding flow (docs/design/onboarding/*)
+  languageTitle: "अपनी भाषा चुनें",
+  welcomeTitle: "अपचेक में आपका स्वागत है",
+  welcomeSubtitle: "आपके झींगा फ़ार्म का रोज़ का सहायक",
+  welcomeProp1: "पानी, फ़ीड और बढ़त कुछ ही सेकंड में दर्ज करें",
+  welcomeProp2: "जीवित दर और मुनाफ़ा बढ़ाने के लिए स्मार्ट सलाह",
+  welcomeProp3: "रोज़ का काम बाँटने के लिए मज़दूर जोड़ें",
+  welcomeCta: "शुरू करें",
+  welcomeSkip: "अभी छोड़ें",
+  intentTitle: "आप अपचेक पर किसलिए आए हैं?",
+  intentOwnTitle: "मैं अपना खुद का फ़ार्म चलाता हूँ",
+  intentOwnSub: "अपना फ़ार्म और तालाब सेट करें",
+  intentWorkTitle: "मैं किसी और के फ़ार्म पर काम करता हूँ",
+  intentWorkSub: "कोड से किसी फ़ार्म में शामिल हों",
+  intentFootnote: "आप बाद में दोनों कर सकते हैं — इससे सिर्फ़ यह तय होता है कि हम कहाँ से शुरू करें।",
+  joinFarmCodeHint: "8 अक्षर, अक्षर और अंक।",
+  joinFarmScanQr: "इसके बजाय QR कोड स्कैन करें",
+  joinFarmScanClose: "स्कैनर बंद करें",
+  joinFarmCameraDenied: "कोड स्कैन करने के लिए कैमरा अनुमति चाहिए।",
+  joinedBody: "आप इस फ़ार्म पर पानी, फ़ीड और बढ़त दर्ज कर सकते हैं।",
+  joinedCta: "डैशबोर्ड पर जाएँ",
+  joinedPendingTitle: "आपका अनुरोध भेज दिया गया",
+  joinedPendingBody: "इस फ़ार्म पर कुछ भी दर्ज करने से पहले मालिक को आपको मंज़ूरी देनी होगी।",
 };
 
 export default onboarding;

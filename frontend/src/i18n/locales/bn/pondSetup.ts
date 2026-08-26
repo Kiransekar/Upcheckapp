@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'একটি সঠিক সংখ্যা লিখুন',
   errHp: 'প্রতি অ্যারেটর HP লিখুন',
   errSave: 'এই পুকুরটি সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।',
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "আপনার পুকুর",
+  namePattern: "নামের ধরন",
+  prefixPlaceholder: "উপসর্গ",
+  namesLabel: "নামসমূহ",
+  pondsToCreate: "যেসব পুকুর তৈরি হবে",
+  areaPlaceholder: "আয়তন m²",
+  areaOptionalNote: "আয়তন এখন বাধ্যতামূলক নয়। পুকুরে পোনা ছাড়ার সময় যোগ করতে পারবেন।",
+  createFarmCta: "খামার তৈরি করুন",
+  errPrefix: "১–৪টি অক্ষর বা সংখ্যা ব্যবহার করুন",
+  errPondsPartial: "খামার তৈরি হয়েছে, তবে {{count}}টি পুকুর যোগ করা যায়নি। খামারের স্ক্রিন থেকে যোগ করুন।",
 };
 export default pondSetup;

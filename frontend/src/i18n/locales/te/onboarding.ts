@@ -9,6 +9,30 @@ const onboarding = {
   joinFarmSuccessTitle: 'మీరు ఫామ్‌లో చేరారు',
   joinFarmSuccessSub: 'మీరు ఇప్పుడు {{name}} లో వర్కర్.',
   joinFarmError: 'ఆ కోడ్‌తో చేరలేకపోయాము. తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+
+  // First-run onboarding flow (docs/design/onboarding/*)
+  languageTitle: "మీ భాషను ఎంచుకోండి",
+  welcomeTitle: "అప్‌చెక్‌కు స్వాగతం",
+  welcomeSubtitle: "మీ రొయ్యల ఫారమ్‌కు రోజువారీ సహాయకుడు",
+  welcomeProp1: "నీరు, మేత, పెరుగుదలను సెకన్లలో నమోదు చేయండి",
+  welcomeProp2: "మనుగడ, లాభం పెంచడానికి తెలివైన సలహా",
+  welcomeProp3: "రోజువారీ పనిని పంచుకోవడానికి పనివారిని చేర్చండి",
+  welcomeCta: "ప్రారంభించండి",
+  welcomeSkip: "ప్రస్తుతానికి వదిలేయండి",
+  intentTitle: "మీరు ఉప్‌చెక్‌కి ఎందుకు వచ్చారు?",
+  intentOwnTitle: "నేను నా సొంత ఫారమ్ నడుపుతున్నాను",
+  intentOwnSub: "మీ ఫారమ్ మరియు చెరువులను సెటప్ చేయండి",
+  intentWorkTitle: "నేను వేరొకరి ఫారమ్‌లో పని చేస్తాను",
+  intentWorkSub: "కోడ్‌తో ఒక ఫారమ్‌లో చేరండి",
+  intentFootnote: "తర్వాత రెండూ చేయవచ్చు — ఇది మనం ఎక్కడ మొదలుపెట్టాలో మాత్రమే నిర్ణయిస్తుంది.",
+  joinFarmCodeHint: "8 అక్షరాలు, అక్షరాలు మరియు అంకెలు.",
+  joinFarmScanQr: "బదులుగా QR కోడ్‌ను స్కాన్ చేయండి",
+  joinFarmScanClose: "స్కానర్‌ను మూసివేయండి",
+  joinFarmCameraDenied: "కోడ్‌ను స్కాన్ చేయడానికి కెమెరా అనుమతి అవసరం.",
+  joinedBody: "ఈ ఫారమ్‌లో మీరు నీరు, మేత, పెరుగుదలను నమోదు చేయవచ్చు.",
+  joinedCta: "డాష్‌బోర్డ్‌కు వెళ్లండి",
+  joinedPendingTitle: "మీ అభ్యర్థన పంపబడింది",
+  joinedPendingBody: "ఈ ఫారమ్‌లో ఏదైనా నమోదు చేయడానికి ముందు యజమాని మిమ్మల్ని ఆమోదించాలి.",
 };
 
 export default onboarding;

@@ -1,9 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { theme } from '../theme';
 import { useAuthStore } from '../store/authStore';
 import { useMembershipStore } from '../store/membershipStore';
+import type { SignupIntent } from '../store/authStore';
+import type { FarmRole } from '../api/farmMembers';
+import type { CreateFarmDto } from '../api/farms';
+import { hasChosenLanguage } from '../i18n';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -102,7 +106,11 @@ import { ExpensesScreen } from '../screens/finance/ExpensesScreen';
 import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
 import { ReferenceScreen } from '../screens/reference/ReferenceScreen';
 import { HarvestPlansScreen } from '../screens/harvest/HarvestPlansScreen';
+import { LanguageScreen } from '../screens/onboarding/LanguageScreen';
 import { WelcomeScreen } from '../screens/onboarding/WelcomeScreen';
+import { IntentScreen } from '../screens/onboarding/IntentScreen';
+import { PondNamesScreen } from '../screens/onboarding/PondNamesScreen';
+import { JoinedFarmScreen } from '../screens/onboarding/JoinedFarmScreen';
 import { PondSetupScreen } from '../screens/onboarding/PondSetupScreen';
 import { JoinFarmScreen } from '../screens/onboarding/JoinFarmScreen';
 import { OtpLoginScreen } from '../screens/auth/OtpLoginScreen';
@@ -118,7 +126,9 @@ import { TermsScreen } from '../screens/legal/TermsScreen';
 export type RootStackParamList = {
     // Auth
     Login: undefined;
-    Register: undefined;
+    // Carries the intent chosen on artboard 03; optional so a direct arrival
+    // (deep link, 'Sign up' from Login) still resolves.
+    Register: { intent?: SignupIntent } | undefined;
     ForgotPassword: undefined;
     ResetPassword: undefined;
     TruecallerLogin: undefined;
@@ -234,10 +244,14 @@ export type RootStackParamList = {
     // Harvest planning
     HarvestPlans: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
 
-    // First-run onboarding
+    // First-run onboarding (docs/design/onboarding/*)
+    Language: undefined;
     Welcome: undefined;
+    Intent: undefined;
     PondSetup: { farmId: string; totalPonds: number };
+    PondNames: { farm: CreateFarmDto; pondCount: number };
     JoinFarm: undefined;
+    JoinedFarm: { farmName: string; role: FarmRole; status: 'active' | 'pending' };
 
     // Additional calculators + feed products
     GrowthAndHarvest: undefined;
@@ -256,6 +270,15 @@ const RootNavigator = () => {
         initialize();
     }, []);
 
+    // The first run opens on the language screen (artboard 01) — before the
+    // welcome copy, so nobody reads three value propositions in a language they
+    // did not pick. null = still reading the stored preference; hold the splash
+    // rather than flash Login and then replace it.
+    const [needsLanguage, setNeedsLanguage] = useState<boolean | null>(null);
+    useEffect(() => {
+        hasChosenLanguage().then((chosen) => setNeedsLanguage(!chosen));
+    }, []);
+
     // Load the user's farm memberships once authenticated so usePermissions()
     // resolves correctly on every screen; clear them on logout.
     useEffect(() => {
@@ -263,7 +286,7 @@ const RootNavigator = () => {
         else resetMemberships();
     }, [isAuthenticated, loadMemberships, resetMemberships]);
 
-    if (isLoading) {
+    if (isLoading || needsLanguage === null) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
                 <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -281,7 +304,9 @@ const RootNavigator = () => {
                     ? 'CreateFarm'
                     : isAuthenticated && pendingFarmJoin
                         ? 'JoinFarm'
-                        : undefined
+                        : !isAuthenticated && needsLanguage
+                            ? 'Language'
+                            : undefined
             }
             screenOptions={{
                 headerShown: false,
@@ -291,6 +316,12 @@ const RootNavigator = () => {
         >
             {!isAuthenticated ? (
                 <>
+                    {/* First-run flow, in order: language → welcome → intent →
+                        create account. Registered before Login so the stack reads
+                        the way the farmer walks it. */}
+                    <Stack.Screen name="Language" component={LanguageScreen} />
+                    <Stack.Screen name="Welcome" component={WelcomeScreen} />
+                    <Stack.Screen name="Intent" component={IntentScreen} />
                     <Stack.Screen name="Login" component={LoginScreen} />
                     <Stack.Screen name="Register" component={RegisterScreen} />
                     <Stack.Screen
@@ -320,11 +351,12 @@ const RootNavigator = () => {
                 <>
                     <Stack.Screen name="MainApp" component={MainNavigator} />
                     <Stack.Screen name="QuickLog" component={QuickLogScreen} options={{ presentation: 'modal' }} />
-                    <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ presentation: 'modal' }} />
 
                     <Stack.Screen name="CreateFarm" component={CreateFarmScreen} />
+                    <Stack.Screen name="PondNames" component={PondNamesScreen} />
                     <Stack.Screen name="PondSetup" component={PondSetupScreen} />
                     <Stack.Screen name="JoinFarm" component={JoinFarmScreen} />
+                    <Stack.Screen name="JoinedFarm" component={JoinedFarmScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
                     <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
 

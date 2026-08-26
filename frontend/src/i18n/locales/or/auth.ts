@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'ଆପଣଙ୍କ ଫାର୍ମ ଓ ପୋଖରୀ ସେଟ କରନ୍ତୁ',
   intentWorkOnFarmTitle: 'ମୁଁ ଅନ୍ୟର ଫାର୍ମରେ କାମ କରେ',
   intentWorkOnFarmDesc: 'ଯୋଗ ଦେବାକୁ ସେମାନଙ୍କ କୋଡ୍ ଦିଅନ୍ତୁ',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "ପୂରା ନାମ",
+  fullNamePlaceholder: "ଆପଣଙ୍କ ନାମ",
+  fullNameRequired: "ଆପଣଙ୍କ ନାମ ଲେଖନ୍ତୁ",
+  emailVerifyNote: "ଆମେ ଏହି ଠିକଣାକୁ ଏକ ଯାଞ୍ଚ ଲିଙ୍କ ପଠାଇବୁ।",
+  orDivider: "କିମ୍ବା",
+  signInPrompt: "ପୂର୍ବରୁ ଖାତା ଅଛି କି?",
 };
 export default auth;

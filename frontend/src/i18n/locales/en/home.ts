@@ -169,6 +169,12 @@ const home = {
   weeklyChemistryDaysAgo: '{{days}}d ago',
   weeklyChemistryOverdue: 'Overdue — {{days}}d ago',
   weeklyChemistryNone: 'Not logged yet',
+
+  // Empty first-run dashboard (artboard 09)
+  noFarmsYet: "No farms yet",
+  createFarmCardSub: "Set up your ponds and start logging",
+  joinCodeCardTitle: "Join with a code",
+  joinCodeCardSub: "Work on a farm someone else runs",
 };
 
 export default home;
