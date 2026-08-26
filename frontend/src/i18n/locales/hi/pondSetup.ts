@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'वैध संख्या दर्ज करें',
   errHp: 'प्रति एयरेटर HP दर्ज करें',
   errSave: 'यह तालाब सहेजा नहीं जा सका। कृपया पुनः प्रयास करें।',
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "आपके तालाब",
+  namePattern: "नाम का पैटर्न",
+  prefixPlaceholder: "उपसर्ग",
+  namesLabel: "नाम",
+  pondsToCreate: "बनाए जाने वाले तालाब",
+  areaPlaceholder: "क्षेत्रफल m²",
+  areaOptionalNote: "क्षेत्रफल अभी ज़रूरी नहीं। तालाब में बीज डालते समय जोड़ सकते हैं।",
+  createFarmCta: "फ़ार्म बनाएँ",
+  errPrefix: "1–4 अक्षर या अंक इस्तेमाल करें",
+  errPondsPartial: "फ़ार्म बन गया, पर {{count}} तालाब नहीं जुड़ सके। उन्हें फ़ार्म स्क्रीन से जोड़ें।",
 };
 export default pondSetup;

@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'Set up your farm and ponds',
   intentWorkOnFarmTitle: "I work on someone's farm",
   intentWorkOnFarmDesc: 'Enter their code to join',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "Full name",
+  fullNamePlaceholder: "Your name",
+  fullNameRequired: "Enter your name",
+  emailVerifyNote: "We send a verification link to this address.",
+  orDivider: "or",
+  signInPrompt: "Already have an account?",
 };
 export default auth;

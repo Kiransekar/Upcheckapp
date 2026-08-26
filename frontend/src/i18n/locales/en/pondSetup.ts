@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'Enter a valid number',
   errHp: 'Enter HP per aerator',
   errSave: "Couldn't save this pond. Please try again.",
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "Your ponds",
+  namePattern: "Name pattern",
+  prefixPlaceholder: "prefix",
+  namesLabel: "Names",
+  pondsToCreate: "Ponds to create",
+  areaPlaceholder: "area m²",
+  areaOptionalNote: "Area is optional now. You can add it when you stock a pond.",
+  createFarmCta: "Create farm",
+  errPrefix: "Use 1–4 letters or numbers",
+  errPondsPartial: "Farm created, but {{count}} pond(s) could not be added. Add them from the farm screen.",
 };
 export default pondSetup;

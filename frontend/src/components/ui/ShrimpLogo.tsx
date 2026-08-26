@@ -5,6 +5,7 @@
  * any background; `eyeColor` punches the eye out against a coloured backdrop.
  */
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { theme } from '../../theme';
 
@@ -55,5 +56,31 @@ export const ShrimpLogo = ({
     <Circle cx={15.4} cy={8.4} r={1} fill={eyeColor} />
   </Svg>
 );
+
+/**
+ * BrandLockup — the mark plus the wordmark, side by side. The onboarding
+ * designs open with this on every pre-account screen (artboards 01, 02 and the
+ * first-run dashboard header), so it lives here rather than being redrawn in
+ * three files. "upcheck" is a brand name and is deliberately not translated.
+ */
+export const BrandLockup = ({ size = 24 }: { size?: number }) => (
+  <View style={styles.lockup}>
+    <ShrimpLogo
+      size={size}
+      color={theme.roles.light.primaryHover}
+      eyeColor={theme.roles.light.primaryHover}
+    />
+    <Text style={[styles.wordmark, { fontSize: size * 0.75, lineHeight: size }]}>upcheck</Text>
+  </View>
+);
+
+const styles = StyleSheet.create({
+  lockup: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+  wordmark: {
+    fontFamily: 'Nunito-ExtraBold',
+    color: theme.roles.light.primaryHover,
+    letterSpacing: -0.4,
+  },
+});
 
 export default ShrimpLogo;

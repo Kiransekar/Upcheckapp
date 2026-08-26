@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'உங்கள் பண்ணையையும் குளங்களையும் அமைக்கவும்',
   intentWorkOnFarmTitle: 'நான் மற்றவரின் பண்ணையில் வேலை செய்கிறேன்',
   intentWorkOnFarmDesc: 'சேர அவர்களின் குறியீட்டை உள்ளிடவும்',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "முழுப் பெயர்",
+  fullNamePlaceholder: "உங்கள் பெயர்",
+  fullNameRequired: "உங்கள் பெயரை உள்ளிடவும்",
+  emailVerifyNote: "இந்த முகவரிக்கு ஒரு சரிபார்ப்பு இணைப்பை அனுப்புவோம்.",
+  orDivider: "அல்லது",
+  signInPrompt: "ஏற்கனவே கணக்கு உள்ளதா?",
 };
 export default auth;

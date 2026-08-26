@@ -74,6 +74,9 @@ interface AuthState {
     setPendingVerification: (email: string) => void;
     clearPendingVerification: () => void;
     completeFarmSetup: () => void;
+    persistOnboardingIntent: (intent: SignupIntent) => Promise<void>;
+    clearOnboardingIntent: () => Promise<void>;
+    restoreOnboardingIntent: () => Promise<void>;
     completeFarmJoin: () => void;
     setError: (error: string | null) => void;
     clearError: () => void;
@@ -180,12 +183,71 @@ export const useAuthStore = create<AuthState>()(
                 set({ pendingVerificationEmail: null }),
 
             // Owner finished first-run farm creation — drop the gate so the next
-            // render lands them on the main app.
-            completeFarmSetup: () => set({ pendingFarmSetup: false }),
+            // render lands them on the main app, and clear the stored intent so a
+            // reinstall does not send them back through setup they have done.
+            completeFarmSetup: () => {
+                set({ pendingFarmSetup: false });
+                void get().clearOnboardingIntent();
+            },
 
             // Worker joined a farm (or skipped) — drop the gate so the next
             // render lands them on the main app.
-            completeFarmJoin: () => set({ pendingFarmJoin: false }),
+            completeFarmJoin: () => {
+                set({ pendingFarmJoin: false });
+                void get().clearOnboardingIntent();
+            },
+
+            /**
+             * Remember, server-side, which first-run path this account is on.
+             *
+             * Device storage cannot answer this after a reinstall or on a second
+             * phone, which is the case that matters: a farmer part-way through
+             * setup should not be asked what they came here to do a second time.
+             *
+             * Stored on the `users` row in the app's own Postgres. NOT in
+             * Supabase Auth `user_metadata` — that is client-mutable, and it is
+             * where `accountType` lived when it was (wrongly) an authorization
+             * input. This value grants nothing.
+             */
+            persistOnboardingIntent: async (intent: SignupIntent) => {
+                try {
+                    await profilesApi.setMyPreferences({ onboardingIntent: intent });
+                } catch {
+                    // Best-effort. Losing the resume point is a small annoyance;
+                    // failing signup or farm creation over it would not be.
+                }
+            },
+
+            clearOnboardingIntent: async () => {
+                try {
+                    await profilesApi.setMyPreferences({ onboardingIntent: undefined });
+                } catch {
+                    // Same: never let bookkeeping fail the action that succeeded.
+                }
+            },
+
+            /**
+             * Re-derive the first-run gates from the server after a session is
+             * restored on a device that has never seen this account.
+             *
+             * Only ever turns a gate ON when the server still holds an intent —
+             * an intent is cleared once acted on, so a farmer who already made
+             * their farm cannot be trapped back in setup.
+             */
+            restoreOnboardingIntent: async () => {
+                // A device that already knows where it is does not need asking.
+                if (get().pendingFarmSetup || get().pendingFarmJoin) return;
+                try {
+                    const { data } = await profilesApi.getMyPreferences();
+                    if (data?.onboardingIntent === 'own_farm') {
+                        set({ pendingFarmSetup: true });
+                    } else if (data?.onboardingIntent === 'work_on_farm') {
+                        set({ pendingFarmJoin: true });
+                    }
+                } catch {
+                    // Offline or unreachable — leave the gates as they are.
+                }
+            },
 
             setError: (error) => set({ error, isLoading: false }),
             clearError: () => set({ error: null }),
@@ -237,6 +299,9 @@ export const useAuthStore = create<AuthState>()(
                     const { data } = await authApi.refresh(refreshToken);
                     if (data.session) {
                         get().setSession(data.session);
+                        // A device that has never seen this account has no local
+                        // memory of where onboarding got to; the server does.
+                        void get().restoreOnboardingIntent();
                         return; // Successfully restored session
                     }
                     // 2xx with no session → nothing to restore.
@@ -364,12 +429,19 @@ export const useAuthStore = create<AuthState>()(
                     // Route the first run from the stated intent: someone who runs
                     // their own farm sets one up, someone joining an existing farm
                     // enters a code. Read by RootNavigator once authenticated. The
-                    // intent is NOT sent to the server and grants nothing — either
-                    // person can do either thing later.
+                    // intent grants NOTHING — either person can do either thing
+                    // later; it only decides which screen comes next.
                     set({
                         pendingFarmSetup: intent === 'own_farm',
                         pendingFarmJoin: intent === 'work_on_farm',
                     });
+                    // Persist it server-side so a reinstall, or signing in on a
+                    // second phone mid-setup, resumes here instead of asking
+                    // again. Fire-and-forget: failing to remember which screen
+                    // to open next must not fail the signup that just succeeded.
+                    if (intent) {
+                        void get().persistOnboardingIntent(intent);
+                    }
                     if (data.session) {
                         get().setSession(data.session);
                     } else {

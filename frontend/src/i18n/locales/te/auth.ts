@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'మీ ఫారం, చెరువులు సెటప్ చేయండి',
   intentWorkOnFarmTitle: 'నేను ఇతరుల ఫారంలో పని చేస్తాను',
   intentWorkOnFarmDesc: 'చేరడానికి వారి కోడ్ నమోదు చేయండి',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "పూర్తి పేరు",
+  fullNamePlaceholder: "మీ పేరు",
+  fullNameRequired: "మీ పేరు నమోదు చేయండి",
+  emailVerifyNote: "ఈ చిరునామాకు మేము ధృవీకరణ లింక్ పంపుతాము.",
+  orDivider: "లేదా",
+  signInPrompt: "ఇప్పటికే ఖాతా ఉందా?",
 };
 export default auth;

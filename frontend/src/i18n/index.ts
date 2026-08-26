@@ -57,4 +57,21 @@ i18n.changeLanguage = async (lng, callback) => {
   return result;
 };
 
+/**
+ * Has this device ever chosen a language? The first-run flow opens on the
+ * language screen (artboard 01) and must not reappear afterwards, and this
+ * already-persisted preference is the only record that needs to exist — a
+ * separate "seen it" flag would be a second source of truth for one fact.
+ * Resolves false on a storage error, so a broken read shows the picker rather
+ * than silently locking someone into the device locale.
+ */
+export const hasChosenLanguage = async (): Promise<boolean> => {
+  try {
+    const lang = await AsyncStorage.getItem(LANGUAGE_KEY);
+    return !!lang && LANGUAGE_CODES.includes(lang);
+  } catch {
+    return false;
+  }
+};
+
 export default i18n;

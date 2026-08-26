@@ -99,5 +99,14 @@ const farms = {
   pondActive: "Active",
   showMorePonds: "Show {{count}} more ponds",
   showMorePonds_one: "Show {{count}} more pond",
+
+  // Create-farm step 1 of 2 (artboard 05)
+  stepOfTwo: "Step {{n}} of 2",
+  stepFarmTitle: "Your farm",
+  fieldAreaHectares: "Area in hectares",
+  areaHint: "Total land, including dykes and canals.",
+  useCurrentLocation: "Use current location",
+  mapPlaceholder: "Map appears once location is set",
+  farmNamePlaceholder: "What you call this farm",
 };
 export default farms;

@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'சரியான எண்ணை உள்ளிடுக',
   errHp: 'ஒரு காற்றூட்டிக்கு HP உள்ளிடுக',
   errSave: 'இந்த குளத்தைச் சேமிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "உங்கள் குளங்கள்",
+  namePattern: "பெயர் வடிவம்",
+  prefixPlaceholder: "முன்னொட்டு",
+  namesLabel: "பெயர்கள்",
+  pondsToCreate: "உருவாக்க வேண்டிய குளங்கள்",
+  areaPlaceholder: "பரப்பு m²",
+  areaOptionalNote: "பரப்பளவு இப்போது கட்டாயமில்லை. குளத்தில் குஞ்சு விடும்போது சேர்க்கலாம்.",
+  createFarmCta: "பண்ணையை உருவாக்கு",
+  errPrefix: "1–4 எழுத்துகள் அல்லது எண்களைப் பயன்படுத்தவும்",
+  errPondsPartial: "பண்ணை உருவாக்கப்பட்டது, ஆனால் {{count}} குளங்களைச் சேர்க்க முடியவில்லை. பண்ணைத் திரையிலிருந்து சேர்க்கவும்.",
 };
 export default pondSetup;

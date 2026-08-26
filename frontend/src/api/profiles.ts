@@ -90,4 +90,20 @@ export const profilesApi = {
 
     inviteFriend: (toEmail: string) =>
         apiClient.post<{ success: boolean }>('/profiles/invite', { toEmail }),
+
+    /**
+     * The caller's own onboarding preferences, stored on the `users` row in the
+     * app's Postgres (Supabase-hosted) — not on the device, and not in Supabase
+     * Auth `user_metadata`, which is client-mutable.
+     */
+    getMyPreferences: () =>
+        apiClient.get<UserPreferences>('/profiles/me/preferences'),
+
+    setMyPreferences: (patch: UserPreferences) =>
+        apiClient.patch<UserPreferences>('/profiles/me/preferences', patch),
 };
+
+/** Server-persisted, per-user preferences. Routes first-run; grants nothing. */
+export interface UserPreferences {
+    onboardingIntent?: 'own_farm' | 'work_on_farm';
+}

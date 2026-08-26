@@ -1,3 +1,29 @@
+/**
+ * RegisterScreen — artboard 04, "Create account".
+ *
+ * The intent question that used to sit at the top of this form now has its own
+ * screen (IntentScreen, artboard 03) and arrives as a route param; this screen
+ * asks for identity only. Confirm-password went with it: the design shows a
+ * single password field with a reveal toggle, which is the pattern that
+ * replaced re-typing.
+ *
+ * ── Where this departs from the drawing, and why ──────────────────────────
+ * Artboard 04 asks for a MOBILE NUMBER and says "We send a one-time code to
+ * this number". The backend cannot do that. `POST /auth/supabase/signup` takes
+ * an email and a password (`SignupDto` requires both); `login-otp/*` sends a
+ * code to an EMAIL, not a phone; and `auth/dto/send-otp.dto.ts` plus
+ * `sms-otp-fallback.service.ts` are unwired scaffolding whose methods throw.
+ * The only phone-identity path that actually works is Truecaller
+ * (`POST /auth/supabase/oauth/truecaller`), which mints an internal
+ * `<digits>@truecaller.temp` address behind a verified number — and it is
+ * Android-only, because the bridge is a native SDK.
+ *
+ * So the primary field here is email, with the design's hint reworded to what
+ * genuinely happens, and "Continue with Truecaller" is left as the real
+ * phone-first route where the platform supports it. Rendering a mobile-number
+ * field that silently could not create an account would be a worse lie than
+ * this one honest substitution.
+ */
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,6 +32,7 @@ import type { SignupIntent } from '../../store/authStore';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
+import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
@@ -14,16 +41,28 @@ import { LanguagePill } from '../../components/ui/LanguagePill';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { passwordPolicyError } from '../../features/passwordPolicy';
 
-export const RegisterScreen = ({ navigation }: any) => {
+/**
+ * The design asks for one "Full name" field; the API takes first and last.
+ * Everything before the final space is the given name, so "Ravi Kumar Reddy"
+ * keeps "Ravi Kumar" together instead of losing the middle name. A single word
+ * stays a first name with no surname, which is common and must not error.
+ */
+export const splitFullName = (full: string): { firstName: string; lastName: string } => {
+    const parts = full.trim().split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return { firstName: parts[0] ?? '', lastName: '' };
+    return { firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] };
+};
+
+export const RegisterScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
-    // First-run routing only — see SignupIntent. Not sent to the server, and
-    // it grants nothing: either answer can create a farm or join one later.
-    const [intent, setIntent] = useState<SignupIntent | null>(null);
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
+    // Chosen on the previous screen (artboard 03). First-run routing only —
+    // it is not sent to the server and grants nothing. Defaulted so a direct
+    // arrival (deep link, "Sign up" from Login) still works.
+    const intent: SignupIntent = route?.params?.intent ?? 'own_farm';
+
+    const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [success, setSuccess] = useState(false);
 
@@ -32,8 +71,7 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     const validate = (): boolean => {
         const e: Record<string, string> = {};
-        if (!intent) e.intent = t('auth.signupIntentRequired');
-        if (!firstName.trim()) e.firstName = t('auth.firstNameRequired');
+        if (!fullName.trim()) e.fullName = t('auth.fullNameRequired');
         if (!email.trim()) e.email = t('auth.emailRequired');
         else if (!/\S+@\S+\.\S+/.test(email)) e.email = t('auth.emailInvalid');
         if (!password) e.password = t('auth.passwordRequired');
@@ -43,7 +81,6 @@ export const RegisterScreen = ({ navigation }: any) => {
             const rule = passwordPolicyError(password);
             if (rule) e.password = t(rule.key, rule.fallback);
         }
-        if (password !== confirmPassword) e.confirmPassword = t('auth.passwordsDoNotMatch');
         setErrors(e);
         return Object.keys(e).length === 0;
     };
@@ -52,7 +89,8 @@ export const RegisterScreen = ({ navigation }: any) => {
         if (!validate()) return;
         clearError();
         try {
-            await signup(email.trim(), password, firstName.trim(), lastName.trim(), intent!);
+            const { firstName, lastName } = splitFullName(fullName);
+            await signup(email.trim(), password, firstName, lastName, intent);
             setSuccess(true);
         } catch {
             // Error is set in the store
@@ -80,74 +118,34 @@ export const RegisterScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper>
-            <View style={styles.langBar}>
-                <LanguagePill variant="dark" />
-            </View>
-            <View style={styles.header}>
+            <View style={styles.topBar}>
+                <TouchableOpacity
+                    onPress={() => navigation.goBack()}
+                    style={styles.back}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('common.back')}
+                >
+                    <Icon name="arrow_back" size={24} color={theme.roles.light.textPrimary} />
+                </TouchableOpacity>
                 <Text style={styles.title}>{t('auth.createAccountTitle')}</Text>
-                <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
+                <LanguagePill variant="dark" />
             </View>
 
             {error && (
                 <View style={styles.errorBanner}>
+                    <Icon name="warning" size={20} color={theme.roles.light.dangerText} />
                     <Text style={styles.errorText}>{error}</Text>
                 </View>
             )}
 
-            {/* Intent, not an account type: it only picks the first-run step —
-                set up a farm, or enter a code to join one. Nothing about it is
-                permanent, and it is never sent to the server. */}
-            <Text style={styles.accountTypeLabel}>{t('auth.signupIntentLabel')}</Text>
-            <View style={styles.accountTypeRow}>
-                {([
-                    { key: 'own_farm' as const, icon: 'home-account', title: t('auth.intentOwnFarmTitle'), desc: t('auth.intentOwnFarmDesc') },
-                    { key: 'work_on_farm' as const, icon: 'account-hard-hat', title: t('auth.intentWorkOnFarmTitle'), desc: t('auth.intentWorkOnFarmDesc') },
-                ]).map((opt) => {
-                    const active = intent === opt.key;
-                    return (
-                        <TouchableOpacity
-                            key={opt.key}
-                            style={[styles.accountCard, active && styles.accountCardActive]}
-                            onPress={() => setIntent(opt.key)}
-                            activeOpacity={0.8}
-                            accessibilityRole="radio"
-                            accessibilityState={{ selected: active }}
-                            accessibilityLabel={opt.title}
-                        >
-                            <MaterialCommunityIcons
-                                name={opt.icon as any}
-                                size={26}
-                                color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
-                            />
-                            <Text style={[styles.accountCardTitle, active && { color: theme.roles.light.primary }]}>
-                                {opt.title}
-                            </Text>
-                            <Text style={styles.accountCardDesc}>{opt.desc}</Text>
-                        </TouchableOpacity>
-                    );
-                })}
-            </View>
-            {errors.intent && <Text style={styles.accountTypeError}>{errors.intent}</Text>}
-
             <Input
-                label={t('auth.firstNameLabel')}
-                value={firstName}
-                onChangeText={setFirstName}
-                error={errors.firstName}
-                placeholder={t('auth.firstNamePlaceholder')}
+                label={t('auth.fullNameLabel')}
+                value={fullName}
+                onChangeText={setFullName}
+                error={errors.fullName}
+                placeholder={t('auth.fullNamePlaceholder')}
                 autoCapitalize="words"
-                leftIcon="account-outline"
                 required
-            />
-
-            <Input
-                label={t('auth.lastNameLabel')}
-                value={lastName}
-                onChangeText={setLastName}
-                error={errors.lastName}
-                placeholder={t('auth.lastNamePlaceholder')}
-                autoCapitalize="words"
-                leftIcon="account-outline"
             />
 
             <Input
@@ -158,8 +156,8 @@ export const RegisterScreen = ({ navigation }: any) => {
                 placeholder={t('auth.emailPlaceholder')}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                leftIcon="email-outline"
                 required
+                hint={t('auth.emailVerifyNote')}
             />
 
             <Input
@@ -167,41 +165,16 @@ export const RegisterScreen = ({ navigation }: any) => {
                 value={password}
                 onChangeText={setPassword}
                 error={errors.password}
-                placeholder={t('auth.passwordAtLeast8Placeholder')}
                 isPassword
-                leftIcon="lock-outline"
                 required
                 hint={t('auth.passwordHint')}
             />
 
-            <Input
-                label={t('auth.confirmPasswordLabel')}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                error={errors.confirmPassword}
-                placeholder={t('auth.confirmPasswordPlaceholder')}
-                isPassword
-                leftIcon="lock-check-outline"
-                required
-            />
-
-            <Button
-                title={t('auth.createAccount')}
-                onPress={handleRegister}
-                loading={isLoading}
-                style={{ marginTop: theme.spacing[3] }}
-            />
-
-            <Text style={styles.consent}>
-                {t('auth.consentPrefix')}{' '}
-                <Text style={styles.consentLink} onPress={() => navigation.navigate('Terms')}>
-                    {t('settings.termsOfService')}
-                </Text>
-                {' '}{t('auth.consentAnd')}{' '}
-                <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
-                    {t('settings.privacyPolicy')}
-                </Text>.
-            </Text>
+            <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>{t('auth.orDivider')}</Text>
+                <View style={styles.dividerLine} />
+            </View>
 
             {/* @react-native-google-signin has no web build — hide on web like Truecaller below */}
             {Platform.OS !== 'web' && (
@@ -213,7 +186,9 @@ export const RegisterScreen = ({ navigation }: any) => {
                 }} loading={isLoading} />
             )}
 
-            {/* Truecaller SDK bridge is Android-only — hide the entry point elsewhere */}
+            {/* Truecaller SDK bridge is Android-only — hide the entry point
+                elsewhere rather than showing a dead button. This is also the
+                only working phone-number sign-up route; see the file header. */}
             {Platform.OS === 'android' && (
                 <TruecallerLoginButton
                     onPress={() => { clearError(); navigation.navigate('TruecallerLogin'); }}
@@ -222,95 +197,81 @@ export const RegisterScreen = ({ navigation }: any) => {
             )}
 
             <Button
-                title={t('auth.alreadyHaveAccount')}
-                onPress={() => navigation.navigate('Login')}
-                variant="text"
-                style={{ marginTop: theme.spacing[4] }}
+                title={t('auth.createAccount')}
+                onPress={handleRegister}
+                loading={isLoading}
+                style={styles.cta}
             />
+
+            <Text style={styles.signInLine}>
+                {t('auth.signInPrompt')}{' '}
+                <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
+                    {t('auth.signIn')}
+                </Text>
+            </Text>
+
+            <Text style={styles.consent}>
+                {t('auth.consentPrefix')}{' '}
+                <Text style={styles.link} onPress={() => navigation.navigate('Terms')}>
+                    {t('settings.termsOfService')}
+                </Text>
+                {' '}{t('auth.consentAnd')}{' '}
+                <Text style={styles.link} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                    {t('settings.privacyPolicy')}
+                </Text>.
+            </Text>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    langBar: {
+    topBar: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        paddingTop: theme.spacing[3],
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        paddingTop: theme.spacing[2],
+        marginBottom: theme.spacing[6],
     },
-    header: {
-        paddingTop: theme.spacing[4],
-        paddingBottom: theme.spacing[6],
-    },
-    title: {
-        ...theme.typeScale.h1,
-        color: theme.roles.light.textPrimary,
-    },
-    subtitle: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
+    back: { width: 44, height: 44, justifyContent: 'center', marginLeft: -theme.spacing[2] },
+    title: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary, flex: 1 },
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
         marginTop: theme.spacing[2],
     },
-    accountTypeLabel: {
-        ...theme.typeScale.labelMedium,
-        color: theme.roles.light.textSecondary,
-        marginBottom: theme.spacing[2],
-    },
-    accountTypeRow: {
-        flexDirection: 'row',
-        gap: theme.spacing[3],
-        marginBottom: theme.spacing[2],
-    },
-    accountCard: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: theme.spacing[4],
-        paddingHorizontal: theme.spacing[3],
-        borderRadius: theme.radius.md,
-        borderWidth: 1.5,
-        borderColor: theme.roles.light.borderDefault,
-        gap: theme.spacing[1],
-    },
-    accountCardActive: {
-        borderColor: theme.roles.light.primary,
-        backgroundColor: theme.roles.light.surfaceOverlay,
-    },
-    accountCardTitle: {
-        ...theme.typeScale.labelMedium,
-        color: theme.roles.light.textPrimary,
-        marginTop: theme.spacing[1],
-    },
-    accountCardDesc: {
-        ...theme.typeScale.caption,
+    dividerLine: { flex: 1, height: 1, backgroundColor: theme.roles.light.borderDefault },
+    dividerText: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    cta: { marginTop: theme.spacing[6], alignSelf: 'stretch' },
+    signInLine: {
+        ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         textAlign: 'center',
+        marginTop: theme.spacing[4],
     },
-    accountTypeError: {
-        ...theme.typeScale.caption,
-        color: theme.roles.light.dangerText,
-        marginBottom: theme.spacing[2],
-    },
+    link: { color: theme.roles.light.textBrand, fontFamily: 'DMSans-SemiBold' },
     consent: {
-        ...theme.typeScale.caption,
-        color: theme.roles.light.textSecondary,
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
         textAlign: 'center',
         marginTop: theme.spacing[3],
         marginHorizontal: theme.spacing[2],
     },
-    consentLink: {
-        color: theme.roles.light.primary,
-        textDecorationLine: 'underline',
-    },
     errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: theme.spacing[2],
         backgroundColor: theme.roles.light.dangerBg,
         borderRadius: theme.radius.sm,
         padding: theme.spacing[4],
         marginBottom: theme.spacing[4],
         borderLeftWidth: 3,
-        borderLeftColor: theme.roles.light.dangerText,
+        borderLeftColor: theme.roles.light.dangerBorder,
     },
     errorText: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.dangerText,
+        flex: 1,
     },
     successContainer: {
         flex: 1,

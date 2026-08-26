@@ -101,5 +101,14 @@ const farms = {
   pondActive: "செயலில்",
   showMorePonds: "மேலும் {{count}} குளங்களைக் காட்டு",
   showMorePonds_one: "மேலும் {{count}} குளத்தைக் காட்டு",
+
+  // Create-farm step 1 of 2 (artboard 05)
+  stepOfTwo: "படி {{n}} / 2",
+  stepFarmTitle: "உங்கள் பண்ணை",
+  fieldAreaHectares: "பரப்பளவு ஹெக்டேரில்",
+  areaHint: "மொத்த நிலம், கரைகள் மற்றும் கால்வாய்கள் உட்பட.",
+  useCurrentLocation: "தற்போதைய இருப்பிடத்தைப் பயன்படுத்து",
+  mapPlaceholder: "இருப்பிடம் அமைந்ததும் வரைபடம் தோன்றும்",
+  farmNamePlaceholder: "இந்தப் பண்ணையை நீங்கள் என்ன அழைக்கிறீர்கள்",
 };
 export default farms;

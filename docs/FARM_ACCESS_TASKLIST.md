@@ -26,7 +26,11 @@ Test counts on each branch (baseline 594 backend / 221 frontend): W1 → 667 bac
 
 **Merge order matters.** `feat/farm-invites` and `fix/member-list-error-state` both touch `FarmMembersScreen.tsx` and all six `members.ts` locale files. Land C5 first, then rebase the invites branch onto it. `development` is also 19 commits behind `master`.
 
-**Still open:** T3.12 (signup intent is client-only; not persisted to `users.preferences`) and all of Phase 5.
+**Still open:** T6.1 only — a product question (ask five owners whether the financial DEFAULT should change), not engineering work, and not blocking anything now that T6.2 made it per-farm configurable.
+
+**T3.12 is done:** the signup intent is persisted to `users.preferences` on the `users` row, with a whitelist and a test that fails if any authorization path ever reads it.
+
+**Phase 5 is done** apart from T6.1: W4 (pond scoping), W5 (owner recovery, Option B) and W6 (per-farm financial grant) are all built, migrated and reachable from the UI.
 
 **Closed since:** the design gate (T0.x — all 20 artboards and all 4 PNG designs are implemented; see the divergence table below), T2.0 (the owner chose pending-approval with a manual/auto toggle), T3.15 (the design answers it as a reassurance line on Create Farm, not a modal).
 
@@ -96,7 +100,7 @@ Phase 1 (parallel, independent):  C1, C2, C4, C5   <- small, ship first
 Phase 2:                          W1               <- P0, largest backend diff
 Phase 3:                          W2               <- P0, needs C2 merged
 Phase 4:                          W3               <- needs C1 + W2 merged
-Phase 5 (design-first, blocked):  W4, W5, W6       <- human sign-off before any code
+Phase 5 (design-first, DONE):     W4, W5, W6       <- decisions taken; only T6.1 research remains
 ```
 
 ---
@@ -336,7 +340,25 @@ Membership is farm-level only; on a 20-pond farm every worker can see and write 
 
 `VIEW_FINANCIALS: ['owner', 'manager']` means a hired manager sees the farm's P&L. `farm-capability.ts`'s own comment says viewer-level cost visibility should be *"only if the owner grants it, handled separately per-farm"* — that per-farm grant is not implemented anywhere.
 
-- [ ] **T6.1** **Ask five real farm owners** whether the *default* should change. Still open, and still a product question — but no longer blocking, because T6.2 made it per-farm configurable rather than a global call. The default is unchanged (`owner` + `manager`).
+- [ ] **T6.1** **Ask five real farm owners** whether the *default* should change. Still open, and not something engineering can answer — but no longer blocking, because T6.2 made it per-farm configurable. The default is unchanged (`owner` + `manager`).
+
+<details><summary>Question script — keep them open, do not name the feature</summary>
+
+Asking "should your manager see your profits?" primes a no. Ask about what happens today instead:
+
+1. Apart from you, who needs to know what a cycle costs?
+2. Think of your manager. Is there anything about the money you would rather they did not see?
+3. If a manager could see feed cost per kg but not the farm's profit — would that help them do their job, or make no difference?
+4. Has anyone working for you ever asked for a number you did not want to give? Which number?
+5. If you hired a new manager tomorrow, would you want them seeing money from day one, or after a while?
+
+Record the answers verbatim; the interesting result is *which* number they hesitate over, not the yes/no.
+
+**If the answer is "hide it by default"** — the flip itself is two lines: `VIEW_FINANCIALS: ['owner', 'manager']` → `['owner']` in `backend/src/farm-access/farm-capability.ts` and its mirror `frontend/src/permissions/capabilities.ts`.
+
+**But it is a breaking change for farms that already exist.** Every manager currently seeing costs would silently stop, with no notice and no obvious cause. Ship it with a backfill that sets `farm_members.can_view_financials = true` for existing managers, so today's farms keep today's behaviour and only NEW managers get the stricter default. Without that backfill this is a support incident, not a preference change.
+
+</details>
 - [x] **T6.2** Built as sketched: nullable `farm_members.can_view_financials` overriding the role default, consulted **inside `roleSatisfies`** — one place. Migration `1780302300000-AddJoinApprovalAndFinancialGrant`, setter `PATCH /farms/:id/members/:userId/financials` (owner-only), UI in `MemberDetailScreen`.
 
 ---

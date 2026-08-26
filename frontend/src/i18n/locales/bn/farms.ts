@@ -101,5 +101,14 @@ const farms = {
   pondActive: "সক্রিয়",
   showMorePonds: "আরও {{count}} পুকুর দেখান",
   showMorePonds_one: "আরও {{count}} পুকুর দেখান",
+
+  // Create-farm step 1 of 2 (artboard 05)
+  stepOfTwo: "ধাপ {{n}} / ২",
+  stepFarmTitle: "আপনার খামার",
+  fieldAreaHectares: "আয়তন হেক্টরে",
+  areaHint: "মোট জমি, বাঁধ ও খাল সহ।",
+  useCurrentLocation: "বর্তমান অবস্থান ব্যবহার করুন",
+  mapPlaceholder: "অবস্থান ঠিক হলে মানচিত্র দেখাবে",
+  farmNamePlaceholder: "আপনি এই খামারকে কী বলেন",
 };
 export default farms;

@@ -200,5 +200,13 @@ const auth = {
   intentOwnFarmDesc: 'अपना फार्म और तालाब सेट करें',
   intentWorkOnFarmTitle: 'मैं किसी के फार्म पर काम करता हूँ',
   intentWorkOnFarmDesc: 'जुड़ने के लिए उनका कोड डालें',
+
+  // Create-account screen (artboard 04)
+  fullNameLabel: "पूरा नाम",
+  fullNamePlaceholder: "आपका नाम",
+  fullNameRequired: "अपना नाम डालें",
+  emailVerifyNote: "हम इस पते पर एक सत्यापन लिंक भेजते हैं।",
+  orDivider: "या",
+  signInPrompt: "क्या आपका खाता पहले से है?",
 };
 export default auth;

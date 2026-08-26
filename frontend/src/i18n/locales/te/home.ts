@@ -167,6 +167,12 @@ const home = {
   weeklyChemistryDaysAgo: '{{days}} రోజుల క్రితం',
   weeklyChemistryOverdue: 'మించిపోయింది — {{days}} రోజుల క్రితం',
   weeklyChemistryNone: 'ఇంకా నమోదు కాలేదు',
+
+  // Empty first-run dashboard (artboard 09)
+  noFarmsYet: "ఇంకా ఫారమ్‌లు లేవు",
+  createFarmCardSub: "మీ చెరువులను సెటప్ చేసి నమోదు ప్రారంభించండి",
+  joinCodeCardTitle: "కోడ్‌తో చేరండి",
+  joinCodeCardSub: "వేరొకరు నడిపే ఫారమ్‌లో పని చేయండి",
 };
 
 export default home;

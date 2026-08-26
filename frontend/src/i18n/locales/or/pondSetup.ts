@@ -59,5 +59,17 @@ const pondSetup = {
   errAerator: 'ଏକ ବୈଧ ସଂଖ୍ୟା ଦିଅନ୍ତୁ',
   errHp: 'ପ୍ରତି ଏରେଟର HP ଦିଅନ୍ତୁ',
   errSave: 'ଏହି ପୋଖରୀ ସଞ୍ଚୟ ହୋଇ ପାରିଲା ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+
+  // Pond naming, step 2 of 2 (artboard 06)
+  stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ",
+  namePattern: "ନାମ ଢାଞ୍ଚା",
+  prefixPlaceholder: "ଉପସର୍ଗ",
+  namesLabel: "ନାମଗୁଡ଼ିକ",
+  pondsToCreate: "ତିଆରି ହେବାକୁ ଥିବା ପୋଖରୀ",
+  areaPlaceholder: "କ୍ଷେତ୍ରଫଳ m²",
+  areaOptionalNote: "କ୍ଷେତ୍ରଫଳ ବର୍ତ୍ତମାନ ବାଧ୍ୟତାମୂଳକ ନୁହେଁ। ପୋଖରୀରେ ପୋଣା ଛାଡ଼ିବା ସମୟରେ ଯୋଡ଼ିପାରିବେ।",
+  createFarmCta: "ଫାର୍ମ ତିଆରି କରନ୍ତୁ",
+  errPrefix: "୧–୪ଟି ଅକ୍ଷର କିମ୍ବା ସଂଖ୍ୟା ବ୍ୟବହାର କରନ୍ତୁ",
+  errPondsPartial: "ଫାର୍ମ ତିଆରି ହେଲା, କିନ୍ତୁ {{count}}ଟି ପୋଖରୀ ଯୋଡ଼ି ହେଲାନାହିଁ। ଫାର୍ମ ସ୍କ୍ରିନରୁ ଯୋଡ଼ନ୍ତୁ।",
 };
 export default pondSetup;
