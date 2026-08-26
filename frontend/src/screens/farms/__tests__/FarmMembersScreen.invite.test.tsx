@@ -11,6 +11,9 @@ jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: {
         listMembers: jest.fn().mockResolvedValue({ data: [] }),
         listInvites: jest.fn(),
+        listPending: jest.fn().mockResolvedValue({ data: [] }),
+        approveMember: jest.fn(),
+        declineMember: jest.fn(),
         rotateInvite: jest.fn(),
         revokeInvite: jest.fn(),
         removeMember: jest.fn(),
@@ -114,7 +117,7 @@ describe('FarmMembersScreen — farm code is identity, invite is the credential'
         const { getByText } = renderScreen();
         await waitFor(() => expect(getByText('WXYZ7890')).toBeTruthy());
 
-        fireEvent.press(getByText('Replace with a new invite'));
+        fireEvent.press(getByText('New code'));
 
         await waitFor(() => expect(getByText('QRST4567')).toBeTruthy());
         expect(farmMembersApi.rotateInvite).toHaveBeenCalledWith('farm-1', {});

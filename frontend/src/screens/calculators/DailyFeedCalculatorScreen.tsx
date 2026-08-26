@@ -1,13 +1,39 @@
-import React, { useState } from 'react';
+/**
+ * Daily feed — artboard p3.
+ *
+ * The design's point is the split between two kinds of input:
+ *
+ *   FROM THE POND   MBW, survival, count — the app already knows these, so it
+ *                   fills them in and marks where they came from.
+ *   WHAT YOU ARE    feeding rate, and the area if it differs. Typed by you,
+ *   TESTING         and visibly the only thing you had to type.
+ *
+ * Both remain editable. A farmer who sampled this morning and has not logged it
+ * yet must be able to overwrite MBW — prefilled is a starting point, not a
+ * lock.
+ *
+ * The result then offers to LOG the feed it just computed, which is the whole
+ * reason to calculate it. Previously the number was a dead end you had to
+ * re-enter by hand on the feed log.
+ */
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Card } from '../../components/ui/Card';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { PondPicker } from '../../components/ui/PondPicker';
+import { StatRow } from '../../components/ui/StatRow';
 import { Input } from '../../components/ui/Input';
-import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
-import { calculatorsApi, DailyFeedResponse } from '../../api/calculators';
+import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
+import type { PondContext } from '../../api/pondContext';
+
+const c = theme.roles.light;
+
+/** Meals a day the result is divided into — the app's standing assumption. */
+const MEALS_PER_DAY = 4;
 
 const FEEDING_RATE_TABLE = [
     { sizeRange: '< 3 g', rate: '8–10%' },
@@ -18,18 +44,51 @@ const FEEDING_RATE_TABLE = [
     { sizeRange: '> 20 g', rate: '2–2.5%' },
 ];
 
-export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
+export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
+
+    const [pondId, setPondId] = useState<string | null>(route?.params?.pondId ?? null);
+    const [pondName, setPondName] = useState<string | null>(route?.params?.pondName ?? null);
+    const [doc, setDoc] = useState<number | null>(null);
+    /** Which fields the pond filled in — drives the "from the pond" labelling. */
+    const [prefilled, setPrefilled] = useState(false);
 
     const [mbwG, setMbwG] = useState('');
     const [srPct, setSrPct] = useState('');
-    const [pondAreaM2, setPondAreaM2] = useState('');
     const [initialCount, setInitialCount] = useState('');
+    const [pondAreaM2, setPondAreaM2] = useState('');
     const [feedingRatePct, setFeedingRatePct] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<DailyFeedResponse | null>(null);
     const [biomassKg, setBiomassKg] = useState<number | null>(null);
+
+    /**
+     * Fill from the pond's snapshot. Only empty fields are written, so a value
+     * the farmer has already typed is never overwritten by a slower response.
+     */
+    const applyContext = useCallback((id: string, ctx: PondContext | null) => {
+        setPondId(id);
+        if (!ctx) return;
+        setDoc(ctx.doc ?? null);
+        setPrefilled(true);
+        if (ctx.abwG != null) setMbwG((v) => v || String(ctx.abwG));
+        if (ctx.crop?.stockingCount != null) {
+            setInitialCount((v) => v || String(ctx.crop!.stockingCount));
+            if (ctx.livePopulation != null && ctx.crop.stockingCount > 0) {
+                const sr = Math.round((ctx.livePopulation / ctx.crop.stockingCount) * 100);
+                setSrPct((v) => v || String(sr));
+            }
+        }
+        if (ctx.areaM2 != null) setPondAreaM2((v) => v || String(Math.round(ctx.areaM2!)));
+    }, []);
+
+    // Clear a stale result when any input changes — a number sitting under
+    // edited inputs claims to be an answer to a question nobody asked.
+    useEffect(() => {
+        setResult(null);
+        setBiomassKg(null);
+    }, [mbwG, srPct, initialCount, pondAreaM2, feedingRatePct]);
 
     const handleCalculate = async () => {
         const mbw = parseFloat(mbwG);
@@ -54,20 +113,19 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
             return;
         }
 
-        const computedBiomass = (count * sr / 100) * mbw / 1000;
-
+        const computedBiomass = ((count * sr) / 100) * mbw / 1000;
         if (computedBiomass <= 0) {
             Alert.alert(t('common.error'), t('calculators.dailyFeed.errorBiomassZero'));
             return;
         }
 
-        setBiomassKg(computedBiomass);
         setIsLoading(true);
         try {
             const { data } = await calculatorsApi.calculateDailyFeed({
                 biomassKg: computedBiomass,
                 feedingPercentage: fr,
             });
+            setBiomassKg(computedBiomass);
             setResult(data);
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.dailyFeed.errorCalc'));
@@ -78,212 +136,262 @@ export const DailyFeedCalculatorScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.title}>{t('calculators.dailyFeed.title')}</Text>
-                <View style={{ width: 40 }} />
-            </View>
+            <ScreenHeader
+                eyebrow={t('calculators.dailyFeed.eyebrow')}
+                title={t('calculators.dailyFeed.shortTitle')}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                <Card style={styles.card}>
-                    <Text style={styles.sectionTitle}>{t('calculators.dailyFeed.sectionPondStock')}</Text>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+            >
+                <PondPicker
+                    pondId={pondId}
+                    onChange={(id, ctx) => {
+                        if (id !== pondId) setPondName(null);
+                        applyContext(id, ctx);
+                    }}
+                    stockedOnly
+                />
+
+                {prefilled && (
+                    <View style={styles.prefilled}>
+                        <Text style={styles.prefilledText}>
+                            {doc != null
+                                ? t('calculators.dailyFeed.filledFromPondDay', { day: doc })
+                                : t('calculators.dailyFeed.filledFromPond')}
+                        </Text>
+                    </View>
+                )}
+
+                <SectionHeader label={t('calculators.dailyFeed.fromThePond')} />
+                <View style={styles.form}>
+                    <View style={styles.triple}>
+                        <View style={styles.third}>
                             <Input
                                 label={t('calculators.dailyFeed.labelMbw')}
                                 value={mbwG}
                                 onChangeText={setMbwG}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 12.5"
+                                placeholder="18.4"
                                 required
                             />
                         </View>
-                        <View style={styles.halfCol}>
+                        <View style={styles.third}>
                             <Input
                                 label={t('calculators.dailyFeed.labelSr')}
                                 value={srPct}
                                 onChangeText={setSrPct}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 85"
+                                placeholder="78"
+                                required
+                            />
+                        </View>
+                        <View style={styles.third}>
+                            <Input
+                                label={t('calculators.dailyFeed.labelCountShort')}
+                                value={initialCount}
+                                onChangeText={setInitialCount}
+                                keyboardType="number-pad"
+                                placeholder="28700"
                                 required
                             />
                         </View>
                     </View>
-                    <View style={styles.row}>
-                        <View style={styles.halfCol}>
+                </View>
+
+                <SectionHeader label={t('calculators.dailyFeed.whatYouAreTesting')} />
+                <View style={styles.form}>
+                    <View style={styles.pair}>
+                        <View style={styles.half}>
                             <Input
-                                label={t('calculators.dailyFeed.labelInitialCount')}
-                                value={initialCount}
-                                onChangeText={setInitialCount}
-                                keyboardType="number-pad"
-                                placeholder="e.g. 500000"
+                                label={t('calculators.dailyFeed.labelFeedingRateShort')}
+                                value={feedingRatePct}
+                                onChangeText={setFeedingRatePct}
+                                keyboardType="decimal-pad"
+                                placeholder="3.2"
                                 required
                             />
+                            <Text style={styles.typedNote}>{t('calculators.dailyFeed.typedByYou')}</Text>
                         </View>
-                        <View style={styles.halfCol}>
+                        <View style={styles.half}>
                             <Input
                                 label={t('calculators.dailyFeed.labelPondArea')}
                                 value={pondAreaM2}
                                 onChangeText={setPondAreaM2}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 5000"
+                                placeholder="4000"
                             />
                         </View>
                     </View>
-                    <Input
-                        label={t('calculators.dailyFeed.labelFeedingRate')}
-                        value={feedingRatePct}
-                        onChangeText={setFeedingRatePct}
-                        keyboardType="decimal-pad"
-                        placeholder="e.g. 2.5"
-                        required
-                    />
 
-                    <Button title={t('calculators.dailyFeed.calculate')} onPress={handleCalculate} loading={isLoading} style={styles.calcBtn} />
-                </Card>
-
-                {biomassKg !== null && (
-                    <Card variant="flat" style={styles.biomassCard}>
-                        <Text style={styles.biomassLabel}>{t('calculators.dailyFeed.estimatedBiomass')}</Text>
-                        <Text style={styles.biomassValue}>{biomassKg.toFixed(1)} kg</Text>
-                    </Card>
-                )}
+                    <TouchableOpacity
+                        style={[styles.calcBtn, isLoading && styles.calcBusy]}
+                        onPress={handleCalculate}
+                        disabled={isLoading}
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.calcLabel}>{t('calculators.dailyFeed.calculate')}</Text>
+                    </TouchableOpacity>
+                </View>
 
                 {result && (
-                    <View style={styles.resultBox}>
-                        <Text style={styles.resultLabel}>{t('calculators.dailyFeed.requiredDailyFeed')}</Text>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.dailyFeedKg.toFixed(2)} kg</Text>
-                        <Text style={styles.resultSubtext}>{t('calculators.dailyFeed.distributeAcrossFeedings')}</Text>
-                    </View>
+                    <>
+                        <View style={styles.result}>
+                            <Text style={styles.resultLabel}>
+                                {t('calculators.dailyFeed.requiredDailyFeed')}
+                            </Text>
+                            <Text style={styles.resultValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
+                                {result.dailyFeedKg.toFixed(1)}
+                                <Text style={styles.resultUnit}> kg</Text>
+                            </Text>
+                        </View>
+                        <StatRow
+                            divider
+                            stats={[
+                                {
+                                    value: biomassKg != null ? Math.round(biomassKg).toLocaleString('en-IN') : '—',
+                                    label: t('calculators.dailyFeed.biomassKg'),
+                                },
+                                {
+                                    value: (result.dailyFeedKg / MEALS_PER_DAY).toFixed(1),
+                                    label: t('calculators.dailyFeed.perMealKg'),
+                                },
+                                { value: String(MEALS_PER_DAY), label: t('calculators.dailyFeed.meals') },
+                            ]}
+                        />
+
+                        {/* The calculation is only useful if it reaches the log. */}
+                        {!!pondId && (
+                            <TouchableOpacity
+                                style={styles.logRow}
+                                onPress={() =>
+                                    navigation.navigate('FeedLog', {
+                                        pondId,
+                                        pondName,
+                                        suggestedKg: Number(result.dailyFeedKg.toFixed(1)),
+                                    })
+                                }
+                                accessibilityRole="button"
+                            >
+                                <Text style={styles.logLabel}>
+                                    {t('calculators.dailyFeed.logThisAmount', {
+                                        kg: result.dailyFeedKg.toFixed(1),
+                                    })}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </>
                 )}
 
-                <Card style={styles.tableCard}>
-                    <Text style={styles.tableTitle}>{t('calculators.dailyFeed.feedingRateReference')}</Text>
-                    <View style={styles.tableHeader}>
-                        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>{t('calculators.dailyFeed.colShrimpSize')}</Text>
-                        <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>{t('calculators.dailyFeed.colRateBw')}</Text>
+                <SectionHeader label={t('calculators.dailyFeed.feedingRateReference')} />
+                <View style={styles.tableHead}>
+                    <Text style={[styles.headCell, { flex: 1 }]}>
+                        {t('calculators.dailyFeed.colShrimpSize')}
+                    </Text>
+                    <Text style={[styles.headCell, styles.rateCol]}>
+                        {t('calculators.dailyFeed.colRateBw')}
+                    </Text>
+                </View>
+                {FEEDING_RATE_TABLE.map((row) => (
+                    <View key={row.sizeRange} style={styles.tableRow}>
+                        <Text style={[styles.cell, { flex: 1 }]}>{row.sizeRange}</Text>
+                        <Text style={[styles.cell, styles.rateCol]}>{row.rate}</Text>
                     </View>
-                    {FEEDING_RATE_TABLE.map((row, i) => (
-                        <View key={i} style={[styles.tableRow, i % 2 === 0 && styles.tableRowEven]}>
-                            <Text style={[styles.tableCell, { flex: 1 }]}>{row.sizeRange}</Text>
-                            <Text style={[styles.tableCell, { flex: 1, textAlign: 'right' }]}>{row.rate}</Text>
-                        </View>
-                    ))}
-                </Card>
+                ))}
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: theme.spacing[4],
+    content: { paddingBottom: theme.spacing[16], backgroundColor: c.surface },
+
+    prefilled: {
+        backgroundColor: c.infoBg,
         borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
-        paddingHorizontal: theme.spacing[4],
+        borderBottomColor: c.borderDefault,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2.5],
     },
-    backBtn: {
-        padding: theme.spacing[4],
-    },
-    title: {
-        ...theme.typeScale.h3,
-        color: theme.roles.light.textPrimary,
-    },
-    content: {
-        padding: theme.spacing[4],
-        paddingBottom: theme.spacing[12],
-    },
-    card: {
-        marginBottom: theme.spacing[6],
-    },
-    sectionTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[4],
-    },
-    row: {
-        flexDirection: 'row',
-        gap: theme.spacing[4],
-    },
-    halfCol: {
-        flex: 1,
+    prefilledText: { ...theme.typeScale.bodySmall, color: c.infoText },
+
+    form: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[1] },
+    triple: { flexDirection: 'row', gap: theme.spacing[2] },
+    third: { flex: 1 },
+    pair: { flexDirection: 'row', gap: theme.spacing[3] },
+    half: { flex: 1 },
+    typedNote: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: c.textDisabled,
+        marginTop: -theme.spacing[2],
+        marginBottom: theme.spacing[2],
     },
     calcBtn: {
-        marginTop: theme.spacing[3],
-    },
-    biomassCard: {
-        marginBottom: theme.spacing[4],
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+        marginTop: theme.spacing[2],
+        backgroundColor: c.primaryHover,
+        borderRadius: theme.radius.xs,
         alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 48,
     },
-    biomassLabel: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textSecondary,
-    },
-    biomassValue: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.primary,
-    },
-    resultBox: {
-        backgroundColor: theme.roles.light.infoBg,
-        padding: theme.spacing[8],
-        borderRadius: theme.radius.md,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: theme.roles.light.primary,
-        marginBottom: theme.spacing[6],
+    calcBusy: { opacity: 0.6 },
+    calcLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textInverse },
+
+    result: {
+        backgroundColor: c.successBg,
+        borderTopWidth: 1,
+        borderTopColor: c.borderDefault,
+        marginTop: theme.spacing[4],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[4],
     },
     resultLabel: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.primary,
-        marginBottom: theme.spacing[2],
+        ...theme.typeScale.labelSmall,
+        fontFamily: 'DMSans-SemiBold',
+        fontSize: 10,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        color: c.successText,
     },
-    resultValue: {
-        fontSize: 36,
-        fontWeight: '700',
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[2],
-    },
-    resultSubtext: {
-        ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textSecondary,
-    },
-    tableCard: {
-        marginBottom: theme.spacing[6],
-    },
-    tableTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[3],
-    },
-    tableHeader: {
-        flexDirection: 'row',
-        paddingBottom: theme.spacing[2],
+    resultValue: { fontFamily: 'DMMono-Medium', fontSize: 40, lineHeight: 48, color: c.successText },
+    resultUnit: { fontSize: 20 },
+    logRow: {
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
         borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        marginBottom: theme.spacing[1],
+        borderBottomColor: c.borderDefault,
+        minHeight: 44,
+        justifyContent: 'center',
     },
-    tableHeaderCell: {
-        ...theme.typeScale.labelMedium,
-        color: theme.roles.light.textSecondary,
+    logLabel: { ...theme.typeScale.labelLarge, color: c.textLink },
+
+    tableHead: {
+        flexDirection: 'row',
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[1],
     },
+    headCell: {
+        ...theme.typeScale.labelSmall,
+        fontFamily: 'DMSans-SemiBold',
+        fontSize: 10,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        color: c.textDisabled,
+    },
+    rateCol: { width: 110, textAlign: 'right' },
     tableRow: {
         flexDirection: 'row',
+        paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
     },
-    tableRowEven: {
-        backgroundColor: theme.roles.light.background,
-        borderRadius: theme.radius.sm,
-    },
-    tableCell: {
-        ...theme.typeScale.bodySmall,
-        color: theme.roles.light.textPrimary,
-    },
+    cell: { ...theme.typeScale.bodyMedium, color: c.textPrimary },
 });
+
+export default DailyFeedCalculatorScreen;

@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'நிலுவையில்',
   status_approved: 'ஒப்புதல் அளிக்கப்பட்டது',
   status_rejected: 'நிராகரிக்கப்பட்டது',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} நாட்கள்",
+  dayCount_one: "{{count}} நாள்",
+  noReason: "காரணம் தரப்படவில்லை",
+  nobodyAway: "இந்த வாரம் வேறு யாரும் விடுப்பில் இல்லை",
+  awayThisWeek: "இந்த வாரம் விடுப்பில்: {{names}}",
 };
 
 export default leave;

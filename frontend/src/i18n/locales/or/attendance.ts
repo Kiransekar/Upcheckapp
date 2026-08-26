@@ -15,6 +15,18 @@ const attendance = {
   teamTodayTitle: 'ଆଜିର ଦଳ',
   teamTodayEmpty: 'ଆଜି ପର୍ଯ୍ୟନ୍ତ କେହି ଚେକ୍ ଇନ୍ କରିନାହାନ୍ତି।',
   myHistoryTitle: 'ମୋର ଇତିହାସ',
+
+  // Attendance — artboard 3b
+  yourShift: "ଆପଣଙ୍କ ସିଫ୍ଟ",
+  stillInFor: "ଏବେ ବି ଚେକ ଇନ · ଏପର୍ଯ୍ୟନ୍ତ {{elapsed}}",
+  stillInShort: "ଭିତରେ",
+  presentOf: "{{total}} ମଧ୍ୟରୁ {{present}} ଜଣ",
+  noRecordToday: "ଆଜି କୌଣସି ରେକର୍ଡ ନାହିଁ",
+  you: "ଆପଣ",
+  colIn: "ଆସିବା",
+  colOut: "ଯିବା",
+  noHistory: "ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ।",
+  showEarlier: "ପୂର୍ବ ଦିନଗୁଡ଼ିକ ଦେଖାନ୍ତୁ",
 };
 
 export default attendance;

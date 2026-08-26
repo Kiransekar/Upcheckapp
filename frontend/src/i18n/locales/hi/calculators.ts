@@ -23,6 +23,10 @@ const calculators = {
       title: 'वृद्धि और कटाई',
       description: 'अपेक्षित कटाई, वृद्धि प्रक्षेपण, जैव भार और आहार दर',
     },
+  
+    // artboard p2
+    eyebrow: "उपकरण",
+    prefillNote: "हर कैलकुलेटर तालाब से संख्याएँ ले सकता है, ताकि आप वही टाइप करें जो आप जाँच रहे हैं।",
   },
 
   // ── CultivationPerformanceScreen ─────────────────────────────────────────
@@ -77,6 +81,21 @@ const calculators = {
     errorBiomassZero: 'परिकलित जैव भार शून्य या ऋणात्मक है। इनपुट जांचें।',
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
+  
+    // artboard p3
+    shortTitle: "दैनिक फ़ीड",
+    eyebrow: "कैलकुलेटर",
+    fromThePond: "तालाब से",
+    whatYouAreTesting: "आप क्या जाँच रहे हैं",
+    filledFromPond: "चुने गए तालाब से भरा गया",
+    filledFromPondDay: "चुने गए तालाब से भरा गया · दिन {{day}}",
+    typedByYou: "आपने टाइप किया",
+    labelCountShort: "संख्या",
+    labelFeedingRateShort: "फ़ीडिंग दर (% BW)",
+    biomassKg: "बायोमास किग्रा",
+    perMealKg: "प्रति भोजन किग्रा",
+    meals: "भोजन",
+    logThisAmount: "{{kg}} किग्रा दर्ज करें",
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -172,5 +191,14 @@ const calculators = {
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
   },
+
+  // Pond picker — artboard p2
+  pickPond: "पहले एक तालाब चुनें",
+  changePond: "बदलें",
+  pondDay: "दिन {{day}}",
+  pondMbw: "MBW {{mbw}} ग्रा",
+  pondBiomass: "{{kg}} किग्रा",
+  pondNoData: "इस तालाब के लिए अभी कुछ दर्ज नहीं",
+  noPonds: "संख्याएँ लेने के लिए कोई स्टॉक किया तालाब नहीं।",
 };
 export default calculators;

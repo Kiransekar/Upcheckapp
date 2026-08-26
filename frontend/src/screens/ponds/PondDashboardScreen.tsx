@@ -1,549 +1,601 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    ScrollView,
-    TouchableOpacity,
-    RefreshControl,
-    Animated,
-    Dimensions,
-} from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+/**
+ * Pond — artboard p1.
+ *
+ * Two things changed, and both are about what a farmer opens this screen FOR.
+ *
+ * 1. If the pond has a problem, it is now the first thing on the page, in words
+ *    ("Oxygen 2.8 mg/L — start aerators") with a way to act. It used to be a
+ *    generic "log your water quality" banner that said nothing about this pond.
+ *
+ * 2. The numbers come from pond-context — the same snapshot the decision engines
+ *    read — instead of being recomputed here from samplings, harvests and feed
+ *    totals. That removed a five-call chain AND a second definition of biomass
+ *    and FCR that could disagree with the engines' own.
+ *
+ * The fourteen log types stay. Six sit on the surface (the daily loop) and the
+ * rest collapse to one line, which is the design's compromise between "the app
+ * can log anything" and "I have to feed the shrimp".
+ */
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
+
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
-import { Card } from '../../components/ui/Card';
-import { MetricCard } from '../../components/ui/MetricCard';
-import { AlertBanner } from '../../components/ui/AlertBanner';
-import { Button } from '../../components/ui/Button';
-import { StatusBadge } from '../../components/ui/StatusBadge';
-import { Skeleton } from '../../components/ui/Skeleton';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { SummaryRow } from '../../components/ui/SummaryRow';
+import { StatRow, type Stat } from '../../components/ui/StatRow';
+import { Icon, type IconName } from '../../components/ui/Icon';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
-import { pondsApi, Pond } from '../../api/ponds';
-import { cropsApi, Crop } from '../../api/crops';
-import { computeDOC } from '../../store/activeFarmStore';
-import { samplingApi } from '../../api/sampling';
-import { feedApi } from '../../api/feedRecords';
-import { harvestsApi } from '../../api/harvests';
-import { waterQualityApi } from '../../api/waterQuality';
+import { pondsApi, type Pond } from '../../api/ponds';
+import { cropsApi, type Crop } from '../../api/crops';
+import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
+import { pnlApi, type CropPnl } from '../../api/pnl';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
-import { isFeatureEnabled } from '../../config/features';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+type LogMode = 'log' | 'history';
 
-type ActionConfig = {
-    label: string;
-    icon: string;
-    color: string;
-    bg: string;
+interface LogAction {
+    key: string;
+    icon: IconName;
     logRoute: string;
     historyRoute: string;
-    core?: boolean; // shown by default; non-core actions collapse under "More"
+    /** The daily loop — shown without expanding. */
+    core?: boolean;
+}
+
+/**
+ * Ordered most-used first. The six core actions are what a farmer touches every
+ * day or week; the remaining eight are occasional clinical and lab logs.
+ */
+const LOG_ACTIONS: LogAction[] = [
+    { key: 'actionWaterQuality', icon: 'water_drop', logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory', core: true },
+    { key: 'actionFeed', icon: 'grain', logRoute: 'FeedLog', historyRoute: 'FeedHistory', core: true },
+    { key: 'actionDailyRoutine', icon: 'checklist', logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine', core: true },
+    { key: 'actionSampling', icon: 'scale', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
+    { key: 'actionMeasurements', icon: 'show_chart', logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
+    { key: 'actionAdvisor', icon: 'lightbulb', logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
+    { key: 'actionTreatment', icon: 'science', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
+    { key: 'actionMortality', icon: 'warning', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
+    { key: 'actionDisease', icon: 'science', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
+    { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
+    { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
+    { key: 'actionMicrobiology', icon: 'science', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
+    { key: 'actionHarvest', icon: 'set_meal', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
+    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
+];
+
+const CORE_COUNT = LOG_ACTIONS.filter((a) => a.core).length;
+
+const num = (v: number | null | undefined, digits = 1): string =>
+    v == null ? '—' : v.toFixed(digits);
+
+const inr = (n: number): string => {
+    const a = Math.abs(n);
+    if (a >= 1e7) return `₹${(a / 1e7).toFixed(2)}Cr`;
+    if (a >= 1e5) return `₹${(a / 1e5).toFixed(2)}L`;
+    if (a >= 1e3) return `₹${(a / 1e3).toFixed(1)}k`;
+    return `₹${Math.round(a)}`;
 };
 
-type ChipMode = 'log' | 'history';
-
-const ActionChip = ({ item, mode, onPress }: { item: ActionConfig; mode: ChipMode; onPress: () => void }) => {
-    const scale = React.useRef(new Animated.Value(1)).current;
-    const handlePressIn = () => Animated.spring(scale, { toValue: 0.93, useNativeDriver: true, speed: 30 }).start();
-    const handlePressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 30 }).start();
-
-    return (
-        <TouchableOpacity onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut} activeOpacity={1}>
-            <Animated.View style={[chipStyles.chip, { transform: [{ scale }] }]}>
-                <View style={[chipStyles.iconWrap, { backgroundColor: item.bg }]}>
-                    <MaterialCommunityIcons name={mode === 'history' ? 'history' : (item.icon as any)} size={20} color={item.color} />
-                </View>
-                <Text style={chipStyles.label} numberOfLines={1}>{item.label}</Text>
-            </Animated.View>
-        </TouchableOpacity>
-    );
+const timeAgo = (iso?: string | null): string | null => {
+    if (!iso) return null;
+    const ms = Date.now() - Date.parse(iso);
+    if (Number.isNaN(ms) || ms < 0) return null;
+    const h = Math.floor(ms / 3_600_000);
+    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
 };
-
-const chipStyles = StyleSheet.create({
-    chip: { alignItems: 'center', width: (SCREEN_WIDTH - theme.spacing[4] * 2 - theme.spacing[3] * 2) / 3, paddingVertical: theme.spacing[3] },
-    iconWrap: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 4, elevation: 2 },
-    label: { fontSize: 11, fontWeight: '500', color: theme.roles.light.textSecondary, textAlign: 'center' },
-});
-
-const SectionTab = ({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) => (
-    <TouchableOpacity onPress={onPress} style={[tabStyles.tab, active && tabStyles.tabActive]} activeOpacity={0.7}>
-        <Text style={[tabStyles.label, active && tabStyles.labelActive]}>{label}</Text>
-    </TouchableOpacity>
-);
-
-const tabStyles = StyleSheet.create({
-    tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-    tabActive: { backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 2 },
-    label: { fontSize: 13, fontWeight: '500', color: theme.roles.light.textTertiary },
-    labelActive: { color: theme.roles.light.textPrimary, fontWeight: '700' },
-});
-
-const DOC_MAX = 120;
-
-const DocBadge = ({ doc }: { doc: number }) => {
-    const progress = Math.min(doc / DOC_MAX, 1);
-    const color = progress < 0.4 ? theme.roles.light.successBorder : progress < 0.75 ? theme.roles.light.warningBorder : theme.roles.light.dangerBorder;
-
-    return (
-        <View style={docStyles.container}>
-            <View style={[docStyles.ring, { borderColor: color + '30' }]}>
-                <View style={[docStyles.innerRing, { borderColor: color }]} />
-                <View style={docStyles.center}>
-                    <Text style={[docStyles.number, { color }]}>{doc}</Text>
-                    <Text style={docStyles.suffix}>DOC</Text>
-                </View>
-            </View>
-        </View>
-    );
-};
-
-const docStyles = StyleSheet.create({
-    container: { alignItems: 'center', justifyContent: 'center' },
-    ring: { width: 72, height: 72, borderRadius: 36, borderWidth: 6, alignItems: 'center', justifyContent: 'center' },
-    innerRing: { position: 'absolute', width: 60, height: 60, borderRadius: 30, borderWidth: 3, borderStyle: 'dashed' },
-    center: { alignItems: 'center' },
-    number: { fontSize: 20, fontWeight: '800', lineHeight: 22 },
-    suffix: { fontSize: 9, fontWeight: '600', color: theme.roles.light.textTertiary, letterSpacing: 1 },
-});
-
-const MetricTile = ({ label, value, unit, icon }: { label: string; value: string; unit: string; icon: string }) => (
-    <View style={tileStyles.container}>
-        <MaterialCommunityIcons name={icon as any} size={14} color={theme.roles.light.textTertiary} style={{ marginBottom: 4 }} />
-        <Text style={tileStyles.value}>
-            {value}
-            {value !== '--' && unit ? <Text style={tileStyles.unit}> {unit}</Text> : null}
-        </Text>
-        <Text style={tileStyles.label}>{label}</Text>
-    </View>
-);
-
-const tileStyles = StyleSheet.create({
-    container: { flex: 1, alignItems: 'center', paddingVertical: 12 },
-    value: { fontSize: 18, fontWeight: '700', color: theme.roles.light.textPrimary },
-    unit: { fontSize: 11, fontWeight: '500', color: theme.roles.light.textSecondary },
-    label: { fontSize: 10, fontWeight: '500', color: theme.roles.light.textTertiary, marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
-});
 
 export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { pondId, pondName } = route.params;
-
-    // Ordered most-used first. The six `core` actions are a farmer's daily/weekly
-    // loop and show by default; the rest (occasional clinical/lab logs) collapse
-    // under "More" to keep the daily surface uncluttered.
-    const ACTION_CONFIG: ActionConfig[] = [
-        { label: t('ponds.actionWaterQuality'), icon: 'water-percent', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'WaterQualityLog', historyRoute: 'WaterQualityHistory', core: true },
-        { label: t('ponds.actionFeed'), icon: 'corn', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'FeedLog', historyRoute: 'FeedHistory', core: true },
-        { label: t('ponds.actionDailyRoutine'), icon: 'clipboard-check-outline', color: theme.roles.light.successText, bg: theme.roles.light.successBg, logRoute: 'DailyRoutine', historyRoute: 'DailyRoutine', core: true },
-        { label: t('ponds.actionSampling'), icon: 'scale', color: theme.roles.light.successBorder, bg: theme.roles.light.successBg, logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
-        { label: t('ponds.actionMeasurements'), icon: 'chart-line', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
-        { label: t('ponds.actionAdvisor'), icon: 'lightbulb-on-outline', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
-        { label: t('ponds.actionTreatment'), icon: 'pill', color: theme.roles.light.dangerBorder, bg: theme.roles.light.dangerBg, logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
-        { label: t('ponds.actionMortality'), icon: 'alert-circle', color: theme.roles.light.dangerBorder, bg: theme.roles.light.dangerBg, logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
-        { label: t('ponds.actionDisease'), icon: 'virus', color: theme.roles.light.primary, bg: theme.roles.light.infoBg, logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
-        { label: t('ponds.actionChemical'), icon: 'flask', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
-        { label: t('ponds.actionPlankton'), icon: 'leaf', color: theme.roles.light.successText, bg: theme.roles.light.successBg, logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
-        { label: t('ponds.actionMicrobiology'), icon: 'microscope', color: theme.roles.light.textSecondary, bg: theme.roles.light.surfaceVariant, logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-        { label: t('ponds.actionHarvest'), icon: 'basket', color: theme.roles.light.successBorder, bg: theme.roles.light.successBg, logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
-        { label: t('ponds.actionWeeklyChem'), icon: 'flask-outline', color: theme.roles.light.warningBorder, bg: theme.roles.light.warningBg, logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
-    ];
-    const coreActions = ACTION_CONFIG.filter((a) => a.core);
-    const moreCount = ACTION_CONFIG.length - coreActions.length;
-    const [pond, setPond] = useState<Pond | null>(null);
-    const [activeCycle, setActiveCycle] = useState<Crop | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [isOffline, setIsOffline] = useState(false);
-    const [activeTab, setActiveTab] = useState<ChipMode>('log');
-    const [showAllActions, setShowAllActions] = useState(false);
-
-    // Economics (expenses, harvest planning) are owner-only; workers see only the
-    // operational logging surface. Backend enforces the real gate regardless.
     const loadMemberships = useMembershipStore((s) => s.load);
+
+    const [pond, setPond] = useState<Pond | null>(null);
+    const [cycle, setCycle] = useState<Crop | null>(null);
+    const [context, setContext] = useState<PondContext | null>(null);
+    const [alert, setAlert] = useState<BriefingItem | null>(null);
+    const [pnl, setPnl] = useState<CropPnl | null>(null);
+    const [mode, setMode] = useState<LogMode>('log');
+    const [showAll, setShowAll] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<any>(null);
+    const [offline, setOffline] = useState(false);
+
     const perms = usePermissions(pond?.farmId);
-    useEffect(() => { loadMemberships(); }, [loadMemberships]);
 
-    const [mbw, setMbw] = useState<string>('--');
-    const [survival, setSurvival] = useState<string>('--');
-    const [biomass, setBiomass] = useState<string>('--');
-    const [fcr, setFcr] = useState<string>('--');
-    const [wqAlert, setWqAlert] = useState<boolean>(false);
-
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-
-    // Cache ref
-    const cacheRef = useRef<{ pond: Pond; cycle: Crop | null; metrics: any; timestamp: number } | null>(null);
-    const CACHE_TTL = 30000;
-
-    const fadeIn = useCallback(() => {
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-    }, [fadeAnim]);
-
-    const fetchData = useCallback(async (forceRefresh = false) => {
-        if (!forceRefresh && cacheRef.current) {
-            const cached = cacheRef.current;
-            if (Date.now() - cached.timestamp < CACHE_TTL) {
-                setPond(cached.pond);
-                setActiveCycle(cached.cycle);
-                setMbw(cached.metrics.mbw);
-                setSurvival(cached.metrics.survival);
-                setBiomass(cached.metrics.biomass);
-                setFcr(cached.metrics.fcr);
-                setWqAlert(cached.metrics.wqAlert);
-                setIsLoading(false);
-                fadeIn();
-                return;
-            }
-        }
-
+    const load = useCallback(async () => {
         setError(null);
-        setIsOffline(false);
-
+        setOffline(false);
         try {
             const { data: pondData } = await pondsApi.getById(pondId);
             setPond(pondData);
 
-            if (pondData.activeCycleId) {
-                // All four calls only need pondId/activeCycleId (both already known),
-                // so they run in one batch instead of a 4-deep sequential chain — this
-                // was the main contributor to the dashboard's 10s+ load time.
-                const [cycleRes, samplingRes, feedTotalRes, harvestRes, wqLatestRes] = await Promise.all([
-                    cropsApi.getById(pondData.activeCycleId),
-                    samplingApi.getAll(pondData.activeCycleId),
-                    // ponytail: sums feed across every cycle ever run on this pond, not
-                    // just the active one — it's the only total (unpaginated) endpoint
-                    // the feed API exposes. Add a cycle-scoped total if that skews FCR.
-                    feedApi.getTotalByPond(pondId),
-                    // Scoped to this cycle — passing no cropId makes the backend scan
-                    // every harvest across every farm the user can access (up to 500
-                    // rows), unrelated to this one pond.
-                    harvestsApi.getAll(pondData.activeCycleId),
-                    waterQualityApi.getLatest(pondId).catch(() => ({ data: null }) as any),
-                ]);
-                const cycleData = cycleRes.data;
-                setActiveCycle(cycleData);
-
-                const samplings = samplingRes.data || [];
-                const sortedSamplings = [...samplings].sort((a, b) => new Date(b.samplingDate).getTime() - new Date(a.samplingDate).getTime());
-                let currentBiomass = 0;
-
-                // Computed locally (not read back from state) so the values below and
-                // the cache write always agree with what was just fetched.
-                let newMbw = '--';
-                let newSurvival = '--';
-
-                if (sortedSamplings.length > 0) {
-                    const latest = sortedSamplings[0];
-                    newMbw = latest.mbwG ? latest.mbwG.toString() : '--';
-                    newSurvival = latest.srEstimationPercent ? latest.srEstimationPercent.toString() : '--';
-                    currentBiomass += Number(latest.biomassEstimationKg || 0);
-                }
-
-                // Already scoped to this cycle by the harvestsApi.getAll(cropId) call above.
-                const cycleHarvests = harvestRes.data || [];
-                const harvestedBiomass = cycleHarvests.reduce((sum: number, h: any) => sum + Number(h.weightKg || 0), 0);
-                const totalBiomass = currentBiomass + harvestedBiomass;
-                const newBiomass = totalBiomass > 0 ? (totalBiomass / 1000).toFixed(2) : '--';
-
-                const totalFeedKg = Number(feedTotalRes.data) || 0;
-                const newFcr = totalBiomass > 0 && totalFeedKg > 0 ? (totalFeedKg / totalBiomass).toFixed(2) : '--';
-
-                const newWqAlert = !wqLatestRes.data?.recordedAt
-                    || (Date.now() - new Date(wqLatestRes.data.recordedAt).getTime()) / 3_600_000 > 24;
-
-                setMbw(newMbw);
-                setSurvival(newSurvival);
-                setBiomass(newBiomass);
-                setFcr(newFcr);
-                setWqAlert(newWqAlert);
-
-                // Cache the freshly computed values, not the (still-stale) closure state.
-                cacheRef.current = {
-                    pond: pondData,
-                    cycle: cycleData,
-                    metrics: { mbw: newMbw, survival: newSurvival, biomass: newBiomass, fcr: newFcr, wqAlert: newWqAlert },
-                    timestamp: Date.now(),
-                };
-            } else {
-                setActiveCycle(null);
-                setMbw('--');
-                setSurvival('--');
-                setBiomass('--');
-                setFcr('--');
-                setWqAlert(false);
-            }
-            fadeIn();
+            // Everything below needs only the pond (and its cycle id), so it all
+            // goes out at once rather than in a chain.
+            const [ctxRes, cycleRes, briefRes] = await Promise.all([
+                pondContextApi.get(pondId).catch(() => ({ data: null as PondContext | null })),
+                pondData.activeCycleId
+                    ? cropsApi.getById(pondData.activeCycleId).catch(() => ({ data: null as Crop | null }))
+                    : Promise.resolve({ data: null as Crop | null }),
+                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+            ]);
+            setContext(ctxRes.data);
+            setCycle(cycleRes.data);
+            setAlert(briefRes.data.find((b) => b.pondId === pondId && b.topSeverity !== 'info') ?? null);
         } catch (err: any) {
-            const statusCode = err?.response?.status;
-            if (statusCode === 0 || err?.code === 'NETWORK_ERROR' || !err?.response) {
-                setIsOffline(true);
-            }
+            if (!err?.response) setOffline(true);
             setError(err);
         } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+            setLoading(false);
+            setRefreshing(false);
         }
-    }, [pondId, fadeIn]);
+    }, [pondId]);
 
     useFocusEffect(
         useCallback(() => {
-            fadeAnim.setValue(0);
-            fetchData();
-        }, [fetchData])
+            loadMemberships();
+            load();
+        }, [load, loadMemberships]),
     );
 
-    const handleRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchData(true);
-    }, [fetchData]);
+    // Costs are a separate, permissioned call — a worker never triggers it.
+    useFocusEffect(
+        useCallback(() => {
+            if (!perms.canViewFinancials || !pond?.activeCycleId) {
+                setPnl(null);
+                return;
+            }
+            pnlApi
+                .cropPnl(pond.activeCycleId)
+                .then(({ data }) => setPnl(data))
+                .catch(() => setPnl(null));
+        }, [perms.canViewFinancials, pond?.activeCycleId]),
+    );
 
-    const handleRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchData(true);
-    }, [fetchData]);
+    /** Survival = live population over what was stocked. */
+    const survival = useMemo(() => {
+        const stocked = context?.crop?.stockingCount;
+        const live = context?.livePopulation;
+        if (!stocked || live == null) return null;
+        return Math.round((live / stocked) * 100);
+    }, [context]);
 
-    const navigateAction = (item: ActionConfig) => {
-        const route = activeTab === 'log' ? item.logRoute : item.historyRoute;
+    /** Days between today and the cycle's target length. */
+    const daysToTarget = useMemo(() => {
+        const target = context?.crop?.targetCultivationDays;
+        if (target == null || context?.doc == null) return null;
+        return target - context.doc;
+    }, [context]);
+
+    const openAction = (action: LogAction) => {
         const params: Record<string, any> = { pondId, pondName };
-        if (activeCycle) params.cropId = activeCycle.id;
+        if (cycle) params.cropId = cycle.id;
         if (pond?.farmId) params.farmId = pond.farmId;
-        navigation.navigate(route, params);
+        navigation.navigate(mode === 'log' ? action.logRoute : action.historyRoute, params);
     };
 
-    const doc = activeCycle?.stockingDate
-        ? computeDOC(activeCycle.stockingDate, activeCycle.initialAgeDays ?? 0)
-        : (activeCycle?.doc ?? 0);
-    const pondStatusColor = pond?.status === 'active' ? theme.roles.light.successBorder : pond?.status === 'fallow' ? theme.roles.light.warningBorder : theme.roles.light.textDisabled;
+    const wq = context?.waterQuality;
+    const readingAgo = timeAgo(wq?.recordedAt);
 
-    const renderSkeleton = () => (
-        <View style={styles.scrollContent}>
-            <View style={styles.heroCard}>
-                <View style={styles.heroTop}>
-                    <Skeleton width={72} height={72} borderRadius={36} />
-                    <View style={styles.heroInfo}>
-                        <Skeleton width={80} height={12} style={styles.mb2} />
-                        <Skeleton width={120} height={20} />
-                    </View>
-                </View>
-                <View style={styles.metricsRow}>
-                    <View style={tileStyles.container}><Skeleton width={40} height={18} /></View>
-                    <View style={styles.metricDivider} />
-                    <View style={tileStyles.container}><Skeleton width={40} height={18} /></View>
-                    <View style={styles.metricDivider} />
-                    <View style={tileStyles.container}><Skeleton width={40} height={18} /></View>
-                    <View style={styles.metricDivider} />
-                    <View style={tileStyles.container}><Skeleton width={40} height={18} /></View>
-                </View>
-            </View>
-            <View style={styles.actionsSection}>
-                <View style={styles.tabBar}>
-                    <Skeleton width="45%" height={36} borderRadius={10} />
-                    <Skeleton width="45%" height={36} borderRadius={10} />
-                </View>
-                <View style={styles.actionGrid}>
-                    {Array.from({ length: 6 }).map((_, i) => (
-                        <Skeleton key={i} width={52} height={52} borderRadius={16} style={styles.mb2} />
-                    ))}
-                </View>
-            </View>
-        </View>
+    const header = (
+        <ScreenHeader
+            eyebrow={pond ? t(`ponds.status_${pond.status}`, { defaultValue: pond.status }) : null}
+            title={pondName ?? t('ponds.title')}
+            onBack={() => navigation.goBack()}
+            accessibilityBackLabel={t('common.back')}
+        />
     );
+
+    if (loading) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <View style={styles.skeleton}>
+                    <Skeleton width="100%" height={72} style={styles.mb} />
+                    <Skeleton width="100%" height={56} style={styles.mb} />
+                    <Skeleton width="100%" height={140} />
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
+    if (offline) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <NetworkError onRetry={() => { setLoading(true); load(); }} />
+            </ScreenWrapper>
+        );
+    }
+
+    if (error && !pond) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <ErrorState title={t('ponds.errorPondTitle')} error={error} onRetry={() => { setLoading(true); load(); }} />
+            </ScreenWrapper>
+        );
+    }
+
+    const visibleActions = showAll ? LOG_ACTIONS : LOG_ACTIONS.filter((a) => a.core);
+    const hiddenCount = LOG_ACTIONS.length - CORE_COUNT;
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="arrow-left" size={22} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <View style={styles.headerCenter}>
-                    <View style={[styles.statusDot, { backgroundColor: pondStatusColor }]} />
-                    <Text style={styles.headerTitle} numberOfLines={1}>{pondName}</Text>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="cog-outline" size={22} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-            </View>
-
-            {isLoading ? (
-                renderSkeleton()
-            ) : isOffline ? (
-                <NetworkError onRetry={handleRetry} />
-            ) : error && !pond ? (
-                <ErrorState title={t('ponds.errorPondTitle')} error={error} onRetry={handleRetry} />
-            ) : (
-                <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-                    <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} colors={[theme.roles.light.primary]} tintColor={theme.roles.light.primary} />}>
-                        {activeCycle && wqAlert && (
-                            <AlertBanner title={t('ponds.wqAlertTitle')} message={t('ponds.wqAlertMessage')} type="warning" />
-                        )}
-
-                        {activeCycle ? (
-                            <View style={styles.heroCard}>
-                                <View style={styles.heroTop}>
-                                    <DocBadge doc={doc} />
-                                    <View style={styles.heroInfo}>
-                                        <Text style={styles.heroLabel}>{t('ponds.activeCycleLabel')}</Text>
-                                        <Text style={styles.heroName} numberOfLines={1}>{activeCycle.name}</Text>
-                                        {activeCycle.stockingDate && (
-                                            <Text style={styles.heroDate}>
-                                                {t('ponds.stocked', { date: new Date(activeCycle.stockingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) })}
-                                            </Text>
-                                        )}
-                                    </View>
-                                    <TouchableOpacity style={styles.harvestBtn} onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: activeCycle.id })} activeOpacity={0.8}>
-                                        <MaterialCommunityIcons name="basket-outline" size={16} color="#fff" />
-                                        <Text style={styles.harvestBtnText}>{t('ponds.harvest')}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                                <View style={styles.metricsRow}>
-                                    <MetricTile label={t('ponds.metricMbw')} value={mbw} unit="g" icon="scale" />
-                                    <View style={styles.metricDivider} />
-                                    <MetricTile label={t('ponds.metricSurvival')} value={survival} unit="%" icon="heart-pulse" />
-                                    <View style={styles.metricDivider} />
-                                    <MetricTile label={t('ponds.metricBiomass')} value={biomass} unit="T" icon="weight-kilogram" />
-                                    <View style={styles.metricDivider} />
-                                    <MetricTile label={t('ponds.metricFcr')} value={fcr} unit="" icon="swap-horizontal" />
-                                </View>
-                            </View>
-                        ) : (
-                            <View style={styles.idleCard}>
-                                <View style={styles.idleIconWrap}>
-                                    <MaterialCommunityIcons name="water-outline" size={40} color={theme.roles.light.textTertiary} />
-                                </View>
-                                <Text style={styles.idleTitle}>{t('ponds.idleTitle')}</Text>
-                                <Text style={styles.idleSubtitle}>{t('ponds.idleSubtitle')}</Text>
-                                <TouchableOpacity style={styles.startBtn} onPress={() => navigation.navigate('CreateCycle', { pondId })} activeOpacity={0.8}>
-                                    <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-                                    <Text style={styles.startBtnText}>{t('ponds.startNewCycle')}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {activeCycle && (
-                            <View style={styles.actionsSection}>
-                                <View style={styles.tabBar}>
-                                    <SectionTab label={t('ponds.tabLogData')} active={activeTab === 'log'} onPress={() => setActiveTab('log')} />
-                                    <SectionTab label={t('ponds.tabViewHistory')} active={activeTab === 'history'} onPress={() => setActiveTab('history')} />
-                                </View>
-                                <View style={styles.actionGrid}>
-                                    {(showAllActions ? ACTION_CONFIG : coreActions).map((item) => (
-                                        <ActionChip key={item.label} item={item} mode={activeTab} onPress={() => navigateAction(item)} />
-                                    ))}
-                                </View>
-                                {moreCount > 0 && (
-                                    <TouchableOpacity
-                                        style={styles.moreToggle}
-                                        onPress={() => setShowAllActions((v) => !v)}
-                                        activeOpacity={0.7}
-                                        accessibilityRole="button"
-                                        accessibilityState={{ expanded: showAllActions }}
-                                    >
-                                        <Text style={styles.moreToggleText}>
-                                            {showAllActions ? t('ponds.showLess') : t('ponds.showMore', { count: moreCount })}
-                                        </Text>
-                                        <MaterialCommunityIcons name={showAllActions ? 'chevron-up' : 'chevron-down'} size={18} color={theme.roles.light.primary} />
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        )}
-
-                        {activeCycle && perms.canViewFinancials && (
-                            <View style={styles.econSection}>
-                                <Text style={styles.econTitle}>{t('ponds.economicsTitle')}</Text>
-                                <TouchableOpacity
-                                    style={styles.econRow}
-                                    onPress={() => navigation.navigate('Expenses', { cropId: activeCycle.id, pondName })}
-                                    activeOpacity={0.7}
-                                    accessibilityRole="button"
-                                >
-                                    <MaterialCommunityIcons name="cash-multiple" size={20} color={theme.roles.light.successText} />
-                                    <Text style={styles.econRowText}>{t('ponds.viewExpenses')}</Text>
-                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.econRow, styles.econRowLast]}
-                                    onPress={() => navigation.navigate('HarvestPlans', { pondId, pondName, cropId: activeCycle.id, farmId: pond?.farmId })}
-                                    activeOpacity={0.7}
-                                    accessibilityRole="button"
-                                >
-                                    <MaterialCommunityIcons name="calendar-check" size={20} color={theme.roles.light.primary} />
-                                    <Text style={styles.econRowText}>{t('ponds.harvestPlans')}</Text>
-                                    <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {isFeatureEnabled('pondDimensionHistory') && pond && (
+            {header}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={() => { setRefreshing(true); load(); }}
+                        colors={[theme.roles.light.primary]}
+                        tintColor={theme.roles.light.primary}
+                    />
+                }
+            >
+                {/*
+                  * The pond's problem, in the engine's own words, above everything
+                  * else. "Done" sends them to the log rather than clearing the
+                  * alert here — recording the new reading is what actually
+                  * resolves it, and marking it done without one would just hide a
+                  * pond that still has 2.8 mg/L of oxygen in it.
+                  */}
+                {alert && (
+                    <View style={styles.alert}>
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.alertTitle}>{alert.topTitle}</Text>
+                            {!!readingAgo && (
+                                <Text style={styles.alertMeta}>
+                                    {t('ponds.readAgo', { ago: readingAgo })}
+                                </Text>
+                            )}
+                        </View>
+                        {perms.canRecordData && (
                             <TouchableOpacity
-                                style={styles.dimHistoryRow}
-                                onPress={() => navigation.navigate('PondDimensionHistory', { pondId: pond.id, pondName })}
-                                activeOpacity={0.7}
+                                style={styles.alertBtn}
+                                onPress={() => navigation.navigate('WaterQualityLog', { pondId, pondName, cropId: cycle?.id })}
+                                accessibilityRole="button"
                             >
-                                <MaterialCommunityIcons name="history" size={20} color={theme.roles.light.textSecondary} />
-                                <Text style={styles.dimHistoryText}>{t('ponds.dimHistory', 'Dimension history')}</Text>
-                                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
+                                <Text style={styles.alertBtnLabel}>{t('ponds.markDone')}</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+
+                {cycle ? (
+                    <>
+                        <View style={styles.cycleRow}>
+                            <View style={styles.docBox}>
+                                <Text style={styles.docValue}>{context?.doc ?? '—'}</Text>
+                                <Text style={styles.docLabel}>{t('ponds.doc')}</Text>
+                            </View>
+                            <View style={styles.cycleDivider} />
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text style={styles.cycleName} numberOfLines={1}>
+                                    {cycle.name}
+                                </Text>
+                                <Text style={styles.cycleMeta} numberOfLines={1}>
+                                    {[
+                                        cycle.stockingDate
+                                            ? t('ponds.stocked', {
+                                                  date: new Date(cycle.stockingDate).toLocaleDateString('en-IN', {
+                                                      day: 'numeric',
+                                                      month: 'short',
+                                                      year: 'numeric',
+                                                  }),
+                                              })
+                                            : null,
+                                        context?.crop?.stockingCount
+                                            ? t('ponds.plCount', {
+                                                  pl: context.crop.stockingCount.toLocaleString('en-IN'),
+                                              })
+                                            : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </Text>
+                            </View>
+                            {perms.canRecordData && (
+                                <TouchableOpacity
+                                    style={styles.harvestBtn}
+                                    onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: cycle.id })}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={styles.harvestLabel}>{t('ponds.harvest')}</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        <StatRow
+                            divider
+                            stats={[
+                                { value: num(context?.abwG), label: t('ponds.metricMbwG') },
+                                { value: survival != null ? String(survival) : '—', label: t('ponds.metricSurvivalPct') },
+                                {
+                                    value: context?.biomassKg != null ? Math.round(context.biomassKg).toLocaleString('en-IN') : '—',
+                                    label: t('ponds.metricBiomassKg'),
+                                },
+                                { value: num(context?.runningFcr, 2), label: t('ponds.metricFcr') },
+                            ]}
+                        />
+
+                        <View style={styles.modeRow}>
+                            <ModeButton
+                                label={t('ponds.tabLogData')}
+                                active={mode === 'log'}
+                                onPress={() => setMode('log')}
+                            />
+                            <ModeButton
+                                label={t('ponds.tabViewHistory')}
+                                active={mode === 'history'}
+                                onPress={() => setMode('history')}
+                            />
+                        </View>
+
+                        <View style={styles.grid}>
+                            {visibleActions.map((action) => (
+                                <TouchableOpacity
+                                    key={action.key}
+                                    style={styles.gridTile}
+                                    onPress={() => openAction(action)}
+                                    accessibilityRole="button"
+                                >
+                                    <Icon name={action.icon} size={20} color={theme.roles.light.textSecondary} />
+                                    <Text style={styles.gridLabel} numberOfLines={1}>
+                                        {t(`ponds.${action.key}`)}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        {hiddenCount > 0 && (
+                            <TouchableOpacity
+                                style={styles.moreRow}
+                                onPress={() => setShowAll((v) => !v)}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: showAll }}
+                            >
+                                <Text style={styles.moreLabel}>
+                                    {showAll ? t('ponds.showLess') : t('ponds.moreLogTypes', { count: hiddenCount })}
+                                </Text>
                             </TouchableOpacity>
                         )}
 
-                        {isFeatureEnabled('feedingTrayChecks') && activeCycle && (
-                            <TouchableOpacity
-                                style={styles.dimHistoryRow}
-                                onPress={() => navigation.navigate('FeedingTrayChecks', { cropId: activeCycle.id, pondName })}
-                                activeOpacity={0.7}
-                            >
-                                <MaterialCommunityIcons name="basket-outline" size={20} color={theme.roles.light.textSecondary} />
-                                <Text style={styles.dimHistoryText}>{t('logs.feedingTray_title', 'Feeding tray check')}</Text>
-                                <MaterialCommunityIcons name="chevron-right" size={20} color={theme.roles.light.textTertiary} />
-                            </TouchableOpacity>
+                        {wq && (
+                            <>
+                                <SectionHeader
+                                    label={t('ponds.latestReading')}
+                                    actionLabel={readingAgo ? t('ponds.agoShort', { ago: readingAgo }) : undefined}
+                                    onAction={() => navigation.navigate('WaterQualityHistory', { pondId, pondName })}
+                                />
+                                <StatRow
+                                    stats={
+                                        [
+                                            {
+                                                value: num(wq.dissolvedOxygen),
+                                                label: t('ponds.wqDo'),
+                                                tone: alert?.topSeverity === 'critical' ? 'danger' : 'default',
+                                            },
+                                            { value: num(wq.ph), label: t('ponds.wqPh') },
+                                            { value: num(wq.temperature), label: t('ponds.wqTemp') },
+                                            { value: num(wq.salinity, 0), label: t('ponds.wqSalt') },
+                                        ] as Stat[]
+                                    }
+                                />
+                            </>
                         )}
 
-                        <View style={{ height: 32 }} />
-                    </ScrollView>
-                </Animated.View>
-            )}
+                        {perms.canViewFinancials && (
+                            <>
+                                <SectionHeader label={t('ponds.moneyForPond')} />
+                                <SummaryRow
+                                    icon="receipt_long"
+                                    title={t('ponds.viewExpenses')}
+                                    subtitle={
+                                        pnl ? t('ponds.spentThisCycle', { amount: inr(pnl.totalCost) }) : undefined
+                                    }
+                                    onPress={() => navigation.navigate('Expenses', { cropId: cycle.id, pondName })}
+                                />
+                                <SummaryRow
+                                    icon="event_available"
+                                    title={t('ponds.harvestPlan')}
+                                    subtitle={
+                                        daysToTarget != null
+                                            ? daysToTarget > 0
+                                                ? t('ponds.windowOpensIn', { count: daysToTarget })
+                                                : t('ponds.windowOpen')
+                                            : undefined
+                                    }
+                                    onPress={() =>
+                                        navigation.navigate('HarvestPlans', {
+                                            pondId,
+                                            pondName,
+                                            cropId: cycle.id,
+                                            farmId: pond?.farmId,
+                                        })
+                                    }
+                                    divider="strong"
+                                />
+                            </>
+                        )}
+                    </>
+                ) : (
+                    <View style={styles.idle}>
+                        <Icon name="waves" size={40} color={theme.roles.light.textDisabled} />
+                        <Text style={styles.idleTitle}>{t('ponds.idleTitle')}</Text>
+                        <Text style={styles.idleSub}>{t('ponds.idleSubtitle')}</Text>
+                        {perms.canStartCycle && (
+                            <TouchableOpacity
+                                style={styles.startBtn}
+                                onPress={() => navigation.navigate('CreateCycle', { pondId })}
+                                accessibilityRole="button"
+                            >
+                                <Text style={styles.startLabel}>{t('ponds.startNewCycle')}</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                )}
+            </ScrollView>
         </ScreenWrapper>
     );
 };
 
+/** "Log data" / "History" — a filled pair, not a tab strip. */
+const ModeButton: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({
+    label,
+    active,
+    onPress,
+}) => (
+    <TouchableOpacity
+        style={[styles.modeBtn, active ? styles.modeBtnActive : styles.modeBtnIdle]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+    >
+        <Text style={[styles.modeLabel, active ? styles.modeLabelActive : styles.modeLabelIdle]}>
+            {label}
+        </Text>
+    </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, backgroundColor: theme.roles.light.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.borderDefault },
-    iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center' },
-    headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 8 },
-    statusDot: { width: 8, height: 8, borderRadius: 4 },
-    headerTitle: { fontSize: 17, fontWeight: '700', color: theme.roles.light.textPrimary },
-    scrollContent: { padding: 16, backgroundColor: theme.roles.light.background },
-    heroCard: { backgroundColor: theme.roles.light.surface, borderRadius: 20, marginBottom: 16, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
-    heroTop: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.surfaceVariant },
-    heroInfo: { flex: 1 },
-    heroLabel: { fontSize: 9, fontWeight: '700', color: theme.roles.light.textTertiary, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
-    heroName: { fontSize: 17, fontWeight: '700', color: theme.roles.light.textPrimary },
-    heroDate: { fontSize: 12, color: theme.roles.light.textSecondary, marginTop: 2 },
-    harvestBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: theme.roles.light.successBorder, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-    harvestBtnText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-    metricsRow: { flexDirection: 'row', alignItems: 'center' },
-    metricDivider: { width: StyleSheet.hairlineWidth, height: 40, backgroundColor: theme.roles.light.borderDefault },
-    idleCard: { backgroundColor: theme.roles.light.surface, borderRadius: 20, marginBottom: 16, padding: 32, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2 },
-    idleIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: theme.roles.light.surfaceVariant, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    idleTitle: { fontSize: 18, fontWeight: '700', color: theme.roles.light.textSecondary, marginBottom: 6 },
-    idleSubtitle: { fontSize: 14, color: theme.roles.light.textTertiary, marginBottom: 24, textAlign: 'center' },
-    startBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: theme.roles.light.primary, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
-    startBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
-    actionsSection: { backgroundColor: theme.roles.light.surface, borderRadius: 20, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
-    tabBar: { flexDirection: 'row', backgroundColor: theme.roles.light.surfaceVariant, borderRadius: 12, padding: 4, marginBottom: 20 },
-    actionGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-    moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: theme.spacing[2], paddingVertical: theme.spacing[3], borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: theme.roles.light.surfaceVariant },
-    moreToggleText: { fontSize: 13, fontWeight: '600', color: theme.roles.light.primary },
-    econSection: { backgroundColor: theme.roles.light.surface, borderRadius: 20, overflow: 'hidden', marginTop: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 2, padding: 16 },
-    econTitle: { fontSize: 13, fontWeight: '700', color: theme.roles.light.textTertiary, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
-    econRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.roles.light.surfaceVariant },
-    econRowLast: { borderBottomWidth: 0 },
-    econRowText: { flex: 1, fontSize: 15, fontWeight: '600', color: theme.roles.light.textPrimary },
-    dimHistoryRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: theme.roles.light.surface, borderRadius: 14, marginBottom: 12 },
-    dimHistoryText: { flex: 1, fontSize: 15, fontWeight: '600', color: theme.roles.light.textPrimary },
-    mb2: { marginBottom: theme.spacing[2] },
+    content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
+    skeleton: { padding: theme.spacing[4] },
+    mb: { marginBottom: theme.spacing[3] },
+
+    alert: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        backgroundColor: theme.roles.light.dangerBg,
+        borderLeftWidth: 3,
+        borderLeftColor: theme.roles.light.dangerBorder,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.dangerBorder,
+        paddingLeft: 17,
+        paddingRight: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+    },
+    alertTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.dangerText },
+    alertMeta: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: theme.roles.light.dangerText,
+        opacity: 0.85,
+    },
+    alertBtn: {
+        backgroundColor: theme.roles.light.dangerText,
+        borderRadius: theme.radius.xs,
+        paddingHorizontal: theme.spacing[4],
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    alertBtnLabel: { ...theme.typeScale.labelLarge, color: theme.roles.light.textInverse },
+
+    cycleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+    },
+    docBox: { alignItems: 'flex-start' },
+    docValue: { fontFamily: 'DMMono-Medium', fontSize: 24, lineHeight: 28, color: theme.roles.light.textPrimary },
+    docLabel: {
+        ...theme.typeScale.labelSmall,
+        fontSize: 10,
+        letterSpacing: 0.8,
+        textTransform: 'uppercase',
+        color: theme.roles.light.textDisabled,
+    },
+    cycleDivider: { width: 1, alignSelf: 'stretch', backgroundColor: theme.roles.light.borderDefault },
+    cycleName: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    cycleMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: theme.roles.light.textTertiary },
+    harvestBtn: {
+        borderWidth: 1.5,
+        borderColor: theme.roles.light.successText,
+        borderRadius: theme.radius.xs,
+        paddingHorizontal: theme.spacing[3],
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    harvestLabel: { ...theme.typeScale.labelMedium, color: theme.roles.light.successText },
+
+    modeRow: {
+        flexDirection: 'row',
+        gap: theme.spacing[2],
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[4],
+    },
+    modeBtn: {
+        flex: 1,
+        borderRadius: theme.radius.xs,
+        paddingVertical: theme.spacing[3],
+        alignItems: 'center',
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    modeBtnActive: { backgroundColor: theme.roles.light.textPrimary },
+    modeBtnIdle: { borderWidth: 1, borderColor: theme.roles.light.textSecondary },
+    modeLabel: { ...theme.typeScale.labelLarge },
+    modeLabelActive: { color: theme.roles.light.textInverse },
+    modeLabelIdle: { color: theme.roles.light.textSecondary },
+
+    grid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing[1.5],
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[2.5],
+    },
+    gridTile: {
+        // Three across, whatever the phone: each takes a third of the row minus
+        // the two gaps between them.
+        width: '31.8%',
+        alignItems: 'center',
+        gap: 3,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderStrong,
+        borderRadius: theme.radius.xs,
+        paddingVertical: theme.spacing[3],
+        paddingHorizontal: theme.spacing[1],
+        minHeight: 60,
+        justifyContent: 'center',
+    },
+    gridLabel: { ...theme.typeScale.labelMedium, fontSize: 11, color: theme.roles.light.textPrimary },
+    moreRow: {
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[3],
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    moreLabel: { ...theme.typeScale.labelLarge, color: theme.roles.light.textLink },
+
+    idle: { alignItems: 'center', gap: theme.spacing[2], padding: theme.spacing[8] },
+    idleTitle: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
+    idleSub: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textTertiary },
+    startBtn: {
+        marginTop: theme.spacing[3],
+        backgroundColor: theme.roles.light.primaryHover,
+        borderRadius: theme.radius.xs,
+        paddingHorizontal: theme.spacing[6],
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    startLabel: { ...theme.typeScale.labelLarge, color: theme.roles.light.textInverse },
 });
+
+export default PondDashboardScreen;

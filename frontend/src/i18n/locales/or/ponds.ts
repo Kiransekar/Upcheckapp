@@ -77,5 +77,35 @@ const ponds = {
   economicsTitle: 'ଅର୍ଥ',
   viewExpenses: 'ଖର୍ଚ୍ଚ',
   harvestPlans: 'ଅମଳ ଯୋଜନା',
+
+  // Pond — artboard p1
+  title: "ପୋଖରୀ",
+  readAgo: "{{ago}} ପୂର୍ବେ ପଢ଼ାଯାଇଥିଲା",
+  markDone: "ହୋଇଗଲା",
+  doc: "ଦିନ",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW ଗ୍ରା",
+  metricSurvivalPct: "ବଞ୍ଚିଥିବା %",
+  metricBiomassKg: "ବାୟୋମାସ କିଗ୍ରା",
+  moreLogTypes: "ଆଉ {{count}} ଲଗ ପ୍ରକାର",
+  latestReading: "ସର୍ବଶେଷ ଜଳ ପାଠ",
+  agoShort: "{{ago}} ପୂର୍ବେ",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "ତାପମାତ୍ରା °C",
+  wqSalt: "ଲୁଣ ppt",
+  moneyForPond: "ଏହି ପୋଖରୀର ଟଙ୍କା",
+  spentThisCycle: "ଏହି ଚକ୍ରରେ {{amount}}",
+  harvestPlan: "ଅମଳ ଯୋଜନା",
+  windowOpensIn: "{{count}} ଦିନରେ ୱିଣ୍ଡୋ ଖୋଲିବ",
+  windowOpensIn_one: "ଆସନ୍ତାକାଲି ୱିଣ୍ଡୋ ଖୋଲିବ",
+  windowOpen: "ୱିଣ୍ଡୋ ଖୋଲା ଅଛି",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}ତମ ପୋଖରୀ",
+  shapeIrregular: "ଅନିୟମିତ",
+  fieldSurveyedArea: "ସର୍ଭେ କରାଯାଇଥିବା କ୍ଷେତ୍ର (m²)",
+  surveyedDifferent: "ସର୍ଭେ କ୍ଷେତ୍ର ଅଲଗା",
+  surveyedDifferentSub: "ଗଣନା କରାଯାଇଥିବା କ୍ଷେତ୍ର ବଦଳାନ୍ତୁ",
 };
 export default ponds;

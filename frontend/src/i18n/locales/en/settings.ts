@@ -145,6 +145,16 @@ const settings = {
   deletePasswordHint: 'Enter your password to confirm it is you.',
   deleteAccountButton: 'Permanently delete my account',
   deleteAccountWrongPassword: 'Password is incorrect.',
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · Upcheck",
+  edit: "Edit",
+  ownerOfFarms: "owner of {{count}} farms",
+  ownerOfFarms_one: "owner of {{count}} farm",
+  languageWholeApp: "The whole app changes, including what workers see.",
+  signOutConfirm: "Sign out of Upcheck on this device?",
+  toolsSection: "Tools",
+  farmSection: "Farm",
 };
 
 export default settings;

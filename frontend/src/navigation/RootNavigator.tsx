@@ -21,6 +21,7 @@ import { QuickLogScreen } from '../screens/main/QuickLogScreen';
 import { CreateFarmScreen } from '../screens/farms/CreateFarmScreen';
 import { FarmDetailScreen } from '../screens/farms/FarmDetailScreen';
 import { FarmMembersScreen } from '../screens/farms/FarmMembersScreen';
+import { MemberDetailScreen } from '../screens/farms/MemberDetailScreen';
 import { AllWorkersScreen } from '../screens/farms/AllWorkersScreen';
 import { AddWorkerScreen } from '../screens/farms/AddWorkerScreen';
 import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
@@ -79,7 +80,6 @@ import { MorningBriefingScreen } from '../screens/engines/MorningBriefingScreen'
 
 import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
-import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { HelpScreen } from '../screens/settings/HelpScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
@@ -140,6 +140,7 @@ export type RootStackParamList = {
     CreateFarm: undefined;
     FarmDetail: { farmId: string; farmName?: string };
     FarmMembers: { farmId: string; farmName?: string };
+    MemberDetail: { farmId: string; farmName?: string; member: any };
     AllWorkers: undefined;
     AddWorker: { farmId: string; farmName?: string };
     CreatePond: { farmId: string };
@@ -200,7 +201,6 @@ export type RootStackParamList = {
     MorningBriefing: undefined;
 
     Profile: undefined;
-    Settings: undefined;
     Notifications: undefined;
     Help: undefined;
     About: undefined;
@@ -327,6 +327,8 @@ const RootNavigator = () => {
                     <Stack.Screen name="JoinFarm" component={JoinFarmScreen} />
                     <Stack.Screen name="FarmDetail" component={FarmDetailScreen} />
                     <Stack.Screen name="FarmMembers" component={FarmMembersScreen} />
+
+                    <Stack.Screen name="MemberDetail" component={MemberDetailScreen} />
                     <Stack.Screen name="AllWorkers" component={AllWorkersScreen} />
                     <Stack.Screen name="AddWorker" component={AddWorkerScreen} />
                     <Stack.Screen name="CreatePond" component={CreatePondScreen} />
@@ -389,7 +391,6 @@ const RootNavigator = () => {
                     {/* Phase 5 (Settings & Notifications) */}
                     <Stack.Screen name="Profile" component={ProfileScreen} />
                     <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
-                    <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="Help" component={HelpScreen} />
                     <Stack.Screen name="About" component={AboutScreen} />

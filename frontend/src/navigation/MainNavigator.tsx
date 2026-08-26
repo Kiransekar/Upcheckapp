@@ -13,9 +13,9 @@ import { usePermissions } from '../hooks/usePermissions';
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { FarmsListScreen } from '../screens/farms/FarmsListScreen';
 import { ReportsScreen } from '../screens/main/ReportsScreen';
-import { MoreScreen } from '../screens/main/MoreScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TeamScreen } from '../screens/main/TeamScreen';
-import { TransactionsScreen } from '../screens/finance/TransactionsScreen';
+import { MoneyScreen } from '../screens/finance/MoneyScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -116,7 +116,7 @@ export const MainNavigator = () => {
             {perms.canViewFinancials && (
                 <Tab.Screen
                     name="Money"
-                    component={TransactionsScreen}
+                    component={MoneyScreen}
                     options={{
                         tabBarLabel: t('common.tabMoney'),
                         tabBarIcon: ({ color }) => <Icon name="currency_rupee" color={color} size={22} />,
@@ -132,8 +132,8 @@ export const MainNavigator = () => {
                 }}
             />
             <Tab.Screen
-                name="More"
-                component={MoreScreen}
+                name="Settings"
+                component={SettingsScreen}
                 options={{
                     tabBarLabel: t('common.tabSettings'),
                     tabBarIcon: ({ color }) => <Icon name="settings" color={color} size={22} />,

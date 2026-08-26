@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'ଲେଣଦେଣ ନାହିଁ',
   noTransactionsSubtitle: 'ଫାର୍ମ ଆର୍ଥିକ ଟ୍ରାକ ଆରମ୍ଭ କରିବାକୁ ପ୍ରଥମ ଆୟ ବା ଖର୍ଚ ଯୋଡ଼ନ୍ତୁ।',
   loadError: 'ଲେଣଦେଣ ଲୋଡ ବିଫଳ।',
+
+  // Money — artboard 3d
+  moneyTitle: "ଟଙ୍କା",
+  addEntry: "ଏଣ୍ଟ୍ରି ଯୋଡ଼ନ୍ତୁ",
+  netSoFar: "ଏପର୍ଯ୍ୟନ୍ତ ନିଟ",
+  whereItWent: "କେଉଁଠି ଗଲା",
+  creditOutstanding: "ଡିଲର ବାକି",
+  creditDue: "{{dealer}} · {{date}} ରେ",
+  creditDealers: "{{count}} ଡିଲରଙ୍କ ପାଖରେ",
+  creditDealers_one: "ଜଣେ ଡିଲର",
+  recentEntries: "ସାମ୍ପ୍ରତିକ ଏଣ୍ଟ୍ରି",
+  seeAll: "ସବୁ ›",
+  noEntries: "ଏହି ଫାର୍ମ ପାଇଁ ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ।",
+  noFarmTitle: "କୌଣସି ଫାର୍ମ ବଛା ହୋଇନାହିଁ",
+  noFarmSub: "ଟଙ୍କା ଦେଖିବାକୁ ଏକ ଫାର୍ମ ବାଛନ୍ତୁ।",
 };
 export default finance;

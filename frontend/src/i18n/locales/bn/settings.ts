@@ -142,6 +142,16 @@ const settings = {
   deleteAccountButton: 'আমার অ্যাকাউন্ট স্থায়ীভাবে মুছুন',
   deleteAccountWrongPassword: 'পাসওয়ার্ড ভুল।',
   deleteAccountError:"আপনার অ্যাকাউন্ট মুছে ফেলা যায়নি। আবার চেষ্টা করুন।",
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · আপচেক",
+  edit: "সম্পাদনা",
+  ownerOfFarms: "{{count}} খামারের মালিক",
+  ownerOfFarms_one: "{{count}} খামারের মালিক",
+  languageWholeApp: "কর্মীরা যা দেখেন তা সহ পুরো অ্যাপ বদলে যায়।",
+  signOutConfirm: "এই ডিভাইসে আপচেক থেকে সাইন আউট করবেন?",
+  toolsSection: "সরঞ্জাম",
+  farmSection: "খামার",
 };
 
 export default settings;

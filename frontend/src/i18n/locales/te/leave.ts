@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'పెండింగ్‌లో',
   status_approved: 'ఆమోదించబడింది',
   status_rejected: 'తిరస్కరించబడింది',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} రోజులు",
+  dayCount_one: "{{count}} రోజు",
+  noReason: "కారణం ఇవ్వలేదు",
+  nobodyAway: "ఈ వారం మరెవరూ సెలవులో లేరు",
+  awayThisWeek: "ఈ వారం సెలవులో: {{names}}",
 };
 
 export default leave;

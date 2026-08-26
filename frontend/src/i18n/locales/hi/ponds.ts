@@ -77,5 +77,35 @@ const ponds = {
   economicsTitle: 'वित्त',
   viewExpenses: 'खर्च',
   harvestPlans: 'कटाई योजना',
+
+  // Pond — artboard p1
+  title: "तालाब",
+  readAgo: "{{ago}} पहले पढ़ा गया",
+  markDone: "हो गया",
+  doc: "दिन",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW ग्रा",
+  metricSurvivalPct: "जीवित %",
+  metricBiomassKg: "बायोमास किग्रा",
+  moreLogTypes: "{{count}} और लॉग प्रकार",
+  latestReading: "नवीनतम जल रीडिंग",
+  agoShort: "{{ago}} पहले",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "तापमान °C",
+  wqSalt: "लवणता ppt",
+  moneyForPond: "इस तालाब का पैसा",
+  spentThisCycle: "इस साइकल में {{amount}}",
+  harvestPlan: "हार्वेस्ट योजना",
+  windowOpensIn: "{{count}} दिनों में विंडो खुलेगी",
+  windowOpensIn_one: "कल विंडो खुलेगी",
+  windowOpen: "विंडो खुली है",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}वाँ तालाब",
+  shapeIrregular: "अनियमित",
+  fieldSurveyedArea: "सर्वे किया क्षेत्र (m²)",
+  surveyedDifferent: "सर्वे किया क्षेत्र अलग है",
+  surveyedDifferentSub: "गणना किए क्षेत्र को बदलें",
 };
 export default ponds;

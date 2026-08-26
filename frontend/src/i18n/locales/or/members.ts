@@ -80,6 +80,26 @@ const members = {
     allEmptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ୱାର୍କର ନାହାନ୍ତି',
     allEmptySub: 'ଆପଣଙ୍କ ଫାର୍ମରେ ୱାର୍କର ଯୋଡ଼ନ୍ତୁ, ସେମାନେ ଏଠାରେ ଦେଖାଯିବେ।',
     allFarmMemberCountLabel: 'ଦଳ: {{count}}',
+
+  // Members — frontend/design/invite.png
+  joinsAsWorker: "ଏହା ଥିବା ବ୍ୟକ୍ତି ୱର୍କର ଭାବରେ ଯୋଗ ଦେବେ",
+  shareCode: "କୋଡ ସେୟାର କରନ୍ତୁ",
+  newCode: "ନୂଆ କୋଡ",
+  onThisFarm: "ଏହି ଫାର୍ମରେ",
+  tapToEdit: "ଯେକୌଣସି ସଦସ୍ୟଙ୍କୁ ଟ୍ୟାପ କରି ତାଙ୍କ ଭୂମିକା କିମ୍ବା ପୋଖରୀ ବଦଳାନ୍ତୁ।",
+  inviteByIdentifier: "ଇମେଲ/ୟୁଜରନେମ ଦେଇ ଡାକନ୍ତୁ",
+  roleSection: "ଭୂମିକା",
+  roleNote: "ପୁରା ଫାର୍ମରେ ସେମାନେ କ'ଣ କରିପାରିବେ।",
+  pondsSection: "ସେମାନେ ଲଗ କରିପାରିବା ପୋଖରୀ",
+  allPondsAction: "ସବୁ ପୋଖରୀ",
+  scopeAllNote: "ଏହି ଫାର୍ମର ପ୍ରତ୍ୟେକ ପୋଖରୀ। ସୀମିତ କରିବାକୁ କିଛି ବାଛନ୍ତୁ।",
+  scopeSomeNote: "କେବଳ ତଳେ ବଛା ପୋଖରୀଗୁଡ଼ିକ।",
+  noPondsToScope: "ଏହି ଫାର୍ମରେ ଏପର୍ଯ୍ୟନ୍ତ ପୋଖରୀ ନାହିଁ।",
+  scopeError: "ପୋଖରୀ ପ୍ରବେଶ ବଦଳାଇ ପାରିଲୁ ନାହିଁ।",
+  financialsSection: "ଖର୍ଚ୍ଚ ଏବଂ ଟଙ୍କା",
+  financialsToggle: "ଖର୍ଚ୍ଚ ଏବଂ ଟଙ୍କା ଦେଖିପାରିବେ",
+  financialsNote: "ୱର୍କର ଏବଂ ଭ୍ୟୁଅର ପାଇଁ ଡିଫଲ୍ଟ ଭାବରେ ବନ୍ଦ।",
+  financialsError: "ଟଙ୍କା ପ୍ରବେଶ ବଦଳାଇ ପାରିଲୁ ନାହିଁ।",
 };
 
 export default members;

@@ -77,5 +77,35 @@ const ponds = {
   economicsTitle: 'অর্থ',
   viewExpenses: 'খরচ',
   harvestPlans: 'ফসল কাটার পরিকল্পনা',
+
+  // Pond — artboard p1
+  title: "পুকুর",
+  readAgo: "{{ago}} আগে পড়া হয়েছে",
+  markDone: "হয়েছে",
+  doc: "দিন",
+  plCount: "{{pl}} PL",
+  metricMbwG: "MBW গ্রা",
+  metricSurvivalPct: "বেঁচে থাকা %",
+  metricBiomassKg: "বায়োমাস কেজি",
+  moreLogTypes: "আরও {{count}} লগ ধরন",
+  latestReading: "সাম্প্রতিক জলের রিডিং",
+  agoShort: "{{ago}} আগে",
+  wqDo: "DO",
+  wqPh: "pH",
+  wqTemp: "তাপমাত্রা °C",
+  wqSalt: "লবণ ppt",
+  moneyForPond: "এই পুকুরের টাকা",
+  spentThisCycle: "এই চক্রে {{amount}}",
+  harvestPlan: "ফসল পরিকল্পনা",
+  windowOpensIn: "{{count}} দিনে জানালা খুলবে",
+  windowOpensIn_one: "আগামীকাল জানালা খুলবে",
+  windowOpen: "জানালা খোলা",
+
+  // Add a pond — frontend/design/create_new_pond.png
+  nthPond: "{{n}}তম পুকুর",
+  shapeIrregular: "অনিয়মিত",
+  fieldSurveyedArea: "জরিপ করা এলাকা (m²)",
+  surveyedDifferent: "জরিপ করা এলাকা আলাদা",
+  surveyedDifferentSub: "হিসাব করা এলাকা বদলান",
 };
 export default ponds;

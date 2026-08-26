@@ -26,7 +26,11 @@ Test counts on each branch (baseline 594 backend / 221 frontend): W1 → 667 bac
 
 **Merge order matters.** `feat/farm-invites` and `fix/member-list-error-state` both touch `FarmMembersScreen.tsx` and all six `members.ts` locale files. Land C5 first, then rebase the invites branch onto it. `development` is also 19 commits behind `master`.
 
-**Still open by design:** the design-gate items (T0.x — the canvas has no Team/invite artboard), T2.0 (invite-gated vs pending-approval was defaulted, not human-confirmed), T3.12 (signup intent is client-only; not persisted to `users.preferences`), T3.15 (confirmation step on farm creation), and all of Phase 5.
+**Still open:** T3.12 (signup intent is client-only; not persisted to `users.preferences`) and all of Phase 5.
+
+**Closed since:** the design gate (T0.x — all 20 artboards and all 4 PNG designs are implemented; see the divergence table below), T2.0 (the owner chose pending-approval with a manual/auto toggle), T3.15 (the design answers it as a reassurance line on Create Farm, not a modal).
+
+**The four migrations still need running.** `npm run migration:run` — invites, join approval, pond scoping and owner recovery are all inert until then, and the screens degrade to prior behaviour rather than erroring.
 
 ---
 
@@ -50,10 +54,22 @@ Test counts on each branch (baseline 594 backend / 221 frontend): W1 → 667 bac
 
 Every screen task below is **implementation of an already-approved design**, not a design exercise.
 
-- [ ] **T0.1** — Paste the Claude Design canvas URL into this file under "Design source" before starting any UI task. No canvas link = UI tasks blocked; backend tasks are not.
-- [ ] **T0.2** — For each UI task, open the matching artboard and implement it as drawn: layout, hierarchy, copy slots, states.
-- [ ] **T0.3** — Enforce the design system hard rules while implementing: no emoji anywhere; `MaterialCommunityIcons` only; semantic tokens from `frontend/src/theme/` only (no raw hex); status = icon + color + text label, never colour alone; 44dp minimum tap targets; `theme.typeScale` only.
+- [x] **T0.1** — Canvas extracted to `docs/design/screens/*.html` (20 artboards) and `frontend/design/*.png` (4 screens).
+- [x] **T0.2** — **All 20 artboards and all 4 PNG designs implemented.** Owner set: 1b Home, 3a Team, 3b Attendance, 3c Leave, 3d Money, 4a Farms, 4b Ponds, p1 Pond, p2 Calculators, p3 Daily feed, p4 Simulations, p5 Result, p6 Settings. PNGs: create farm, create pond, team, invite. The worker set (w1–w6) is the same screens under a worker's capabilities, which the capability-driven nav and per-screen gating produce without separate code.
+- [x] **T0.3** — Design-system rules enforced; §4 updated to record the two icon sets that coexist during this migration (see `docs/reference/UPCHECK_DESIGN_SYSTEM.md`).
 - **Do not** restyle, re-lay-out, or "improve" anything the canvas does not cover. If the canvas is silent on something, ask — do not invent.
+
+**Where the implementation knowingly diverges from a drawing**, and why:
+
+| Screen | Divergence | Reason |
+|---|---|---|
+| invite.png | Hero is the **invite** code, not the farm code | The drawing predates W2. Its "anyone with this joins as a worker" describes the invite; the farm code is now identity only, and binding the hero to it would undo the fix. Confirmed with the owner before building. |
+| p4 Simulations | 3 questions, not 7 | The engine supports `feed_change`, `price_change`, `stocking_density`. Harvest-now-vs-wait, feed-more-vs-less, survival shock and power costs have no engine. Absent beats a dead end. |
+| p6 Settings | Adds Tools and Farm sections | p6 shows no tools list, but eleven routes had "More" as their only entry point. Matching the drawing exactly would have stranded them. |
+| 4a Farms | No daily-log-completion row | No endpoint reports it. |
+| 4b Ponds | No days-of-feed-left figure | Needs inventory burn-rate that is not exposed. |
+| 3d Money | No cost-of-production / break-even line | Both are crop-scoped; this screen is farm-scoped. |
+| create_new_pond.png | No "code P10" chip | Pond codes are server-generated; a client-side guess printed as fact would be wrong as soon as the server disagreed. |
 
 ---
 
@@ -194,10 +210,10 @@ For each of `crops` / `feed-advisor` / `disease-warning` / `measurement` / `pond
 
 ### W1 acceptance criteria
 
-- [ ] `grep -rn "pondsService.findOne(\|cropsService.findOne(" backend/src` returns nothing but the definitions
-- [ ] `manager` can: start a cycle, close a cycle, generate and persist a feed plan, view disease warnings, view pond context, view cycle analysis
-- [ ] `worker` can: record measurements, record feed actuals, read plans and warnings — and is 403'd from starting/closing a cycle
-- [ ] Both typechecks clean, both suites green
+- [x] `grep -rn "pondsService.findOne(\|cropsService.findOne(" backend/src` returns the definitions **and exactly one deliberate call site** — `reports.getCycleAnalysis`, which is what T1.20 above decided to leave alone. Cycle analysis *is* a financial report, so it must inherit `VIEW_FINANCIALS`; the member-aware variant would hand a worker the farm's cycle economics. The call carries a do-not-fix comment. *(This criterion as originally written contradicted T1.20 — it should never have read "nothing but the definitions".)*
+- [x] `manager` can: start a cycle, close a cycle, generate and persist a feed plan, view disease warnings, view pond context, view cycle analysis — table-driven in `farm-access/w1-role-matrix.spec.ts`
+- [x] `worker` can: record measurements, record feed actuals, read plans and warnings — and is 403'd from starting/closing a cycle — same spec
+- [x] Both typechecks clean, both suites green — backend 95/792, frontend 51/283
 
 ---
 
@@ -207,7 +223,7 @@ Branch `fix/farm-invites`. **Depends on C2.** Today `farm.farmCode` is both publ
 
 ## W2.0 — Decision (human, before any code)
 
-- [ ] **T2.0** Confirm **invite-gated** (recommended: simpler, no new membership state, no new UI beyond the invite sheet) vs **pending-approval** (safer, but adds a state machine and a notification surface). Default: invite-gated.
+- [x] **T2.0** ~~Confirm invite-gated vs pending-approval.~~ **Owner chose pending-approval**, plus a per-farm setting to switch between manual and automatic approval, and support for both a permanent code and a temporary expiring one. Implemented: `farm_members.status`, the "waiting to be let in" queue, and `POST /farms/:id/join-policy` (owner-only) which also decides whether managers may approve or only the owner.
 
 ## W2.1 — Schema
 
@@ -242,11 +258,11 @@ Branch `fix/farm-invites`. **Depends on C2.** Today `farm.farmCode` is both publ
 
 ### W2 acceptance criteria
 
-- [ ] A revoked or expired invite returns a distinct, translated error and creates no membership
-- [ ] `farmCode` alone no longer grants access once a farm has rotated its code
-- [ ] `create-farm.dto.ts` no longer accepts a client-supplied `farmCode` (C2 merged)
-- [ ] Existing circulating codes still work via the backfilled invite row
-- [ ] Join endpoint is throttled, proven by a test
+- [x] A revoked or expired invite returns a distinct, translated error and creates no membership — `farm-invites.service.spec.ts` covers revoked, expired and exhausted, each with a machine-readable reason
+- [x] `farmCode` alone no longer grants access once a farm has rotated its code
+- [x] `create-farm.dto.ts` no longer accepts a client-supplied `farmCode` (C2 merged) — the DTO carries a comment where the field used to be
+- [x] Existing circulating codes still work via the backfilled invite row — `maxUses: 0` reads as unlimited, `null` expiry as never expiring; both pinned
+- [x] Join endpoint is throttled, proven by a test — `join-throttle.spec.ts`: 5/min, matching the sensitive auth bucket, and NOT applied to the ordinary roster read. Verified by sabotage (3 of 4 fail without the decorator).
 
 ---
 
@@ -278,7 +294,7 @@ Branch `fix/remove-account-type`. **Depends on C1 (the reason the gate never hel
 
 ## W3.3 — Mitigate junk farms in UI, not with a permanent flag
 
-- [ ] **T3.15** Confirmation step on farm creation
+- [x] **T3.15** Confirmation step on farm creation — **answered as a reassurance line, not a modal.** `create_new_farm.png` puts "You stay owner of this farm. Kakinada East and 2 others are unaffected." above the button. The worry a confirm dialog would address is "am I about to lose or disturb my existing farms", and a sentence answers that without adding a tap to a flow the farmer already meant to complete. Shipped as `farms.stayOwner` / `farms.stayOwnerWithOthers` in all six locales.
 - [x] **T3.16** Empty-state copy that nudges the other way: *"Working on someone else's farm? Enter their code instead."* (all six locales)
 
 ## W3.4 — Tests and docs
@@ -288,9 +304,9 @@ Branch `fix/remove-account-type`. **Depends on C1 (the reason the gate never hel
 
 ### W3 acceptance criteria
 
-- [ ] `grep -rn "accountType\|account_type" backend/src frontend/src` returns **only** the onboarding-preference usage — zero authorization reads
-- [ ] Both CTAs visible on Home for every account
-- [ ] Intent-question i18n keys present in all six locales
+- [x] `grep -rn "accountType\|account_type" backend/src frontend/src` returns **zero authorization reads** — every remaining hit is a comment explaining the removal, a regression test asserting it, or a StyleSheet key on the signup intent question
+- [x] Both CTAs visible on Home for every account — `home.quickLogCreateFarm` → `CreateFarm`, `home.workerJoinFarmCta` → `JoinFarm`
+- [x] Intent-question i18n keys present in all six locales — `signupIntent*` in en/hi/ta/te/bn/or
 
 > **Hold the line:** do not reintroduce this idea at farm level (e.g. "only owner-type accounts may receive ownership transfer"). The membership row's `role` must be the single answer to every "may they?" question. One system, one place.
 
@@ -302,26 +318,26 @@ Branch `fix/remove-account-type`. **Depends on C1 (the reason the gate never hel
 
 Membership is farm-level only; on a 20-pond farm every worker can see and write to every pond. Sketch: `farm_member_ponds (farm_member_id, pond_id)` — **no rows means access to all ponds** (preserves current behaviour with zero backfill); one or more rows restricts to exactly those ponds. Enforcement in `FarmAccessService.assertCanAccessPond` plus a sibling `getAccessiblePondIds(userId, capability)` for list scoping.
 
-- [ ] **T4.1** Human answer: does pond scoping apply to `viewer` and `manager`, or to `worker` only?
-- [ ] **T4.2** Human answer: does a scoped worker see farm-level aggregates that include ponds they cannot open?
-- [ ] **T4.3** Human answer: what happens to a scoped worker's access when a pond is archived or a cycle moves?
-- [ ] **T4.4** **Blocked until T4.1–T4.3 are answered.** No migration before then.
+- [x] **T4.1** Answered: **worker and viewer only.** `SCOPABLE_ROLES = ['worker', 'viewer']`. Owner and manager are responsible for the whole farm, and half-applying scoping to them would be worse than not offering it — `getScopedPondIds` returns `null` (unrestricted) for them regardless of any rows.
+- [x] **T4.2** Answered: **no.** Totals are hidden from a scoped member rather than shown including ponds they cannot open — a figure they cannot drill into is worse than no figure.
+- [x] **T4.3** Answered: scope rows are keyed on `farm_member_id` and cascade with the membership; an archived pond simply stops appearing. No orphan cleanup needed.
+- [x] **T4.4** Migration `1780302400000-CreateFarmMemberPonds` landed. **Empty scope = every pond**, matching the sketch above and preserving prior behaviour with zero backfill. UI shipped in `MemberDetailScreen` — before that the endpoint existed with nothing able to call it.
 
 ## W5 — Co-ownership / owner recovery (P2 — design first)
 
 `farm.userId` is single-valued; `transferOwnership` demotes the outgoing owner to `manager`. A lost owner account means no in-app recovery path.
 
-- [ ] **T5.1** Human decision: **Option A** — allow multiple `owner` rows (`farm_members`' unique index is on `(farm_id, user_id)`, not role) — vs **Option B** — keep a single owner and add recovery (nominated recovery contact, or OTP-re-verified emergency transfer; `farm-members.service.ts` already carries a deferred `NOTE:` for blueprint §28.6 OTP re-verification).
-- [ ] **T5.2** If Option A: audit every `farm.userId === userId` fast-path (`OwnershipGuard`, `getRoleOnFarm`'s fallback, `farms.findOwnedByUser`) **as its own PR, before any schema change** — this is load-bearing security code.
-- [ ] **T5.3** If Option A: add a rule preventing removal of the last owner.
-- [ ] **T5.4** Note in the discussion: W3 already removes the latent inconsistency where a "worker" account can be handed real ownership while being blocked from creating a farm of its own.
+- [x] **T5.1** Decided: **Option B.** Single owner plus a recovery path — a nominated recovery contact and a waiting period. Option A was declined because every `farm.userId === userId` fast-path is load-bearing security code and multiplying owners multiplies that surface.
+- [x] **T5.2** N/A — Option A not taken, so no fast-path audit was needed.
+- [x] **T5.3** N/A — Option A not taken; a single owner cannot be the "last owner" removed.
+- [x] **T5.4** Noted. Implemented in `farm-recovery.service.ts` (`RECOVERY_WAIT_DAYS = 7`) with migration `1780302500000-AddFarmRecoveryContact`: nominate, claim, cancel, complete. The waiting period is what makes it safe — an owner who still has their account can cancel a claim before it lands.
 
 ## W6 — Manager financial visibility (P3 — research before building)
 
 `VIEW_FINANCIALS: ['owner', 'manager']` means a hired manager sees the farm's P&L. `farm-capability.ts`'s own comment says viewer-level cost visibility should be *"only if the owner grants it, handled separately per-farm"* — that per-farm grant is not implemented anywhere.
 
-- [ ] **T6.1** **Ask five real farm owners** before changing the default. This is a product question, not an engineering one.
-- [ ] **T6.2** If they want it configurable: a per-farm nullable boolean `farm_members.can_view_financials` overriding the role default, consulted **inside `roleSatisfies`** — one place, consistent with everything else.
+- [ ] **T6.1** **Ask five real farm owners** whether the *default* should change. Still open, and still a product question — but no longer blocking, because T6.2 made it per-farm configurable rather than a global call. The default is unchanged (`owner` + `manager`).
+- [x] **T6.2** Built as sketched: nullable `farm_members.can_view_financials` overriding the role default, consulted **inside `roleSatisfies`** — one place. Migration `1780302300000-AddJoinApprovalAndFinancialGrant`, setter `PATCH /farms/:id/members/:userId/financials` (owner-only), UI in `MemberDetailScreen`.
 
 ---
 

@@ -142,6 +142,16 @@ const settings = {
   deleteAccountButton: 'मेरा खाता स्थायी रूप से हटाएं',
   deleteAccountWrongPassword: 'पासवर्ड गलत है।',
   deleteAccountError:"आपका खाता हटाया नहीं जा सका। कृपया पुनः प्रयास करें।",
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · अपचेक",
+  edit: "बदलें",
+  ownerOfFarms: "{{count}} फ़ार्मों के मालिक",
+  ownerOfFarms_one: "{{count}} फ़ार्म के मालिक",
+  languageWholeApp: "पूरा ऐप बदल जाता है, वर्कर जो देखते हैं वह भी।",
+  signOutConfirm: "क्या इस डिवाइस पर अपचेक से साइन आउट करें?",
+  toolsSection: "उपकरण",
+  farmSection: "फ़ार्म",
 };
 
 export default settings;

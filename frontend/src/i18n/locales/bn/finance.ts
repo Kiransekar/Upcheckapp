@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'কোনো লেনদেন নেই',
   noTransactionsSubtitle: 'খামারের আর্থিক ট্র্যাকিং শুরু করতে আপনার প্রথম আয় বা ব্যয় যোগ করুন।',
   loadError: 'লেনদেন লোড করতে ব্যর্থ।',
+
+  // Money — artboard 3d
+  moneyTitle: "টাকা",
+  addEntry: "এন্ট্রি যোগ করুন",
+  netSoFar: "এ পর্যন্ত নিট",
+  whereItWent: "কোথায় গেল",
+  creditOutstanding: "ডিলার বাকি",
+  creditDue: "{{dealer}} · {{date}} তারিখে",
+  creditDealers: "{{count}} জন ডিলারের কাছে",
+  creditDealers_one: "একজন ডিলার",
+  recentEntries: "সাম্প্রতিক এন্ট্রি",
+  seeAll: "সব ›",
+  noEntries: "এই খামারের জন্য এখনও কিছু নথিভুক্ত হয়নি।",
+  noFarmTitle: "কোনো খামার নির্বাচিত নয়",
+  noFarmSub: "টাকা দেখতে একটি খামার বেছে নিন।",
 };
 export default finance;

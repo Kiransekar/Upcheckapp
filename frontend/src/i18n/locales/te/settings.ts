@@ -142,6 +142,16 @@ const settings = {
   deleteAccountButton: 'నా ఖాతాను శాశ్వతంగా తొలగించండి',
   deleteAccountWrongPassword: 'పాస్‌వర్డ్ తప్పు.',
   deleteAccountError:"మీ ఖాతాను తొలగించలేకపోయాం. దయచేసి మళ్లీ ప్రయత్నించండి.",
+
+  // Settings — artboard p6
+  accountEyebrow: "{{name}} · అప్‌చెక్",
+  edit: "సవరించు",
+  ownerOfFarms: "{{count}} ఫారంల యజమాని",
+  ownerOfFarms_one: "{{count}} ఫారం యజమాని",
+  languageWholeApp: "వర్కర్లు చూసేది సహా, యాప్ మొత్తం మారుతుంది.",
+  signOutConfirm: "ఈ పరికరంలో అప్‌చెక్ నుండి సైన్ అవుట్ చేయాలా?",
+  toolsSection: "సాధనాలు",
+  farmSection: "ఫారం",
 };
 
 export default settings;

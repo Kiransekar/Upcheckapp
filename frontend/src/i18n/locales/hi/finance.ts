@@ -78,5 +78,20 @@ const finance = {
   noTransactionsTitle: 'कोई लेनदेन नहीं',
   noTransactionsSubtitle: 'फार्म वित्त ट्रैक करना शुरू करने के लिए पहली आय या खर्च जोड़ें।',
   loadError: 'लेनदेन लोड करने में विफल।',
+
+  // Money — artboard 3d
+  moneyTitle: "पैसा",
+  addEntry: "एंट्री जोड़ें",
+  netSoFar: "अब तक शुद्ध",
+  whereItWent: "कहाँ गया",
+  creditOutstanding: "डीलर उधार बाकी",
+  creditDue: "{{dealer}} · देय {{date}}",
+  creditDealers: "{{count}} डीलरों में",
+  creditDealers_one: "एक डीलर",
+  recentEntries: "हाल की एंट्रियाँ",
+  seeAll: "सभी ›",
+  noEntries: "इस फ़ार्म के लिए अभी कुछ दर्ज नहीं।",
+  noFarmTitle: "कोई फ़ार्म नहीं चुना",
+  noFarmSub: "पैसा देखने के लिए एक फ़ार्म चुनें।",
 };
 export default finance;

@@ -15,6 +15,18 @@ const attendance = {
   teamTodayTitle: 'আজকের দল',
   teamTodayEmpty: 'আজ এখনও কেউ চেক ইন করেনি।',
   myHistoryTitle: 'আমার ইতিহাস',
+
+  // Attendance — artboard 3b
+  yourShift: "আপনার শিফট",
+  stillInFor: "এখনও চেক ইন · এ পর্যন্ত {{elapsed}}",
+  stillInShort: "ভিতরে",
+  presentOf: "{{total}} জনের মধ্যে {{present}} জন",
+  noRecordToday: "আজ কোনো রেকর্ড নেই",
+  you: "আপনি",
+  colIn: "প্রবেশ",
+  colOut: "প্রস্থান",
+  noHistory: "এখনও কিছু নথিভুক্ত হয়নি।",
+  showEarlier: "আগের দিনগুলি দেখান",
 };
 
 export default attendance;

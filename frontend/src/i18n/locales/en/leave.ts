@@ -21,6 +21,13 @@ const leave = {
   status_pending: 'Pending',
   status_approved: 'Approved',
   status_rejected: 'Rejected',
+
+  // Leave — artboard 3c
+  dayCount: "{{count}} days",
+  dayCount_one: "{{count}} day",
+  noReason: "No reason given",
+  nobodyAway: "Nobody else is on leave this week",
+  awayThisWeek: "On leave this week: {{names}}",
 };
 
 export default leave;

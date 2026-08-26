@@ -16,7 +16,7 @@ import { feedApi } from '../../api/feedRecords';
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const showToast = useUIStore((s) => s.showToast);
-    const { pondId, pondName, editRecord } = route.params;
+    const { pondId, pondName, editRecord, suggestedKg } = route.params;
     const isEditing = !!editRecord;
 
     const [date, setDate] = useState(editRecord?.feedingTime ?? todayLocalISODate());
@@ -30,7 +30,15 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     const [tray3, setTray3] = useState('');
     const [tray4, setTray4] = useState('');
 
-    const [totalFeed, setTotalFeed] = useState(editRecord?.quantityKg != null ? String(editRecord.quantityKg) : '');
+    // Prefilled when the Daily Feed calculator sends you here with a figure —
+    // otherwise the number it just worked out has to be retyped by hand.
+    const [totalFeed, setTotalFeed] = useState(
+        editRecord?.quantityKg != null
+            ? String(editRecord.quantityKg)
+            : suggestedKg != null
+              ? String(suggestedKg)
+              : '',
+    );
     const [feedType, setFeedType] = useState(editRecord?.feedType ?? 'Starter');
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
 
