@@ -38,7 +38,7 @@ export type IconName =
     | 'content_copy' | 'person_add' | 'badge' | 'delete'
     // first-run onboarding — see docs/design/onboarding/*.html
     | 'translate' | 'home_work' | 'engineering' | 'visibility' | 'location_on'
-    | 'remove' | 'qr_code_scanner' | 'cloud_off' | 'notifications';
+    | 'qr_code_scanner';
 
 export interface IconProps {
     name: IconName;
