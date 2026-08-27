@@ -12,6 +12,9 @@ const home = {
   todayFeed: 'आज का आहार (kg)',
   noFarmEither: 'अपना फार्म सेट करें, या मालिक से कोड लेकर किसी फार्म से जुड़ें।',
   doThisFirst: 'पहले यह करें',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} फ़ार्म",
+  acrossPonds: "{{pl}} तालाब",
   oneOfN: '{{n}} में से 1',
   markDone: 'कर लिया',
   later: 'बाद में',

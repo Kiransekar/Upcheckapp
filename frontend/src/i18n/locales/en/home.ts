@@ -12,6 +12,9 @@ const home = {
   todayFeed: "Today's Feed (kg)",
   noFarmEither: 'Set up your own farm, or join one with a code from its owner.',
   doThisFirst: 'Do this first',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} farms",
+  acrossPonds: "{{pl}} ponds",
   oneOfN: '1 of {{n}}',
   markDone: 'Done it',
   later: 'Later',

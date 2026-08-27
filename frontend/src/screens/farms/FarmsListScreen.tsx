@@ -37,6 +37,7 @@ import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
 import {
     buildPondRows,
+    mergeBriefings,
     rollUpFarm,
     HEALTH_COLOR,
     type FarmRollup,
@@ -83,7 +84,17 @@ export const FarmsListScreen = ({ navigation }: any) => {
 
             const [pondsRes, briefingRes, ctxs] = await Promise.all([
                 pondsApi.getMine().catch(() => ({ data: [] as Pond[] })),
-                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                // LIVE, merged with the persisted stream — not persisted alone.
+                // The live briefing is recomputed from each pond's latest
+                // reading, so it is the only one that describes the pond NOW;
+                // the persisted stream is notification history and can be
+                // empty for a pond that is currently in a watch band. Reading
+                // only the second is why this screen said "2/2 good" while
+                // Today showed one of the two ponds amber.
+                Promise.all([
+                    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+                    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                ]).then(([live, persisted]) => ({ data: mergeBriefings(live.data, persisted.data) })),
                 // One batched call per farm for the standing biomass. Each is a
                 // whole farm's ponds server-side, so this is farms-many
                 // requests, not ponds-many.

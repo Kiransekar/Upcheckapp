@@ -7,7 +7,11 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { NextActionCard, rankActions } from '../../components/dashboard/NextActionCard';
+import {
+    NextActionCard,
+    rankActions,
+    type ActionGroup,
+} from '../../components/dashboard/NextActionCard';
 import { HeroCard } from '../../components/dashboard/HeroCard';
 import { ThenList } from '../../components/dashboard/ThenList';
 import { MyTasksList } from '../../components/dashboard/MyTasksList';
@@ -15,7 +19,7 @@ import { TodayStats } from '../../components/dashboard/TodayStats';
 import { GettingStarted } from '../../components/dashboard/GettingStarted';
 import { LunarRow } from '../../components/dashboard/LunarRow';
 import { FarmOverview } from '../../components/dashboard/FarmOverview';
-import { buildPondRows } from '../../utils/pondHealth';
+import { buildPondRows, mergeBriefings } from '../../utils/pondHealth';
 import type { PondContext } from '../../api/pondContext';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { formatWeekday } from '../../utils/formatDate';
@@ -71,6 +75,10 @@ const EmptyChoice = ({ icon, title, subtitle, onPress }: {
 );
 
 const SEVERITY_RANK: Record<AlertSeverity, number> = { critical: 3, watch: 2, info: 1 };
+
+/** Every alert a deferred group covers, in the same shape `deferred` holds. */
+const deferKeys = (group: ActionGroup): string[] =>
+    group.items.map((i) => i.pondId ?? i.topTitle);
 
 // Someone who joined an existing farm never sees WelcomeScreen/CreateFarm/
 // PondSetup (pendingFarmSetup is only set when they said they run their own
@@ -313,21 +321,11 @@ export const HomeScreen = ({ navigation }: any) => {
             alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
         ])
             .then(([live, persisted]) => {
-                const merged = new Map<string, BriefingItem>();
-                [...live.data, ...persisted.data].forEach((item) => {
-                    const key = item.pondId ?? `${item.source}:${item.topTitle}`;
-                    const existing = merged.get(key);
-                    if (!existing) {
-                        merged.set(key, item);
-                        return;
-                    }
-                    const higher = SEVERITY_RANK[item.topSeverity] > SEVERITY_RANK[existing.topSeverity] ? item : existing;
-                    merged.set(key, { ...higher, alertCount: existing.alertCount + item.alertCount });
-                });
-                const sorted = Array.from(merged.values()).sort(
-                    (a, b) => SEVERITY_RANK[b.topSeverity] - SEVERITY_RANK[a.topSeverity],
-                );
-                setAlerts(sorted.slice(0, 3));
+                // One shared merge — see utils/pondHealth.mergeBriefings for
+                // why live and persisted must both be read, and why every
+                // screen has to do it the same way.
+                const sorted = mergeBriefings(live.data, persisted.data);
+                setAlerts(sorted);
             })
             .catch(() => {
                 setAlerts([]);
@@ -399,7 +397,10 @@ export const HomeScreen = ({ navigation }: any) => {
         return !pond || pond.farmId === scopeFarmId;
     });
     // Everything after the hero's one item — artboard 1b's "Then" list.
-    const thenActions = nextActions.slice(1);
+    // Cap at the point of DISPLAY, not at the source. Then is a shortlist —
+    // the full queue is behind its "View all" — but the severity map the
+    // portfolio reads must stay complete.
+    const thenActions = nextActions.slice(1, 5);
 
     /**
      * The setup step standing between this account and a screen with anything
@@ -750,14 +751,20 @@ export const HomeScreen = ({ navigation }: any) => {
                         <NextActionCard
                             items={nextActions}
                             farmNameForPond={farmNameForPond}
-                            onDone={(item) => {
+                            onDone={(group) => {
                                 // Recording the reading is what actually clears the
-                                // alert, so send them to the log for that pond rather
-                                // than optimistically marking it resolved here.
-                                setDeferred((d) => [...d, item.pondId ?? item.topTitle]);
-                                goRoot('QuickLog', item.pondId ? { pondId: item.pondId } : undefined);
+                                // alert, so send them to the log rather than
+                                // optimistically marking it resolved here. The whole
+                                // GROUP is deferred, not one pond of it: a farm-wide
+                                // finding that reappeared pond by pond after each tap
+                                // would be five heroes for one decision.
+                                setDeferred((d) => [...d, ...deferKeys(group)]);
+                                goRoot(
+                                    'QuickLog',
+                                    group.pondIds.length === 1 ? { pondId: group.pondIds[0] } : undefined,
+                                );
                             }}
-                            onLater={(item) => setDeferred((d) => [...d, item.pondId ?? item.topTitle])}
+                            onLater={(group) => setDeferred((d) => [...d, ...deferKeys(group)])}
                         />
                     )}
 

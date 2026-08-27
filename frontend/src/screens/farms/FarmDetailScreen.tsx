@@ -33,6 +33,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import {
     buildPondRows,
+    mergeBriefings,
     rollUpFarm,
     sortByHealth,
     pondLabel,
@@ -91,7 +92,17 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 pondsApi.getAll(farmId, { take: 100 }),
                 // One request for every pond's snapshot — see pondContextApi.forFarm.
                 pondContextApi.forFarm(farmId).catch(() => ({ data: [] as PondContext[] })),
-                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                // LIVE, merged with the persisted stream — not persisted alone.
+                // The live briefing is recomputed from each pond's latest
+                // reading, so it is the only one that describes the pond NOW;
+                // the persisted stream is notification history and can be
+                // empty for a pond that is currently in a watch band. Reading
+                // only the second is why this screen said "2/2 good" while
+                // Today showed one of the two ponds amber.
+                Promise.all([
+                    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+                    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                ]).then(([live, persisted]) => ({ data: mergeBriefings(live.data, persisted.data) })),
                 farmsApi.getById(farmId).catch(() => ({ data: null as Farm | null })),
             ]);
             const result: any = pondsRes.data;
