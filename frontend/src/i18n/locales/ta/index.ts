@@ -29,6 +29,7 @@ import onboarding from './onboarding';
 import leave from './leave';
 import attendance from './attendance';
 import team from './team';
+import feedback from './feedback';
 
 export default {
   common,
@@ -56,4 +57,5 @@ export default {
   leave,
   attendance,
   team,
+  feedback,
 };
