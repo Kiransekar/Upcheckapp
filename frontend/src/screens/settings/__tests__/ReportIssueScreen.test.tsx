@@ -115,6 +115,12 @@ describe('empty is not the same as failed', () => {
         (feedbackApi.mine as jest.Mock).mockResolvedValue({ data: REPORTS });
         fireEvent.press(getByText('Retry'));
 
+        // The retry's promise has to settle before the tree is asserted on.
+        // `waitFor` alone re-queries a tree that React has not re-rendered yet,
+        // because nothing has flushed the resolved `mine()` — so it polls a
+        // stale render until it times out. Flush first, then assert.
+        await act(async () => {});
+
         await waitFor(() => expect(queryByTestId('feedback-load-error')).toBeNull());
         expect(getByText('Water test did not save')).toBeTruthy();
     });
