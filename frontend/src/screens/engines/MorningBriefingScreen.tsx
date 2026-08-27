@@ -22,6 +22,7 @@ import { theme } from '../../theme';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -118,7 +119,11 @@ export const MorningBriefingScreen = ({ navigation }: any) => {
     }
   }, [loadRoutines]);
 
-  useEffect(() => { load(); }, [load]);
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+  // once it has been opened, so a mount-only effect never ran again: log
+  // something in a pond, come back here, and the page still showed the
+  // figures from before the log until the app was force-refreshed.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   return (
     <ScreenWrapper>

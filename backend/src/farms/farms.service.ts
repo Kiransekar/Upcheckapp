@@ -11,6 +11,7 @@ import { Farm } from './farm.entity';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmMember } from '../farm-access/farm-member.entity';
 import { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
@@ -18,6 +19,8 @@ export class FarmsService {
   constructor(
     @InjectRepository(Farm)
     private farmsRepository: Repository<Farm>,
+    @InjectRepository(FarmMember)
+    private readonly farmMembersRepository: Repository<FarmMember>,
     private readonly farmAccess: FarmAccessService,
   ) {}
 
@@ -104,7 +107,32 @@ export class FarmsService {
       userId,
       farmCode,
     });
-    return this.farmsRepository.save(farm);
+    const saved = await this.farmsRepository.save(farm);
+
+    // Give the owner a real membership row.
+    //
+    // Ownership has been carried by `farm.userId` alone, with every capability
+    // check falling back to an owner fast-path. That is fine for authorization
+    // but it makes the owner INVISIBLE to anything that reads the roster:
+    // listMembers returned everyone except the person who owns the farm. Hence
+    // "1 of 0 checked in today" — the owner checked themselves in, but the
+    // denominator counts members and the owner was not one of them.
+    //
+    // Best-effort on purpose: a farm without this row behaves exactly as it did
+    // before, because the fast-path is untouched. Failing to write it must not
+    // fail the farm creation that already succeeded.
+    try {
+      await this.farmMembersRepository.insert({
+        farmId: saved.id,
+        userId,
+        role: 'owner',
+        status: 'active',
+      } as any);
+    } catch {
+      // Already present, or farm_members has not been migrated in this env.
+    }
+
+    return saved;
   }
 
   /** Farms the user can access — owned plus any they're a member (worker) of. */

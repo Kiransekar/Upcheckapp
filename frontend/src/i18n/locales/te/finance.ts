@@ -83,7 +83,13 @@ const finance = {
   moneyTitle: "డబ్బు",
   addEntry: "ఎంట్రీ చేర్చు",
   netSoFar: "ఇప్పటివరకు నికర",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "ఇంకా ఏమీ నమోదు కాలేదు",
+  nothingYetBody: "మీరు ఖర్చు చేసేది, అమ్మేది నమోదు చేయండి — అదే మీ లాభనష్టం అవుతుంది.",
   whereItWent: "ఎక్కడికి పోయింది",
+  allFarms: "అన్ని ఫారాలు",
+  byFarm: "ఫారం వారీగా",
+  farmInOut: "వచ్చినది {{income}} · పోయినది {{expense}}",
   creditOutstanding: "డీలర్ అప్పు బాకీ",
   creditDue: "{{dealer}} · {{date}} న",
   creditDealers: "{{count}} డీలర్లలో",
@@ -91,7 +97,7 @@ const finance = {
   recentEntries: "ఇటీవలి ఎంట్రీలు",
   seeAll: "అన్నీ ›",
   noEntries: "ఈ ఫారంకు ఇంకా ఏమీ నమోదు కాలేదు.",
-  noFarmTitle: "ఫారం ఎంచుకోలేదు",
-  noFarmSub: "డబ్బు చూడటానికి ఒక ఫారం ఎంచుకోండి.",
+  noFarmTitle: "ఇంకా ఫారాలు లేవు",
+  noFarmSub: "డబ్బు ట్రాక్ చేయడానికి ఒక ఫారం చేర్చండి.",
 };
 export default finance;

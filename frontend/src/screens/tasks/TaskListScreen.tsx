@@ -20,6 +20,7 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { tasksApi, Task } from '../../api/tasks';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useAuthStore } from '../../store/authStore';
 
 const c = theme.roles.light;
 
@@ -30,10 +31,25 @@ const NEXT_STATUS: Record<string, string> = {
     in_progress: 'done',
 };
 
+/**
+ * Where a long press sends a task BACK.
+ *
+ * Tapping is one gesture away from the wrong row, and until now that was
+ * permanent: a mis-tapped task went to done and could never be moved, so the
+ * board lied about what had actually been finished. Verified is the exception
+ * — that is a manager's decision about someone else's work, and undoing it is
+ * an approval question, not a typo.
+ */
+const PREV_STATUS: Record<string, string> = {
+    in_progress: 'open',
+    done: 'in_progress',
+};
+
 export const TaskListScreen = ({ route, navigation }: any) => {
     const { farmId, farmName, assignedToId } = route.params;
     const { t } = useTranslation();
     const perms = usePermissions(farmId);
+    const userId = useAuthStore((s) => s.user?.id);
 
     const STATUS_META: Record<string, { label: string; color: string; icon: string }> = {
         open: { label: t('content.tasks.statusOpen'), color: c.textSecondary, icon: 'checkbox-blank-circle-outline' },
@@ -79,7 +95,12 @@ export const TaskListScreen = ({ route, navigation }: any) => {
         if (!title) return;
         setIsSaving(true);
         try {
-            await tasksApi.create({ farmId, title });
+            // Assign it to whoever is adding it. A task with no assignee is
+            // nobody's work: it never reached Today (which asks for tasks
+            // assigned to you) and showed a blank name on the Team board, so
+            // adding one here looked like it had done nothing. Reassigning is
+            // a manager's job on the board; having an owner is the default.
+            await tasksApi.create({ farmId, title, assignedToId: assignedToId ?? userId });
             setNewTitle('');
             await fetchTasks();
         } catch (err: any) {
@@ -99,6 +120,18 @@ export const TaskListScreen = ({ route, navigation }: any) => {
             // Completing routes through the assignee-enforced endpoint.
             if (next === 'done') await tasksApi.complete(task.id);
             else await tasksApi.update(task.id, { status: next });
+        } catch {
+            fetchTasks();
+        }
+    };
+
+    /** Long press: step a task back, for the tap that hit the wrong row. */
+    const revertStatus = async (task: Task) => {
+        const prev = PREV_STATUS[task.status];
+        if (!prev) return;
+        setTasks((all) => all.map((t) => (t.id === task.id ? { ...t, status: prev } : t)));
+        try {
+            await tasksApi.update(task.id, { status: prev });
         } catch {
             fetchTasks();
         }
@@ -136,7 +169,16 @@ export const TaskListScreen = ({ route, navigation }: any) => {
         const done = item.status === 'done' || item.status === 'verified';
         return (
             <Card style={styles.card}>
-                <TouchableOpacity style={styles.row} onPress={() => advanceStatus(item)} activeOpacity={0.7}>
+                <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => advanceStatus(item)}
+                    onLongPress={() => revertStatus(item)}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityHint={
+                        PREV_STATUS[item.status] ? t('content.tasks.revertHint') : undefined
+                    }
+                >
                     <MaterialCommunityIcons name={meta.icon as any} size={24} color={meta.color} />
                     <View style={styles.body}>
                         <Text style={[styles.title, done && styles.titleDone]} numberOfLines={2}>

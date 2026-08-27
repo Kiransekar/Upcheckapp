@@ -1,8 +1,10 @@
 const team = {
     title: 'குழு',
+    // The tab spans every farm by default; the chips narrow it.
+    allFarms: "அனைத்துப் பண்ணைகள்",
     addWorker: 'பணியாளர் சேர்',
-    noFarmTitle: 'பண்ணை தேர்ந்தெடுக்கவில்லை',
-    noFarmSub: 'குழுவைப் பார்க்க ஒரு பண்ணையைத் தேர்ந்தெடுக்கவும்.',
+    noFarmTitle: "இன்னும் பண்ணை இல்லை",
+    noFarmSub: "குழுவைப் பார்க்க ஒரு பண்ணையை உருவாக்கவும் அல்லது சேரவும்.",
     checkedInAt: 'நீங்கள் {{time}} மணிக்கு வந்தீர்கள்',
     stillCheckedIn: 'இன்னும் உள்ளே · {{elapsed}}',
     checkOut: 'வெளியேறு',

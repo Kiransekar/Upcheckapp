@@ -13,7 +13,16 @@ import { User } from './user.entity';
  * bcrypt primitives (only the repository and Redis are faked): setup issues N
  * codes, each redeems exactly once, a spent code is rejected, and a valid TOTP
  * still works after codes are issued.
+ *
+ * Real bcrypt is the point of this spec — hashing ten codes and then verifying
+ * against them costs several seconds, and on a loaded machine or a small CI
+ * box it runs past Jest's 5s default and fails as a timeout that looks like a
+ * broken backup-code flow. Give it room explicitly rather than let a slow
+ * machine masquerade as a regression; the alternative, dropping the bcrypt
+ * cost factor for tests, would stop exercising the primitive this is about.
  */
+jest.setTimeout(30_000);
+
 describe('TwoFactorService — backup codes (AUTH-4)', () => {
   let service: TwoFactorService;
   let user: User;

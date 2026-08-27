@@ -1,8 +1,10 @@
 const team = {
     title: 'দল',
+    // The tab spans every farm by default; the chips narrow it.
+    allFarms: "সব খামার",
     addWorker: 'কর্মী যোগ করুন',
-    noFarmTitle: 'কোনো খামার নির্বাচিত নয়',
-    noFarmSub: 'দল দেখতে একটি খামার বেছে নিন।',
+    noFarmTitle: "এখনও কোনো খামার নেই",
+    noFarmSub: "দল দেখতে একটি খামার তৈরি করুন বা যোগ দিন।",
     checkedInAt: 'আপনি {{time}} টায় চেক ইন করেছেন',
     stillCheckedIn: 'এখনও চেক ইন · {{elapsed}}',
     checkOut: 'চেক আউট',

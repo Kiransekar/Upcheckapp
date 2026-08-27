@@ -70,6 +70,21 @@ export default {
         }
       ],
       [
+        // Attaching a photo to a problem report (ReportIssueScreen).
+        //
+        // Android needs nothing here — expo-image-picker's own manifest already
+        // merges the media permissions, which is why the report screen ships as
+        // an OTA update against the current binary. This entry exists for iOS:
+        // without NSPhotoLibraryUsageDescription, requesting photo access is a
+        // native crash, and Info.plist is not something an OTA update can fix.
+        // Harmless to add now, and one less way for the first iOS build to be
+        // broken on arrival.
+        "expo-image-picker",
+        {
+          photosPermission: "Allow UpCheck to attach a photo to a problem report you send to the team."
+        }
+      ],
+      [
         "expo-location",
         {
           locationAlwaysAndWhenInUsePermission: "Allow UpCheck to use your location to set your farm position for weather, tide and regional pricing features."

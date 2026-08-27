@@ -83,7 +83,13 @@ const finance = {
   moneyTitle: "पैसा",
   addEntry: "एंट्री जोड़ें",
   netSoFar: "अब तक शुद्ध",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "अभी कुछ दर्ज नहीं",
+  nothingYetBody: "आप जो खर्च और बिक्री करते हैं वह दर्ज करें, यही आपका लाभ-हानि बन जाएगा।",
   whereItWent: "कहाँ गया",
+  allFarms: "सभी फ़ार्म",
+  byFarm: "फ़ार्म के अनुसार",
+  farmInOut: "आया {{income}} · गया {{expense}}",
   creditOutstanding: "डीलर उधार बाकी",
   creditDue: "{{dealer}} · देय {{date}}",
   creditDealers: "{{count}} डीलरों में",
@@ -91,7 +97,7 @@ const finance = {
   recentEntries: "हाल की एंट्रियाँ",
   seeAll: "सभी ›",
   noEntries: "इस फ़ार्म के लिए अभी कुछ दर्ज नहीं।",
-  noFarmTitle: "कोई फ़ार्म नहीं चुना",
-  noFarmSub: "पैसा देखने के लिए एक फ़ार्म चुनें।",
+  noFarmTitle: "अभी कोई फ़ार्म नहीं",
+  noFarmSub: "पैसा ट्रैक करने के लिए एक फ़ार्म जोड़ें।",
 };
 export default finance;

@@ -273,7 +273,8 @@ class StatefulSupabaseMock {
 }
 
 function buildService(mock: StatefulSupabaseMock): SupabaseAuthService {
-  createClientMock.mockReturnValueOnce(mock);
+  // Both the auth client and the data client resolve to the same scripted mock.
+  createClientMock.mockReturnValue(mock);
   const config = new ConfigService({
     SUPABASE_URL: 'https://example.supabase.co',
     SUPABASE_ANON_KEY: 'anon',

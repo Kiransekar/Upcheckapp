@@ -17,6 +17,8 @@ import { User as UserEntity } from './user.entity';
 @Injectable()
 export class SupabaseAuthService {
   private supabase: SupabaseClient;
+  /** Service-role client for table access only — never signs anyone in. */
+  private supabaseData: SupabaseClient;
   private readonly logger = new Logger(SupabaseAuthService.name);
 
   constructor(
@@ -49,6 +51,35 @@ export class SupabaseAuthService {
     }
 
     this.supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    /**
+     * A SECOND service-role client, used only for table reads/writes and never
+     * for auth.
+     *
+     * This exists because of a real, logged failure. `this.supabase` is used
+     * for both auth and data, and any auth call that establishes a session —
+     * signInWithPassword, verifyOtp (which mintSession uses), signInWithIdToken
+     * — leaves that USER's session on the client. `persistSession: false` keeps
+     * it out of storage but NOT out of memory, so from that point supabase-js
+     * sends the user's access token as `Authorization` on every `.from()` call
+     * instead of the service key.
+     *
+     * PostgREST then sees `authenticated`, not `service_role`, and RLS applies.
+     * With RLS enabled and no policies that means SELECT silently returns zero
+     * rows and INSERT returns 403 — which is exactly what the Truecaller signup
+     * hit: two lookups that found nothing (so it decided the user was new),
+     * admin.createUser succeeding, then the users upsert failing with "new row
+     * violates row-level security policy".
+     *
+     * Keeping the two apart means a data call can never inherit whoever last
+     * signed in. Nothing in here may call `.auth` sign-in methods.
+     */
+    this.supabaseData = createClient(supabaseUrl, supabaseKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -459,7 +490,7 @@ export class SupabaseAuthService {
     // canonicalization would get an opaque failure instead of being logged in.
     let existingUser: any = null;
     {
-      const { data: byPhone } = await this.supabase
+      const { data: byPhone } = await this.supabaseData
         .from('users')
         .select('*')
         .eq('phone', phone)
@@ -467,7 +498,7 @@ export class SupabaseAuthService {
       existingUser = byPhone ?? null;
     }
     if (!existingUser) {
-      const { data: byInternalEmail } = await this.supabase
+      const { data: byInternalEmail } = await this.supabaseData
         .from('users')
         .select('*')
         .eq('email', tempEmail)
@@ -478,7 +509,7 @@ export class SupabaseAuthService {
     if (existingUser) {
       // 2a. Existing user — verify the phone, and HEAL the stored form so the
       // next login hits the fast path above instead of relying on the fallback.
-      await this.supabase
+      await this.supabaseData
         .from('users')
         .update({
           phone,
@@ -550,7 +581,7 @@ export class SupabaseAuthService {
       // which previously made EVERY new Truecaller signup fail and roll back.
       // UPSERT on the id instead: update the trigger row to add the verified
       // phone (and Truecaller-specific fields), or insert it if no trigger ran.
-      const { error: dbError } = await this.supabase.from('users').upsert(
+      const { error: dbError } = await this.supabaseData.from('users').upsert(
         {
           id: newAuthUserId,
           // Store the phone-derived internal email, not the unverified
@@ -613,7 +644,7 @@ export class SupabaseAuthService {
       avatarUrl?: string;
     },
   ) {
-    const { data: phoneOwner } = await this.supabase
+    const { data: phoneOwner } = await this.supabaseData
       .from('users')
       .select('id')
       .eq('phone', profile.phoneNumber)
@@ -635,7 +666,7 @@ export class SupabaseAuthService {
     };
     if (profile.avatarUrl) update.avatar_url = profile.avatarUrl;
 
-    const { error } = await this.supabase
+    const { error } = await this.supabaseData
       .from('users')
       .update(update)
       .eq('id', userId);

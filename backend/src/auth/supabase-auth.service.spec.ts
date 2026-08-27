@@ -171,7 +171,8 @@ function buildMockSupabase(opts: {
 function buildService(mock: MockSupabase): SupabaseAuthService {
   // Inject the scripted Supabase client. `createClient` is mocked at the
   // module level above; here we just point it at the per-test mock.
-  createClientMock.mockReturnValueOnce(mock);
+  // Both the auth client and the data client resolve to the same scripted mock.
+  createClientMock.mockReturnValue(mock);
 
   const config = new ConfigService({
     SUPABASE_URL: 'https://example.supabase.co',

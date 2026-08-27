@@ -16,6 +16,19 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
  * leave_requests is a brand-new table, so reads degrade to empty rather than
  * 500ing during a deploy-before-migrate window.
  */
+/**
+ * Only what is needed to render a name. A bare relation load selects every
+ * mapped User column (password_hash included, plus any column a not-yet-run
+ * migration has not created). Mirrors farm-members.service.ts.
+ */
+const PUBLIC_USER_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  username: true,
+  avatarUrl: true,
+} as const;
+
 function isMissingTable(err: any): boolean {
   return (err?.code ?? err?.driverError?.code) === '42P01';
 }
@@ -73,6 +86,8 @@ export class LeaveRequestsService {
       return await this.leaveRepo.find({
         where: { farmId, userId: callerId },
         order: { createdAt: 'DESC' },
+        relations: { user: true },
+        select: { user: PUBLIC_USER_SELECT },
       });
     } catch (err) {
       if (!isMissingTable(err)) throw err;
@@ -94,6 +109,8 @@ export class LeaveRequestsService {
       return await this.leaveRepo.find({
         where: { farmId, ...(status ? { status: status as LeaveRequestStatus } : {}) },
         order: { createdAt: 'DESC' },
+        relations: { user: true },
+        select: { user: PUBLIC_USER_SELECT },
       });
     } catch (err) {
       if (!isMissingTable(err)) throw err;

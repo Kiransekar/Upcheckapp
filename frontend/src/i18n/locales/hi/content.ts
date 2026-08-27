@@ -109,6 +109,10 @@ const content = {
     statusOpen: 'खुला',
     statusInProgress: 'प्रगति में',
     statusDone: 'पूर्ण',
+
+    // Tapping advances a task; a long press undoes a mis-tap.
+
+    revertHint: "वापस ले जाने के लिए देर तक दबाएँ",
     // Delete confirmation
     deleteAlertTitle: 'कार्य हटाएं',
     deleteAlertMessage: '"{{title}}" हटाएं?',

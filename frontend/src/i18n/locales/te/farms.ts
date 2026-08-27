@@ -34,6 +34,11 @@ const farms = {
   stayOwnerWithOthers: 'ఈ ఫారంకు మీరే యజమానిగా ఉంటారు. మీ మిగతా {{count}} పై ప్రభావం ఉండదు.',
   yourNthFarm: 'మీ {{n}}వ ఫారం',
   saveFarm: 'ఫారం సేవ్ చేయి',
+  // CreateFarmScreen doubles as the edit screen — see its header comment.
+  editFarmTitle: "ఫారం సవరించు",
+  farmSavedToast: "{{name}} సేవ్ అయింది",
+  errorSaveFarm: "ఫారం సేవ్ చేయలేకపోయాం.",
+  errorLoadFarm: "ఈ ఫారం లోడ్ కాలేదు.",
   fieldLocation: 'ఫారం స్థానం',
   detectLocation: 'నా స్థానాన్ని గుర్తించు',
   locating: 'స్థానం పొందుతోంది…',

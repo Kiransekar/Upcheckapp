@@ -32,8 +32,6 @@ const engines = {
   },
   routine: {
     title: 'రోజువారీ దినచర్య',
-    nextPhaseIn: 'తదుపరి {{phase}} {{days}}d లో',
-    moltingHint: 'మోల్టింగ్ సమయం — మెత్తని పెంకులు; హ్యాండ్లింగ్ & గ్రేడింగ్ తగ్గించండి.',
     doneToday: 'ఈరోజు పూర్తి',
     waterCheck: 'నీటి తనిఖీ',
     waterCheckLog: 'DO, pH, లవణీయత, ఉష్ణోగ్రత నమోదు చేయండి',

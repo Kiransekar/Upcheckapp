@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { PublicUser } from './farmMembers';
 
 export type LeaveRequestStatus = 'pending' | 'approved' | 'rejected';
 
@@ -12,6 +13,8 @@ export interface LeaveRequest {
     status: LeaveRequestStatus;
     decidedById: string | null;
     decidedAt: string | null;
+    /** Loaded by the server — the pending queue used to render a raw uuid. */
+    user?: PublicUser | null;
     createdAt: string;
 }
 

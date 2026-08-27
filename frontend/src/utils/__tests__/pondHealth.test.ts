@@ -42,7 +42,18 @@ describe('healthOf', () => {
     it('reads a pond with no cycle as fallow, whatever the alerts say', () => {
         // A stale critical on an emptied pond must not keep the farm red.
         expect(healthOf(pond({ activeCycleId: null }), 'critical')).toBe('fallow');
-        expect(healthOf(pond({ status: 'fallow' }), 'critical')).toBe('fallow');
+    });
+
+    it('does NOT call a stocked pond fallow just because status says so', () => {
+        // The reported bug. The backend set activeCycleId when a cycle started
+        // but left status at 'fallow', so a running cycle showed as an empty
+        // pond on Farms, on Ponds and on the pond page — each of them offering
+        // "Start a cycle" for a pond that already had one. activeCycleId is the
+        // fact; status was the stale copy of it.
+        expect(healthOf({ status: 'fallow', activeCycleId: 'c1' } as any, null)).toBe('fine');
+        expect(healthOf({ status: 'fallow', activeCycleId: 'c1' } as any, 'critical')).toBe(
+            'critical',
+        );
     });
 
     it('maps engine severity onto the four states', () => {

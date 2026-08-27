@@ -18,6 +18,7 @@ import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { theme } from '../../theme';
 import { feedAdvisorApi, type RationResult, type TrayResidue } from '../../api/feedAdvisor';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 /** Set a text-field state from a context number only when it's present. */
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
@@ -48,7 +49,10 @@ export const FeedAdvisorScreen = ({ route }: any) => {
   const [ctx, setCtx] = useState<PondContext | null>(null);
 
   // Auto-fill from the farmer's latest logs — no re-asking for data already entered.
-  useEffect(() => {
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen
+  // mounted once opened, so a mount-only effect never ran again: log a
+  // reading, come back, and this still advised on the older numbers.
+  useFocusEffect(useCallback(() => {
     if (!pondId) return;
     pondContextApi.get(pondId).then(({ data }) => {
       setCtx(data);
@@ -59,7 +63,7 @@ export const FeedAdvisorScreen = ({ route }: any) => {
       fill(data.waterQuality?.temperature, setTemp);
       if (data.latestTrayResidue) setTray(data.latestTrayResidue);
     }).catch(() => {});
-  }, [pondId]);
+  }, [pondId]));
 
   const compute = useCallback(async () => {
     setLoading(true);

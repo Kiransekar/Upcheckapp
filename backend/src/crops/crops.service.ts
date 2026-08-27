@@ -95,6 +95,13 @@ export class CropsService {
       // Link as the pond's active cycle inside the same locked transaction.
       if (isActive && pond) {
         pond.activeCycleId = savedCrop.id;
+        // AND move the pond out of 'fallow'. These two fields describe the same
+        // fact and were allowed to disagree: a pond could hold an active cycle
+        // while still reporting status 'fallow'. Every screen that asked "is
+        // this pond stocked?" via status then answered no — so Farms, Ponds and
+        // the pond page all showed a running cycle as empty and kept offering
+        // "Start a cycle" for a pond that already had one.
+        pond.status = 'active';
         await manager.save(pond);
       }
 
@@ -213,7 +220,7 @@ export class CropsService {
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,
-        { activeCycleId: null } as any,
+        { activeCycleId: null, status: 'fallow' } as any,
         userId,
       );
     }
@@ -243,7 +250,7 @@ export class CropsService {
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,
-        { activeCycleId: null } as any,
+        { activeCycleId: null, status: 'fallow' } as any,
         userId,
       );
     }
@@ -281,7 +288,7 @@ export class CropsService {
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
         pond.id,
-        { activeCycleId: null } as any,
+        { activeCycleId: null, status: 'fallow' } as any,
         userId,
       );
     }

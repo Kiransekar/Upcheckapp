@@ -28,6 +28,9 @@ const leave = {
   noReason: "కారణం ఇవ్వలేదు",
   nobodyAway: "ఈ వారం మరెవరూ సెలవులో లేరు",
   awayThisWeek: "ఈ వారం సెలవులో: {{names}}",
+
+  // Requester name
+  unknownPerson: "తెలియని సభ్యుడు",
 };
 
 export default leave;

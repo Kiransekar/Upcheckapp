@@ -33,6 +33,7 @@ import { farmMembersApi, type FarmMember, type FarmInvite, type FarmRole } from 
 import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
+import { personName } from '../../utils/personName';
 
 const c = theme.roles.light;
 
@@ -44,12 +45,7 @@ const ROLE_META: Record<FarmRole, { icon: IconName; color: string }> = {
     viewer: { icon: 'account_circle', color: c.textTertiary },
 };
 
-export const fullName = (m: FarmMember) => {
-    const u = m.user;
-    if (!u) return m.userId.slice(0, 8);
-    const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-    return name || u.username || m.userId.slice(0, 8);
-};
+export const fullName = (m: FarmMember) => personName(m.user, m.userId.slice(0, 8));
 
 export const FarmMembersScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();

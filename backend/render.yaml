@@ -101,4 +101,10 @@ services:
       # Redis (optional - app falls back to in-memory store)
       - key: REDIS_URL
         sync: false
+      # Shared secret for the staff feedback inbox (/api/admin/feedback*),
+      # called server-side by the Vercel admin dashboard — the same value goes
+      # there too (admin/README.md). Unset means AdminKeyGuard denies every
+      # admin request, which is the intended failure, not an outage.
+      - key: ADMIN_API_KEY
+        sync: false
   # Note: OTP is Supabase-native; 2FA tokens auto-expire in Redis or in-memory fallback.

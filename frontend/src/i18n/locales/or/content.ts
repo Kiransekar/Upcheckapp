@@ -109,6 +109,10 @@ const content = {
     statusOpen: 'ଖୋଲା',
     statusInProgress: 'ଚାଲୁ ଅଛି',
     statusDone: 'ସମ୍ପୂର୍ଣ୍ଣ',
+
+    // Tapping advances a task; a long press undoes a mis-tap.
+
+    revertHint: "ପଛକୁ ନେବାକୁ ଦବାଇ ରଖନ୍ତୁ",
     // Delete confirmation
     deleteAlertTitle: 'କାର୍ଯ୍ୟ ଡିଲିଟ୍ କରନ୍ତୁ',
     deleteAlertMessage: '"{{title}}" ଡିଲିଟ୍ କରିବେ?',

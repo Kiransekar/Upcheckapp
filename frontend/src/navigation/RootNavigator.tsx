@@ -86,6 +86,8 @@ import { ProfileScreen } from '../screens/settings/ProfileScreen';
 import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { HelpScreen } from '../screens/settings/HelpScreen';
+import { ReportIssueScreen } from '../screens/settings/ReportIssueScreen';
+import { FeedbackDetailScreen } from '../screens/settings/FeedbackDetailScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
 import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
 import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScreen';
@@ -99,6 +101,7 @@ import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
 import { TaskListScreen } from '../screens/tasks/TaskListScreen';
 import { LeaveRequestsScreen } from '../screens/leave/LeaveRequestsScreen';
 import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
+import { AttendanceLogScreen } from '../screens/attendance/AttendanceLogScreen';
 import { NewsListScreen } from '../screens/news/NewsListScreen';
 import { NewsDetailScreen } from '../screens/news/NewsDetailScreen';
 import { ShopScreen } from '../screens/shop/ShopScreen';
@@ -147,13 +150,13 @@ export type RootStackParamList = {
     HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
     // Phase 2
-    CreateFarm: undefined;
+    CreateFarm: { editFarmId?: string } | undefined;
     FarmDetail: { farmId: string; farmName?: string };
     FarmMembers: { farmId: string; farmName?: string };
     MemberDetail: { farmId: string; farmName?: string; member: any };
     AllWorkers: undefined;
     AddWorker: { farmId: string; farmName?: string };
-    CreatePond: { farmId: string };
+    CreatePond: { farmId: string; farmName?: string; pondCount?: number; editPondId?: string };
     PondDashboard: { pondId: string; pondName?: string };
     PondDimensionHistory: { pondId: string; pondName?: string };
     CycleAnalysis: { cycleId: string; cycleName?: string };
@@ -213,6 +216,8 @@ export type RootStackParamList = {
     Profile: undefined;
     Notifications: undefined;
     Help: undefined;
+    ReportIssue: undefined;
+    FeedbackDetail: { id: string };
     About: undefined;
     Inventory: undefined;
     InventoryDetail: { inventoryId: string; itemName?: string };
@@ -230,6 +235,7 @@ export type RootStackParamList = {
 
     // Attendance
     Attendance: { farmId: string; farmName?: string };
+    AttendanceLog: { farmId: string; farmName?: string };
 
     // News / eShop / Reference
     NewsList: undefined;
@@ -425,6 +431,8 @@ const RootNavigator = () => {
                     <Stack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="Help" component={HelpScreen} />
+                    <Stack.Screen name="ReportIssue" component={ReportIssueScreen} />
+                    <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
                     <Stack.Screen name="About" component={AboutScreen} />
                     <Stack.Screen name="Inventory" component={InventoryListScreen} />
                     <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
@@ -438,6 +446,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="TaskList" component={TaskListScreen} />
                     <Stack.Screen name="LeaveRequests" component={LeaveRequestsScreen} />
                     <Stack.Screen name="Attendance" component={AttendanceScreen} />
+                    <Stack.Screen name="AttendanceLog" component={AttendanceLogScreen} />
 
                     {/* News / eShop / Reference */}
                     <Stack.Screen name="NewsList" component={NewsListScreen} />

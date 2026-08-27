@@ -133,6 +133,23 @@ describe('CropsService', () => {
       expect(result).toEqual(mockCrop);
     });
 
+    it('marks the pond ACTIVE, not merely linked, when a cycle starts', async () => {
+      // The reported bug — "I can add infinite cycles, one by one", and cycles
+      // not showing on the pond or farm pages — was one cause. Starting a cycle
+      // set activeCycleId but left status at 'fallow', so the pond went on
+      // reporting itself empty and every screen kept offering "Start a cycle".
+      const pond = { id: 'pond-1', activeCycleId: null, status: 'fallow' };
+      pondsService.findOneAccessible.mockResolvedValue({} as any);
+      manager.findOne.mockResolvedValue(pond);
+      manager.create.mockReturnValue(mockCrop);
+      manager.save.mockImplementation(async (e: any) => e);
+
+      await service.create(mockCreateCropDto, 'user-1');
+
+      expect(pond.activeCycleId).toBe(mockCrop.id);
+      expect(pond.status).toBe('active');
+    });
+
     it('rejects a second concurrent active cycle for the same pond', async () => {
       pondsService.findOneAccessible.mockResolvedValue({} as any);
       // Locked pond row already carries an active cycle.
@@ -290,11 +307,17 @@ describe('CropsService', () => {
       await service.closeCycle('crop-1', '2024-06-01', 'user-1');
 
       expect(repository.update).toHaveBeenCalled();
+      // The pond returns to 'fallow' as well as losing its cycle link. These
+      // two fields describe the same fact and were previously allowed to
+      // disagree — a pond could report status 'active' with no cycle, or
+      // 'fallow' with one, and every screen that asked "is this stocked?" via
+      // status then got the wrong answer.
       expect(pondsService.update).toHaveBeenCalledWith(
         'pond-1',
-        { activeCycleId: null },
+        { activeCycleId: null, status: 'fallow' },
         'user-1',
       );
     });
   });
 });
+

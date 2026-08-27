@@ -173,6 +173,39 @@ const home = {
   createFarmCardSub: "अपने तालाब सेट करें और दर्ज करना शुरू करें",
   joinCodeCardTitle: "कोड से शामिल हों",
   joinCodeCardSub: "किसी और के चलाए फ़ार्म पर काम करें",
+
+  // Home — artboard 1b
+  allFarms: "सभी फ़ार्म",
+  filter: "छाँटें",
+  then: "फिर",
+  open: "खोलें",
+  verify: "जाँचें",
+  myTasks: "मेरे कार्य",
+  openCount: "{{count}} बाकी",
+  taskDue: "{{date}} तक",
+  onDuty: "ड्यूटी पर",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "आज के लॉग",
+  // The hero before there is anything to raise an alert about
+  noTasksAssigned: "आज आपको कुछ नहीं सौंपा गया।",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "मोल्टिंग समय",
+  lunarMoltingBody: "नए और पूर्ण चाँद के आसपास झींगे का खोल नरम रहता है। दाना कम दें, पकड़ें या हार्वेस्ट न करें।",
+  lunarQuiet: "आज मोल्टिंग की उम्मीद नहीं।",
+  startHere: "यहाँ से शुरू करें",
+  stepPondsTitle: "अपने तालाब जोड़ें",
+  stepPondsWhy: "अपचेक हर तालाब का पानी, दाना और बढ़त अलग-अलग देखता है। अभी देखने को कुछ नहीं है।",
+  stepPondsCta: "तालाब जोड़ें",
+  stepCycleTitle: "{{pond}} में साइकिल शुरू करें",
+  stepCycleWhy: "खाली तालाब में न बायोमास होता है, न दाना योजना, न कोई चेतावनी। साइकिल तीनों शुरू करती है।",
+  stepCycleCta: "साइकिल शुरू करें",
+  stepLogTitle: "आज की रीडिंग दर्ज करें",
+  stepLogWhy: "आज कुछ दर्ज नहीं हुआ। यहाँ की हर चेतावनी ऑक्सीजन और पीएच से ही बनती है।",
+  stepLogCta: "अभी दर्ज करें",
+  hideChecklist: "छिपाएँ",
+  hideChecklistTitle: "सेटअप सूची छिपाएँ?",
+  hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",
+  hideChecklistConfirm: "हमेशा के लिए छिपाएँ",
 };
 
 export default home;

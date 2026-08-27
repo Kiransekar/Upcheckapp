@@ -34,6 +34,11 @@ const farms = {
   stayOwnerWithOthers: 'இந்தப் பண்ணையின் உரிமையாளராக நீங்களே இருப்பீர்கள். உங்கள் மற்ற {{count}} பாதிக்கப்படாது.',
   yourNthFarm: 'உங்கள் {{n}}வது பண்ணை',
   saveFarm: 'பண்ணையை சேமி',
+  // CreateFarmScreen doubles as the edit screen — see its header comment.
+  editFarmTitle: "பண்ணையைத் திருத்து",
+  farmSavedToast: "{{name}} சேமிக்கப்பட்டது",
+  errorSaveFarm: "பண்ணையைச் சேமிக்க முடியவில்லை.",
+  errorLoadFarm: "இந்தப் பண்ணையை ஏற்ற முடியவில்லை.",
   fieldLocation: 'பண்ணை இருப்பிடம்',
   detectLocation: 'எனது இருப்பிடத்தைக் கண்டறி',
   locating: 'இருப்பிடம் பெறப்படுகிறது…',

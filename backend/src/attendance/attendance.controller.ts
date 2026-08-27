@@ -30,27 +30,40 @@ export class AttendanceController {
     return this.attendanceService.checkOut(user.id, id, dto);
   }
 
+  // `date` is one day; `from`/`to` are an inclusive day range. The month
+  // calendar needs a whole month at once — 31 single-day requests to paint one
+  // screen is not something to ship.
   @Get('mine')
   mine(
     @Query('farmId') farmId: string,
     @Query('date') date: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
     @CurrentUser() user,
   ) {
     if (!farmId) {
       throw new BadRequestException('farmId query parameter is required');
     }
-    return this.attendanceService.findMine(user.id, farmId, date);
+    return this.attendanceService.findMine(user.id, farmId, date, from, to);
   }
 
   @Get()
   findAll(
     @Query('farmId') farmId: string,
     @Query('date') date: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
     @CurrentUser() user,
   ) {
     if (!farmId) {
       throw new BadRequestException('farmId query parameter is required');
     }
-    return this.attendanceService.findAllForFarm(user.id, farmId, date);
+    return this.attendanceService.findAllForFarm(
+      user.id,
+      farmId,
+      date,
+      from,
+      to,
+    );
   }
 }
