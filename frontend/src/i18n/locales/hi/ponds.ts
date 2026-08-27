@@ -25,6 +25,9 @@ const ponds = {
   metricVolume: 'आयतन m³',
   metricHectares: 'हेक्टेयर',
   // The pond detail section — see PondDashboardScreen.
+  // Biomass is derived from sampling — see PondDashboardScreen.
+  needSamplingTitle: "अभी कोई सैंपलिंग नहीं",
+  needSamplingBody: "बायोमास, एफसीआर और उत्तरजीविता सैंपलिंग के औसत वज़न से निकाले जाते हैं। एक दर्ज करें।",
   aboutThisPond: "इस तालाब के बारे में",
   labelMeasurements: "माप",
   labelAerators: "एयरेटर",

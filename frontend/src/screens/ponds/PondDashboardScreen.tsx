@@ -381,6 +381,27 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             ]}
                         />
 
+                        {/*
+                          * Biomass is DERIVED, never typed: live population ×
+                          * mean body weight ÷ 1000, where the weight comes from
+                          * the latest sampling. A farmer looking for somewhere to
+                          * enter it will not find one, and four dashes in a row
+                          * do not explain why — so when there is no sampling to
+                          * derive it from, say what is missing and open the form
+                          * that supplies it.
+                          */}
+                        {context?.abwG == null && (
+                            <SummaryRow
+                                icon="scale"
+                                title={t('ponds.needSamplingTitle')}
+                                subtitle={t('ponds.needSamplingBody')}
+                                onPress={() =>
+                                    navigation.navigate('SamplingLog', { pondId, pondName, cropId: cycle.id })
+                                }
+                                divider="strong"
+                            />
+                        )}
+
                         <View style={styles.modeRow}>
                             <ModeButton
                                 label={t('ponds.tabLogData')}

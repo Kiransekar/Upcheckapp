@@ -25,6 +25,9 @@ const ponds = {
   metricVolume: 'আয়তন m³',
   metricHectares: 'হেক্টর',
   // The pond detail section — see PondDashboardScreen.
+  // Biomass is derived from sampling — see PondDashboardScreen.
+  needSamplingTitle: "এখনও কোনো নমুনা নেই",
+  needSamplingBody: "বায়োমাস, এফসিআর ও বেঁচে থাকার হার নমুনার গড় ওজন থেকে বার করা হয়। একটি নথিভুক্ত করুন।",
   aboutThisPond: "এই পুকুর সম্পর্কে",
   labelMeasurements: "মাপ",
   labelAerators: "এয়ারেটর",

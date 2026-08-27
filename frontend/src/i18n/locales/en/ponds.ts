@@ -25,6 +25,9 @@ const ponds = {
   metricVolume: 'Volume m³',
   metricHectares: 'Hectares',
   // The pond detail section — see PondDashboardScreen.
+  // Biomass is derived from sampling — see PondDashboardScreen.
+  needSamplingTitle: "No sampling yet",
+  needSamplingBody: "Biomass, FCR and survival are worked out from the average weight in a sampling. Record one to fill them in.",
   aboutThisPond: "About this pond",
   labelMeasurements: "Measurements",
   labelAerators: "Aerators",

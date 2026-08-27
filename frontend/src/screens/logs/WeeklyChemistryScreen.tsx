@@ -15,7 +15,10 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { NumberField } from '../../components/ui/NumberField';
+// The same input the DAILY water-quality form uses: it reads the shared band
+// table, tints its border and prints the target range. These six parameters
+// are in that table already; only this screen was not asking it.
+import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 
@@ -81,12 +84,12 @@ export const WeeklyChemistryScreen = ({ route, navigation }: any) => {
 
         <Card style={styles.card}>
           <View style={styles.grid}>
-            <NumberField label={t('engines.weeklyChem.ammonia')} value={ammonia} onChangeText={setAmmonia} unit="mg/L" />
-            <NumberField label={t('engines.weeklyChem.nitrite')} value={nitrite} onChangeText={setNitrite} unit="mg/L" />
-            <NumberField label={t('engines.weeklyChem.nitrate')} value={nitrate} onChangeText={setNitrate} unit="mg/L" />
-            <NumberField label={t('engines.weeklyChem.alkalinity')} value={alkalinity} onChangeText={setAlkalinity} unit="mg/L" />
-            <NumberField label={t('engines.weeklyChem.hardness')} value={hardness} onChangeText={setHardness} unit="mg/L" />
-            <NumberField label={t('engines.weeklyChem.transparency')} value={transparency} onChangeText={setTransparency} unit="cm" />
+            <ParameterInput label={t('engines.weeklyChem.ammonia')} value={ammonia} onChangeText={setAmmonia} unit="mg/L" parameterKey="ammonia" />
+            <ParameterInput label={t('engines.weeklyChem.nitrite')} value={nitrite} onChangeText={setNitrite} unit="mg/L" parameterKey="nitrite" />
+            <ParameterInput label={t('engines.weeklyChem.nitrate')} value={nitrate} onChangeText={setNitrate} unit="mg/L" parameterKey="nitrate" />
+            <ParameterInput label={t('engines.weeklyChem.alkalinity')} value={alkalinity} onChangeText={setAlkalinity} unit="mg/L" parameterKey="alkalinity" />
+            <ParameterInput label={t('engines.weeklyChem.hardness')} value={hardness} onChangeText={setHardness} unit="mg/L" parameterKey="hardness" />
+            <ParameterInput label={t('engines.weeklyChem.transparency')} value={transparency} onChangeText={setTransparency} unit="cm" parameterKey="transparency" />
           </View>
           <Button title={t('engines.weeklyChem.save')} onPress={save} loading={saving} disabled={!anyValue} style={styles.cta} />
         </Card>

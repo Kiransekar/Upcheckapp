@@ -25,6 +25,9 @@ const ponds = {
   metricVolume: 'கனஅளவு m³',
   metricHectares: 'ஹெக்டேர்',
   // The pond detail section — see PondDashboardScreen.
+  // Biomass is derived from sampling — see PondDashboardScreen.
+  needSamplingTitle: "இன்னும் மாதிரி எடுக்கவில்லை",
+  needSamplingBody: "உயிரெடை, FCR, உயிர்வாழ்வு ஆகியவை மாதிரியின் சராசரி எடையிலிருந்து கணக்கிடப்படுகின்றன. ஒன்றைப் பதிவு செய்யுங்கள்.",
   aboutThisPond: "இந்தக் குளம் பற்றி",
   labelMeasurements: "அளவுகள்",
   labelAerators: "ஏரேட்டர்கள்",

@@ -25,6 +25,9 @@ const ponds = {
   metricVolume: 'ఘనపరిమాణం m³',
   metricHectares: 'హెక్టార్లు',
   // The pond detail section — see PondDashboardScreen.
+  // Biomass is derived from sampling — see PondDashboardScreen.
+  needSamplingTitle: "ఇంకా శాంప్లింగ్ లేదు",
+  needSamplingBody: "బయోమాస్, FCR, మనుగడ శాంప్లింగ్ సగటు బరువు నుండి లెక్కిస్తారు. ఒకటి నమోదు చేయండి.",
   aboutThisPond: "ఈ చెరువు గురించి",
   labelMeasurements: "కొలతలు",
   labelAerators: "ఏరేటర్లు",
