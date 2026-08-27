@@ -28,6 +28,9 @@ const leave = {
   noReason: "କୌଣସି କାରଣ ଦିଆଯାଇନାହିଁ",
   nobodyAway: "ଏହି ସପ୍ତାହରେ ଆଉ କେହି ଛୁଟିରେ ନାହାଁନ୍ତି",
   awayThisWeek: "ଏହି ସପ୍ତାହରେ ଛୁଟିରେ: {{names}}",
+
+  // Requester name
+  unknownPerson: "ଅଜଣା ସଦସ୍ୟ",
 };
 
 export default leave;

@@ -83,7 +83,13 @@ const finance = {
   moneyTitle: "Money",
   addEntry: "Add entry",
   netSoFar: "Net so far",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "Nothing recorded yet",
+  nothingYetBody: "Add what you spend and what you sell, and this becomes your profit and loss.",
   whereItWent: "Where it went",
+  allFarms: "All farms",
+  byFarm: "By farm",
+  farmInOut: "In {{income}} · Out {{expense}}",
   creditOutstanding: "Dealer credit outstanding",
   creditDue: "{{dealer}} · due {{date}}",
   creditDealers: "Across {{count}} dealers",
@@ -91,7 +97,7 @@ const finance = {
   recentEntries: "Recent entries",
   seeAll: "All ›",
   noEntries: "Nothing recorded for this farm yet.",
-  noFarmTitle: "No farm selected",
-  noFarmSub: "Choose a farm to see its money.",
+  noFarmTitle: "No farms yet",
+  noFarmSub: "Add a farm to start tracking money.",
 };
 export default finance;

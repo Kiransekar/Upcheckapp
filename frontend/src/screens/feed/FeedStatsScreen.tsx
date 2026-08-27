@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -47,7 +48,10 @@ export const FeedStatsScreen = ({ route }: any) => {
   const [feedStockKg, setFeedStockKg] = useState<number | null>(null);
   const [feedLowStock, setFeedLowStock] = useState(false);
 
-  useEffect(() => {
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+  // once opened, so a mount-only effect never ran again: log a feed, come
+  // back here, and the totals were still the pre-log ones.
+  useFocusEffect(useCallback(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -81,7 +85,7 @@ export const FeedStatsScreen = ({ route }: any) => {
     return () => {
       cancelled = true;
     };
-  }, [pondId, cropId, farmId]);
+  }, [pondId, cropId, farmId]));
 
   const last = records[0] ?? null;
   const series = dailySeries(records);

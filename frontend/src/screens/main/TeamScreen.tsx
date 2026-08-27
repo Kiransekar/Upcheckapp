@@ -13,8 +13,14 @@
  *
  * Note the split with Home: Home shows YOUR tasks, Team shows the WHOLE team's.
  * Both read the same tasks API; the difference is the assignee filter.
+ *
+ * Like Money and Today, it opens on EVERY farm at once. It used to read the
+ * app-wide active farm and show only that one, with no way to switch and no
+ * total — so an owner with three farms had to visit three Team tabs and add up
+ * the rosters by hand to answer "who is working today". The scope chips narrow
+ * it; the farm name on each row says where the work is.
  */
-import { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +29,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
@@ -32,6 +39,12 @@ import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
 import { tasksApi, type Task } from '../../api/tasks';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
+import { farmsApi, type Farm } from '../../api/farms';
+import { personName } from '../../utils/personName';
+import { formatWeekday } from '../../utils/formatDate';
+
+/** Scope value meaning "every farm I can see". */
+const ALL = 'all';
 
 /** Tasks the design treats as "still to do" for the per-person tallies. */
 const OPEN_STATUSES = ['open', 'in_progress'];
@@ -46,11 +59,7 @@ const elapsedSince = (iso: string): string => {
 const hhmm = (iso: string) =>
     new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
-const memberName = (m?: FarmMember) => {
-    const u = m?.user;
-    if (!u) return '';
-    return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || '';
-};
+const memberName = (m?: FarmMember) => personName(m?.user, "");
 
 /** Status pill colour — the design uses colour AND the word, never colour alone. */
 const STATUS_COLOR: Record<string, string> = {
@@ -62,10 +71,12 @@ const STATUS_COLOR: Record<string, string> = {
 
 export const TeamScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const { selectedFarm } = useActiveFarmStore();
-    const farmId = selectedFarm?.id;
+    const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const userId = useAuthStore((s) => s.user?.id);
-    const perms = usePermissions(farmId);
+
+    const [farms, setFarms] = useState<Farm[]>([]);
+    /** `ALL` means every farm — the tab's default, same as Money and Today. */
+    const [scope, setScope] = useState<string>(ALL);
 
     const [myAttendance, setMyAttendance] = useState<AttendanceRecord | null>(null);
     const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
@@ -73,30 +84,82 @@ export const TeamScreen = ({ navigation }: any) => {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [members, setMembers] = useState<FarmMember[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    // Without this the screen rendered its "no farms yet" empty state from
+    // the first frame until the fetch landed — telling a farmer with three
+    // farms they had none, every time they opened the tab.
+    const [isLoading, setIsLoading] = useState(true);
     const [showAllTasks, setShowAllTasks] = useState(false);
 
-    const load = useCallback(async () => {
-        if (!farmId) return;
-        // Independent reads — fan out rather than waterfall. Each failure is
-        // isolated so one unavailable section cannot blank the whole tab.
-        const [mine, all, leave, taskList, memberList] = await Promise.allSettled([
-            attendanceApi.mine(farmId),
-            perms.canManageMembers ? attendanceApi.getAll(farmId) : Promise.resolve({ data: [] as AttendanceRecord[] }),
-            perms.canManageMembers ? leaveRequestsApi.getAll(farmId, 'pending') : Promise.resolve({ data: [] as LeaveRequest[] }),
-            tasksApi.getAll(farmId),
-            farmMembersApi.listMembers(farmId),
-        ]);
+    const activeScope = scope !== ALL && farms.some((f) => f.id === scope) ? scope : ALL;
+    const scopeFarms = useMemo(
+        () => (activeScope === ALL ? farms : farms.filter((f) => f.id === activeScope)),
+        [activeScope, farms],
+    );
 
-        if (mine.status === 'fulfilled') {
-            // The open record is the one with no check-out.
-            setMyAttendance(mine.value.data.find((r) => !r.checkOutAt) ?? null);
+    // Inviting, assigning and opening the roster all need ONE farm even while
+    // showing every farm's work. The active farm is the farmer's own answer to
+    // "which one"; the scoped farm wins when they have narrowed it.
+    const primaryFarm =
+        scopeFarms.find((f) => f.id === activeScope) ??
+        farms.find((f) => f.id === selectedFarm?.id) ??
+        farms[0];
+    const farmId = primaryFarm?.id;
+    const perms = usePermissions(farmId);
+    const farmName = (id: string) => farms.find((f) => f.id === id)?.name;
+
+    const load = useCallback(async () => {
+        const farmRes = await farmsApi.getAll().catch(() => ({ data: [] as Farm[] }));
+        const list = farmRes.data ?? [];
+        setFarms(list);
+        const inScope = scope !== ALL && list.some((f) => f.id === scope)
+            ? list.filter((f) => f.id === scope)
+            : list;
+        if (inScope.length === 0) {
+            setIsLoading(false);
+            setRefreshing(false);
+            return;
         }
-        if (all.status === 'fulfilled') setAllAttendance(all.value.data);
-        if (leave.status === 'fulfilled') setPendingLeave(leave.value.data);
-        if (taskList.status === 'fulfilled') setTasks(taskList.value.data);
-        if (memberList.status === 'fulfilled') setMembers(memberList.value.data);
+
+        // Independent reads — fan out rather than waterfall. Each failure is
+        // isolated so one unavailable farm cannot blank the whole tab.
+        const per = await Promise.all(
+            inScope.map(async (farm) => {
+                const canManage = true; // the API decides; a 403 lands in the catch
+                const [mine, all, leave, taskList, memberList] = await Promise.allSettled([
+                    attendanceApi.mine(farm.id),
+                    canManage ? attendanceApi.getAll(farm.id) : Promise.resolve({ data: [] as AttendanceRecord[] }),
+                    canManage ? leaveRequestsApi.getAll(farm.id, 'pending') : Promise.resolve({ data: [] as LeaveRequest[] }),
+                    tasksApi.getAll(farm.id),
+                    farmMembersApi.listMembers(farm.id),
+                ]);
+                const val = <T,>(r: PromiseSettledResult<{ data: T }>, fallback: T): T =>
+                    r.status === 'fulfilled' ? r.value.data : fallback;
+                return {
+                    mine: val(mine, [] as AttendanceRecord[]),
+                    all: val(all, [] as AttendanceRecord[]),
+                    leave: val(leave, [] as LeaveRequest[]),
+                    tasks: val(taskList, [] as Task[]),
+                    members: val(memberList, [] as FarmMember[]),
+                };
+            }),
+        );
+
+        // The open record is the one with no check-out. Across farms you can
+        // only be checked in to one at a time in practice, and if you are in
+        // two the earliest is the one you have been on longest.
+        setMyAttendance(
+            per
+                .flatMap((p) => p.mine)
+                .filter((r) => !r.checkOutAt)
+                .sort((a, b) => a.checkInAt.localeCompare(b.checkInAt))[0] ?? null,
+        );
+        setAllAttendance(per.flatMap((p) => p.all));
+        setPendingLeave(per.flatMap((p) => p.leave));
+        setTasks(per.flatMap((p) => p.tasks));
+        setMembers(per.flatMap((p) => p.members));
+        setIsLoading(false);
         setRefreshing(false);
-    }, [farmId, perms.canManageMembers]);
+    }, [scope]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -111,6 +174,18 @@ export const TeamScreen = ({ navigation }: any) => {
         }
     }, [myAttendance, load]);
 
+    if (isLoading) {
+        return (
+            <ScreenWrapper>
+                <View style={styles.loadingBlock}>
+                    <Skeleton width="100%" height={72} />
+                    <Skeleton width="100%" height={64} />
+                    <Skeleton width="100%" height={64} />
+                </View>
+            </ScreenWrapper>
+        );
+    }
+
     if (!farmId) {
         return (
             <ScreenWrapper>
@@ -124,7 +199,11 @@ export const TeamScreen = ({ navigation }: any) => {
     }
 
     const checkedInToday = allAttendance.filter((r) => !r.checkOutAt).length;
-    const activeMembers = members.filter((m) => m.status !== 'pending');
+    // Deduped by person: someone who works two of your farms is one member of
+    // your team, and counting them twice would make "2 of 4" out of two people.
+    const activeMembers = members
+        .filter((m) => m.status !== 'pending')
+        .filter((m, i, all) => all.findIndex((x) => x.userId === m.userId) === i);
     const openTasks = tasks.filter((tk) => OPEN_STATUSES.includes(tk.status));
     const overdue = openTasks.filter(
         (tk) => tk.dueDate && new Date(tk.dueDate).getTime() < Date.now(),
@@ -146,19 +225,54 @@ export const TeamScreen = ({ navigation }: any) => {
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.eyebrow} numberOfLines={1}>
-                        {selectedFarm?.name?.toUpperCase()}
+                        {[
+                            activeScope === ALL ? t('team.allFarms') : primaryFarm?.name,
+                            formatWeekday(new Date()),
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
                     </Text>
                     <Text style={styles.title}>{t('team.title')}</Text>
                 </View>
                 {perms.canInviteMember && (
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('FarmMembers', { farmId, farmName: selectedFarm?.name })}
+                        onPress={() => navigation.navigate('FarmMembers', { farmId, farmName: primaryFarm?.name })}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         <Text style={styles.headerAction}>{t('team.addWorker')}</Text>
                     </TouchableOpacity>
                 )}
             </View>
+
+            {/* Scope chips, like Money. The header's one text-link slot is
+                already "Add worker", and with a single farm "All farms" and
+                its name are the same view under two labels. */}
+            {farms.length > 1 && (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chips}
+                >
+                    <Chip
+                        label={t('team.allFarms')}
+                        active={activeScope === ALL}
+                        onPress={() => setScope(ALL)}
+                    />
+                    {farms.map((f) => (
+                        <Chip
+                            key={f.id}
+                            label={f.name}
+                            active={activeScope === f.id}
+                            onPress={() => {
+                                setScope(f.id);
+                                // Keep the app-wide active farm in step, so the
+                                // roster and leave screens open on the same one.
+                                setSelectedFarm({ id: f.id, name: f.name });
+                            }}
+                        />
+                    ))}
+                </ScrollView>
+            )}
 
             <ScrollView
                 contentContainerStyle={styles.body}
@@ -204,7 +318,12 @@ export const TeamScreen = ({ navigation }: any) => {
 
                         <TouchableOpacity
                             style={[styles.summaryRow, pendingLeave.length > 0 && styles.summaryRowAlert]}
-                            onPress={() => navigation.navigate('LeaveRequests', { farmId })}
+                            onPress={() =>
+                                navigation.navigate('LeaveRequests', {
+                                    farmId: activeScope === ALL ? undefined : farmId,
+                                    farmName: activeScope === ALL ? undefined : primaryFarm?.name,
+                                })
+                            }
                         >
                             <Icon
                                 name="event_busy"
@@ -233,7 +352,7 @@ export const TeamScreen = ({ navigation }: any) => {
                     <Text style={styles.sectionLabel}>{t('team.tasksToday')}</Text>
                     <View style={styles.sectionRule} />
                     {perms.canManageMembers && (
-                        <TouchableOpacity onPress={() => navigation.navigate('Tasks', { farmId })}>
+                        <TouchableOpacity onPress={() => navigation.navigate('TaskList', { farmId, farmName: primaryFarm?.name })}>
                             <Text style={styles.headerAction}>{t('team.assign')}</Text>
                         </TouchableOpacity>
                     )}
@@ -270,7 +389,7 @@ export const TeamScreen = ({ navigation }: any) => {
                             <TouchableOpacity
                                 key={tk.id}
                                 style={styles.taskRow}
-                                onPress={() => navigation.navigate('TaskDetail', { id: tk.id })}
+                                onPress={() => navigation.navigate('TaskList', { farmId: tk.farmId, farmName: farmName(tk.farmId) })}
                             >
                                 <View
                                     style={[
@@ -284,7 +403,12 @@ export const TeamScreen = ({ navigation }: any) => {
                                         style={[styles.taskMeta, isOverdue && { color: theme.roles.light.dangerText }]}
                                         numberOfLines={1}
                                     >
-                                        {[memberName(assignee), tk.dueDate ? hhmm(tk.dueDate) : null, isOverdue ? t('team.overdue') : null]
+                                        {[
+                                            memberName(assignee),
+                                            activeScope === ALL ? farmName(tk.farmId) : null,
+                                            tk.dueDate ? hhmm(tk.dueDate) : null,
+                                            isOverdue ? t('team.overdue') : null,
+                                        ]
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </Text>
@@ -309,7 +433,44 @@ export const TeamScreen = ({ navigation }: any) => {
     );
 };
 
+const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({
+    label,
+    active,
+    onPress,
+}) => (
+    <TouchableOpacity
+        style={[styles.chip, active && styles.chipActive]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+    >
+        <Text style={[styles.chipLabel, active && styles.chipLabelActive]} numberOfLines={1}>
+            {label}
+        </Text>
+    </TouchableOpacity>
+);
+
 const styles = StyleSheet.create({
+    loadingBlock: { gap: theme.spacing[3], padding: theme.spacing[4] },
+    chips: {
+        gap: theme.spacing[2],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2],
+        backgroundColor: theme.roles.light.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+    },
+    chip: {
+        borderWidth: 1.5,
+        borderColor: theme.roles.light.borderDefault,
+        borderRadius: theme.radius.xs,
+        paddingHorizontal: theme.spacing[3],
+        justifyContent: 'center',
+        minHeight: 36,
+    },
+    chipActive: { borderColor: theme.roles.light.borderStrong, backgroundColor: theme.roles.light.surfaceVariant },
+    chipLabel: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary },
+    chipLabelActive: { color: theme.roles.light.textPrimary },
     header: {
         flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing[3],
         paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[2], paddingBottom: theme.spacing[3],

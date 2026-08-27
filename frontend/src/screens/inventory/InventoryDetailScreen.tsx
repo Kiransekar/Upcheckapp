@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { useFocusEffect } from '@react-navigation/native';
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
@@ -26,9 +27,13 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const [editForm, setEditForm] = useState({ name: '', category: '', unit: '', reorderLevel: '', unitPrice: '', supplier: '' });
     const [isEditSaving, setIsEditSaving] = useState(false);
 
-    useEffect(() => {
+    // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+    // once opened, so a mount-only effect never ran again — the page kept
+    // showing figures from before whatever was just logged elsewhere.
+    useFocusEffect(useCallback(() => {
         fetchItem();
-    }, [inventoryId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [inventoryId]));
 
     const fetchItem = async () => {
         try {

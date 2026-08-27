@@ -32,6 +32,7 @@ describe('ReportsService.getCycleAnalysis — IST day bucketing (DATE-1)', () =>
       samplingService,
       cropsService,
       {} as any, // farmAccess
+      {} as any, // transactionsService
     );
     return service;
   };

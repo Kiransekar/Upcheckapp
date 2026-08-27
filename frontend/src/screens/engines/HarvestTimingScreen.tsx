@@ -19,6 +19,7 @@ import { LineChart } from '../../components/charts/LineChart';
 import { theme } from '../../theme';
 import { harvestTimingApi, type HarvestTimingResult } from '../../api/harvestTiming';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
   if (v != null) setter(String(v));
@@ -48,7 +49,10 @@ export const HarvestTimingScreen = ({ route }: any) => {
   const [result, setResult] = useState<HarvestTimingResult | null>(null);
   const [ctx, setCtx] = useState<PondContext | null>(null);
 
-  useEffect(() => {
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen
+  // mounted once opened, so a mount-only effect never ran again: log a
+  // reading, come back, and this still advised on the older numbers.
+  useFocusEffect(useCallback(() => {
     if (!pondId) return;
     pondContextApi.get(pondId).then(({ data }) => {
       setCtx(data);
@@ -58,7 +62,7 @@ export const HarvestTimingScreen = ({ route }: any) => {
       fill(data.crop?.carryingCapacityKgM2, setCarrying);
       fill(data.crop?.feedPriceRpPerKg, setFeedPrice);
     }).catch(() => {});
-  }, [pondId]);
+  }, [pondId]));
 
   const compute = useCallback(async () => {
     setLoading(true);

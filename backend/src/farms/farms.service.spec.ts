@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { In } from 'typeorm';
 import { FarmsService } from './farms.service';
 import { Farm } from './farm.entity';
+import { FarmMember } from '../farm-access/farm-member.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import {
   NotFoundException,
@@ -13,6 +14,7 @@ import {
 describe('FarmsService', () => {
   let service: FarmsService;
   let repository: any;
+  let module: TestingModule;
 
   const mockFarm: Partial<Farm> = {
     id: 'farm-1',
@@ -41,7 +43,7 @@ describe('FarmsService', () => {
       delete: jest.fn(),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         {
           provide: ConfigService,
@@ -49,6 +51,12 @@ describe('FarmsService', () => {
         },
         FarmsService,
         { provide: getRepositoryToken(Farm), useValue: repository },
+        // create() now also writes the owner's farm_members row, so the owner
+        // is visible to the roster rather than existing only as farm.userId.
+        {
+          provide: getRepositoryToken(FarmMember),
+          useValue: { insert: jest.fn().mockResolvedValue(undefined) },
+        },
         {
           provide: FarmAccessService,
           useValue: {
@@ -98,6 +106,42 @@ describe('FarmsService', () => {
       const created = repository.create.mock.calls[0][0];
       expect(created.farmCode).not.toBe('CUSTOM01');
       expect(created.farmCode).toMatch(/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$/);
+    });
+
+    it('gives the owner a farm_members row, not just farm.userId', async () => {
+      // The reported symptom was "1 of 0 checked in today" for an owner who
+      // had just checked in. Ownership lived only in farm.userId, so the owner
+      // was invisible to listMembers — the denominator counted members and the
+      // owner was not one of them.
+      repository.findOneBy.mockResolvedValue(null);
+      repository.create.mockReturnValue(mockFarm);
+      repository.save.mockResolvedValue(mockFarm);
+      const membersRepo = module.get(getRepositoryToken(FarmMember));
+
+      await service.create({ name: 'New Farm' }, 'user-1');
+
+      expect(membersRepo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          farmId: 'farm-1',
+          userId: 'user-1',
+          role: 'owner',
+          status: 'active',
+        }),
+      );
+    });
+
+    it('still returns the farm if the membership write fails', async () => {
+      // Authorization does not depend on this row — the owner fast-path is
+      // untouched — so a failure here must not fail farm creation.
+      repository.findOneBy.mockResolvedValue(null);
+      repository.create.mockReturnValue(mockFarm);
+      repository.save.mockResolvedValue(mockFarm);
+      const membersRepo = module.get(getRepositoryToken(FarmMember));
+      membersRepo.insert.mockRejectedValueOnce(new Error('duplicate key'));
+
+      await expect(service.create({ name: 'New Farm' }, 'user-1')).resolves.toEqual(
+        mockFarm,
+      );
     });
 
     it('throws rather than returning a colliding code after 10 attempts', async () => {

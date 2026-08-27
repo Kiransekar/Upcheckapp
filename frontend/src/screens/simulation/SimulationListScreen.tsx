@@ -26,6 +26,7 @@ import { PondPicker } from '../../components/ui/PondPicker';
 import { Icon } from '../../components/ui/Icon';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
+import { formatDate } from '../../utils/formatDate';
 import { simulationsApi, type SavedSimulation, type SimulationScenarioType } from '../../api/simulations';
 
 const c = theme.roles.light;
@@ -179,10 +180,7 @@ export const SimulationListScreen = ({ route, navigation }: any) => {
                                         })}
                                     </Text>
                                     <Text style={styles.savedMeta} numberOfLines={1}>
-                                        {new Date(sim.createdAt).toLocaleDateString(undefined, {
-                                            day: 'numeric',
-                                            month: 'short',
-                                        })}
+                                        {formatDate(sim.createdAt)}
                                         {sim.resultProjectedBiomass != null
                                             ? ` · ${t('simulations.list.statBiomass', {
                                                   value: sim.resultProjectedBiomass.toFixed(0),

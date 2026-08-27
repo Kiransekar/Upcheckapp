@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
     Text,
@@ -80,9 +81,12 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
     }, [cropId]);
 
     // Load on mount
-    React.useEffect(() => {
+    // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+    // once opened, so a mount-only effect never ran again — the page kept
+    // showing figures from before whatever was just logged elsewhere.
+    useFocusEffect(React.useCallback(() => {
         void loadData();
-    }, [loadData]);
+    }, [loadData]));
 
     const handleRefresh = useCallback(() => {
         void loadData(true);

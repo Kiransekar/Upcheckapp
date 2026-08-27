@@ -41,6 +41,33 @@ export const HelpScreen = ({ navigation }: any) => {
                     <Text style={styles.introText}>{t('settings.helpIntroText')}</Text>
                 </Card>
 
+                {/*
+                  * Above the guides, not buried under "Contact us" with the
+                  * mailto link. Someone who opened Help is already stuck, and
+                  * the fastest thing we can offer them is a person — the
+                  * guides are for the ones who are merely curious.
+                  */}
+                <TouchableOpacity
+                    style={styles.reportCta}
+                    onPress={() => navigation.navigate('ReportIssue')}
+                    accessibilityRole="button"
+                >
+                    <MaterialCommunityIcons
+                        name="message-alert"
+                        size={24}
+                        color={theme.roles.light.primary}
+                    />
+                    <View style={styles.reportCtaText}>
+                        <Text style={styles.reportCtaTitle}>{t('feedback.tileLabel')}</Text>
+                        <Text style={styles.reportCtaSub}>{t('feedback.tileSub')}</Text>
+                    </View>
+                    <MaterialCommunityIcons
+                        name="chevron-right"
+                        size={24}
+                        color={theme.roles.light.textTertiary}
+                    />
+                </TouchableOpacity>
+
                 <Text style={styles.sectionTitle}>{t('settings.quickGuides')}</Text>
                 {HELP_TOPICS.map((topic, index) => (
                     <Card key={index} style={styles.helpCard}>
@@ -108,6 +135,28 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
         textAlign: 'center',
+    },
+    reportCta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[4],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[6],
+        borderRadius: theme.radius.sm,
+        borderWidth: 1.5,
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.surface,
+        minHeight: 44,
+    },
+    reportCtaText: { flex: 1, minWidth: 0 },
+    reportCtaTitle: {
+        ...theme.typeScale.bodyLarge,
+        fontWeight: '600',
+        color: theme.roles.light.textPrimary,
+    },
+    reportCtaSub: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
     sectionTitle: {
         ...theme.typeScale.h4,

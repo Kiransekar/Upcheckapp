@@ -239,6 +239,28 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 <SectionHeader label={t('settings.about')} />
                 <Row row={{ key: 'help', icon: 'lightbulb', label: t('home.moreHelp'), route: 'Help' }} />
+                {/*
+                  * Directly under Help & Support, and with a subtitle — this is
+                  * the row that has to beat "leave a Play Store review" as the
+                  * way a stuck farmer reaches us, so it says what it does
+                  * instead of trusting the label to be self-evident.
+                  */}
+                <TouchableOpacity
+                    style={styles.row}
+                    onPress={() => navigation.navigate('ReportIssue')}
+                    accessibilityRole="button"
+                >
+                    <Icon name="feedback" size={22} color={c.textSecondary} />
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.rowLabel} numberOfLines={1}>
+                            {t('feedback.tileLabel')}
+                        </Text>
+                        <Text style={styles.rowSub} numberOfLines={1}>
+                            {t('feedback.tileSub')}
+                        </Text>
+                    </View>
+                    <Icon name="chevron_right" size={22} color={c.textDisabled} />
+                </TouchableOpacity>
                 <Row row={{ key: 'privacy', icon: 'badge', label: t('settings.privacyPolicy'), route: 'PrivacyPolicy' }} />
                 <Row row={{ key: 'terms', icon: 'badge', label: t('settings.termsOfService'), route: 'Terms' }} />
                 <View style={styles.row}>

@@ -22,6 +22,26 @@ export class AlertsService {
     return this.alertsRepository.save(alert);
   }
 
+  /**
+   * Retire a pond's open alerts of one type, because a newer measurement has
+   * replaced the one they were raised from.
+   *
+   * An alert about a reading is only true until the next reading. Nothing used
+   * to retire them, so a low-oxygen alert survived the aeration that fixed it
+   * and every screen built on the unread stream kept the pond red — while the
+   * live briefing, recomputed from the latest data, said it was fine. Two
+   * answers to the same question on the same screen.
+   *
+   * Marked read rather than deleted: what happened in the pond yesterday is
+   * worth keeping, it just is not what is happening now.
+   */
+  async supersedeOpenAlerts(userId: string, pondId: string, type: string) {
+    await this.alertsRepository.update(
+      { userId, pondId, type, isRead: false },
+      { isRead: true },
+    );
+  }
+
   async createAutoAlert(
     userId: string,
     farmId: string,

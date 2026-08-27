@@ -34,6 +34,11 @@ const farms = {
   stayOwnerWithOthers: 'ଆପଣ ଏହି ଫାର୍ମର ମାଲିକ ରହିବେ। ଆପଣଙ୍କ ଅନ୍ୟ {{count}} ଅପ୍ରଭାବିତ ରହିବ।',
   yourNthFarm: 'ଆପଣଙ୍କ {{n}}ତମ ଫାର୍ମ',
   saveFarm: 'ଫାର୍ମ ସଞ୍ଚୟ',
+  // CreateFarmScreen doubles as the edit screen — see its header comment.
+  editFarmTitle: "ଫାର୍ମ ସମ୍ପାଦନା",
+  farmSavedToast: "{{name}} ସେଭ ହେଲା",
+  errorSaveFarm: "ଫାର୍ମ ସେଭ ହୋଇପାରିଲା ନାହିଁ।",
+  errorLoadFarm: "ଏହି ଫାର୍ମ ଲୋଡ ହୋଇପାରିଲା ନାହିଁ।",
   fieldLocation: 'ଫାର୍ମ ଅବସ୍ଥାନ',
   detectLocation: 'ମୋ ଅବସ୍ଥାନ ଚିହ୍ନଟ କରନ୍ତୁ',
   locating: 'ଅବସ୍ଥାନ ମିଳୁଛି…',

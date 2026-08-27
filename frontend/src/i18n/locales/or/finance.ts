@@ -83,7 +83,13 @@ const finance = {
   moneyTitle: "ଟଙ୍କା",
   addEntry: "ଏଣ୍ଟ୍ରି ଯୋଡ଼ନ୍ତୁ",
   netSoFar: "ଏପର୍ଯ୍ୟନ୍ତ ନିଟ",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ",
+  nothingYetBody: "ଆପଣ ଯାହା ଖର୍ଚ୍ଚ କରନ୍ତି ଓ ବିକ୍ରି କରନ୍ତି ଲେଖନ୍ତୁ, ତାହା ହିଁ ଆପଣଙ୍କ ଲାଭ-କ୍ଷତି ହେବ।",
   whereItWent: "କେଉଁଠି ଗଲା",
+  allFarms: "ସବୁ ଫାର୍ମ",
+  byFarm: "ଫାର୍ମ ଅନୁସାରେ",
+  farmInOut: "ଆୟ {{income}} · ବ୍ୟୟ {{expense}}",
   creditOutstanding: "ଡିଲର ବାକି",
   creditDue: "{{dealer}} · {{date}} ରେ",
   creditDealers: "{{count}} ଡିଲରଙ୍କ ପାଖରେ",
@@ -91,7 +97,7 @@ const finance = {
   recentEntries: "ସାମ୍ପ୍ରତିକ ଏଣ୍ଟ୍ରି",
   seeAll: "ସବୁ ›",
   noEntries: "ଏହି ଫାର୍ମ ପାଇଁ ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ।",
-  noFarmTitle: "କୌଣସି ଫାର୍ମ ବଛା ହୋଇନାହିଁ",
-  noFarmSub: "ଟଙ୍କା ଦେଖିବାକୁ ଏକ ଫାର୍ମ ବାଛନ୍ତୁ।",
+  noFarmTitle: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଫାର୍ମ ନାହିଁ",
+  noFarmSub: "ଟଙ୍କାର ହିସାବ ରଖିବାକୁ ଏକ ଫାର୍ମ ଯୋଡ଼ନ୍ତୁ।",
 };
 export default finance;

@@ -173,6 +173,39 @@ const home = {
   createFarmCardSub: "ଆପଣଙ୍କ ପୋଖରୀ ସେଟ୍ କରି ଲେଖିବା ଆରମ୍ଭ କରନ୍ତୁ",
   joinCodeCardTitle: "କୋଡ୍ ଦେଇ ଯୋଗ ଦିଅନ୍ତୁ",
   joinCodeCardSub: "ଅନ୍ୟ କେହି ଚଳାଉଥିବା ଫାର୍ମରେ କାମ କରନ୍ତୁ",
+
+  // Home — artboard 1b
+  allFarms: "ସବୁ ଫାର୍ମ",
+  filter: "ଛାଣନ୍ତୁ",
+  then: "ତାପରେ",
+  open: "ଖୋଲନ୍ତୁ",
+  verify: "ଯାଞ୍ଚ",
+  myTasks: "ମୋର କାର୍ଯ୍ୟ",
+  openCount: "{{count}} ବାକି",
+  taskDue: "{{date}} ସୁଦ୍ଧା",
+  onDuty: "ଡ୍ୟୁଟିରେ",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "ଆଜିର ଲଗ",
+  // The hero before there is anything to raise an alert about
+  noTasksAssigned: "ଆଜି ଆପଣଙ୍କୁ କିଛି ଦିଆଯାଇନାହିଁ।",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "ଖୋଳ ବଦଳିବା ସମୟ",
+  lunarMoltingBody: "ଅମାବାସ୍ୟା ଓ ପୂର୍ଣ୍ଣିମା ପାଖରେ ଚିଙ୍ଗୁଡ଼ିର ଖୋଳ ନରମ ରହେ। ଖାଦ୍ୟ କମ ଦିଅନ୍ତୁ, ଧରନ୍ତୁ ନାହିଁ କି ଅମଳ କରନ୍ତୁ ନାହିଁ।",
+  lunarQuiet: "ଆଜି ଖୋଳ ବଦଳିବା ଆଶା ନାହିଁ।",
+  startHere: "ଏଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ",
+  stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
+  stepPondsWhy: "ଅପଚେକ ପ୍ରତ୍ୟେକ ପୋଖରୀର ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ଅଲଗା ଅଲଗା ଦେଖେ। ଏବେ ଦେଖିବାକୁ କିଛି ନାହିଁ।",
+  stepPondsCta: "ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
+  stepCycleTitle: "{{pond}} ରେ ଏକ ଚକ୍ର ଆରମ୍ଭ କରନ୍ତୁ",
+  stepCycleWhy: "ଖାଲି ପୋଖରୀରେ ବାୟୋମାସ ନାହିଁ, ଖାଦ୍ୟ ଯୋଜନା ନାହିଁ, ଚେତାବନୀ ବି ନାହିଁ। ଚକ୍ର ତିନୋଟିକୁ ଆରମ୍ଭ କରେ।",
+  stepCycleCta: "ଚକ୍ର ଆରମ୍ଭ କରନ୍ତୁ",
+  stepLogTitle: "ଆଜିର ରିଡିଂ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+  stepLogWhy: "ଆଜି କିଛି ଲିପିବଦ୍ଧ ହୋଇନାହିଁ। ଏଠାକାର ପ୍ରତ୍ୟେକ ଚେତାବନୀ ଅମ୍ଳଜାନ ଓ pH ରୁ ହିଁ ତିଆରି।",
+  stepLogCta: "ଏବେ ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+  hideChecklist: "ଲୁଚାନ୍ତୁ",
+  hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
+  hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",
+  hideChecklistConfirm: "ସବୁଦିନ ପାଇଁ ଲୁଚାନ୍ତୁ",
 };
 
 export default home;

@@ -83,7 +83,13 @@ const finance = {
   moneyTitle: "টাকা",
   addEntry: "এন্ট্রি যোগ করুন",
   netSoFar: "এ পর্যন্ত নিট",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "এখনও কিছু নথিভুক্ত হয়নি",
+  nothingYetBody: "আপনি যা খরচ করেন ও বিক্রি করেন তা লিখুন, সেটিই আপনার লাভ-ক্ষতি হবে।",
   whereItWent: "কোথায় গেল",
+  allFarms: "সব খামার",
+  byFarm: "খামার অনুযায়ী",
+  farmInOut: "আয় {{income}} · ব্যয় {{expense}}",
   creditOutstanding: "ডিলার বাকি",
   creditDue: "{{dealer}} · {{date}} তারিখে",
   creditDealers: "{{count}} জন ডিলারের কাছে",
@@ -91,7 +97,7 @@ const finance = {
   recentEntries: "সাম্প্রতিক এন্ট্রি",
   seeAll: "সব ›",
   noEntries: "এই খামারের জন্য এখনও কিছু নথিভুক্ত হয়নি।",
-  noFarmTitle: "কোনো খামার নির্বাচিত নয়",
-  noFarmSub: "টাকা দেখতে একটি খামার বেছে নিন।",
+  noFarmTitle: "এখনও কোনো খামার নেই",
+  noFarmSub: "টাকার হিসাব রাখতে একটি খামার যোগ করুন।",
 };
 export default finance;

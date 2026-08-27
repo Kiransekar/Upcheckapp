@@ -24,6 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
+import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
@@ -31,15 +32,18 @@ import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { todayLocalISODate } from '../../utils/localDate';
+import { personName } from '../../utils/personName';
+// Not `toLocaleTimeString(undefined, …)`: that asks for the DEVICE locale, and
+// Hermes ships without full ICU data for every Indian language — the same call
+// is what took the Simulations screen down in Tamil. formatDate.ts formats in
+// the app's chosen language and falls back to plain text instead of throwing.
+import { formatDate, formatTime } from '../../utils/formatDate';
 
 /** Days of own history before "Show earlier days". */
 const HISTORY_DAYS = 6;
 
-const formatTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
 const formatDay = (iso: string) =>
-    new Date(iso).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+    formatDate(iso, { weekday: 'short', day: 'numeric', month: 'short' });
 
 /** "6h 27m" — how long the open shift has been running. */
 const elapsedSince = (iso: string): string => {
@@ -50,16 +54,11 @@ const elapsedSince = (iso: string): string => {
     return h > 0 ? `${h}h ${m}m` : `${m}m`;
 };
 
-const memberName = (m: FarmMember): string => {
-    const u = m.user;
-    if (!u) return m.userId.slice(0, 8);
-    return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.username || m.userId.slice(0, 8);
-};
-
 interface TeamRow {
     userId: string;
     name: string;
-    record: AttendanceRecord | null;
+    /** Every shift today, oldest first. Empty means they have not come in. */
+    shifts: AttendanceRecord[];
 }
 
 export const AttendanceScreen = ({ route, navigation }: any) => {
@@ -74,13 +73,20 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
     const [showAllHistory, setShowAllHistory] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [loadError, setLoadError] = useState<any>(null);
 
     const load = useCallback(async () => {
         try {
             const { data } = await attendanceApi.mine(farmId);
             setMyRecords(data);
-        } catch {
+            setLoadError(null);
+        } catch (e) {
+            // Do NOT fall through to "you haven't checked in today". A failed
+            // read is not an absence, and rendering it as one told the farmer
+            // their check-in had not happened when it had — the same mistake
+            // C5 fixed for the members list.
             setMyRecords([]);
+            setLoadError(e);
         }
         if (perms.canManageOperations) {
             // The roster is what turns "who came" into "who did not" — without
@@ -99,22 +105,38 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
 
     const openRecord = myRecords.find((r) => !r.checkOutAt) ?? null;
 
-    /** Everyone on the farm, whether or not they turned up. */
+    /**
+     * Everyone on the farm, whether or not they turned up, with ALL of today's
+     * shifts each — not just the latest. Someone who works a morning and an
+     * evening shift was previously collapsed to one row by a Map keyed on user
+     * id, so half their hours simply vanished from the roster.
+     */
     const teamRows: TeamRow[] = useMemo(() => {
-        const byUser = new Map(teamToday.map((r) => [r.userId, r]));
+        const byUser = new Map<string, AttendanceRecord[]>();
+        // Server sends newest first; reverse so a day reads in the order it
+        // happened.
+        for (const r of [...teamToday].reverse()) {
+            const list = byUser.get(r.userId) ?? [];
+            list.push(r);
+            byUser.set(r.userId, list);
+        }
         if (members.length) {
             return members.map((m) => ({
                 userId: m.userId,
-                name: memberName(m),
-                record: byUser.get(m.userId) ?? null,
+                name: personName(m.user, t('attendance.unknownPerson')),
+                shifts: byUser.get(m.userId) ?? [],
             }));
         }
-        // Roster unavailable (offline, or the members call failed): fall back to
-        // whoever did check in, so the screen still says something true.
-        return teamToday.map((r) => ({ userId: r.userId, name: r.userId.slice(0, 8), record: r }));
-    }, [members, teamToday]);
+        // Roster unavailable: fall back to whoever did check in. The records now
+        // carry their own user, so this still shows names rather than ids.
+        return [...byUser.entries()].map(([userId, shifts]) => ({
+            userId,
+            name: personName(shifts[0]?.user, t('attendance.unknownPerson')),
+            shifts,
+        }));
+    }, [members, teamToday, t]);
 
-    const presentCount = teamRows.filter((r) => r.record).length;
+    const presentCount = teamRows.filter((r) => r.shifts.length > 0).length;
 
     const history = showAllHistory ? myRecords : myRecords.slice(0, HISTORY_DAYS);
     const hiddenDays = myRecords.length - history.length;
@@ -170,6 +192,22 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
                     <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
                 }
             >
+                {/*
+                  * A failed read must never be shown as an absence. Without
+                  * this the screen said "You haven't checked in today" whenever
+                  * the request failed — indistinguishable from the truth, and
+                  * the reason a farmer checked in repeatedly.
+                  */}
+                {!!loadError && (
+                    <View style={styles.loadError}>
+                        <Icon name="warning" size={20} color={c.dangerText} />
+                        <Text style={styles.loadErrorText}>{t('attendance.loadFailed')}</Text>
+                        <TouchableOpacity onPress={load} accessibilityRole="button">
+                            <Text style={styles.retry}>{t('common.retry')}</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 <View style={styles.shift}>
                     <Text style={styles.shiftLabel}>{t('attendance.yourShift')}</Text>
                     <Text style={styles.shiftValue}>
@@ -196,50 +234,69 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
 
                 {perms.canManageOperations && (
                     <>
+                        {/*
+                          * Today is as far as this screen goes on purpose —
+                          * "who is in now" is its whole job. Anything with a
+                          * date range in it (a month, one person's hours, an
+                          * export) lives in the log.
+                          */}
                         <SectionHeader
                             label={t('attendance.teamTodayTitle')}
                             trailing={t('attendance.presentOf', {
                                 present: presentCount,
                                 total: teamRows.length,
                             })}
+                            actionLabel={t('attendance.viewLog')}
+                            onAction={() =>
+                                navigation.navigate('AttendanceLog', { farmId, farmName })
+                            }
                         />
                         {teamRows.length === 0 ? (
                             <Text style={styles.empty}>{t('attendance.teamTodayEmpty')}</Text>
                         ) : (
                             <>
                                 <ColumnHeads />
-                                {teamRows.map((row) => (
-                                    <View key={row.userId} style={styles.row}>
-                                        <Text
-                                            style={[styles.name, !row.record && styles.absent]}
-                                            numberOfLines={1}
-                                        >
-                                            {row.userId === user?.id ? t('attendance.you') : row.name}
-                                        </Text>
-                                        {row.record ? (
-                                            <>
-                                                <Text style={[styles.cell, styles.colIn]}>
-                                                    {formatTime(row.record.checkInAt)}
+                                {teamRows.map((row) => {
+                                    const label =
+                                        row.userId === user?.id ? t('attendance.you') : row.name;
+                                    if (row.shifts.length === 0) {
+                                        return (
+                                            <View key={row.userId} style={styles.row}>
+                                                <Text style={[styles.name, styles.absent]} numberOfLines={1}>
+                                                    {label}
                                                 </Text>
-                                                <Text
-                                                    style={[
-                                                        styles.cell,
-                                                        styles.colOut,
-                                                        !row.record.checkOutAt && styles.stillIn,
-                                                    ]}
-                                                >
-                                                    {row.record.checkOutAt
-                                                        ? formatTime(row.record.checkOutAt)
-                                                        : t('attendance.stillInShort')}
+                                                <Text style={styles.noRecord} numberOfLines={1}>
+                                                    {t('attendance.noRecordToday')}
                                                 </Text>
-                                            </>
-                                        ) : (
-                                            <Text style={[styles.noRecord]} numberOfLines={1}>
-                                                {t('attendance.noRecordToday')}
+                                            </View>
+                                        );
+                                    }
+                                    // One row PER SHIFT. The name is printed on the
+                                    // first only, so a second shift reads as another
+                                    // stint by the same person rather than a
+                                    // duplicate of them.
+                                    return row.shifts.map((shift, i) => (
+                                        <View key={shift.id} style={styles.row}>
+                                            <Text style={styles.name} numberOfLines={1}>
+                                                {i === 0 ? label : ''}
                                             </Text>
-                                        )}
-                                    </View>
-                                ))}
+                                            <Text style={[styles.cell, styles.colIn]}>
+                                                {formatTime(shift.checkInAt)}
+                                            </Text>
+                                            <Text
+                                                style={[
+                                                    styles.cell,
+                                                    styles.colOut,
+                                                    !shift.checkOutAt && styles.stillIn,
+                                                ]}
+                                            >
+                                                {shift.checkOutAt
+                                                    ? formatTime(shift.checkOutAt)
+                                                    : t('attendance.stillInShort')}
+                                            </Text>
+                                        </View>
+                                    ));
+                                })}
                             </>
                         )}
                     </>
@@ -291,7 +348,21 @@ const ColumnHeads = () => {
     );
 };
 
+const c = theme.roles.light;
+
 const styles = StyleSheet.create({
+    loadError: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        backgroundColor: theme.roles.light.dangerBg,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.dangerBorder,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+    },
+    loadErrorText: { ...theme.typeScale.bodyMedium, flex: 1, color: theme.roles.light.dangerText },
+    retry: { ...theme.typeScale.labelLarge, color: theme.roles.light.dangerText },
     content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
 
     shift: {

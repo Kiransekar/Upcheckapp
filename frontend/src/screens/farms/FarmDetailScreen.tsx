@@ -163,6 +163,10 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
             title={farmName ?? t('farms.title')}
             onBack={() => navigation.goBack()}
             accessibilityBackLabel={t('common.back')}
+            // Editing a farm is WRITE_MANAGEMENT, the same capability the
+            // backend guards the PATCH with — hidden, not disabled.
+            actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
+            onAction={() => navigation.navigate('CreateFarm', { editFarmId: farmId })}
         />
     );
 

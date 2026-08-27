@@ -1,8 +1,10 @@
 const team = {
     title: 'Team',
+    // The tab spans every farm by default; the chips narrow it.
+    allFarms: "All farms",
     addWorker: 'Add worker',
-    noFarmTitle: 'No farm selected',
-    noFarmSub: 'Choose a farm to see its team.',
+    noFarmTitle: "No farms yet",
+    noFarmSub: "Create or join a farm to see its team.",
     checkedInAt: 'You checked in at {{time}}',
     stillCheckedIn: 'Still checked in · {{elapsed}}',
     checkOut: 'Check out',

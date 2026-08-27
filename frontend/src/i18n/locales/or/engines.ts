@@ -32,8 +32,6 @@ const engines = {
   },
   routine: {
     title: 'ଦୈନିକ ରୁଟିନ୍',
-    nextPhaseIn: 'ପରବର୍ତ୍ତୀ {{phase}} {{days}}d ରେ',
-    moltingHint: 'ଖୋଳ ବଦଳ ସମୟ — ନରମ ଖୋଳ; ହ୍ୟାଣ୍ଡଲିଂ ଓ ଗ୍ରେଡିଂ କମାନ୍ତୁ।',
     doneToday: 'ଆଜି ସମ୍ପୂର୍ଣ୍ଣ',
     waterCheck: 'ଜଳ ଯାଞ୍ଚ',
     waterCheckLog: 'DO, pH, ଲବଣତା ଓ ତାପମାତ୍ରା ଲିପିବଦ୍ଧ କରନ୍ତୁ',

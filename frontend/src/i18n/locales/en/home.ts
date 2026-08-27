@@ -175,6 +175,39 @@ const home = {
   createFarmCardSub: "Set up your ponds and start logging",
   joinCodeCardTitle: "Join with a code",
   joinCodeCardSub: "Work on a farm someone else runs",
+
+  // Home — artboard 1b
+  allFarms: "All farms",
+  filter: "Filter",
+  then: "Then",
+  open: "Open",
+  verify: "Verify",
+  myTasks: "My tasks",
+  openCount: "{{count}} open",
+  taskDue: "due {{date}}",
+  onDuty: "On duty",
+  // Artboard 1b stat band + the compact Getting Started list
+  logsToday: "Logs today",
+  // The hero before there is anything to raise an alert about
+  noTasksAssigned: "Nothing assigned to you today.",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "Molting window",
+  lunarMoltingBody: "Shrimp are soft-shelled around the new and full moon. Feed less, and do not handle or harvest.",
+  lunarQuiet: "No molting expected today.",
+  startHere: "Start here",
+  stepPondsTitle: "Add your ponds",
+  stepPondsWhy: "Upcheck watches water, feed and growth pond by pond. There is nothing to watch yet.",
+  stepPondsCta: "Add ponds",
+  stepCycleTitle: "Stock a cycle in {{pond}}",
+  stepCycleWhy: "An empty pond has no biomass, no feed plan and nothing to warn you about. A cycle starts all three.",
+  stepCycleCta: "Start a cycle",
+  stepLogTitle: "Log today’s readings",
+  stepLogWhy: "Nothing recorded today. Oxygen and pH are what every warning here is built from.",
+  stepLogCta: "Log now",
+  hideChecklist: "Hide",
+  hideChecklistTitle: "Hide the setup list?",
+  hideChecklistBody: "It will not come back. You can still set up ponds, log readings and invite your team from the Farm and Team tabs.",
+  hideChecklistConfirm: "Hide for good",
 };
 
 export default home;

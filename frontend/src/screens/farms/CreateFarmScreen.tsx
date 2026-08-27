@@ -11,8 +11,8 @@
  * this the whole flow, so the step indicator disappears (rather than reading
  * "Step 1 of 2" with no step 2) and the button saves the farm directly.
  */
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import * as Location from 'expo-location';
@@ -36,7 +36,21 @@ const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.gl
     { key: 'recycled', icon: 'recycle' },
 ];
 
-export const CreateFarmScreen = ({ navigation }: any) => {
+/**
+ * The same screen edits a farm.
+ *
+ * Passed an `editFarmId`, it loads that farm, prefills every field, retitles
+ * itself and PATCHes instead of POSTing. Two screens over one form would have
+ * meant two sets of validation and two places for the water-source list to
+ * drift; the fields a farmer may change are exactly the fields they were asked
+ * for in the first place.
+ *
+ * The pond-count step is creation-only: it names new ponds, and a farm that
+ * already has ponds is not the place to ask for more.
+ */
+export const CreateFarmScreen = ({ navigation, route }: any) => {
+    const editFarmId: string | undefined = route?.params?.editFarmId;
+    const isEdit = !!editFarmId;
     const { t } = useTranslation();
     const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
     const completeFarmSetup = useAuthStore((s) => s.completeFarmSetup);
@@ -55,8 +69,36 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     const [locating, setLocating] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; numPonds?: string }>({});
+    // Edit mode blocks on the load: a form that paints empty and fills in a
+    // moment later invites a farmer to type over their own data.
+    const [isHydrating, setIsHydrating] = useState(isEdit);
 
-    const hasPondStep = numPonds >= 1;
+    useEffect(() => {
+        if (!editFarmId) return;
+        let cancelled = false;
+        farmsApi
+            .getById(editFarmId)
+            .then(({ data }) => {
+                if (cancelled) return;
+                setName(data.name ?? '');
+                setAddress(data.address ?? '');
+                setTotalArea(data.areaHectares != null ? String(data.areaHectares) : '');
+                setWaterSource(data.waterSourceType ?? null);
+                if (data.latitude != null && data.longitude != null) {
+                    setCoords({ lat: data.latitude, lng: data.longitude });
+                }
+            })
+            .catch(() => {
+                Alert.alert(t('common.error'), t('farms.errorLoadFarm'));
+                navigation.goBack();
+            })
+            .finally(() => { if (!cancelled) setIsHydrating(false); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editFarmId]);
+
+    // Naming new ponds is a creation step; an existing farm adds ponds elsewhere.
+    const hasPondStep = !isEdit && numPonds >= 1;
 
     // First-run owners were hard-gated into this screen with no way out — an
     // owner who wanted to look around first was stuck on a mandatory form. Give
@@ -114,9 +156,19 @@ export const CreateFarmScreen = ({ navigation }: any) => {
             return;
         }
 
-        // No ponds declared: this is the entire flow, so save here.
         setIsLoading(true);
         try {
+            if (isEdit) {
+                // Only the fields this form owns. PATCHing the whole draft
+                // would send plannedPondCount: undefined and quietly clear a
+                // figure this screen never shows in edit mode.
+                const { plannedPondCount, ...editable } = buildDraft();
+                await farmsApi.update(editFarmId!, editable);
+                showToast({ message: t('farms.farmSavedToast', { name: name.trim() }), type: 'success' });
+                navigation.goBack();
+                return;
+            }
+            // No ponds declared: this is the entire flow, so save here.
             await farmsApi.create(buildDraft());
             showToast({
                 message: t('farms.farmCreatedToast', { name: name.trim(), defaultValue: '{{name}} created' }),
@@ -125,7 +177,11 @@ export const CreateFarmScreen = ({ navigation }: any) => {
             if (pendingFarmSetup) completeFarmSetup();
             navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('farms.errorCreateFarm'));
+            Alert.alert(
+                t('common.error'),
+                error.response?.data?.message ||
+                    t(isEdit ? 'farms.errorSaveFarm' : 'farms.errorCreateFarm'),
+            );
         } finally {
             setIsLoading(false);
         }
@@ -134,8 +190,8 @@ export const CreateFarmScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             <ScreenHeader
-                eyebrow={existingFarmCount > 0 ? t('farms.yourNthFarm', { n: existingFarmCount + 1 }) : null}
-                title={t('farms.stepFarmTitle')}
+                eyebrow={isEdit ? name || null : existingFarmCount > 0 ? t('farms.yourNthFarm', { n: existingFarmCount + 1 }) : null}
+                title={isEdit ? t('farms.editFarmTitle') : t('farms.stepFarmTitle')}
                 onBack={pendingFarmSetup ? undefined : () => navigation.goBack()}
                 accessibilityBackLabel={t('common.back')}
                 // During the first-run gate there is nothing to go back TO, so
@@ -152,6 +208,11 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 </View>
             )}
 
+            {isHydrating ? (
+                <View style={styles.hydrating}>
+                    <ActivityIndicator color={theme.roles.light.primary} />
+                </View>
+            ) : (
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Input
                     label={t('farms.fieldFarmName')}
@@ -171,7 +232,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                     hint={t('farms.areaHint')}
                 />
 
-                {/* A stepper, not a keyboard. Pond count is a small whole
+                {!isEdit && (<>{/* A stepper, not a keyboard. Pond count is a small whole
                     number and the farmer is often outdoors — the design shows
                     − / + controls, and Stepper already implements them to the
                     44dp tap-target rule. */}
@@ -185,7 +246,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                 <Text style={styles.hint}>
                     {hasPondStep ? t('farms.pondsNamedHint', { last: numPonds }) : t('farms.pondsLaterHint')}
                 </Text>
-                {errors.numPonds ? <Text style={styles.fieldError}>{errors.numPonds}</Text> : null}
+                {errors.numPonds ? <Text style={styles.fieldError}>{errors.numPonds}</Text> : null}</>)}
 
                 {/* GPS location — unlocks weather, lunar tides & regional pricing. */}
                 <Text style={styles.fieldLabel}>{t('farms.fieldLocation')}</Text>
@@ -267,16 +328,19 @@ export const CreateFarmScreen = ({ navigation }: any) => {
                     a reassurance LINE, not a modal: the worry it addresses is
                     "will this replace or affect my existing farms?", and a
                     confirm dialog would add friction without answering that. */}
-                <Text style={styles.reassurance}>
+                {!isEdit && (
+                    <Text style={styles.reassurance}>
                     {existingFarmCount > 0
                         ? t('farms.stayOwnerWithOthers', { count: existingFarmCount })
                         : t('farms.stayOwner')}
                 </Text>
+                )}
             </ScrollView>
+            )}
 
             <View style={styles.footer}>
                 <Button
-                    title={hasPondStep ? t('common.continue') : t('farms.saveFarm')}
+                    title={hasPondStep ? t('common.continue') : isEdit ? t('common.save') : t('farms.saveFarm')}
                     onPress={handleContinue}
                     loading={isLoading}
                 />
@@ -287,6 +351,7 @@ export const CreateFarmScreen = ({ navigation }: any) => {
 
 
 const styles = StyleSheet.create({
+    hydrating: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     progress: {
         flexDirection: 'row',
         gap: theme.spacing[2],

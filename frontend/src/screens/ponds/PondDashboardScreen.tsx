@@ -38,6 +38,20 @@ import { pnlApi, type CropPnl } from '../../api/pnl';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
 
+/** The create form already names these; the detail view must not re-word them. */
+const SHAPE_KEY: Record<string, string> = {
+    rectangular: 'ponds.shapeRect',
+    circular: 'ponds.shapeCircular',
+    raceway: 'ponds.shapeRaceway',
+    irregular: 'ponds.shapeIrregular',
+};
+const CONSTRUCTION_KEY: Record<string, string> = {
+    earthen: 'ponds.constructionEarthen',
+    lined: 'ponds.constructionLined',
+    cage: 'ponds.constructionCage',
+    biofloc_ras: 'ponds.constructionBioflocRas',
+};
+
 type LogMode = 'log' | 'history';
 
 interface LogAction {
@@ -186,12 +200,49 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const wq = context?.waterQuality;
     const readingAgo = timeAgo(wq?.recordedAt);
 
+    // A surveyed area is a measurement of the real pond; the calculated one
+    // is a rectangle worth of arithmetic. Where both exist the survey wins,
+    // exactly as the create form decides it.
+    const areaM2 = Number(pond?.overrideAreaM2) || Number(pond?.calculatedAreaM2) || 0;
+
+    /** "80 × 45 × 1.4 m" or "⌀ 20 × 1.4 m" — only the parts that exist. */
+    const dimensionLine = (() => {
+        if (!pond) return '—';
+        const n = (v: unknown) => (v == null || v === '' ? null : String(v));
+        const parts = pond.geometryType === 'circular'
+            ? [n(pond.diameterM) ? `⌀ ${n(pond.diameterM)}` : null]
+            : [n(pond.lengthM), n(pond.widthM)];
+        const all = [...parts, n(pond.depthM)].filter(Boolean);
+        return all.length ? `${all.join(' × ')} m` : '—';
+    })();
+
+    /** "4 units · 8 HP · 22 HP/ha" — the last is what a pond is judged by. */
+    const aeratorLine = (() => {
+        const count = Number(pond?.aeratorCount) || 0;
+        const hp = Number(pond?.installedAeratorHp) || 0;
+        if (!count && !hp) return '—';
+        const hectares = areaM2 / 10000;
+        return [
+            count ? t('ponds.aeratorCountValue', { count }) : null,
+            hp ? `${hp} HP` : null,
+            hp > 0 && hectares > 0 ? `${Math.round(hp / hectares)} HP/ha` : null,
+        ].filter(Boolean).join(' · ');
+    })();
+
     const header = (
         <ScreenHeader
             eyebrow={pond ? t(`ponds.status_${pond.status}`, { defaultValue: pond.status }) : null}
             title={pondName ?? t('ponds.title')}
             onBack={() => navigation.goBack()}
             accessibilityBackLabel={t('common.back')}
+            actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
+            onAction={() =>
+                navigation.navigate('CreatePond', {
+                    farmId: pond?.farmId,
+                    farmName: undefined,
+                    editPondId: pondId,
+                })
+            }
         />
     );
 
@@ -330,6 +381,27 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             ]}
                         />
 
+                        {/*
+                          * Biomass is DERIVED, never typed: live population ×
+                          * mean body weight ÷ 1000, where the weight comes from
+                          * the latest sampling. A farmer looking for somewhere to
+                          * enter it will not find one, and four dashes in a row
+                          * do not explain why — so when there is no sampling to
+                          * derive it from, say what is missing and open the form
+                          * that supplies it.
+                          */}
+                        {context?.abwG == null && (
+                            <SummaryRow
+                                icon="scale"
+                                title={t('ponds.needSamplingTitle')}
+                                subtitle={t('ponds.needSamplingBody')}
+                                onPress={() =>
+                                    navigation.navigate('SamplingLog', { pondId, pondName, cropId: cycle.id })
+                                }
+                                divider="strong"
+                            />
+                        )}
+
                         <View style={styles.modeRow}>
                             <ModeButton
                                 label={t('ponds.tabLogData')}
@@ -445,6 +517,56 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </TouchableOpacity>
                         )}
                     </View>
+                )}
+
+                {/*
+                  * The pond itself. Every one of these figures is asked for when
+                  * the pond is created and then went nowhere — the shape, the
+                  * bottom, the measurements, the aerators. A farmer who typed
+                  * them had no way to check them, correct them, or even see
+                  * that the app had kept them. Area and volume are shown
+                  * alongside because they are what the numbers above are FOR:
+                  * every stocking, dosing and feed figure divides by them.
+                  */}
+                {!!pond && (
+                    <>
+                        <SectionHeader
+                            label={t('ponds.aboutThisPond')}
+                            actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
+                            onAction={() =>
+                                navigation.navigate('CreatePond', { farmId: pond.farmId, editPondId: pondId })
+                            }
+                        />
+                        <SummaryRow
+                            icon="waves"
+                            title={t('ponds.labelPondShape')}
+                            subtitle={[
+                                pond.geometryType ? t(SHAPE_KEY[pond.geometryType] ?? '', { defaultValue: pond.geometryType }) : null,
+                                pond.constructionType ? t(CONSTRUCTION_KEY[pond.constructionType] ?? '', { defaultValue: pond.constructionType }) : null,
+                            ].filter(Boolean).join(' · ') || '—'}
+                        />
+                        <SummaryRow
+                            icon="scale"
+                            title={t('ponds.labelMeasurements')}
+                            subtitle={dimensionLine}
+                        />
+                        {areaM2 > 0 && (
+                            <StatRow
+                                stats={[
+                                    { value: Math.round(areaM2).toLocaleString('en-IN'), label: t('ponds.metricArea') },
+                                    { value: Math.round(areaM2 * (Number(pond.depthM) || 0)).toLocaleString('en-IN'), label: t('ponds.metricVolume') },
+                                    { value: (areaM2 / 10000).toFixed(2), label: t('ponds.metricHectares') },
+                                ]}
+                                divider
+                            />
+                        )}
+                        <SummaryRow
+                            icon="grain"
+                            title={t('ponds.labelAerators')}
+                            subtitle={aeratorLine}
+                            divider="strong"
+                        />
+                    </>
                 )}
             </ScrollView>
         </ScreenWrapper>

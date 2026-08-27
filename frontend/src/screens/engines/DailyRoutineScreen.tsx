@@ -23,6 +23,7 @@ import { feedingTrayApi, type TrayResidue } from '../../api/feedingTray';
 import { toLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
+import { useFocusEffect } from '@react-navigation/native';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -57,7 +58,11 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
     }
   }, [pondId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+  // once it has been opened, so a mount-only effect never ran again: log
+  // something in a pond, come back here, and the page still showed the
+  // figures from before the log until the app was force-refreshed.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const cropId = ctx?.cropId ?? cropParam;
   const params = { pondId, pondName, cropId };

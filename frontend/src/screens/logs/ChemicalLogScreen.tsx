@@ -6,6 +6,13 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+// Five of the parameters below are the SAME measurements the daily
+// water-quality form takes, and constants/ranges.ts already holds their
+// bands — this screen simply was not asking. Calcium, magnesium and
+// potassium stay plain fields: there is no agronomist-confirmed band for
+// them in that table, and a made-up target on a chemistry form is worse
+// than none, because a farmer would dose against it.
+import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
 import { useUIStore } from '../../store/uiStore';
@@ -105,15 +112,15 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                     <Text style={styles.sectionTitle}>{t('logs.chemical_nitrogenSection')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label={t('logs.chemical_labelAmmoniaNh3')} value={ammoniaNh3} onChangeText={setAmmoniaNh3} keyboardType="decimal-pad" placeholder="0.0" />
+                            <ParameterInput label={t('logs.chemical_labelAmmoniaNh3')} value={ammoniaNh3} onChangeText={setAmmoniaNh3} unit="mg/L" parameterKey="ammonia" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label={t('logs.chemical_labelNitriteNo2')} value={nitriteNo2} onChangeText={setNitriteNo2} keyboardType="decimal-pad" placeholder="0.0" />
+                            <ParameterInput label={t('logs.chemical_labelNitriteNo2')} value={nitriteNo2} onChangeText={setNitriteNo2} unit="mg/L" parameterKey="nitrite" />
                         </View>
                     </View>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label={t('logs.chemical_labelNitrateNo3')} value={nitrateNo3} onChangeText={setNitrateNo3} keyboardType="decimal-pad" placeholder="0.0" />
+                            <ParameterInput label={t('logs.chemical_labelNitrateNo3')} value={nitrateNo3} onChangeText={setNitrateNo3} unit="mg/L" parameterKey="nitrate" />
                         </View>
                         <View style={styles.halfCol} />
                     </View>
@@ -123,10 +130,10 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                     <Text style={styles.sectionTitle}>{t('logs.chemical_mineralsSection')}</Text>
                     <View style={styles.row}>
                         <View style={styles.halfCol}>
-                            <Input label={t('logs.chemical_labelAlkalinity')} value={alkalinity} onChangeText={setAlkalinity} keyboardType="decimal-pad" placeholder="0.0" />
+                            <ParameterInput label={t('logs.chemical_labelAlkalinity')} value={alkalinity} onChangeText={setAlkalinity} unit="mg/L" parameterKey="alkalinity" />
                         </View>
                         <View style={styles.halfCol}>
-                            <Input label={t('logs.chemical_labelHardness')} value={hardness} onChangeText={setHardness} keyboardType="decimal-pad" placeholder="0.0" />
+                            <ParameterInput label={t('logs.chemical_labelHardness')} value={hardness} onChangeText={setHardness} unit="mg/L" parameterKey="hardness" />
                         </View>
                     </View>
                     <View style={styles.row}>

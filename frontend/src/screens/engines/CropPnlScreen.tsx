@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { pnlApi, type CropPnl } from '../../api/pnl';
+import { useFocusEffect } from '@react-navigation/native';
 
 const inr = (n: number | null | undefined) => '₹' + Math.round(n ?? 0).toLocaleString('en-IN');
 
@@ -34,7 +35,11 @@ export const CropPnlScreen = ({ route }: any) => {
     }
   }, [cropId]);
 
-  useEffect(() => { load(); }, [load]);
+  // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+  // once it has been opened, so a mount-only effect never ran again: log
+  // something in a pond, come back here, and the page still showed the
+  // figures from before the log until the app was force-refreshed.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const profitable = (pnl?.profit ?? 0) >= 0;
   const breakdown = pnl ? Object.entries(pnl.costBreakdown) : [];
