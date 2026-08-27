@@ -342,9 +342,14 @@ annotated list):
 | `PORT` | listen port |
 | `CORS_ORIGIN` | `*` for the mobile app |
 | `REDIS_URL` | optional — 2FA/Truecaller store; falls back to in-memory if unset |
+| `ADMIN_API_KEY` | shared secret for `/api/admin/feedback*`; unset ⇒ every admin request is denied |
 
 `BREVO_API_KEY` (email), `GOOGLE_CLIENT_ID_*` (Google login) and `TRUECALLER_*`
 are needed only for those specific flows.
+
+`ADMIN_API_KEY` is only needed if the staff feedback dashboard (`admin/`, on
+Vercel) is running — the same value goes in both places. See
+[`admin/README.md`](../../admin/README.md).
 
 > Anything that changes the **schema** (a new/edited entity, a new migration, a
 > new table's RLS) is high-risk — follow

@@ -56,6 +56,7 @@ import { CreditModule } from './credit/credit.module';
 import { AlertCenterModule } from './alert-center/alert-center.module';
 import { BannedSubstancesModule } from './banned-substances/banned-substances.module';
 import { PondContextModule } from './pond-context/pond-context.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -178,6 +179,7 @@ import { PondContextModule } from './pond-context/pond-context.module';
     AlertCenterModule,
     PondContextModule,
     BannedSubstancesModule,
+    FeedbackModule,
   ],
   controllers: [AppController],
   providers: [

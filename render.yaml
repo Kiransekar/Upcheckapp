@@ -54,5 +54,12 @@ services:
       # never "*". Must be set on the Render dashboard — not committed here.
       - key: CORS_ORIGIN
         sync: false
+      # Shared secret for the staff feedback inbox (/api/admin/feedback*),
+      # called server-side by the Vercel admin dashboard (see admin/README.md
+      # — the same value goes there). Not boot-critical: the app starts
+      # without it, but AdminKeyGuard then denies every admin request, which
+      # is the intended failure. Never let this reach a browser bundle.
+      - key: ADMIN_API_KEY
+        sync: false
   # Note: a former "otp-cleanup" cron was removed — OTP login is Supabase-native
   # and 2FA pending/temp tokens auto-expire in Redis, so there is nothing to prune.
