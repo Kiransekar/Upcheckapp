@@ -178,3 +178,20 @@ describe('deploy-before-migrate', () => {
     await expect(svc.assertCanAccessPond(ACTOR, POND_OUT, 'READ')).resolves.toBeDefined();
   });
 });
+
+/**
+ * getAccessiblePondIds runs per farm on the home screen, and it used to resolve
+ * the caller's membership twice: once for the capability check, then again
+ * inside getScopedPondIds. Same user, same farm, same answer.
+ */
+describe('membership is resolved once per scoping pass', () => {
+  it('does not re-query the membership for the scope lookup', async () => {
+    const svc = makeService('worker', [POND_IN]);
+    const spy = jest.spyOn(svc, 'getMembershipOnFarm');
+
+    await expect(svc.getAccessiblePondIds(ACTOR, FARM)).resolves.toEqual([
+      POND_IN,
+    ]);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});

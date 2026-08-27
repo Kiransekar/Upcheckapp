@@ -319,5 +319,47 @@ describe('CropsService', () => {
       );
     });
   });
+
+  describe('findOneForVerifiedPond', () => {
+    it('skips the redundant pond re-check when the crop is on the cleared pond', async () => {
+      repository.findOneBy!.mockResolvedValue(mockCrop); // pondId: 'pond-1'
+
+      const result = await service.findOneForVerifiedPond(
+        'crop-1',
+        'pond-1',
+        'user-1',
+      );
+
+      expect(result.id).toBe('crop-1');
+      expect(pondsService.verifyAccess).not.toHaveBeenCalled();
+    });
+
+    it('still checks when the crop is NOT on the cleared pond', async () => {
+      // A grant on pond-1 says nothing about pond-9 — the shortcut must not
+      // become a way to read another pond's cycle.
+      const stray = Object.assign(new Crop(), mockCrop, { pondId: 'pond-9' });
+      repository.findOneBy!.mockResolvedValue(stray);
+      pondsService.verifyAccess.mockRejectedValue(
+        new ForbiddenException('nope'),
+      );
+
+      await expect(
+        service.findOneForVerifiedPond('crop-1', 'pond-1', 'worker'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(pondsService.verifyAccess).toHaveBeenCalledWith(
+        'pond-9',
+        'worker',
+        'READ',
+      );
+    });
+
+    it('404s a missing crop', async () => {
+      repository.findOneBy!.mockResolvedValue(null);
+
+      await expect(
+        service.findOneForVerifiedPond('nope', 'pond-1', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
 });
 

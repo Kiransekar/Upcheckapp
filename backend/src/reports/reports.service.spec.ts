@@ -28,7 +28,6 @@ describe('ReportsService.getCycleAnalysis — IST day bucketing (DATE-1)', () =>
       feedRecordsService,
       harvestsService,
       {} as any, // expensesService
-      {} as any, // redisService
       samplingService,
       cropsService,
       {} as any, // farmAccess
@@ -55,5 +54,65 @@ describe('ReportsService.getCycleAnalysis — IST day bucketing (DATE-1)', () =>
     const result = await service.getCycleAnalysis('crop-1', 'user-1');
 
     expect(result.growthChart[0].date).toBe('2026-06-17');
+  });
+});
+
+/**
+ * The dashboard summary used to sit behind a 300s Redis TTL that nothing ever
+ * invalidated, so a farmer who logged feed kept seeing the pre-log number for
+ * up to five minutes. It reads through every time now — this pins that.
+ */
+describe('ReportsService.getDashboardSummary — always live', () => {
+  const build = (feedUsage: jest.Mock) =>
+    new ReportsService(
+      {
+        countActivePonds: jest.fn().mockResolvedValue(2),
+        countTotalPonds: jest.fn().mockResolvedValue(3),
+      } as any,
+      { countLowStock: jest.fn().mockResolvedValue(0) } as any,
+      { getDailyFeedUsage: feedUsage } as any,
+      {} as any, // harvestsService
+      {} as any, // expensesService
+      {} as any, // samplingService
+      {} as any, // cropsService
+      { assertCanAccessFarm: jest.fn().mockResolvedValue({}) } as any,
+      {} as any, // transactionsService
+    );
+
+  it('reflects feed logged between two reads', async () => {
+    const feedUsage = jest
+      .fn()
+      .mockResolvedValueOnce(10)
+      .mockResolvedValueOnce(25);
+    const service = build(feedUsage);
+
+    expect((await service.getDashboardSummary('u1', 'f1')).todayFeedUsage).toBe(
+      10,
+    );
+    expect((await service.getDashboardSummary('u1', 'f1')).todayFeedUsage).toBe(
+      25,
+    );
+    expect(feedUsage).toHaveBeenCalledTimes(2);
+  });
+
+  it('still refuses a farm the caller cannot read', async () => {
+    const assertCanAccessFarm = jest
+      .fn()
+      .mockRejectedValue(new Error('forbidden'));
+    const service = new ReportsService(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      { assertCanAccessFarm } as any,
+      {} as any,
+    );
+
+    await expect(service.getDashboardSummary('u1', 'f1')).rejects.toThrow(
+      'forbidden',
+    );
   });
 });

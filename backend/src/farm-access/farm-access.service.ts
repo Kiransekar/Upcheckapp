@@ -261,8 +261,9 @@ export class FarmAccessService {
     userId: string,
     farmId: string,
     pondId: string,
+    knownRole?: FarmRole | null,
   ): Promise<boolean> {
-    const scoped = await this.getScopedPondIds(userId, farmId);
+    const scoped = await this.getScopedPondIds(userId, farmId, knownRole);
     return scoped === null || scoped.has(pondId);
   }
 
@@ -272,12 +273,21 @@ export class FarmAccessService {
    * Returns null (unrestricted) for owner and manager regardless of any rows —
    * they are responsible for the whole farm, and half-applying scoping to them
    * would be worse than not offering it.
+   *
+   * `knownRole` lets a caller that just resolved the membership hand it in
+   * (`undefined` means "not resolved yet", which is not the same as the `null`
+   * that means "no role on this farm"). Every caller had already looked it up,
+   * so re-resolving here was a second identical query on every scoping check.
    */
   private async getScopedPondIds(
     userId: string,
     farmId: string,
+    knownRole?: FarmRole | null,
   ): Promise<Set<string> | null> {
-    const { role } = await this.getMembershipOnFarm(userId, farmId);
+    const role =
+      knownRole !== undefined
+        ? knownRole
+        : (await this.getMembershipOnFarm(userId, farmId)).role;
     if (!role || !SCOPABLE_ROLES.includes(role as any)) return null;
 
     try {
@@ -329,7 +339,9 @@ export class FarmAccessService {
     });
     const allIds = all.map((p) => p.id);
 
-    const scoped = await this.getScopedPondIds(userId, farmId);
+    // `role` is already resolved above — pass it through so the scoping check
+    // doesn't re-run the same membership query.
+    const scoped = await this.getScopedPondIds(userId, farmId, role);
     if (scoped === null) return allIds;
     return allIds.filter((id) => scoped.has(id));
   }

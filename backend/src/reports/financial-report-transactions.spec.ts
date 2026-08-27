@@ -39,7 +39,6 @@ const build = (opts: {
     {} as any, // feedRecordsService
     {} as any, // harvestsService
     expensesService,
-    {} as any, // redisService
     {} as any, // samplingService
     cropsService,
     { assertCanAccessFarm: jest.fn().mockResolvedValue({}) } as any,
