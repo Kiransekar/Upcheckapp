@@ -28,7 +28,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
@@ -42,9 +44,18 @@ import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { farmsApi, type Farm } from '../../api/farms';
 import { personName } from '../../utils/personName';
 import { formatWeekday } from '../../utils/formatDate';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
 /** Scope value meaning "every farm I can see". */
 const ALL = 'all';
+
+// Stable empty fallbacks — a fresh `[]` each render would break the memos below.
+const EMPTY_FARMS: Farm[] = [];
+const EMPTY_ATTENDANCE: AttendanceRecord[] = [];
+const EMPTY_LEAVE: LeaveRequest[] = [];
+const EMPTY_TASKS: Task[] = [];
+const EMPTY_MEMBERS: FarmMember[] = [];
 
 /** Tasks the design treats as "still to do" for the per-person tallies. */
 const OPEN_STATUSES = ['open', 'in_progress'];
@@ -74,21 +85,77 @@ export const TeamScreen = ({ navigation }: any) => {
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const userId = useAuthStore((s) => s.user?.id);
 
-    const [farms, setFarms] = useState<Farm[]>([]);
     /** `ALL` means every farm — the tab's default, same as Money and Today. */
     const [scope, setScope] = useState<string>(ALL);
-
-    const [myAttendance, setMyAttendance] = useState<AttendanceRecord | null>(null);
-    const [allAttendance, setAllAttendance] = useState<AttendanceRecord[]>([]);
-    const [pendingLeave, setPendingLeave] = useState<LeaveRequest[]>([]);
-    const [tasks, setTasks] = useState<Task[]>([]);
-    const [members, setMembers] = useState<FarmMember[]>([]);
-    const [refreshing, setRefreshing] = useState(false);
-    // Without this the screen rendered its "no farms yet" empty state from
-    // the first frame until the fetch landed — telling a farmer with three
-    // farms they had none, every time they opened the tab.
-    const [isLoading, setIsLoading] = useState(true);
     const [showAllTasks, setShowAllTasks] = useState(false);
+    /** Optimistically hidden after Check out, until the refetch lands. */
+    const [checkedOutId, setCheckedOutId] = useState<string | null>(null);
+
+    /**
+     * One cached read for the tab, keyed on scope. Memory-only rather than
+     * persisted: rosters and tasks change hour to hour and are not what a
+     * farmer opens the app with no signal to see (see src/query/client.ts).
+     */
+    const query = useAppQuery({
+        queryKey: qk.team(scope),
+        queryFn: async () => {
+            const list = (await farmsApi.getAll()).data ?? [];
+            const inScope =
+                scope !== ALL && list.some((f) => f.id === scope)
+                    ? list.filter((f) => f.id === scope)
+                    : list;
+
+            // Independent reads — fan out rather than waterfall. Each failure is
+            // isolated so one unavailable farm cannot blank the whole tab.
+            const per = await Promise.all(
+                inScope.map(async (farm) => {
+                    const [mine, all, leave, taskList, memberList] = await Promise.allSettled([
+                        attendanceApi.mine(farm.id),
+                        attendanceApi.getAll(farm.id), // the API decides; a 403 lands in the catch
+                        leaveRequestsApi.getAll(farm.id, 'pending'),
+                        tasksApi.getAll(farm.id),
+                        farmMembersApi.listMembers(farm.id),
+                    ]);
+                    const val = <T,>(r: PromiseSettledResult<{ data: T }>, fallback: T): T =>
+                        r.status === 'fulfilled' ? r.value.data : fallback;
+                    return {
+                        mine: val(mine, [] as AttendanceRecord[]),
+                        all: val(all, [] as AttendanceRecord[]),
+                        leave: val(leave, [] as LeaveRequest[]),
+                        tasks: val(taskList, [] as Task[]),
+                        members: val(memberList, [] as FarmMember[]),
+                    };
+                }),
+            );
+
+            return {
+                farms: list,
+                // The open record is the one with no check-out. Across farms you can
+                // only be checked in to one at a time in practice, and if you are in
+                // two the earliest is the one you have been on longest.
+                myAttendance:
+                    per
+                        .flatMap((p) => p.mine)
+                        .filter((r) => !r.checkOutAt)
+                        .sort((a, b) => a.checkInAt.localeCompare(b.checkInAt))[0] ?? null,
+                allAttendance: per.flatMap((p) => p.all),
+                pendingLeave: per.flatMap((p) => p.leave),
+                tasks: per.flatMap((p) => p.tasks),
+                members: per.flatMap((p) => p.members),
+            };
+        },
+    });
+
+    useRefetchOnFocus(qk.team(scope));
+
+    const farms = query.data?.farms ?? EMPTY_FARMS;
+    const rawMyAttendance = query.data?.myAttendance ?? null;
+    const myAttendance = rawMyAttendance && rawMyAttendance.id === checkedOutId ? null : rawMyAttendance;
+    const allAttendance = query.data?.allAttendance ?? EMPTY_ATTENDANCE;
+    const pendingLeave = query.data?.pendingLeave ?? EMPTY_LEAVE;
+    const tasks = query.data?.tasks ?? EMPTY_TASKS;
+    const members = query.data?.members ?? EMPTY_MEMBERS;
+    const hasData = query.data != null;
 
     const activeScope = scope !== ALL && farms.some((f) => f.id === scope) ? scope : ALL;
     const scopeFarms = useMemo(
@@ -107,74 +174,18 @@ export const TeamScreen = ({ navigation }: any) => {
     const perms = usePermissions(farmId);
     const farmName = (id: string) => farms.find((f) => f.id === id)?.name;
 
-    const load = useCallback(async () => {
-        const farmRes = await farmsApi.getAll().catch(() => ({ data: [] as Farm[] }));
-        const list = farmRes.data ?? [];
-        setFarms(list);
-        const inScope = scope !== ALL && list.some((f) => f.id === scope)
-            ? list.filter((f) => f.id === scope)
-            : list;
-        if (inScope.length === 0) {
-            setIsLoading(false);
-            setRefreshing(false);
-            return;
-        }
-
-        // Independent reads — fan out rather than waterfall. Each failure is
-        // isolated so one unavailable farm cannot blank the whole tab.
-        const per = await Promise.all(
-            inScope.map(async (farm) => {
-                const canManage = true; // the API decides; a 403 lands in the catch
-                const [mine, all, leave, taskList, memberList] = await Promise.allSettled([
-                    attendanceApi.mine(farm.id),
-                    canManage ? attendanceApi.getAll(farm.id) : Promise.resolve({ data: [] as AttendanceRecord[] }),
-                    canManage ? leaveRequestsApi.getAll(farm.id, 'pending') : Promise.resolve({ data: [] as LeaveRequest[] }),
-                    tasksApi.getAll(farm.id),
-                    farmMembersApi.listMembers(farm.id),
-                ]);
-                const val = <T,>(r: PromiseSettledResult<{ data: T }>, fallback: T): T =>
-                    r.status === 'fulfilled' ? r.value.data : fallback;
-                return {
-                    mine: val(mine, [] as AttendanceRecord[]),
-                    all: val(all, [] as AttendanceRecord[]),
-                    leave: val(leave, [] as LeaveRequest[]),
-                    tasks: val(taskList, [] as Task[]),
-                    members: val(memberList, [] as FarmMember[]),
-                };
-            }),
-        );
-
-        // The open record is the one with no check-out. Across farms you can
-        // only be checked in to one at a time in practice, and if you are in
-        // two the earliest is the one you have been on longest.
-        setMyAttendance(
-            per
-                .flatMap((p) => p.mine)
-                .filter((r) => !r.checkOutAt)
-                .sort((a, b) => a.checkInAt.localeCompare(b.checkInAt))[0] ?? null,
-        );
-        setAllAttendance(per.flatMap((p) => p.all));
-        setPendingLeave(per.flatMap((p) => p.leave));
-        setTasks(per.flatMap((p) => p.tasks));
-        setMembers(per.flatMap((p) => p.members));
-        setIsLoading(false);
-        setRefreshing(false);
-    }, [scope]);
-
-    useFocusEffect(useCallback(() => { load(); }, [load]));
-
     const checkOut = useCallback(async () => {
         if (!myAttendance) return;
         try {
             await attendanceApi.checkOut(myAttendance.id);
-            setMyAttendance(null);
-            load();
+            setCheckedOutId(myAttendance.id);
+            void query.refetch();
         } catch {
             // Non-fatal; the attendance screen shows the authoritative state.
         }
-    }, [myAttendance, load]);
+    }, [myAttendance, query]);
 
-    if (isLoading) {
+    if (query.isPending && !hasData) {
         return (
             <ScreenWrapper>
                 <View style={styles.loadingBlock}>
@@ -182,6 +193,17 @@ export const TeamScreen = ({ navigation }: any) => {
                     <Skeleton width="100%" height={64} />
                     <Skeleton width="100%" height={64} />
                 </View>
+            </ScreenWrapper>
+        );
+    }
+
+    // "We could not read your team" is not "you have no farm" — this screen
+    // used to fall through to the empty state on a failed read and tell a
+    // manager with a full roster that they had no farm.
+    if (query.isError && !hasData) {
+        return (
+            <ScreenWrapper>
+                <ErrorState title={t('team.title')} error={query.error} onRetry={() => query.refetch()} />
             </ScreenWrapper>
         );
     }
@@ -244,6 +266,8 @@ export const TeamScreen = ({ navigation }: any) => {
                 )}
             </View>
 
+            <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
+
             {/* Scope chips, like Money. The header's one text-link slot is
                 already "Add worker", and with a single farm "All farms" and
                 its name are the same view under two labels. */}
@@ -277,7 +301,7 @@ export const TeamScreen = ({ navigation }: any) => {
             <ScrollView
                 contentContainerStyle={styles.body}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
+                    <RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />
                 }
             >
                 {/* Your own check-in — the one thing on this screen you act on. */}

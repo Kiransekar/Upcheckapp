@@ -58,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}} பதிவு(கள்) ஒத்திசைக்க முடியவில்லை. இப்போது மீண்டும் முயற்சிக்கவா?',
   syncFailedBanner: 'பதிவுகளுக்கு கவனம் தேவை',
   syncFailedA11y: '{{count}} பதிவுகள் ஒத்திசைக்கத் தவறியது, மீண்டும் முயற்சிக்க தட்டவும்',
+  cachedAsOf: "சேமித்த தரவு காட்டப்படுகிறது · {{when}} நிலவரப்படி",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "தொடர்க",

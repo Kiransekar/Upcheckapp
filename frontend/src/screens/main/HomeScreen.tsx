@@ -22,12 +22,15 @@ import { FarmOverview } from '../../components/dashboard/FarmOverview';
 import { buildPondRows, mergeBriefings } from '../../utils/pondHealth';
 import type { PondContext } from '../../api/pondContext';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { formatWeekday } from '../../utils/formatDate';
 import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { useSyncStore } from '../../store/syncStore';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
+import { SummaryRow } from '../../components/ui/SummaryRow';
 import { usePermissions } from '../../hooks/usePermissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { farmsApi } from '../../api/farms';
@@ -38,7 +41,15 @@ import { attendanceApi } from '../../api/attendance';
 import { tasksApi, type Task } from '../../api/tasks';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import Svg, { Ellipse, Path } from 'react-native-svg';
+
+/** Stable empty fallbacks — a fresh `[]` each render would break the memos. */
+const EMPTY_FARMS: { id: string; name: string }[] = [];
+const EMPTY_PONDS: Pond[] = [];
+const EMPTY_ALERTS: BriefingItem[] = [];
+const EMPTY_CONTEXTS: PondContext[] = [];
 
 /**
  * The empty first-run dashboard (artboard 09). An outline pond rather than a
@@ -96,10 +107,27 @@ export const HomeScreen = ({ navigation }: any) => {
     const { user } = useAuthStore();
     const { selectedFarm, setSelectedFarm } = useActiveFarmStore();
     const perms = usePermissions(selectedFarm?.id);
-    const [ponds, setPonds] = useState<Pond[]>([]);
-    // The full farm list — 1b's header counts them and the Filter switches
-    // between them, and "Then" resolves each alert's farm name against it.
-    const [farms, setFarms] = useState<{ id: string; name: string }[]>([]);
+    /**
+     * The full farm list — 1b's header counts them, the Filter switches between
+     * them, and "Then" resolves each alert's farm name against it.
+     *
+     * Deliberately the SAME cache key the Farms tab uses: one read, shared, so
+     * moving between the two tabs is instant and a phone with no signal opens
+     * on the last-known list instead of the create-your-first-farm screen.
+     */
+    const farmsQuery = useAppQuery({
+        queryKey: qk.farms(),
+        queryFn: async () => (await farmsApi.getAll()).data,
+    });
+    const farms = (farmsQuery.data as { id: string; name: string }[] | undefined) ?? EMPTY_FARMS;
+
+    /** Ponds for the one-tap "Your Ponds" shortcut. Persisted; enrichment. */
+    const pondsQuery = useAppQuery({
+        queryKey: qk.ponds(),
+        queryFn: async () => (await pondsApi.getMine()).data,
+    });
+    const ponds = pondsQuery.data ?? EMPTY_PONDS;
+
     const [showFarmFilter, setShowFarmFilter] = useState(false);
     /**
      * Home's own scope. `null` means ALL farms, which is what 1b opens on —
@@ -112,16 +140,6 @@ export const HomeScreen = ({ navigation }: any) => {
      * follows you — picking "All farms" only widens Home.
      */
     const [scopeFarmId, setScopeFarmId] = useState<string | null>(null);
-    const [homeBiomassKg, setHomeBiomassKg] = useState<number | null>(null);
-    const [onDutyToday, setOnDutyToday] = useState<{ present: number; total: number } | null>(null);
-    /** Ponds logged today / ponds expected to be — 1b's middle figure. */
-    const [logsToday, setLogsToday] = useState<{ done: number; total: number } | null>(null);
-    /**
-     * The pond snapshots behind the band. Kept rather than discarded: the
-     * overview under the fold is the same data asked a different question, and
-     * re-fetching it would double the most expensive call on the screen.
-     */
-    const [contexts, setContexts] = useState<PondContext[]>([]);
     /** The farms every figure on this screen is computed over. */
     const scopeFarms = React.useMemo(
         () => (scopeFarmId ? farms.filter((f) => f.id === scopeFarmId) : farms),
@@ -129,8 +147,10 @@ export const HomeScreen = ({ navigation }: any) => {
     );
     /** The one farm in scope, or undefined when showing all of them. */
     const scopeFarm = scopeFarmId ? farms.find((f) => f.id === scopeFarmId) : undefined;
-    const [isLoading, setIsLoading] = useState(true);
-    const [isRefreshing, setIsRefreshing] = useState(false);
+    // Only the farm list gates the first paint; everything else fills in. With
+    // a persisted cache this is false from the first frame on a return visit.
+    const isLoading = farmsQuery.isPending && farmsQuery.data == null;
+    const isRefreshing = farmsQuery.isRefetching;
     // "Getting Started" checklist (onboarding-plan Phase 2, extending the
     // finish-setup nudge from Task 7 into real activation milestones, not
     // just pond count): set up ponds → log a first reading → invite your
@@ -151,45 +171,43 @@ export const HomeScreen = ({ navigation }: any) => {
     // MorningBriefingScreen, surfaced at the top of Home so a critical issue
     // in any pond doesn't sit unseen behind five other sections and a "Today"
     // tap (docs/UI_UX_AUDIT.md homepage redesign, Phase 1).
-    const [alerts, setAlerts] = useState<BriefingItem[]>([]);
-    const [alertsLoading, setAlertsLoading] = useState(true);
+    const alertsQuery = useAppQuery({
+        // Prefixed 'briefing' so a log invalidates it along with the Morning
+        // Briefing screen — and so it is persisted for the first offline paint.
+        queryKey: [...qk.briefing(), 'home'],
+        queryFn: async () => {
+            const [live, persisted] = await Promise.all([
+                alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+            ]);
+            // One shared merge — see utils/pondHealth.mergeBriefings for why
+            // live and persisted must both be read, and why every screen has to
+            // do it the same way.
+            return mergeBriefings(live.data, persisted.data);
+        },
+    });
+    const alerts = alertsQuery.data ?? EMPTY_ALERTS;
+    const alertsLoading = alertsQuery.isPending && alertsQuery.data == null;
     // Actions deferred with "Later" — component state on purpose. It is a
     // "not right now", not a decision worth persisting: next time the farmer
     // opens Home the pond either still needs attention (so it comes back) or
     // it does not (so it is gone). Persisting would need an expiry policy for
     // something that expires naturally.
     const [deferred, setDeferred] = useState<string[]>([]);
-    // Distinct from summary===null: on a fetch FAILURE we must show a retry state,
+    // Distinct from farms===[]: on a fetch FAILURE we must show a retry state,
     // not the "no farm data / create your first farm" CTA (which is for a genuinely
     // empty account). Conflating them pushes an existing owner to re-create a farm.
-    const [error, setError] = useState<any>(null);
+    const error = farmsQuery.isError ? farmsQuery.error : null;
 
-    const fetchFarms = useCallback(async () => {
-        setError(null);
-        try {
-            const { data } = await farmsApi.getAll();
-            const list = Array.isArray(data) ? data : [];
-            setFarms(list);
-            // Keep the GLOBAL active farm populated for the screens that need
-            // one (Team, Inventory, the farm screens). This does not narrow
-            // Home — `scopeFarmId` does, and it starts at null / all farms.
-            if (!selectedFarm?.id && list[0]) {
-                setSelectedFarm({ id: list[0].id, name: list[0].name, location: (list[0] as any).location });
-            }
-        } catch (err) {
-            console.error('Failed to load farms', err);
-            setError(err);
-        } finally {
-            setIsLoading(false);
-            setIsRefreshing(false);
+    // Keep the GLOBAL active farm populated for the screens that need one (Team,
+    // Inventory, the farm screens). This does not narrow Home — `scopeFarmId`
+    // does, and it starts at null / all farms.
+    useEffect(() => {
+        const first = farms[0];
+        if (!selectedFarm?.id && first) {
+            setSelectedFarm({ id: first.id, name: first.name, location: (first as any).location });
         }
-    }, [selectedFarm?.id, setSelectedFarm]);
-
-    // Ponds for the one-tap "Your Ponds" shortcut — so the farmer reaches a pond
-    // (and its daily loop) without drilling Farms → Farm → Pond.
-    const fetchPonds = useCallback(() => {
-        pondsApi.getMine().then(({ data }) => setPonds(data)).catch(() => setPonds([]));
-    }, []);
+    }, [farms, selectedFarm?.id, setSelectedFarm]);
 
     /**
      * The three figures in artboard 1b's closing band.
@@ -198,8 +216,18 @@ export const HomeScreen = ({ navigation }: any) => {
      * simply absent if they fail. None is worth blocking Home on, and
      * TodayStats hides the band unless it has something real to show.
      */
-    const fetchTodayStats = useCallback(async () => {
-        if (scopeFarms.length === 0) return;
+    const statsQuery = useAppQuery({
+        // Under 'home', which is persisted — this band is the part of Today a
+        // farmer most wants to still see with no signal, stamped with its age.
+        queryKey: [...qk.home(scopeFarmId), scopeFarms.map((f) => f.id).join(','), perms.canManageOperations],
+        enabled: scopeFarms.length > 0,
+        queryFn: async (): Promise<{
+            contexts: PondContext[];
+            homeBiomassKg: number | null;
+            logsToday: { done: number; total: number } | null;
+            onDutyToday: { present: number; total: number } | null;
+        }> => {
+        const absent = { contexts: [], homeBiomassKg: null, logsToday: null, onDutyToday: null };
 
         // One batched pond-context call per farm — see pondContextApi.forFarm.
         //
@@ -221,21 +249,21 @@ export const HomeScreen = ({ navigation }: any) => {
                     .catch(() => null),
             ),
         );
-        if (perFarm.some((c) => c === null)) {
-            setContexts([]);
-            setHomeBiomassKg(null);
-            setLogsToday(null);
-            setOnDutyToday(null);
-            return;
-        }
+        if (perFarm.some((c) => c === null)) return absent;
+        // Kept rather than discarded: the overview under the fold is the same
+        // data asked a different question, and re-fetching it would double the
+        // most expensive call on the screen.
         const contexts = (perFarm as NonNullable<(typeof perFarm)[number]>[]).flat();
-        setContexts(contexts);
         const sampled = contexts
             .map((c) => c.biomassKg)
             .filter((v): v is number => typeof v === 'number');
         // null, not 0 — an owner who has not sampled should see nothing here
         // rather than a confident zero next to a stocked pond.
-        setHomeBiomassKg(sampled.length ? sampled.reduce((a, b) => a + b, 0) : null);
+        //
+        // These are the SERVER's figures. A record the farmer logged with no
+        // signal is not in them and must not be spliced in here — see
+        // src/sync/pending.ts. It shows as a pending row on the pond instead.
+        const homeBiomassKg = sampled.length ? sampled.reduce((a, b) => a + b, 0) : null;
 
         // "Logs today" out of the SAME snapshot — no extra round trips. A pond
         // counts as logged once anything has been recorded against it today;
@@ -245,7 +273,7 @@ export const HomeScreen = ({ navigation }: any) => {
         const isToday = (iso: string | null | undefined) =>
             !!iso && toLocalISODate(new Date(iso)) === today;
         const stocked = contexts.filter((ctx) => ctx.cropId);
-        setLogsToday({
+        const logsToday = {
             total: stocked.length,
             done: stocked.filter(
                 (ctx) =>
@@ -253,13 +281,12 @@ export const HomeScreen = ({ navigation }: any) => {
                     isToday(ctx.waterQuality?.recordedAt) ||
                     isToday(ctx.samplingAt),
             ).length,
-        });
+        };
 
         // "On duty" is a manager's view of the roster, so it is gated the same
         // way the roster itself is.
         if (!perms.canManageOperations) {
-            setOnDutyToday(null);
-            return;
+            return { contexts, homeBiomassKg, logsToday, onDutyToday: null };
         }
         // Same rule as the contexts above: a roster we could not read is not a
         // roster of nobody. "3 of 5 on duty" with two farms silently missing is
@@ -275,17 +302,29 @@ export const HomeScreen = ({ navigation }: any) => {
             }),
         );
         if (rosters.some((r) => r === null)) {
-            setOnDutyToday(null);
-            return;
+            return { contexts, homeBiomassKg, logsToday, onDutyToday: null };
         }
         const complete = rosters as NonNullable<(typeof rosters)[number]>[];
         const total = complete.reduce((a, r) => a + r.total, 0);
-        setOnDutyToday(
-            total > 0
-                ? { present: complete.reduce((a, r) => a + r.present, 0), total }
-                : null,
-        );
-    }, [scopeFarms, perms.canManageOperations]);
+        return {
+            contexts,
+            homeBiomassKg,
+            logsToday,
+            onDutyToday:
+                total > 0 ? { present: complete.reduce((a, r) => a + r.present, 0), total } : null,
+        };
+        },
+    });
+
+    /**
+     * The pond snapshots behind the band. Kept rather than discarded: the
+     * overview under the fold is the same data asked a different question, and
+     * re-fetching it would double the most expensive call on the screen.
+     */
+    const contexts = statsQuery.data?.contexts ?? EMPTY_CONTEXTS;
+    const homeBiomassKg = statsQuery.data?.homeBiomassKg ?? null;
+    const logsToday = statsQuery.data?.logsToday ?? null;
+    const onDutyToday = statsQuery.data?.onDutyToday ?? null;
 
     /**
      * Can the Getting Started checklist still appear at all?
@@ -311,54 +350,34 @@ export const HomeScreen = ({ navigation }: any) => {
             .catch(() => setPlannedPondCount(null));
     }, [selectedFarm?.id, checklistPossible]);
 
-    // Cross-pond alert summary for the "Needs Attention" card. Mirrors
-    // MorningBriefingScreen's merge (live + persisted, deduped by pond, kept
-    // at the higher severity) — this is a compact top-N view; the full list
-    // with per-item detail still lives in Morning Briefing.
-    const fetchAlerts = useCallback(() => {
-        Promise.all([
-            alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-            alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-        ])
-            .then(([live, persisted]) => {
-                // One shared merge — see utils/pondHealth.mergeBriefings for
-                // why live and persisted must both be read, and why every
-                // screen has to do it the same way.
-                const sorted = mergeBriefings(live.data, persisted.data);
-                setAlerts(sorted);
-            })
-            .catch(() => {
-                setAlerts([]);
-            })
-            .finally(() => setAlertsLoading(false));
-    }, []);
-
     // React Navigation keeps this screen mounted across the stack, so a
     // mount-only effect never re-ran after e.g. PondSetup/CreatePond added a
     // pond and navigated back — the dashboard, pond list, and Getting
     // Started checklist all stayed stale until the app was force-restarted.
-    // Refetch every time Home regains focus instead.
+    // Refetch every time Home regains focus instead. `useRefetchOnFocus` only
+    // refetches what is actually stale, so a quick tab bounce costs nothing but
+    // the farmer's own write (which invalidates these keys) always lands.
+    useRefetchOnFocus(qk.farms());
+    useRefetchOnFocus(qk.ponds());
+    useRefetchOnFocus(qk.briefing());
+    useRefetchOnFocus(qk.home(scopeFarmId));
     useFocusEffect(
         useCallback(() => {
-            fetchFarms();
-            fetchPonds();
             fetchPlannedPondCount();
-            fetchAlerts();
-        }, [fetchFarms, fetchPonds, fetchPlannedPondCount, fetchAlerts]),
+        }, [fetchPlannedPondCount]),
     );
 
     const onRefresh = useCallback(() => {
-        setIsRefreshing(true);
-        fetchFarms();
-        fetchPonds();
+        void farmsQuery.refetch();
+        void pondsQuery.refetch();
+        void alertsQuery.refetch();
+        void statsQuery.refetch();
         fetchPlannedPondCount();
-        fetchAlerts();
-    }, [fetchFarms, fetchPonds, fetchPlannedPondCount, fetchAlerts]);
+    }, [farmsQuery, pondsQuery, alertsQuery, statsQuery, fetchPlannedPondCount]);
 
     const onRetry = useCallback(() => {
-        setIsLoading(true);
-        fetchFarms();
-    }, [fetchFarms]);
+        void farmsQuery.refetch();
+    }, [farmsQuery]);
 
     /**
      * The portfolio under the fold: each farm in scope with its ponds joined to
@@ -610,8 +629,16 @@ export const HomeScreen = ({ navigation }: any) => {
 
     useFocusEffect(useCallback(() => { fetchMyTasks(); }, [fetchMyTasks]));
 
-    // Enrichment — loads after the page paints, absent if it fails.
-    useFocusEffect(useCallback(() => { fetchTodayStats(); }, [fetchTodayStats]));
+
+    /**
+     * How much is still sitting on this phone.
+     *
+     * Deliberately a COUNT of records, not a contribution to any figure above —
+     * a queued mortality does not move biomass or survival here (see
+     * src/sync/pending.ts). Those come from the server, which has not seen it.
+     */
+    const pendingCount = useSyncStore((s) => s.queue.length + s.failedOperations.length);
+    const isConnected = useSyncStore((s) => s.isConnected);
 
     // Root-stack screens (CreateFarm, PondDashboard, Settings…) live above the
     // tab navigator; navigate via the parent so they resolve from a tab.
@@ -638,6 +665,27 @@ export const HomeScreen = ({ navigation }: any) => {
                 onAction={() => setShowFarmFilter((v) => !v)}
                 onMore={() => navigation.navigate('Settings')}
             />
+
+            {/* The whole screen is the server's numbers. If they are the last
+                copy rather than a fresh one, say so and say how old. */}
+            <CacheNotice
+                updatedAt={farmsQuery.dataUpdatedAt}
+                stale={farmsQuery.isError || statsQuery.isError}
+            />
+
+            {/* Everything the farmer has saved that has not reached the server
+                yet. One row, always the same place, tappable through to the
+                full list — the answer to "did my reading actually save". */}
+            {pendingCount > 0 && (
+                <SummaryRow
+                    icon="schedule"
+                    title={t('sync.pendingSectionTitle')}
+                    subtitle={isConnected ? t('sync.waitingBodyOnline') : t('sync.waitingBodyOffline')}
+                    value={String(pendingCount)}
+                    tone="warning"
+                    onPress={() => goRoot('SyncStatus')}
+                />
+            )}
 
             {/* The farm switcher the header's "Filter" opens. 1b puts the
                 current scope in the TITLE, so a permanent second bar restating

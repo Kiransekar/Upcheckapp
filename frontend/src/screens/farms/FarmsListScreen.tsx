@@ -9,7 +9,7 @@
  * Cost of that: three list-wide calls plus one batched pond-context call per
  * farm, instead of the twenty-odd per-pond calls the same data used to imply.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -23,6 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { SummaryRow } from '../../components/ui/SummaryRow';
 import { StatRow } from '../../components/ui/StatRow';
 import { Icon } from '../../components/ui/Icon';
@@ -35,6 +36,8 @@ import { pondsApi, type Pond } from '../../api/ponds';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import {
     buildPondRows,
     mergeBriefings,
@@ -59,29 +62,27 @@ export const FarmsListScreen = ({ navigation }: any) => {
     const roleForFarm = useMembershipStore((s) => s.roleForFarm);
     const loadMemberships = useMembershipStore((s) => s.load);
 
-    const [farms, setFarms] = useState<Farm[]>([]);
-    const [ponds, setPonds] = useState<Pond[]>([]);
-    const [briefing, setBriefing] = useState<BriefingItem[]>([]);
-    const [contexts, setContexts] = useState<PondContext[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [offline, setOffline] = useState(false);
+    /**
+     * The farm list — the only fatal call, and the only thing the first paint
+     * waits on. Persisted to disk, so a cold start with no signal opens on the
+     * farms from the last visit rather than a retry button.
+     */
+    const query = useAppQuery({
+        queryKey: qk.farms(),
+        queryFn: async () => (await farmsApi.getAll()).data,
+    });
+    const farms = query.data ?? [];
 
-    const load = useCallback(async () => {
-        setError(null);
-        setOffline(false);
-        try {
-            // The farm list is the only fatal call. Everything after it is
-            // enrichment — a farmer on a flaky connection should still see their
-            // farms, with the numbers missing, rather than an error page.
-            const farmsRes = await farmsApi.getAll();
-            setFarms(farmsRes.data);
-            // Paint the farms now. The figures arrive a moment later and fill
-            // in — waiting for all of them before showing anything is what made
-            // this screen feel slow.
-            setLoading(false);
-
+    /**
+     * The figures. Kept a SEPARATE query on purpose: waiting for all of them
+     * before showing anything is what made this screen feel slow, and a farmer
+     * on a flaky connection should still see their farms with the numbers
+     * missing rather than an error page.
+     */
+    const detail = useAppQuery({
+        queryKey: [...qk.farms(), 'rollup', farms.map((f) => f.id).join(',')],
+        enabled: farms.length > 0,
+        queryFn: async () => {
             const [pondsRes, briefingRes, ctxs] = await Promise.all([
                 pondsApi.getMine().catch(() => ({ data: [] as Pond[] })),
                 // LIVE, merged with the persisted stream — not persisted alone.
@@ -99,7 +100,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
                 // whole farm's ponds server-side, so this is farms-many
                 // requests, not ponds-many.
                 Promise.all(
-                    farmsRes.data.map((f) =>
+                    farms.map((f) =>
                         pondContextApi
                             .forFarm(f.id)
                             .then((r) => r.data)
@@ -107,23 +108,28 @@ export const FarmsListScreen = ({ navigation }: any) => {
                     ),
                 ),
             ]);
-            setPonds(pondsRes.data);
-            setBriefing(briefingRes.data);
-            setContexts(ctxs.flat());
-        } catch (err: any) {
-            if (!err?.response) setOffline(true);
-            setError(err);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, []);
+            return {
+                ponds: pondsRes.data,
+                briefing: briefingRes.data,
+                contexts: ctxs.flat(),
+            };
+        },
+    });
 
+    const ponds = detail.data?.ponds ?? [];
+    const briefing = detail.data?.briefing ?? [];
+    const contexts = detail.data?.contexts ?? [];
+    // A failed read is NOT an empty farm list. `data` present + `isError` means
+    // "here is your last copy, and it is this old"; `isError` with no data at
+    // all is the only case that earns an error page.
+    const hasData = query.data != null;
+    const offline = query.isError && !(query.error as any)?.response;
+
+    useRefetchOnFocus(qk.farms());
     useFocusEffect(
         useCallback(() => {
             loadMemberships();
-            load();
-        }, [load, loadMemberships]),
+        }, [loadMemberships]),
     );
 
     const cards: FarmCardData[] = useMemo(() => {
@@ -171,7 +177,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
         />
     );
 
-    if (loading) {
+    if (query.isPending && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
@@ -182,32 +188,21 @@ export const FarmsListScreen = ({ navigation }: any) => {
         );
     }
 
-    if (offline) {
+    // Error pages only when there is genuinely nothing to show. With a cached
+    // copy in hand the screen renders it and says how old it is instead.
+    if (query.isError && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
-                <NetworkError
-                    onRetry={() => {
-                        setLoading(true);
-                        load();
-                    }}
-                />
-            </ScreenWrapper>
-        );
-    }
-
-    if (error && !farms.length) {
-        return (
-            <ScreenWrapper scroll={false} padded={false}>
-                {header}
-                <ErrorState
-                    title={t('farms.errorTitle')}
-                    error={error}
-                    onRetry={() => {
-                        setLoading(true);
-                        load();
-                    }}
-                />
+                {offline ? (
+                    <NetworkError onRetry={() => query.refetch()} />
+                ) : (
+                    <ErrorState
+                        title={t('farms.errorTitle')}
+                        error={query.error}
+                        onRetry={() => query.refetch()}
+                    />
+                )}
             </ScreenWrapper>
         );
     }
@@ -215,15 +210,16 @@ export const FarmsListScreen = ({ navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             {header}
+            <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
+                        refreshing={query.isRefetching}
                         onRefresh={() => {
-                            setRefreshing(true);
-                            load();
+                            void query.refetch();
+                            void detail.refetch();
                         }}
                         colors={[theme.roles.light.primary]}
                         tintColor={theme.roles.light.primary}

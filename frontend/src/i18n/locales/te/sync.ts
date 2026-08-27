@@ -1,0 +1,37 @@
+const sync = {
+  title: 'సింక్',
+  stateOnline: 'కనెక్ట్ అయింది',
+  viewAll: 'అన్నీ ›',
+
+  pendingSectionTitle: 'సింక్ కావాల్సి ఉంది',
+  pending: 'సింక్ కావాల్సి ఉంది',
+  needsAttention: 'శ్రద్ధ అవసరం',
+  savedAt: '{{when}}కు సేవ్ చేయబడింది',
+
+  needsAttentionSection: 'శ్రద్ధ అవసరం',
+  needsAttentionBody: 'ఇవి ఈ ఫోన్‌లో సేవ్ అయ్యాయి కానీ సర్వర్ వీటిని స్వీకరించలేదు. ఏమీ పోలేదు — మళ్ళీ ప్రయత్నించండి, లేదా సమస్యను నివేదించండి.',
+  waitingSection: 'సింక్ కావాల్సి ఉంది',
+  waitingBodyOnline: 'ఈ ఫోన్‌లో సేవ్ అయ్యాయి. నేపథ్యంలో పంపబడతాయి.',
+  waitingBodyOffline: 'ఈ ఫోన్‌లో సేవ్ అయ్యాయి. సిగ్నల్ రాగానే పంపబడతాయి.',
+  syncNow: 'ఇప్పుడే సింక్ చేయండి',
+  allSyncedTitle: 'అన్నీ సింక్ అయ్యాయి',
+  allSyncedSubtitle: 'ఈ ఫోన్‌లో ఏదీ పెండింగ్‌లో లేదు.',
+  lastSynced: 'చివరి సింక్ {{when}}',
+  footnote: 'బయోమాస్, మనుగడ వంటి మొత్తాలు సర్వర్‌లో లెక్కించబడతాయి, కాబట్టి రికార్డు సింక్ అయ్యాకే అవి మారతాయి.',
+
+  entity_water_quality: 'నీటి నాణ్యత రీడింగ్',
+  entity_feed: 'మేత రికార్డు',
+  entity_sampling: 'శాంప్లింగ్',
+  entity_mortality: 'మరణాలు',
+  entity_harvest: 'పంట కోత',
+  entity_treatment: 'చికిత్స',
+  entity_chemical: 'రసాయన వినియోగం',
+  entity_disease: 'వ్యాధి రికార్డు',
+  entity_plankton: 'ప్లాంక్టన్ తనిఖీ',
+  entity_microbiology: 'సూక్ష్మజీవ పరీక్ష',
+  entity_measurement: 'కొలత',
+  entity_feeding_tray_check: 'మేత ట్రే తనిఖీ',
+  entity_attendance: 'హాజరు',
+  entity_leave_request: 'సెలవు అభ్యర్థన',
+};
+export default sync;
