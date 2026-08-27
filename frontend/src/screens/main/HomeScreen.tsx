@@ -35,7 +35,7 @@ import { usePermissions } from '../../hooks/usePermissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
-import { pondContextApi } from '../../api/pondContext';
+import { fetchTodaySnapshot } from '../../api/todaySnapshot';
 import { farmMembersApi } from '../../api/farmMembers';
 import { attendanceApi } from '../../api/attendance';
 import { tasksApi, type Task } from '../../api/tasks';
@@ -175,18 +175,14 @@ export const HomeScreen = ({ navigation }: any) => {
         // Prefixed 'briefing' so a log invalidates it along with the Morning
         // Briefing screen — and so it is persisted for the first offline paint.
         queryKey: [...qk.briefing(), 'home'],
-        queryFn: async () => {
-            const [live, persisted] = await Promise.all([
-                alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-            ]);
-            // One shared merge — see utils/pondHealth.mergeBriefings for why
-            // live and persisted must both be read, and why every screen has to
-            // do it the same way.
-            return mergeBriefings(live.data, persisted.data);
-        },
+        queryFn: () => fetchTodaySnapshot(scopeFarms.map((f) => f.id)),
+        enabled: scopeFarms.length > 0,
     });
-    const alerts = alertsQuery.data ?? EMPTY_ALERTS;
+    // One request now serves both the alerts and the pond snapshots the band
+    // and the portfolio are built from — see api/todaySnapshot.ts. It used to be
+    // live-briefing plus one pond-context call per farm, computing the same
+    // contexts twice.
+    const alerts = alertsQuery.data?.briefing ?? EMPTY_ALERTS;
     const alertsLoading = alertsQuery.isPending && alertsQuery.data == null;
     // Actions deferred with "Later" — component state on purpose. It is a
     // "not right now", not a decision worth persisting: next time the farmer
@@ -216,64 +212,62 @@ export const HomeScreen = ({ navigation }: any) => {
      * simply absent if they fail. None is worth blocking Home on, and
      * TodayStats hides the band unless it has something real to show.
      */
-    const statsQuery = useAppQuery({
-        // Under 'home', which is persisted — this band is the part of Today a
-        // farmer most wants to still see with no signal, stamped with its age.
-        queryKey: [...qk.home(scopeFarmId), scopeFarms.map((f) => f.id).join(','), perms.canManageOperations],
-        enabled: scopeFarms.length > 0,
-        queryFn: async (): Promise<{
-            contexts: PondContext[];
-            homeBiomassKg: number | null;
-            logsToday: { done: number; total: number } | null;
-            onDutyToday: { present: number; total: number } | null;
-        }> => {
-        const absent = { contexts: [], homeBiomassKg: null, logsToday: null, onDutyToday: null };
+    /**
+     * The pond snapshots the band and the portfolio are built from, narrowed to
+     * the farms in scope.
+     *
+     * DERIVED, not fetched. Biomass and logs-today are arithmetic over contexts
+     * the snapshot already returned — making them a second query meant the band
+     * could sit empty waiting on a request whose answer was already in memory.
+     */
+    const contexts = React.useMemo(() => {
+        if (!alertsQuery.data) return EMPTY_CONTEXTS;
+        const scopedFarmIds = new Set(scopeFarms.map((f) => f.id));
+        const pondFarm = new Map(ponds.map((pd) => [pd.id, pd.farmId]));
+        return alertsQuery.data.contexts.filter((ctx) => {
+            const farmId = pondFarm.get(ctx.pondId);
+            // A context whose pond is not in the loaded list cannot be
+            // attributed. Keep it only while showing everything: counting it
+            // under one farm name is the direction that produces a wrong
+            // number a farmer would act on.
+            if (!farmId) return !scopeFarmId;
+            return scopedFarmIds.has(farmId);
+        });
+    }, [alertsQuery.data, scopeFarms, ponds, scopeFarmId]);
 
-        // One batched pond-context call per farm — see pondContextApi.forFarm.
-        //
-        // A farm that FAILS must not quietly contribute zero. These figures sit
-        // under a header that says "All farms", so a sum missing one farm of
-        // three is not an approximation, it is a wrong number presented as a
-        // complete one — and "logs today" is worse than wrong, because the hero
-        // reads it: every farm failing would leave total 0, which is
-        // indistinguishable from "nothing is stocked" and would tell an owner
-        // with nine stocked ponds to go and start their first cycle.
-        //
-        // So: any failure and the band goes absent. An absent figure sends a
-        // farmer to pull-to-refresh; a confident wrong one sends them to act.
-        const perFarm = await Promise.all(
-            scopeFarms.map((f) =>
-                pondContextApi
-                    .forFarm(f.id)
-                    .then((r) => r.data)
-                    .catch(() => null),
-            ),
-        );
-        if (perFarm.some((c) => c === null)) return absent;
-        // Kept rather than discarded: the overview under the fold is the same
-        // data asked a different question, and re-fetching it would double the
-        // most expensive call on the screen.
-        const contexts = (perFarm as NonNullable<(typeof perFarm)[number]>[]).flat();
+    /**
+     * The band goes ABSENT rather than wrong when the snapshot failed. A sum
+     * missing one farm of three sits under a header saying "All farms" and is a
+     * wrong number presented as a complete one; "logs today" is worse still,
+     * because the hero reads it — a total of 0 is indistinguishable from
+     * "nothing is stocked" and would tell an owner with nine stocked ponds to go
+     * and start their first cycle.
+     *
+     * These are the SERVER's figures. A record logged with no signal is not in
+     * them and must not be spliced in — see src/sync/pending.ts. It shows as a
+     * pending row on the pond instead.
+     */
+    const bandReady = !!alertsQuery.data && !alertsQuery.isError;
+
+    const homeBiomassKg = React.useMemo(() => {
+        if (!bandReady) return null;
         const sampled = contexts
             .map((c) => c.biomassKg)
             .filter((v): v is number => typeof v === 'number');
         // null, not 0 — an owner who has not sampled should see nothing here
         // rather than a confident zero next to a stocked pond.
-        //
-        // These are the SERVER's figures. A record the farmer logged with no
-        // signal is not in them and must not be spliced in here — see
-        // src/sync/pending.ts. It shows as a pending row on the pond instead.
-        const homeBiomassKg = sampled.length ? sampled.reduce((a, b) => a + b, 0) : null;
+        return sampled.length ? sampled.reduce((x, y) => x + y, 0) : null;
+    }, [bandReady, contexts]);
 
-        // "Logs today" out of the SAME snapshot — no extra round trips. A pond
-        // counts as logged once anything has been recorded against it today;
-        // only stocked ponds are counted, because an empty pond has no round
-        // to miss and would otherwise sit in the denominator forever.
-        const today = todayLocalISODate();
+    const logsToday = React.useMemo(() => {
+        if (!bandReady) return null;
+        const day = todayLocalISODate();
         const isToday = (iso: string | null | undefined) =>
-            !!iso && toLocalISODate(new Date(iso)) === today;
+            !!iso && toLocalISODate(new Date(iso)) === day;
+        // Only stocked ponds count: an empty pond has no round to miss and
+        // would otherwise sit in the denominator forever.
         const stocked = contexts.filter((ctx) => ctx.cropId);
-        const logsToday = {
+        return {
             total: stocked.length,
             done: stocked.filter(
                 (ctx) =>
@@ -282,49 +276,33 @@ export const HomeScreen = ({ navigation }: any) => {
                     isToday(ctx.samplingAt),
             ).length,
         };
+    }, [bandReady, contexts]);
 
-        // "On duty" is a manager's view of the roster, so it is gated the same
-        // way the roster itself is.
-        if (!perms.canManageOperations) {
-            return { contexts, homeBiomassKg, logsToday, onDutyToday: null };
-        }
-        // Same rule as the contexts above: a roster we could not read is not a
-        // roster of nobody. "3 of 5 on duty" with two farms silently missing is
-        // a number a manager would act on.
-        const rosters = await Promise.all(
-            scopeFarms.map(async (f) => {
-                const [att, members] = await Promise.all([
-                    attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => null),
-                    farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => null),
-                ]);
-                if (!att || !members) return null;
-                return { present: new Set(att.map((a) => a.userId)).size, total: members.length };
-            }),
-        );
-        if (rosters.some((r) => r === null)) {
-            return { contexts, homeBiomassKg, logsToday, onDutyToday: null };
-        }
-        const complete = rosters as NonNullable<(typeof rosters)[number]>[];
-        const total = complete.reduce((a, r) => a + r.total, 0);
-        return {
-            contexts,
-            homeBiomassKg,
-            logsToday,
-            onDutyToday:
-                total > 0 ? { present: complete.reduce((a, r) => a + r.present, 0), total } : null,
-        };
+    /** The only part of the band that still needs the network. */
+    const rosterQuery = useAppQuery({
+        queryKey: [...qk.home(scopeFarmId), 'roster', scopeFarms.map((f) => f.id).join(',')],
+        enabled: scopeFarms.length > 0 && perms.canManageOperations,
+        queryFn: async (): Promise<{ present: number; total: number } | null> => {
+            // Same rule: a roster we could not read is not a roster of nobody.
+            const rosters = await Promise.all(
+                scopeFarms.map(async (f) => {
+                    const [att, members] = await Promise.all([
+                        attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => null),
+                        farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => null),
+                    ]);
+                    if (!att || !members) return null;
+                    return { present: new Set(att.map((x) => x.userId)).size, total: members.length };
+                }),
+            );
+            if (rosters.some((r) => r === null)) return null;
+            const complete = rosters as NonNullable<(typeof rosters)[number]>[];
+            const total = complete.reduce((x, r) => x + r.total, 0);
+            return total > 0
+                ? { present: complete.reduce((x, r) => x + r.present, 0), total }
+                : null;
         },
     });
-
-    /**
-     * The pond snapshots behind the band. Kept rather than discarded: the
-     * overview under the fold is the same data asked a different question, and
-     * re-fetching it would double the most expensive call on the screen.
-     */
-    const contexts = statsQuery.data?.contexts ?? EMPTY_CONTEXTS;
-    const homeBiomassKg = statsQuery.data?.homeBiomassKg ?? null;
-    const logsToday = statsQuery.data?.logsToday ?? null;
-    const onDutyToday = statsQuery.data?.onDutyToday ?? null;
+    const onDutyToday = rosterQuery.data ?? null;
 
     /**
      * Can the Getting Started checklist still appear at all?
@@ -371,9 +349,9 @@ export const HomeScreen = ({ navigation }: any) => {
         void farmsQuery.refetch();
         void pondsQuery.refetch();
         void alertsQuery.refetch();
-        void statsQuery.refetch();
+        void rosterQuery.refetch();
         fetchPlannedPondCount();
-    }, [farmsQuery, pondsQuery, alertsQuery, statsQuery, fetchPlannedPondCount]);
+    }, [farmsQuery, pondsQuery, alertsQuery, rosterQuery, fetchPlannedPondCount]);
 
     const onRetry = useCallback(() => {
         void farmsQuery.refetch();
@@ -514,19 +492,26 @@ export const HomeScreen = ({ navigation }: any) => {
     // snapshot rather than every pond (a representative signal is enough for
     // an activation checklist; it doesn't need to be a precise per-pond
     // analytics count).
+    // Derived from the snapshot, not a request of its own.
+    //
+    // This used to fetch one pond's context per focus purely to tick a
+    // checklist box — an extra round trip, for the life of the account, to
+    // answer a question the snapshot above already contains for every pond.
+    // Reading them all is also more honest than probing the first pond and
+    // calling it representative.
     useEffect(() => {
-        const firstPond = selectedFarm?.id ? ponds.find((p) => p.farmId === selectedFarm.id) : ponds[0];
-        if (!firstPond || !checklistPossible) {
+        if (!checklistPossible) {
             setHasLoggedSomething(false);
             return;
         }
-        pondContextApi
-            .get(firstPond.id)
-            .then(({ data }) => setHasLoggedSomething(
-                data.lastFeedAt != null || data.waterQuality?.recordedAt != null || data.samplingAt != null,
-            ))
-            .catch(() => setHasLoggedSomething(false));
-    }, [selectedFarm?.id, ponds, checklistPossible]);
+        const anyLogged = (alertsQuery.data?.contexts ?? []).some(
+            (ctx) =>
+                ctx.lastFeedAt != null ||
+                ctx.waterQuality?.recordedAt != null ||
+                ctx.samplingAt != null,
+        );
+        setHasLoggedSomething(anyLogged);
+    }, [checklistPossible, alertsQuery.data]);
 
     // "Invited your team" — more than just the owner as a farm member.
     const fetchInvitedWorker = useCallback(() => {
@@ -670,7 +655,7 @@ export const HomeScreen = ({ navigation }: any) => {
                 copy rather than a fresh one, say so and say how old. */}
             <CacheNotice
                 updatedAt={farmsQuery.dataUpdatedAt}
-                stale={farmsQuery.isError || statsQuery.isError}
+                stale={farmsQuery.isError || alertsQuery.isError}
             />
 
             {/* Everything the farmer has saved that has not reached the server
