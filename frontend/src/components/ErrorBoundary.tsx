@@ -2,6 +2,27 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { reportError } from '../utils/reportError';
+import i18n from '../i18n';
+
+/**
+ * The crash screen speaks the farmer's language, but never depends on being
+ * able to.
+ *
+ * This is a class component and, more to the point, it is what renders when
+ * something has ALREADY gone wrong — possibly i18n itself, possibly before it
+ * finished initialising. So it reads the translation defensively and falls back
+ * to English rather than throwing inside the boundary that exists to catch
+ * throws. An error screen that crashes leaves a farmer with a white rectangle
+ * and no way out.
+ */
+const say = (key: string, fallback: string): string => {
+    try {
+        const out = i18n.t(key);
+        return typeof out === 'string' && out !== key ? out : fallback;
+    } catch {
+        return fallback;
+    }
+};
 
 interface Props {
     children: ReactNode;
@@ -42,9 +63,9 @@ export class ErrorBoundary extends Component<Props, State> {
                 <View style={styles.container}>
                     <View style={styles.content}>
                         <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#E03535" />
-                        <Text style={styles.title}>Something went wrong</Text>
+                        <Text style={styles.title}>{say('common.crashTitle', 'Something went wrong')}</Text>
                         <Text style={styles.subtitle}>
-                            The app encountered an unexpected error. Please try again.
+                            {say('common.crashBody', 'The app encountered an unexpected error. Please try again.')}
                         </Text>
 
                         {__DEV__ && this.state.error && (
@@ -53,9 +74,9 @@ export class ErrorBoundary extends Component<Props, State> {
                             </ScrollView>
                         )}
 
-                        <TouchableOpacity style={styles.button} onPress={this.handleReset} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Try again">
+                        <TouchableOpacity style={styles.button} onPress={this.handleReset} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={say('common.tryAgain', 'Try Again')}>
                             <MaterialCommunityIcons name="refresh" size={20} color="#FFFFFF" />
-                            <Text style={styles.buttonText}>Try Again</Text>
+                            <Text style={styles.buttonText}>{say('common.tryAgain', 'Try Again')}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

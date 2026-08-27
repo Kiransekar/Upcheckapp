@@ -154,11 +154,11 @@ describe('HomeScreen — farm scope', () => {
     });
 
     it('narrows to one farm when it is picked from the Filter', async () => {
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         await findByText('All farms');
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // The title is the scope, so the picked farm replaces "All farms".
         await waitFor(() => expect(queryByText('All farms')).toBeNull());
@@ -173,11 +173,11 @@ describe('HomeScreen — farm scope', () => {
             }],
         });
 
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         expect(await findByText('Start the aerators')).toBeTruthy();
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // p1 belongs to farm-1. Leaving it in the hero of farm-2 would tell a
         // farmer the wrong pond is dying.
@@ -185,11 +185,11 @@ describe('HomeScreen — farm scope', () => {
     });
 
     it('counts only what is in scope in the header', async () => {
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         expect(await findByText(/2 farms · 2 ponds/)).toBeTruthy();
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // One farm in scope: saying "2 farms" would contradict the title above it.
         await waitFor(() => expect(queryByText(/2 farms/)).toBeNull());

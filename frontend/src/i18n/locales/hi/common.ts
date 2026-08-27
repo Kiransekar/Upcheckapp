@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "कुछ गड़बड़ हो गई",
+  crashBody: "ऐप में अनपेक्षित समस्या आई। फिर कोशिश करें।",
+  tryAgain: "फिर कोशिश करें",
+  noOptions: "कोई विकल्प नहीं",
+  selectPlaceholder: "चुनें…",
   appName: 'Upcheck',
   save: 'सहेजें',
   cancel: 'रद्द करें',

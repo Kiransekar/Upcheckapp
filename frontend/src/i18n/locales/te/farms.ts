@@ -1,4 +1,6 @@
 const farms = {
+  actNowCount: "{{pl}} వెంటనే",
+  watchCount: "{{pl}} గమనించండి",
   // FarmsListScreen
   title: 'నా ఫారాలు',
   ponds: 'చెరువులు',

@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Google দিয়ে চালিয়ে যান",
+    continueWithTruecaller: "Truecaller দিয়ে চালিয়ে যান",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',

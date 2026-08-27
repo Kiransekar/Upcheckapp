@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "உங்கள் பண்ணைகள்",
+    overviewStocked: "{{total}} இல் {{stocked}} நிரம்பியது",
   // HomeScreen
   greeting: 'மீண்டும் வரவேற்கிறோம்,',
   dashboardSummary: 'டாஷ்போர்டு சுருக்கம்',

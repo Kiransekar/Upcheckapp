@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "কিছু একটা ভুল হয়েছে",
+  crashBody: "অ্যাপে অপ্রত্যাশিত সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+  tryAgain: "আবার চেষ্টা করুন",
+  noOptions: "কোনো বিকল্প নেই",
+  selectPlaceholder: "বাছুন…",
   appName: 'Upcheck',
   save: 'সংরক্ষণ করুন',
   cancel: 'বাতিল',

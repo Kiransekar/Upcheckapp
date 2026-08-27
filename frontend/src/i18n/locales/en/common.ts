@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "Something went wrong",
+  crashBody: "The app hit an unexpected problem. Try again.",
+  tryAgain: "Try again",
+  noOptions: "No options available",
+  selectPlaceholder: "Select…",
   appName: 'Upcheck',
   save: 'Save',
   cancel: 'Cancel',

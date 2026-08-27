@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "ஏதோ தவறாகிவிட்டது",
+  crashBody: "செயலியில் எதிர்பாராத சிக்கல். மீண்டும் முயலுங்கள்.",
+  tryAgain: "மீண்டும் முயல்",
+  noOptions: "விருப்பங்கள் இல்லை",
+  selectPlaceholder: "தேர்ந்தெடு…",
   appName: 'Upcheck',
   save: 'சேமி',
   cancel: 'ரத்து செய்',

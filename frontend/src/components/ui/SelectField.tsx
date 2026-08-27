@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, FlatList, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 
 export interface SelectOption {
@@ -29,13 +30,14 @@ export const SelectField: React.FC<SelectFieldProps> = ({
     label,
     value,
     options,
-    placeholder = 'Select…',
+    placeholder,
     onSelect,
     required = false,
     error,
     disabled = false,
     leftIcon,
 }) => {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const selected = options.find((o) => o.value === value) ?? null;
 
@@ -63,7 +65,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
                     />
                 )}
                 <Text style={[styles.value, !selected && styles.placeholder]} numberOfLines={1}>
-                    {selected ? selected.label : placeholder}
+                    {selected ? selected.label : placeholder ?? t('common.selectPlaceholder')}
                 </Text>
                 <MaterialCommunityIcons name="chevron-down" size={22} color={theme.roles.light.textSecondary} />
             </TouchableOpacity>
@@ -80,7 +82,7 @@ export const SelectField: React.FC<SelectFieldProps> = ({
                             </TouchableOpacity>
                         </View>
                         {options.length === 0 ? (
-                            <Text style={styles.empty}>No options available</Text>
+                            <Text style={styles.empty}>{t('common.noOptions')}</Text>
                         ) : (
                             <FlatList
                                 data={options}

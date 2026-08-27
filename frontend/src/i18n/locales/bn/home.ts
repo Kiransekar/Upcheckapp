@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "আপনার খামার",
+    overviewStocked: "{{total}} এর {{stocked}} মজুত",
   // HomeScreen
   greeting: 'স্বাগতম,',
   dashboardSummary: 'ড্যাশবোর্ড সারসংক্ষেপ',

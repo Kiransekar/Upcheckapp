@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "आपके फ़ार्म",
+    overviewStocked: "{{total}} में {{stocked}} स्टॉक",
   // HomeScreen
   greeting: 'वापस स्वागत है,',
   dashboardSummary: 'डैशबोर्ड सारांश',

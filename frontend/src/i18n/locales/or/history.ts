@@ -1,4 +1,24 @@
 const history = {
+  // Metric labels. Chemical notation (NH₃, NO₂, Ca…) and the Latin genus
+  // names Vibrio / Bacillus stay untranslated: they are the vocabulary the
+  // industry already uses, and localising them would make a pill LESS
+  // recognisable, not more. Only the plain-English words around them move.
+  waterQualityMetricAmmonia: "ଆମୋନିଆ",
+  waterQualityMetricNitrite: "ନାଇଟ୍ରାଇଟ",
+  waterQualityMetricAlkalinity: "କ୍ଷାରତା",
+  chemAlkalinity: "କ୍ଷାର",
+  chemHardness: "କଠିନତା",
+  microTotalVibrio: "ମୋଟ Vibrio",
+  microYellowVibrio: "ହଳଦିଆ Vibrio",
+  microGreenVibrio: "ସବୁଜ Vibrio",
+  microLuminescent: "ଉଜ୍ଜ୍ୱଳ",
+  planktonGreenAlgae: "ସବୁଜ ଶିଉଳି",
+  planktonProtozoa: "ପ୍ରୋଟୋଜୋଆ",
+  planktonZoo: "ପ୍ରାଣୀପ୍ଲବକ",
+  planktonGoldBrown: "ସୁନେଲି-ପାଉଁଶିଆ",
+  planktonGoldGreen: "ସୁନେଲି-ସବୁଜ",
+  planktonYellowGreen: "ହଳଦିଆ-ସବୁଜ",
+  planktonOther: "ଅନ୍ୟାନ୍ୟ",
   // ── Shared across all history screens ─────────────────────────────────────
   couldNotLoad: 'ରେକର୍ଡ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
 

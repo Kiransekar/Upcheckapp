@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "ఏదో తప్పు జరిగింది",
+  crashBody: "యాప్‌లో ఊహించని సమస్య. మళ్ళీ ప్రయత్నించండి.",
+  tryAgain: "మళ్ళీ ప్రయత్నించు",
+  noOptions: "ఎంపికలు లేవు",
+  selectPlaceholder: "ఎంచుకోండి…",
   appName: 'Upcheck',
   save: 'సేవ్ చేయి',
   cancel: 'రద్దు చేయి',

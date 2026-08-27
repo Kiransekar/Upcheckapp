@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "మీ ఫారాలు",
+    overviewStocked: "{{total}} లో {{stocked}} నిల్వ",
   // HomeScreen
   greeting: 'స్వాగతం,',
   dashboardSummary: 'డాష్‌బోర్డ్ సారాంశం',

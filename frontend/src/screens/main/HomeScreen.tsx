@@ -14,6 +14,9 @@ import { MyTasksList } from '../../components/dashboard/MyTasksList';
 import { TodayStats } from '../../components/dashboard/TodayStats';
 import { GettingStarted } from '../../components/dashboard/GettingStarted';
 import { LunarRow } from '../../components/dashboard/LunarRow';
+import { FarmOverview } from '../../components/dashboard/FarmOverview';
+import { buildPondRows } from '../../utils/pondHealth';
+import type { PondContext } from '../../api/pondContext';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { formatWeekday } from '../../utils/formatDate';
 import { Button } from '../../components/ui/Button';
@@ -105,6 +108,12 @@ export const HomeScreen = ({ navigation }: any) => {
     const [onDutyToday, setOnDutyToday] = useState<{ present: number; total: number } | null>(null);
     /** Ponds logged today / ponds expected to be — 1b's middle figure. */
     const [logsToday, setLogsToday] = useState<{ done: number; total: number } | null>(null);
+    /**
+     * The pond snapshots behind the band. Kept rather than discarded: the
+     * overview under the fold is the same data asked a different question, and
+     * re-fetching it would double the most expensive call on the screen.
+     */
+    const [contexts, setContexts] = useState<PondContext[]>([]);
     /** The farms every figure on this screen is computed over. */
     const scopeFarms = React.useMemo(
         () => (scopeFarmId ? farms.filter((f) => f.id === scopeFarmId) : farms),
@@ -205,12 +214,14 @@ export const HomeScreen = ({ navigation }: any) => {
             ),
         );
         if (perFarm.some((c) => c === null)) {
+            setContexts([]);
             setHomeBiomassKg(null);
             setLogsToday(null);
             setOnDutyToday(null);
             return;
         }
         const contexts = (perFarm as NonNullable<(typeof perFarm)[number]>[]).flat();
+        setContexts(contexts);
         const sampled = contexts
             .map((c) => c.biomassKg)
             .filter((v): v is number => typeof v === 'number');
@@ -350,6 +361,25 @@ export const HomeScreen = ({ navigation }: any) => {
         setIsLoading(true);
         fetchFarms();
     }, [fetchFarms]);
+
+    /**
+     * The portfolio under the fold: each farm in scope with its ponds joined to
+     * their snapshots and the briefing. Same three inputs the Farm tab uses, so
+     * the two screens cannot disagree about which pond is in trouble.
+     */
+    const overviewFarms = React.useMemo(
+        () =>
+            scopeFarms.map((f) => ({
+                id: f.id,
+                name: f.name,
+                rows: buildPondRows(
+                    ponds.filter((p) => p.farmId === f.id),
+                    contexts,
+                    alerts,
+                ),
+            })),
+        [scopeFarms, ponds, contexts, alerts],
+    );
 
     /** The ponds in scope — every pond when showing all farms. */
     const scopePonds = React.useMemo(
@@ -816,6 +846,19 @@ export const HomeScreen = ({ navigation }: any) => {
                         is a decision about today. It costs no request — the
                         phase is arithmetic on the date. */}
                     <LunarRow onPress={() => goRoot('Lunar')} />
+
+                    {/* Everything above answers "what needs me now" and then
+                        stops, so on a calm day the screen ran out of things to
+                        say halfway down. This is the other half: what the whole
+                        business looks like. It repeats nothing — the hero names
+                        ONE pond, this names every farm and its shape. */}
+                    <FarmOverview
+                        farms={overviewFarms}
+                        onOpenFarm={(farmId, farmName) =>
+                            goRoot('FarmDetail', { farmId, farmName })
+                        }
+                        onSeeAll={() => navigation.navigate('Farms')}
+                    />
 
                     {/* Getting Started (onboarding-plan Phase 2). Not in 1b —
                         1b draws an established farm — so it is the quietest
