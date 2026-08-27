@@ -190,6 +190,10 @@ const home = {
   logsToday: "Logs today",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "Nothing assigned to you today.",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "Molting window",
+  lunarMoltingBody: "Shrimp are soft-shelled around the new and full moon. Feed less, and do not handle or harvest.",
+  lunarQuiet: "No molting expected today.",
   startHere: "Start here",
   stepPondsTitle: "Add your ponds",
   stepPondsWhy: "Upcheck watches water, feed and growth pond by pond. There is nothing to watch yet.",

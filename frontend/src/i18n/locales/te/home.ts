@@ -188,6 +188,10 @@ const home = {
   logsToday: "నేటి నమోదులు",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "ఈరోజు మీకు ఏమీ కేటాయించలేదు.",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "కుబుసం విడిచే సమయం",
+  lunarMoltingBody: "అమావాస్య, పౌర్ణమి చుట్టూ రొయ్యల పెంకు మెత్తగా ఉంటుంది. మేత తగ్గించండి; పట్టుకోవద్దు, పంట తీయవద్దు.",
+  lunarQuiet: "ఈరోజు కుబుసం విడిచే అవకాశం లేదు.",
   startHere: "ఇక్కడ మొదలుపెట్టండి",
   stepPondsTitle: "మీ చెరువులను చేర్చండి",
   stepPondsWhy: "అప్‌చెక్ ప్రతి చెరువు నీరు, మేత, పెరుగుదలను విడిగా గమనిస్తుంది. ఇప్పుడు గమనించడానికి ఏమీ లేదు.",

@@ -188,6 +188,10 @@ const home = {
   logsToday: "இன்றைய பதிவுகள்",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "இன்று உங்களுக்கு எதுவும் ஒதுக்கப்படவில்லை.",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "ஓடு உரிக்கும் நேரம்",
+  lunarMoltingBody: "அமாவாசை, பௌர்ணமியைச் சுற்றி இறாலின் ஓடு மென்மையாக இருக்கும். தீவனம் குறையுங்கள்; பிடிக்கவோ அறுவடை செய்யவோ வேண்டாம்.",
+  lunarQuiet: "இன்று ஓடு உரிக்கும் வாய்ப்பு இல்லை.",
   startHere: "இங்கிருந்து தொடங்குங்கள்",
   stepPondsTitle: "உங்கள் குளங்களைச் சேர்க்கவும்",
   stepPondsWhy: "அப்செக் ஒவ்வொரு குளத்தின் நீர், தீவனம், வளர்ச்சியைத் தனித்தனியே கவனிக்கிறது. இப்போது கவனிக்க எதுவும் இல்லை.",

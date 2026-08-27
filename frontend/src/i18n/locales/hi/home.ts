@@ -188,6 +188,10 @@ const home = {
   logsToday: "आज के लॉग",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "आज आपको कुछ नहीं सौंपा गया।",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "मोल्टिंग समय",
+  lunarMoltingBody: "नए और पूर्ण चाँद के आसपास झींगे का खोल नरम रहता है। दाना कम दें, पकड़ें या हार्वेस्ट न करें।",
+  lunarQuiet: "आज मोल्टिंग की उम्मीद नहीं।",
   startHere: "यहाँ से शुरू करें",
   stepPondsTitle: "अपने तालाब जोड़ें",
   stepPondsWhy: "अपचेक हर तालाब का पानी, दाना और बढ़त अलग-अलग देखता है। अभी देखने को कुछ नहीं है।",

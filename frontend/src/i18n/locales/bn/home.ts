@@ -188,6 +188,10 @@ const home = {
   logsToday: "আজকের লগ",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "আজ আপনাকে কিছু দেওয়া হয়নি।",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "খোলস বদলের সময়",
+  lunarMoltingBody: "অমাবস্যা ও পূর্ণিমার আশেপাশে চিংড়ির খোলস নরম থাকে। খাবার কম দিন, ধরবেন না বা তুলবেন না।",
+  lunarQuiet: "আজ খোলস বদলের সম্ভাবনা নেই।",
   startHere: "এখান থেকে শুরু করুন",
   stepPondsTitle: "আপনার পুকুর যোগ করুন",
   stepPondsWhy: "আপচেক প্রতিটি পুকুরের জল, খাবার ও বৃদ্ধি আলাদা করে দেখে। এখনও দেখার কিছু নেই।",

@@ -13,6 +13,7 @@ import { ThenList } from '../../components/dashboard/ThenList';
 import { MyTasksList } from '../../components/dashboard/MyTasksList';
 import { TodayStats } from '../../components/dashboard/TodayStats';
 import { GettingStarted } from '../../components/dashboard/GettingStarted';
+import { LunarRow } from '../../components/dashboard/LunarRow';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { formatWeekday } from '../../utils/formatDate';
 import { Button } from '../../components/ui/Button';
@@ -809,6 +810,12 @@ export const HomeScreen = ({ navigation }: any) => {
                         logsToday={logsToday}
                         onDuty={onDutyToday}
                     />
+
+                    {/* Molting status. Not in 1b, and dropping it was a mistake:
+                        a soft-shelled pond is fed less and never handled, which
+                        is a decision about today. It costs no request — the
+                        phase is arithmetic on the date. */}
+                    <LunarRow onPress={() => goRoot('Lunar')} />
 
                     {/* Getting Started (onboarding-plan Phase 2). Not in 1b —
                         1b draws an established farm — so it is the quietest

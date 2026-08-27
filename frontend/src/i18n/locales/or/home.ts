@@ -188,6 +188,10 @@ const home = {
   logsToday: "ଆଜିର ଲଗ",
   // The hero before there is anything to raise an alert about
   noTasksAssigned: "ଆଜି ଆପଣଙ୍କୁ କିଛି ଦିଆଯାଇନାହିଁ।",
+  // Molting status on Today — see components/dashboard/LunarRow.
+  lunarMoltingTitle: "ଖୋଳ ବଦଳିବା ସମୟ",
+  lunarMoltingBody: "ଅମାବାସ୍ୟା ଓ ପୂର୍ଣ୍ଣିମା ପାଖରେ ଚିଙ୍ଗୁଡ଼ିର ଖୋଳ ନରମ ରହେ। ଖାଦ୍ୟ କମ ଦିଅନ୍ତୁ, ଧରନ୍ତୁ ନାହିଁ କି ଅମଳ କରନ୍ତୁ ନାହିଁ।",
+  lunarQuiet: "ଆଜି ଖୋଳ ବଦଳିବା ଆଶା ନାହିଁ।",
   startHere: "ଏଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ",
   stepPondsTitle: "ଆପଣଙ୍କ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ",
   stepPondsWhy: "ଅପଚେକ ପ୍ରତ୍ୟେକ ପୋଖରୀର ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ଅଲଗା ଅଲଗା ଦେଖେ। ଏବେ ଦେଖିବାକୁ କିଛି ନାହିଁ।",
