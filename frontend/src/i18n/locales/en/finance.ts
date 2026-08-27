@@ -83,6 +83,9 @@ const finance = {
   moneyTitle: "Money",
   addEntry: "Add entry",
   netSoFar: "Net so far",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "Nothing recorded yet",
+  nothingYetBody: "Add what you spend and what you sell, and this becomes your profit and loss.",
   whereItWent: "Where it went",
   allFarms: "All farms",
   byFarm: "By farm",

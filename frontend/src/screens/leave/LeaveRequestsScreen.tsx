@@ -28,6 +28,7 @@ import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { leaveRequestsApi, type LeaveRequest, type LeaveRequestStatus } from '../../api/leaveRequests';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
+import { farmsApi, type Farm } from '../../api/farms';
 import { usePermissions } from '../../hooks/usePermissions';
 import { todayLocalISODate } from '../../utils/localDate';
 import { personName } from '../../utils/personName';
@@ -57,10 +58,21 @@ const isThisWeek = (r: LeaveRequest): boolean => {
     return end >= now && start <= weekEnd;
 };
 
+/**
+ * Opened WITHOUT a farmId, this spans every farm — the same all-farms default
+ * Today, Money and Team have.
+ *
+ * Team counts pending requests across every farm it is showing, so a row
+ * reading "2 waiting" that opened a single farm sent a manager to a page
+ * saying there were none. The count and the page it opens have to be asking
+ * the same question.
+ */
 export const LeaveRequestsScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params ?? {};
-    const perms = usePermissions(farmId);
+    const [farms, setFarms] = useState<Farm[]>([]);
+    // Requesting leave needs ONE farm; reviewing does not.
+    const perms = usePermissions(farmId ?? farms[0]?.id);
 
     const [myRequests, setMyRequests] = useState<LeaveRequest[]>([]);
     const [pending, setPending] = useState<LeaveRequest[]>([]);
@@ -72,23 +84,45 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
     const [submitting, setSubmitting] = useState(false);
 
     const load = useCallback(async () => {
-        try {
-            const { data } = await leaveRequestsApi.mine(farmId);
-            setMyRequests(data);
-        } catch {
-            setMyRequests([]);
-        }
-        if (perms.canManageOperations) {
-            const [pendingRes, approvedRes, membersRes] = await Promise.all([
-                leaveRequestsApi.getAll(farmId, 'pending').catch(() => ({ data: [] as LeaveRequest[] })),
-                leaveRequestsApi.getAll(farmId, 'approved').catch(() => ({ data: [] as LeaveRequest[] })),
-                farmMembersApi.listMembers(farmId).catch(() => ({ data: [] as FarmMember[] })),
-            ]);
-            setPending(pendingRes.data);
-            setApproved(approvedRes.data);
-            setMembers(membersRes.data);
-        }
-    }, [farmId, perms.canManageOperations]);
+        const list = farmId
+            ? [{ id: farmId, name: farmName } as Farm]
+            : ((await farmsApi.getAll().catch(() => ({ data: [] as Farm[] }))).data ?? []);
+        setFarms(list);
+        if (list.length === 0) return;
+
+        const canManage = perms.canManageOperations;
+        const per = await Promise.all(
+            list.map(async (farm) => {
+                // The approvals queue is a manager view. A worker must not even
+                // ASK for it: the endpoint would 403, and firing a request you
+                // know will be refused is how a permission check becomes a
+                // permission leak in the logs.
+                const none = { data: [] as any[] };
+                const [mine, pendingRes, approvedRes, membersRes] = await Promise.all([
+                    leaveRequestsApi.mine(farm.id).catch(() => ({ data: [] as LeaveRequest[] })),
+                    canManage
+                        ? leaveRequestsApi.getAll(farm.id, 'pending').catch(() => none)
+                        : Promise.resolve(none),
+                    canManage
+                        ? leaveRequestsApi.getAll(farm.id, 'approved').catch(() => none)
+                        : Promise.resolve(none),
+                    canManage
+                        ? farmMembersApi.listMembers(farm.id).catch(() => none)
+                        : Promise.resolve(none),
+                ]);
+                return {
+                    mine: mine.data,
+                    pending: pendingRes.data,
+                    approved: approvedRes.data,
+                    members: membersRes.data,
+                };
+            }),
+        );
+        setMyRequests(per.flatMap((x) => x.mine));
+        setPending(per.flatMap((x) => x.pending));
+        setApproved(per.flatMap((x) => x.approved));
+        setMembers(per.flatMap((x) => x.members));
+    }, [farmId, farmName, perms.canManageOperations]);
 
     useFocusEffect(useCallback(() => { load(); }, [load]));
 

@@ -83,6 +83,9 @@ const finance = {
   moneyTitle: "డబ్బు",
   addEntry: "ఎంట్రీ చేర్చు",
   netSoFar: "ఇప్పటివరకు నికర",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "ఇంకా ఏమీ నమోదు కాలేదు",
+  nothingYetBody: "మీరు ఖర్చు చేసేది, అమ్మేది నమోదు చేయండి — అదే మీ లాభనష్టం అవుతుంది.",
   whereItWent: "ఎక్కడికి పోయింది",
   allFarms: "అన్ని ఫారాలు",
   byFarm: "ఫారం వారీగా",

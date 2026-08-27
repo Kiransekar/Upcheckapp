@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Alert, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from 'react-i18next';
@@ -24,9 +24,24 @@ const derivePrefix = (name: string) => {
     return alnum.slice(0, 4) || 'P';
 };
 
+/**
+ * The same screen edits a pond.
+ *
+ * Passed an `editPondId` it loads that pond, prefills every field, retitles
+ * itself and PATCHes. One form rather than two keeps the geometry rules, the
+ * derived area/volume figures and the validation in a single place — a second
+ * copy would drift the moment either changed.
+ *
+ * Dimensions are editable but not casually: area drives stocking density, the
+ * feed plan and every per-m² figure downstream, so changing them on a STOCKED
+ * pond asks for a reason, which the backend already stores as dimension
+ * history. The draft-restore is creation-only — restoring an abandoned
+ * new-pond draft over a real pond would be destructive.
+ */
 export const CreatePondScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { farmId, farmName, pondCount } = route.params;
+    const { farmId, farmName, pondCount, editPondId } = route.params;
+    const isEdit = !!editPondId;
 
     // Per-farm draft key so an interrupted farmer (call, app kill, network drop)
     // doesn't lose their in-progress pond. Only plain text/selection fields are
@@ -58,11 +73,54 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ displayName?: string; depthM?: string }>({});
     const [draftHydrated, setDraftHydrated] = useState(false);
+    const [isHydrating, setIsHydrating] = useState(isEdit);
+    /** Set while editing a pond that currently holds a cycle. */
+    const [hasActiveCycle, setHasActiveCycle] = useState(false);
+    /** The dimensions as loaded, to tell a real change from a re-render. */
+    const [original, setOriginal] = useState<Record<string, string> | null>(null);
+
+    useEffect(() => {
+        if (!editPondId) return;
+        let cancelled = false;
+        pondsApi
+            .getById(editPondId)
+            .then(({ data }) => {
+                if (cancelled) return;
+                const num = (v: unknown) => (v == null ? '' : String(v));
+                setDisplayName(data.displayName || data.name || '');
+                if (data.geometryType) setGeometryType(data.geometryType as GeometryType);
+                if (data.constructionType) setConstructionType(data.constructionType as ConstructionType);
+                setLengthM(num(data.lengthM));
+                setWidthM(num(data.widthM));
+                setDiameterM(num(data.diameterM));
+                setDepthM(num(data.depthM));
+                setInstalledAeratorHp(num(data.installedAeratorHp));
+                setAeratorCount(num(data.aeratorCount));
+                setOverrideAreaM2(num(data.overrideAreaM2));
+                if (data.overrideAreaM2) setShowOverride(true);
+                setHasActiveCycle(!!data.activeCycleId);
+                setOriginal({
+                    lengthM: num(data.lengthM),
+                    widthM: num(data.widthM),
+                    diameterM: num(data.diameterM),
+                    depthM: num(data.depthM),
+                    overrideAreaM2: num(data.overrideAreaM2),
+                });
+            })
+            .catch(() => {
+                Alert.alert(t('common.error'), t('ponds.errorLoadPond'));
+                navigation.goBack();
+            })
+            .finally(() => { if (!cancelled) setIsHydrating(false); });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [editPondId]);
 
     // Restore a saved draft once on mount. Corrupt drafts are ignored.
     useEffect(() => {
         let cancelled = false;
         (async () => {
+            if (isEdit) { if (!cancelled) setDraftHydrated(true); return; }
             try {
                 const raw = await AsyncStorage.getItem(draftKey);
                 if (raw && !cancelled) {
@@ -89,7 +147,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     // Persist the draft on every change (only after the initial hydrate, so we
     // never overwrite a stored draft with the empty initial state).
     useEffect(() => {
-        if (!draftHydrated) return;
+        if (!draftHydrated || isEdit) return;
         AsyncStorage.setItem(
             draftKey,
             JSON.stringify({
@@ -133,6 +191,15 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const hpNum = parseFloat(installedAeratorHp) || 0;
     const hpPerHa = hpNum > 0 && hectares > 0 ? hpNum / hectares : null;
 
+    /** Has any figure that feeds the area actually moved since it loaded? */
+    const dimensionsChanged =
+        !!original &&
+        (original.lengthM !== lengthM ||
+            original.widthM !== widthM ||
+            original.diameterM !== diameterM ||
+            original.depthM !== depthM ||
+            original.overrideAreaM2 !== overrideAreaM2);
+
     const handleSave = async () => {
         const newErrors: { displayName?: string; depthM?: string } = {};
         if (!displayName.trim()) {
@@ -146,28 +213,62 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
             return;
         }
         setErrors({});
-        setIsLoading(true);
 
+        // The payload both paths share. `namePrefix` is a creation-time
+        // grouping code the farmer never sees; renaming a pond must not
+        // silently regroup it, so an edit leaves it alone.
+        const shaped = {
+            geometryType,
+            constructionType,
+            lengthM: (geometryType === 'rectangular' || geometryType === 'raceway') && lengthM ? parseFloat(lengthM) : undefined,
+            widthM: (geometryType === 'rectangular' || geometryType === 'raceway') && widthM ? parseFloat(widthM) : undefined,
+            diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
+            depthM: parseFloat(depthM),
+            overrideAreaM2: parseFloat(overrideAreaM2) > 0 ? parseFloat(overrideAreaM2) : undefined,
+            installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
+            aeratorCount: aeratorCount ? parseInt(aeratorCount, 10) : undefined,
+            displayName: displayName.trim(),
+        };
+
+        // Resizing a STOCKED pond moves every per-m² figure under it — stocking
+        // density, the feed plan, carrying capacity. The backend already keeps
+        // a dimension history with a reason; this is where the reason comes
+        // from, and it is a confirmation rather than a block because a mis-typed
+        // depth is exactly the thing a farmer needs to be able to correct.
+        if (isEdit && hasActiveCycle && dimensionsChanged) {
+            const confirmed = await new Promise<boolean>((resolve) => {
+                Alert.alert(t('ponds.resizeStockedTitle'), t('ponds.resizeStockedBody'), [
+                    { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+                    { text: t('ponds.resizeStockedConfirm'), onPress: () => resolve(true) },
+                ]);
+            });
+            if (!confirmed) return;
+        }
+
+        setIsLoading(true);
         try {
+            if (isEdit) {
+                await pondsApi.update(editPondId, {
+                    ...shaped,
+                    ...(dimensionsChanged ? { changeReason: t('ponds.resizeReason') } : {}),
+                } as any);
+                navigation.goBack();
+                return;
+            }
             await pondsApi.create({
                 farmId,
                 namePrefix: derivePrefix(displayName),
-                geometryType,
-                constructionType,
-                lengthM: (geometryType === 'rectangular' || geometryType === 'raceway') && lengthM ? parseFloat(lengthM) : undefined,
-                widthM: (geometryType === 'rectangular' || geometryType === 'raceway') && widthM ? parseFloat(widthM) : undefined,
-                diameterM: geometryType === 'circular' && diameterM ? parseFloat(diameterM) : undefined,
-                depthM: parseFloat(depthM),
-                overrideAreaM2: parseFloat(overrideAreaM2) > 0 ? parseFloat(overrideAreaM2) : undefined,
-                installedAeratorHp: installedAeratorHp ? parseFloat(installedAeratorHp) : undefined,
-                aeratorCount: aeratorCount ? parseInt(aeratorCount, 10) : undefined,
-                displayName: displayName.trim(),
+                ...shaped,
             });
             // Pond saved — discard the draft so it isn't restored next time.
             await AsyncStorage.removeItem(draftKey);
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('ponds.errorCreatePond'));
+            Alert.alert(
+                t('common.error'),
+                error.response?.data?.message ||
+                    t(isEdit ? 'ponds.errorSavePond' : 'ponds.errorCreatePond'),
+            );
         } finally {
             setIsLoading(false);
         }
@@ -177,15 +278,21 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         <ScreenWrapper scroll={false} padded={false}>
             <ScreenHeader
                 eyebrow={
+                    isEdit ? farmName ?? null :
                     [farmName, pondCount != null ? t('ponds.nthPond', { n: pondCount + 1 }) : null]
                         .filter(Boolean)
                         .join(' · ') || null
                 }
-                title={t('ponds.addPond')}
+                title={isEdit ? t('ponds.editPond') : t('ponds.addPond')}
                 onBack={() => navigation.goBack()}
                 accessibilityBackLabel={t('common.back')}
             />
 
+            {isHydrating ? (
+                <View style={styles.hydrating}>
+                    <ActivityIndicator color={theme.roles.light.primary} />
+                </View>
+            ) : (<>
             <ScrollView contentContainerStyle={styles.content}>
                 <Input
                     label={t('ponds.fieldDisplayName')}
@@ -382,16 +489,18 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 what made people abandon halfway. */}
             <View style={styles.footer}>
                 <Button
-                    title={t('ponds.savePond')}
+                    title={isEdit ? t('common.save') : t('ponds.savePond')}
                     onPress={handleSave}
                     loading={isLoading}
                 />
             </View>
+            </>)}
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
+    hydrating: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     metricBand: {
         flexDirection: 'row', gap: theme.spacing[4],
         padding: theme.spacing[4], borderRadius: theme.radius.md,

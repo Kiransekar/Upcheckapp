@@ -211,6 +211,11 @@ export const MoneyScreen = ({ navigation, route }: any) => {
 
     const recent = entries.slice(0, RECENT_COUNT);
 
+    // A farm nobody has recorded anything against has no net — not a net of
+    // zero. Revenue and expenses both being absent is the signal.
+    const hasFigures = !!report && (report.revenue > 0 || report.totalExpenses > 0);
+    const isLoss = (report?.profit ?? 0) < 0;
+
     const margin =
         report && report.revenue > 0 ? Math.round((report.profit / report.revenue) * 100) : null;
 
@@ -296,27 +301,63 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 }
             >
                 {/*
-                  * Net first, and coloured by whether it IS a profit. The three
-                  * figures under it are what the net is made of, so a farmer can
-                  * see immediately whether a bad number is an income problem or
-                  * a cost problem.
+                  * Net first, and coloured by what it IS. Three states, not two:
+                  * a zero net used to paint the band green and read as "you broke
+                  * even", when on a farm with nothing recorded it means nobody has
+                  * told the app anything yet. Those are opposite facts.
+                  *
+                  * The three figures under it are what the net is made of, so a
+                  * farmer can see at a glance whether a bad number is an income
+                  * problem or a cost problem — and income and expense are coloured
+                  * apart, because two identical grey figures make the reader do
+                  * the subtraction the hero has already done.
                   */}
-                <View style={[styles.hero, (report?.profit ?? 0) < 0 && styles.heroLoss]}>
-                    <Text style={[styles.heroLabel, (report?.profit ?? 0) < 0 && styles.heroLabelLoss]}>
-                        {t('finance.netSoFar')}
-                    </Text>
-                    <Text style={[styles.heroValue, (report?.profit ?? 0) < 0 && styles.heroValueLoss]}>
-                        {report ? `${report.profit >= 0 ? '+' : ''}${inr(report.profit)}` : '—'}
-                    </Text>
-                    <View style={styles.heroStats}>
-                        <HeroStat label={t('finance.totalIncome')} value={report ? inr(report.revenue) : '—'} />
-                        <HeroStat label={t('finance.totalExpense')} value={report ? inr(report.totalExpenses) : '—'} />
-                        <HeroStat
-                            label={t('finance.marginPercent')}
-                            value={margin != null ? `${margin}%` : '—'}
-                        />
+                {hasFigures ? (
+                    <View style={[styles.hero, isLoss && styles.heroLoss]}>
+                        <Text style={[styles.heroLabel, isLoss && styles.heroLabelLoss]}>
+                            {t('finance.netSoFar')}
+                        </Text>
+                        <Text style={[styles.heroValue, isLoss && styles.heroValueLoss]}>
+                            {`${report!.profit > 0 ? '+' : ''}${inr(report!.profit)}`}
+                        </Text>
+                        <View style={styles.heroStats}>
+                            <HeroStat
+                                label={t('finance.totalIncome')}
+                                value={inr(report!.revenue)}
+                                tone={c.successText}
+                            />
+                            <HeroStat
+                                label={t('finance.totalExpense')}
+                                value={inr(report!.totalExpenses)}
+                                tone={c.dangerText}
+                            />
+                            <HeroStat
+                                label={t('finance.marginPercent')}
+                                value={margin != null ? `${margin}%` : '—'}
+                            />
+                        </View>
                     </View>
-                </View>
+                ) : (
+                    /* Nothing recorded. A "+₹0" in a green band would be a claim
+                       about this farm; the truth is that nobody has told the app
+                       anything about it yet. */
+                    <TouchableOpacity
+                        style={styles.heroEmpty}
+                        onPress={() =>
+                            navigation.navigate('Transactions', {
+                                farmId: writeFarm?.id,
+                                farmName: writeFarm?.name,
+                            })
+                        }
+                        accessibilityRole="button"
+                    >
+                        <Text style={styles.heroEmptyLabel}>{t('finance.nothingYetTitle')}</Text>
+                        <Text style={styles.heroEmptyBody}>{t('finance.nothingYetBody')}</Text>
+                        {perms.canViewFinancials && (
+                            <Text style={styles.heroEmptyCta}>{t('finance.addEntry')} ›</Text>
+                        )}
+                    </TouchableOpacity>
+                )}
 
                 {/*
                   * Which farm the combined number came from, worst first — the
@@ -324,7 +365,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                   * the same as tapping its chip, so a farmer can drill in where
                   * they noticed the problem.
                   */}
-                {activeScope === ALL && visibleFarms.length > 1 && (
+                {hasFigures && activeScope === ALL && visibleFarms.length > 1 && (
                     <>
                         <SectionHeader label={t('finance.byFarm')} />
                         {[...visibleFarms]
@@ -489,9 +530,13 @@ const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = 
     </TouchableOpacity>
 );
 
-const HeroStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+const HeroStat: React.FC<{ label: string; value: string; tone?: string }> = ({
+    label,
+    value,
+    tone,
+}) => (
     <View style={styles.heroStat}>
-        <Text style={styles.heroStatValue} numberOfLines={1}>
+        <Text style={[styles.heroStatValue, !!tone && { color: tone }]} numberOfLines={1}>
             {value}
         </Text>
         <Text style={styles.heroStatLabel} numberOfLines={1}>
@@ -533,6 +578,21 @@ const styles = StyleSheet.create({
         paddingVertical: theme.spacing[4],
     },
     heroLoss: { backgroundColor: c.dangerBg },
+    heroEmpty: {
+        backgroundColor: c.surfaceVariant,
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[5],
+        gap: theme.spacing[1],
+    },
+    heroEmptyLabel: { ...theme.typeScale.h2, color: c.textPrimary },
+    heroEmptyBody: { ...theme.typeScale.bodyMedium, color: c.textSecondary },
+    heroEmptyCta: {
+        ...theme.typeScale.labelLarge,
+        color: c.textLink,
+        marginTop: theme.spacing[2],
+    },
     heroLabel: {
         ...theme.typeScale.labelSmall,
         fontFamily: 'DMSans-SemiBold',

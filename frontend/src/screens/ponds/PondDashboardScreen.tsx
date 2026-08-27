@@ -192,6 +192,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
             title={pondName ?? t('ponds.title')}
             onBack={() => navigation.goBack()}
             accessibilityBackLabel={t('common.back')}
+            actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
+            onAction={() =>
+                navigation.navigate('CreatePond', {
+                    farmId: pond?.farmId,
+                    farmName: undefined,
+                    editPondId: pondId,
+                })
+            }
         />
     );
 

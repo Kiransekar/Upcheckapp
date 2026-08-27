@@ -10,6 +10,7 @@ import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { toIstDateString } from '../common/ist-date';
+import { TransactionsService } from '../transactions/transactions.service';
 
 // Farms are hard-capped at 500 ponds (PondNamingService.MAX_PONDS_PER_FARM).
 // A page size well above that is effectively "no limit" for pondsService.findAll,
@@ -28,6 +29,7 @@ export class ReportsService {
     private readonly samplingService: SamplingService,
     private readonly cropsService: CropsService,
     private readonly farmAccess: FarmAccessService,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   async getDashboardSummary(userId: string, farmId?: string) {
@@ -185,6 +187,29 @@ export class ReportsService {
           expensesByCategory[category] =
             (expensesByCategory[category] || 0) + Number(amount);
         }
+      }
+    }
+
+    // Farm-level transactions, on top of the per-cycle ledger above.
+    //
+    // These were missing entirely, and the Money tab's own "Add entry" button
+    // is what writes them: a farmer recorded ₹50,000 of feed, came back, and
+    // the headline still read ₹0 while the entries they had just typed were
+    // listed directly underneath it. The two ledgers are separate tables
+    // written by different screens — nothing writes both from one action — so
+    // adding them is a sum, not a double count.
+    const transactions = await this.transactionsService
+      .findAll(userId, farmId)
+      .catch(() => []);
+    for (const tx of transactions) {
+      const amount = Number(tx.amount) || 0;
+      if (tx.type === 'income') {
+        totalRevenue += amount;
+      } else {
+        totalExpenses += amount;
+        const category = tx.category || 'Other';
+        expensesByCategory[category] =
+          (expensesByCategory[category] || 0) + amount;
       }
     }
 

@@ -9,6 +9,7 @@ import { FinancesModule } from '../finances/finances.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { RedisModule } from '../redis/redis.module';
 import { SamplingModule } from '../sampling/sampling.module';
+import { TransactionsModule } from '../transactions/transactions.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { SamplingModule } from '../sampling/sampling.module';
     InventoryModule,
     RedisModule,
     SamplingModule,
+    TransactionsModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

@@ -318,7 +318,12 @@ export const TeamScreen = ({ navigation }: any) => {
 
                         <TouchableOpacity
                             style={[styles.summaryRow, pendingLeave.length > 0 && styles.summaryRowAlert]}
-                            onPress={() => navigation.navigate('LeaveRequests', { farmId })}
+                            onPress={() =>
+                                navigation.navigate('LeaveRequests', {
+                                    farmId: activeScope === ALL ? undefined : farmId,
+                                    farmName: activeScope === ALL ? undefined : primaryFarm?.name,
+                                })
+                            }
                         >
                             <Icon
                                 name="event_busy"

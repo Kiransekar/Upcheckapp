@@ -41,6 +41,11 @@ const farms = {
   stayOwnerWithOthers: 'You stay owner of this farm. Your other {{count}} are unaffected.',
   yourNthFarm: 'Your {{n}}th farm',
   saveFarm: 'Save Farm',
+  // CreateFarmScreen doubles as the edit screen — see its header comment.
+  editFarmTitle: "Edit farm",
+  farmSavedToast: "{{name}} saved",
+  errorSaveFarm: "Could not save the farm.",
+  errorLoadFarm: "Could not load this farm.",
   fieldLocation: 'Farm location',
   detectLocation: 'Detect my location',
   locating: 'Getting location…',

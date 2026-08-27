@@ -148,13 +148,13 @@ export type RootStackParamList = {
     HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
     // Phase 2
-    CreateFarm: undefined;
+    CreateFarm: { editFarmId?: string } | undefined;
     FarmDetail: { farmId: string; farmName?: string };
     FarmMembers: { farmId: string; farmName?: string };
     MemberDetail: { farmId: string; farmName?: string; member: any };
     AllWorkers: undefined;
     AddWorker: { farmId: string; farmName?: string };
-    CreatePond: { farmId: string };
+    CreatePond: { farmId: string; farmName?: string; pondCount?: number; editPondId?: string };
     PondDashboard: { pondId: string; pondName?: string };
     PondDimensionHistory: { pondId: string; pondName?: string };
     CycleAnalysis: { cycleId: string; cycleName?: string };

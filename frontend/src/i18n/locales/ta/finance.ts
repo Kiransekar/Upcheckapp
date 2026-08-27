@@ -83,6 +83,9 @@ const finance = {
   moneyTitle: "பணம்",
   addEntry: "பதிவு சேர்",
   netSoFar: "இதுவரை நிகர",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "இன்னும் எதுவும் பதிவாகவில்லை",
+  nothingYetBody: "நீங்கள் செலவழிப்பதையும் விற்பதையும் பதிவு செய்யுங்கள், அதுவே உங்கள் லாப-நஷ்டமாகும்.",
   whereItWent: "எங்கே சென்றது",
   allFarms: "அனைத்துப் பண்ணைகள்",
   byFarm: "பண்ணை வாரியாக",

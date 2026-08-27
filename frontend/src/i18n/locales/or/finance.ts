@@ -83,6 +83,9 @@ const finance = {
   moneyTitle: "ଟଙ୍କା",
   addEntry: "ଏଣ୍ଟ୍ରି ଯୋଡ଼ନ୍ତୁ",
   netSoFar: "ଏପର୍ଯ୍ୟନ୍ତ ନିଟ",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ",
+  nothingYetBody: "ଆପଣ ଯାହା ଖର୍ଚ୍ଚ କରନ୍ତି ଓ ବିକ୍ରି କରନ୍ତି ଲେଖନ୍ତୁ, ତାହା ହିଁ ଆପଣଙ୍କ ଲାଭ-କ୍ଷତି ହେବ।",
   whereItWent: "କେଉଁଠି ଗଲା",
   allFarms: "ସବୁ ଫାର୍ମ",
   byFarm: "ଫାର୍ମ ଅନୁସାରେ",

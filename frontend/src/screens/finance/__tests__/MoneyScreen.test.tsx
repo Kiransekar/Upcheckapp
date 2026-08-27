@@ -135,6 +135,32 @@ describe('MoneyScreen', () => {
         expect(queryByText('By farm')).toBeNull();
     });
 
+    // A green "+₹0" is a claim about the farm; nothing recorded is the
+    // absence of a claim. Those are opposite facts and used to look identical.
+    it('says nothing is recorded rather than showing a zero net', async () => {
+        (reportsApi.getFinancialReport as jest.Mock).mockResolvedValue({
+            data: { revenue: 0, totalExpenses: 0, profit: 0, expensesByCategory: [] },
+        });
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText('Nothing recorded yet')).toBeTruthy();
+        // And no by-farm breakdown either: a column of "+₹0" under
+        // "nothing recorded" is the same claim in smaller type.
+        expect(queryByText('By farm')).toBeNull();
+    });
+
+    it('shows the net once anything has been recorded', async () => {
+        (reportsApi.getFinancialReport as jest.Mock).mockResolvedValue({
+            data: { revenue: 0, totalExpenses: 5000, profit: -5000, expensesByCategory: [] },
+        });
+        const { findAllByText, queryByText } = renderScreen();
+
+        // The hero, plus a by-farm row for each of the two farms — both
+        // farms are mocked to the same report here.
+        expect((await findAllByText('−₹5,000')).length).toBeGreaterThan(0);
+        expect(queryByText('Nothing recorded yet')).toBeNull();
+    });
+
     it('shows the empty state when no farm has readable financials', async () => {
         (farmsApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
         const { getByText } = renderScreen();

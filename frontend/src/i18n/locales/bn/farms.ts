@@ -34,6 +34,11 @@ const farms = {
   stayOwnerWithOthers: 'আপনি এই খামারের মালিক থাকবেন। আপনার বাকি {{count}} অপরিবর্তিত থাকবে।',
   yourNthFarm: 'আপনার {{n}}তম খামার',
   saveFarm: 'খামার সংরক্ষণ করুন',
+  // CreateFarmScreen doubles as the edit screen — see its header comment.
+  editFarmTitle: "খামার সম্পাদনা",
+  farmSavedToast: "{{name}} সংরক্ষিত",
+  errorSaveFarm: "খামার সংরক্ষণ করা যায়নি।",
+  errorLoadFarm: "এই খামার লোড করা যায়নি।",
   fieldLocation: 'খামারের অবস্থান',
   detectLocation: 'আমার অবস্থান শনাক্ত করুন',
   locating: 'অবস্থান পাওয়া হচ্ছে…',

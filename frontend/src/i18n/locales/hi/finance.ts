@@ -83,6 +83,9 @@ const finance = {
   moneyTitle: "पैसा",
   addEntry: "एंट्री जोड़ें",
   netSoFar: "अब तक शुद्ध",
+  // Nothing recorded is not a net of zero — see the hero in MoneyScreen.
+  nothingYetTitle: "अभी कुछ दर्ज नहीं",
+  nothingYetBody: "आप जो खर्च और बिक्री करते हैं वह दर्ज करें, यही आपका लाभ-हानि बन जाएगा।",
   whereItWent: "कहाँ गया",
   allFarms: "सभी फ़ार्म",
   byFarm: "फ़ार्म के अनुसार",
