@@ -27,6 +27,23 @@ export class TasksController {
     return this.tasksService.create(createDto, user?.id);
   }
 
+  /**
+   * Tasks across every farm the caller can read, in one request.
+   *
+   * Declared BEFORE `@Get(':id')` — Nest matches in declaration order, so a
+   * later 'mine' would be swallowed as an id. No OwnershipGuard on purpose:
+   * the guard checks one farm named by a param and this route names none;
+   * scoping is `getAccessibleFarmIds` in the service, same as GET /ponds/mine.
+   */
+  @Get('mine')
+  findMine(
+    @CurrentUser() user,
+    @Query('status') status?: string,
+    @Query('assignedToId') assignedToId?: string,
+  ) {
+    return this.tasksService.findMine(user.id, { status, assignedToId });
+  }
+
   @Get()
   @UseGuards(OwnershipGuard)
   @OwnsResource('Farm', 'farmId', 'userId', 'READ')

@@ -12,6 +12,7 @@ function makeService(
     feeds?: any[];
     tray?: any;
     accessiblePonds?: string[];
+    accessibleFarms?: string[];
   } = {},
 ) {
   const samplingRepo = {
@@ -67,6 +68,7 @@ function makeService(
   };
   const farmAccess = {
     getAccessiblePondIds: jest.fn().mockResolvedValue(over.accessiblePonds ?? []),
+    getAccessibleFarmIds: jest.fn().mockResolvedValue(over.accessibleFarms ?? []),
   };
   const svc = new PondContextService(
     samplingRepo as any,
@@ -386,5 +388,32 @@ describe('PondContextService.getContext — access', () => {
     const ctxs = await svc.getFarmContexts('farm-1', 'worker');
 
     expect(ctxs.map((c) => c.pondId)).toEqual(['ok']);
+  });
+});
+
+/** `?scope=mine` — every readable pond across every farm, one request. */
+describe('PondContextService.getMyContexts', () => {
+  it('covers every accessible farm, one farm at a time', async () => {
+    const { svc, farmAccess, pondsService } = makeService({
+      accessibleFarms: ['farm-1', 'farm-2'],
+    });
+    farmAccess.getAccessiblePondIds.mockImplementation(
+      async (_u: string, farmId: string) =>
+        farmId === 'farm-1' ? ['p1', 'p2'] : ['p3'],
+    );
+    pondsService.findOneAccessible.mockImplementation((id: string) =>
+      Promise.resolve({ id, calculatedAreaM2: 4000, activeCycleId: null }),
+    );
+
+    const ctxs = await svc.getMyContexts('u');
+
+    expect(ctxs.map((c) => c.pondId)).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  it('returns nothing for a user on no farms', async () => {
+    const { svc, farmAccess } = makeService({ accessibleFarms: [] });
+
+    await expect(svc.getMyContexts('nobody')).resolves.toEqual([]);
+    expect(farmAccess.getAccessiblePondIds).not.toHaveBeenCalled();
   });
 });

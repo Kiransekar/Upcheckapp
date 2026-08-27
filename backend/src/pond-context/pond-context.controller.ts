@@ -29,7 +29,15 @@ export class PondContextController {
    * check. A non-member simply gets [].
    */
   @Get()
-  getForFarm(@Query('farmId') farmId: string, @CurrentUser() user) {
+  getForFarm(
+    @Query('farmId') farmId: string,
+    @Query('scope') scope: string,
+    @CurrentUser() user,
+  ) {
+    // `?scope=mine` = every readable pond across every farm, so a multi-farm
+    // account stops looping this route per farm. Same convention (and the same
+    // getAccessibleFarmIds scoping) as GET /ponds/mine.
+    if (scope === 'mine') return this.service.getMyContexts(user.id);
     if (!farmId) throw new BadRequestException('farmId is required');
     return this.service.getFarmContexts(farmId, user.id);
   }
