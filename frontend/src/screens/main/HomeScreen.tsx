@@ -184,11 +184,32 @@ export const HomeScreen = ({ navigation }: any) => {
         if (scopeFarms.length === 0) return;
 
         // One batched pond-context call per farm — see pondContextApi.forFarm.
-        const contexts = (
-            await Promise.all(
-                scopeFarms.map((f) => pondContextApi.forFarm(f.id).then((r) => r.data).catch(() => [])),
-            )
-        ).flat();
+        //
+        // A farm that FAILS must not quietly contribute zero. These figures sit
+        // under a header that says "All farms", so a sum missing one farm of
+        // three is not an approximation, it is a wrong number presented as a
+        // complete one — and "logs today" is worse than wrong, because the hero
+        // reads it: every farm failing would leave total 0, which is
+        // indistinguishable from "nothing is stocked" and would tell an owner
+        // with nine stocked ponds to go and start their first cycle.
+        //
+        // So: any failure and the band goes absent. An absent figure sends a
+        // farmer to pull-to-refresh; a confident wrong one sends them to act.
+        const perFarm = await Promise.all(
+            scopeFarms.map((f) =>
+                pondContextApi
+                    .forFarm(f.id)
+                    .then((r) => r.data)
+                    .catch(() => null),
+            ),
+        );
+        if (perFarm.some((c) => c === null)) {
+            setHomeBiomassKg(null);
+            setLogsToday(null);
+            setOnDutyToday(null);
+            return;
+        }
+        const contexts = (perFarm as NonNullable<(typeof perFarm)[number]>[]).flat();
         const sampled = contexts
             .map((c) => c.biomassKg)
             .filter((v): v is number => typeof v === 'number');
@@ -220,19 +241,28 @@ export const HomeScreen = ({ navigation }: any) => {
             setOnDutyToday(null);
             return;
         }
+        // Same rule as the contexts above: a roster we could not read is not a
+        // roster of nobody. "3 of 5 on duty" with two farms silently missing is
+        // a number a manager would act on.
         const rosters = await Promise.all(
             scopeFarms.map(async (f) => {
                 const [att, members] = await Promise.all([
-                    attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => []),
-                    farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => []),
+                    attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => null),
+                    farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => null),
                 ]);
+                if (!att || !members) return null;
                 return { present: new Set(att.map((a) => a.userId)).size, total: members.length };
             }),
         );
-        const total = rosters.reduce((a, r) => a + r.total, 0);
+        if (rosters.some((r) => r === null)) {
+            setOnDutyToday(null);
+            return;
+        }
+        const complete = rosters as NonNullable<(typeof rosters)[number]>[];
+        const total = complete.reduce((a, r) => a + r.total, 0);
         setOnDutyToday(
             total > 0
-                ? { present: rosters.reduce((a, r) => a + r.present, 0), total }
+                ? { present: complete.reduce((a, r) => a + r.present, 0), total }
                 : null,
         );
     }, [scopeFarms, perms.canManageOperations]);

@@ -204,6 +204,43 @@ describe('HomeScreen — farm scope', () => {
     });
 });
 
+// A farm whose contexts fail to load contributed [] to the totals, so a sum
+// missing one farm of two was printed as complete under a header that says
+// "All farms". Worse for logs-today, which the hero reads: every farm failing
+// left total 0, indistinguishable from "nothing is stocked", which would send
+// an owner with stocked ponds off to start their first cycle.
+describe('HomeScreen — a farm that fails to load', () => {
+    beforeEach(async () => {
+        await resetMocks();
+        mockedGetAll.mockResolvedValue({ data: [FARM, FARM_2] });
+        mockedGetMine.mockResolvedValue({ data: [POND, POND_2] });
+    });
+
+    it('shows no band at all rather than a total short by one farm', async () => {
+        mockedForFarm.mockImplementation((farmId: string) =>
+            farmId === 'farm-1'
+                ? Promise.resolve({ data: [{ ...emptyPondContext, cropId: 'c1', biomassKg: 400 }] })
+                : Promise.reject(new Error('timeout')),
+        );
+
+        const { findByText, queryByText } = renderScreen();
+        await findByText('All farms');
+
+        // 400 is farm-1 alone. Printing it as the all-farms total is the lie.
+        await waitFor(() => expect(queryByText('400')).toBeNull());
+    });
+
+    it('does not tell an owner with stocked ponds to start their first cycle', async () => {
+        mockedForFarm.mockRejectedValue(new Error('offline'));
+
+        const { findByText, queryByText } = renderScreen();
+        await findByText('All farms');
+
+        await waitFor(() => expect(queryByText('Start here')).toBeNull());
+        expect(queryByText(/Stock a cycle/)).toBeNull();
+    });
+});
+
 describe('HomeScreen — the stat band', () => {
     beforeEach(async () => {
         await resetMocks();
