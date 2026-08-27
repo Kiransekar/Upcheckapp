@@ -167,6 +167,33 @@ export class CropsService {
     return this.enrichWithDOC(crop);
   }
 
+  /**
+   * Same READ semantics as `findOneAccessible`, for a caller that has ALREADY
+   * cleared the crop's pond at READ in the same request. `findOneAccessible`
+   * would re-fetch that identical pond and re-run the identical check — one
+   * wasted query per pond for an owner, three for a worker/viewer (the owner
+   * fast-path misses, so each re-check adds a membership lookup).
+   *
+   * `verifiedPondId` is what makes skipping safe: if the crop does not in fact
+   * belong to the pond the caller cleared (a stale `pond.activeCycleId`, say),
+   * the caller's grant proves nothing about it, so we fall through to the full
+   * check rather than trusting it.
+   */
+  async findOneForVerifiedPond(
+    id: string,
+    verifiedPondId: string,
+    userId: string,
+  ) {
+    const crop = await this.cropsRepository.findOneBy({ id });
+    if (!crop) {
+      throw new NotFoundException(`Crop with ID ${id} not found`);
+    }
+    if (crop.pondId !== verifiedPondId) {
+      await this.pondsService.verifyAccess(crop.pondId, userId, 'READ');
+    }
+    return this.enrichWithDOC(crop);
+  }
+
   /** Member-aware crop list for a pond (owner or worker). */
   async findAllAccessible(pondId: string, userId: string) {
     if (!pondId) return [];

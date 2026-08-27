@@ -281,8 +281,10 @@ export class PondContextService {
       await Promise.all([
         cropId
           // Member-aware crop read: this is a dashboard path and must NOT go
-          // through the VIEW_FINANCIALS-strict cropsService.findOne.
-          ? this.cropsService.findOneAccessible(cropId, userId)
+          // through the VIEW_FINANCIALS-strict cropsService.findOne. We pass
+          // the pond we just cleared above so the crop read doesn't re-fetch
+          // and re-check the very same pond three lines later.
+          ? this.cropsService.findOneForVerifiedPond(cropId, pond.id, userId)
           : Promise.resolve(null),
         // Latest non-null value per WQ parameter across recent records.
         this.wqRepo.find({
