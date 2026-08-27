@@ -24,6 +24,12 @@ const ponds = {
   metricArea: 'ক্ষেত্রফল m²',
   metricVolume: 'আয়তন m³',
   metricHectares: 'হেক্টর',
+  // The pond detail section — see PondDashboardScreen.
+  aboutThisPond: "এই পুকুর সম্পর্কে",
+  labelMeasurements: "মাপ",
+  labelAerators: "এয়ারেটর",
+  aeratorCountValue: "{{count}} ইউনিট",
+  aeratorCountValue_one: "১ ইউনিট",
   fieldAerators: 'এয়ারেটর',
   fieldAeratorCount: 'সংখ্যা',
   hpPerHa: '{{value}} HP/হে',

@@ -24,6 +24,12 @@ const ponds = {
   metricArea: 'Area m²',
   metricVolume: 'Volume m³',
   metricHectares: 'Hectares',
+  // The pond detail section — see PondDashboardScreen.
+  aboutThisPond: "About this pond",
+  labelMeasurements: "Measurements",
+  labelAerators: "Aerators",
+  aeratorCountValue: "{{count}} units",
+  aeratorCountValue_one: "1 unit",
   fieldAerators: 'Aerators',
   fieldAeratorCount: 'Count',
   hpPerHa: '{{value}} HP/ha',

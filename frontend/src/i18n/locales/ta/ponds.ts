@@ -24,6 +24,12 @@ const ponds = {
   metricArea: 'பரப்பு m²',
   metricVolume: 'கனஅளவு m³',
   metricHectares: 'ஹெக்டேர்',
+  // The pond detail section — see PondDashboardScreen.
+  aboutThisPond: "இந்தக் குளம் பற்றி",
+  labelMeasurements: "அளவுகள்",
+  labelAerators: "ஏரேட்டர்கள்",
+  aeratorCountValue: "{{count}} அலகுகள்",
+  aeratorCountValue_one: "1 அலகு",
   fieldAerators: 'ஏரேட்டர்கள்',
   fieldAeratorCount: 'எண்ணிக்கை',
   hpPerHa: '{{value}} HP/ஹெ',

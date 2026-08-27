@@ -7,10 +7,11 @@ import { Transaction } from '../transactions/transaction.entity';
 import { Expense } from '../finances/expense.entity';
 import { Harvest } from '../harvests/harvest.entity';
 import { Crop } from '../crops/crop.entity';
+import { Pond } from '../ponds/pond.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([HarvestPlan, Transaction, Expense, Harvest, Crop]),
+    TypeOrmModule.forFeature([HarvestPlan, Transaction, Expense, Harvest, Crop, Pond]),
   ],
   controllers: [HarvestPlansController],
   providers: [HarvestPlansService],

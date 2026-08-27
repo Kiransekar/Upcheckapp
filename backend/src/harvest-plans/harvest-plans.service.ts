@@ -13,6 +13,7 @@ import { Transaction } from '../transactions/transaction.entity';
 import { Expense } from '../finances/expense.entity';
 import { Harvest } from '../harvests/harvest.entity';
 import { Crop } from '../crops/crop.entity';
+import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -30,6 +31,8 @@ export class HarvestPlansService {
     private harvestsRepository: Repository<Harvest>,
     @InjectRepository(Crop)
     private cropsRepository: Repository<Crop>,
+    @InjectRepository(Pond)
+    private pondsRepository: Repository<Pond>,
     private farmAccess: FarmAccessService,
   ) {}
 
@@ -106,11 +109,27 @@ export class HarvestPlansService {
     // client-supplied cropId — so completing a plan can't overwrite an
     // arbitrary crop in another farm.
     if (plan.cropId) {
+      // 'completed', not 'harvested'. The crop entity documents the vocabulary
+      // as active | completed | cancelled, and every other close path writes
+      // 'completed' — this one invented a fourth word that nothing else
+      // recognises, so a plan-completed cycle stayed "not completed" to the
+      // idempotency guard, the reports and the active-cycle checks alike.
       await this.cropsRepository.update(plan.cropId, {
         actualHarvestDate: payload.actualHarvestDate,
         harvestWeightKg: payload.actualWeightKg,
-        status: 'harvested',
+        status: 'completed',
       });
+
+      // And FREE THE POND. This is what made the feature feel like it did
+      // nothing: the plan went green, the money was booked, and the pond still
+      // held the cycle it had just been harvested out of — still stocked, still
+      // being fed, still counted as active everywhere. Harvesting a pond is
+      // exactly the event that empties it, and the other close path
+      // (CropsService.closeCycle) has always done this.
+      await this.pondsRepository.update(
+        { id: plan.pondId, activeCycleId: plan.cropId },
+        { activeCycleId: null, status: 'fallow' } as any,
+      );
     }
 
     return this.findOne(id);

@@ -24,6 +24,12 @@ const ponds = {
   metricArea: 'କ୍ଷେତ୍ରଫଳ m²',
   metricVolume: 'ଆୟତନ m³',
   metricHectares: 'ହେକ୍ଟର',
+  // The pond detail section — see PondDashboardScreen.
+  aboutThisPond: "ଏହି ପୋଖରୀ ବିଷୟରେ",
+  labelMeasurements: "ମାପ",
+  labelAerators: "ଏରେଟର",
+  aeratorCountValue: "{{count}} ୟୁନିଟ",
+  aeratorCountValue_one: "୧ ୟୁନିଟ",
   fieldAerators: 'ଏରେଟର',
   fieldAeratorCount: 'ସଂଖ୍ୟା',
   hpPerHa: '{{value}} HP/ହେ',

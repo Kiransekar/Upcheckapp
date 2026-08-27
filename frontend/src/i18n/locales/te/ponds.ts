@@ -24,6 +24,12 @@ const ponds = {
   metricArea: 'విస్తీర్ణం m²',
   metricVolume: 'ఘనపరిమాణం m³',
   metricHectares: 'హెక్టార్లు',
+  // The pond detail section — see PondDashboardScreen.
+  aboutThisPond: "ఈ చెరువు గురించి",
+  labelMeasurements: "కొలతలు",
+  labelAerators: "ఏరేటర్లు",
+  aeratorCountValue: "{{count}} యూనిట్లు",
+  aeratorCountValue_one: "1 యూనిట్",
   fieldAerators: 'ఏరేటర్లు',
   fieldAeratorCount: 'సంఖ్య',
   hpPerHa: '{{value}} HP/హె',
