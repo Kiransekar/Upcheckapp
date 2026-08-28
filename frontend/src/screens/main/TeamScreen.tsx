@@ -42,6 +42,7 @@ import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
 import { tasksApi, type Task } from '../../api/tasks';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { farmsApi, type Farm } from '../../api/farms';
+import { fetchTeamOverview } from '../../api/teamOverview';
 import { personName } from '../../utils/personName';
 import { formatWeekday } from '../../utils/formatDate';
 import { qk } from '../../query/client';
@@ -98,52 +99,11 @@ export const TeamScreen = ({ navigation }: any) => {
      */
     const query = useAppQuery({
         queryKey: qk.team(scope),
-        queryFn: async () => {
-            const list = (await farmsApi.getAll()).data ?? [];
-            const inScope =
-                scope !== ALL && list.some((f) => f.id === scope)
-                    ? list.filter((f) => f.id === scope)
-                    : list;
-
-            // Independent reads — fan out rather than waterfall. Each failure is
-            // isolated so one unavailable farm cannot blank the whole tab.
-            const per = await Promise.all(
-                inScope.map(async (farm) => {
-                    const [mine, all, leave, taskList, memberList] = await Promise.allSettled([
-                        attendanceApi.mine(farm.id),
-                        attendanceApi.getAll(farm.id), // the API decides; a 403 lands in the catch
-                        leaveRequestsApi.getAll(farm.id, 'pending'),
-                        tasksApi.getAll(farm.id),
-                        farmMembersApi.listMembers(farm.id),
-                    ]);
-                    const val = <T,>(r: PromiseSettledResult<{ data: T }>, fallback: T): T =>
-                        r.status === 'fulfilled' ? r.value.data : fallback;
-                    return {
-                        mine: val(mine, [] as AttendanceRecord[]),
-                        all: val(all, [] as AttendanceRecord[]),
-                        leave: val(leave, [] as LeaveRequest[]),
-                        tasks: val(taskList, [] as Task[]),
-                        members: val(memberList, [] as FarmMember[]),
-                    };
-                }),
-            );
-
-            return {
-                farms: list,
-                // The open record is the one with no check-out. Across farms you can
-                // only be checked in to one at a time in practice, and if you are in
-                // two the earliest is the one you have been on longest.
-                myAttendance:
-                    per
-                        .flatMap((p) => p.mine)
-                        .filter((r) => !r.checkOutAt)
-                        .sort((a, b) => a.checkInAt.localeCompare(b.checkInAt))[0] ?? null,
-                allAttendance: per.flatMap((p) => p.all),
-                pendingLeave: per.flatMap((p) => p.leave),
-                tasks: per.flatMap((p) => p.tasks),
-                members: per.flatMap((p) => p.members),
-            };
-        },
+        // ONE request for the whole tab. This used to fan out to 1 + 5×N calls
+        // (26 for a five-farm owner) from the phone, and at ~265ms of network
+        // per request from rural India that fan-out WAS the load time. The
+        // server does the same work far more cheaply — see api/teamOverview.ts.
+        queryFn: () => fetchTeamOverview(scope),
     });
 
     useRefetchOnFocus(qk.team(scope));
