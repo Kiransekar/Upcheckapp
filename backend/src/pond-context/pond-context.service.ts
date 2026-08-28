@@ -167,6 +167,25 @@ export class PondContextService {
   }
 
   /**
+   * Every readable pond across ALL the caller's farms, in one request.
+   *
+   * Same convention as `GET /ponds/mine` and the farm-less transactions list:
+   * scope by `getAccessibleFarmIds` rather than making the client loop per
+   * farm. A multi-farm account used to pay one round trip per farm here.
+   */
+  async getMyContexts(userId: string): Promise<PondContext[]> {
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    // One farm at a time. getFarmContexts already caps itself at 6 concurrent
+    // contexts; fanning the farms out on top of that would multiply through it
+    // and put far more than the pool's 5 connections' worth of work in flight.
+    const out: PondContext[] = [];
+    for (const farmId of farmIds) {
+      out.push(...(await this.getFarmContexts(farmId, userId)));
+    }
+    return out;
+  }
+
+  /**
    * Resolve each water-quality parameter to its latest NON-NULL value across
    * recent records (newest first). Daily probe params surface from the newest
    * entry; periodic chemistry carries forward from whenever it was last
@@ -281,8 +300,10 @@ export class PondContextService {
       await Promise.all([
         cropId
           // Member-aware crop read: this is a dashboard path and must NOT go
-          // through the VIEW_FINANCIALS-strict cropsService.findOne.
-          ? this.cropsService.findOneAccessible(cropId, userId)
+          // through the VIEW_FINANCIALS-strict cropsService.findOne. We pass
+          // the pond we just cleared above so the crop read doesn't re-fetch
+          // and re-check the very same pond three lines later.
+          ? this.cropsService.findOneForVerifiedPond(cropId, pond.id, userId)
           : Promise.resolve(null),
         // Latest non-null value per WQ parameter across recent records.
         this.wqRepo.find({

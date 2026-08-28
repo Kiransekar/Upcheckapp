@@ -61,10 +61,21 @@ import { FeedbackModule } from './feedback/feedback.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // ThrottlerGuard is registered ahead of JwtAuthGuard (see providers below),
+    // so `req.user` doesn't exist yet and it buckets by IP. `main.ts` sets
+    // `trust proxy`, so on rural Indian mobile carriers that IP is a CGNAT
+    // address shared by many subscribers — one farmer's home screen focus
+    // spends ~19 requests, and a handful of neighbours on the same carrier
+    // could rate-limit each other off the app.
+    //
+    // The tight per-route @Throttle decorators on the auth endpoints are what
+    // actually protect the sensitive surface; this global number only has to
+    // stop a runaway client. Do not tighten this without moving to a
+    // user-aware tracker first.
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 60,
+        limit: 120,
       },
     ]),
     TypeOrmModule.forRootAsync({

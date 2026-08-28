@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "Something went wrong",
+  crashBody: "The app hit an unexpected problem. Try again.",
+  tryAgain: "Try again",
+  noOptions: "No options available",
+  selectPlaceholder: "Select…",
   appName: 'Upcheck',
   save: 'Save',
   cancel: 'Cancel',
@@ -53,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}} record(s) could not be synced. Retry now?',
   syncFailedBanner: 'Records need attention',
   syncFailedA11y: '{{count}} records failed to sync, tap to retry',
+  cachedAsOf: "Showing saved data · as of {{when}}",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "Continue",

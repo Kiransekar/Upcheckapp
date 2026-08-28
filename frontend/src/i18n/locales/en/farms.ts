@@ -1,4 +1,6 @@
 const farms = {
+  actNowCount: "{{pl}} act now",
+  watchCount: "{{pl}} watch",
   // FarmsListScreen
   title: 'My Farms',
   ponds: 'Ponds',

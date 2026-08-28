@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import {
+    ApiError,
     listReports,
     headline,
     formatWhen,
@@ -31,12 +32,28 @@ export default async function InboxPage({
     } catch (err) {
         // Never render a failed read as an empty inbox — that reads as "no
         // farmer has ever reported anything" and the reports go unanswered.
+        //
+        // Point at the right end. A 401 is the API answering, not failing to
+        // answer, so telling someone to check UPCHECK_API_URL sends them to
+        // audit a setting that was never wrong. Refused and unreachable are
+        // different faults with different fixes.
+        const refused = err instanceof ApiError && err.status === 401;
         return (
             <>
                 <h1>Feedback</h1>
                 <p className="error">
-                    Could not reach the Upcheck API. Check UPCHECK_API_URL and ADMIN_API_KEY on
-                    this deployment.
+                    {refused ? (
+                        <>
+                            The Upcheck API refused this dashboard. Set <code>ADMIN_API_KEY</code>{' '}
+                            on the backend (Render) and here, to the same value — the message
+                            below says which side is unhappy.
+                        </>
+                    ) : (
+                        <>
+                            Could not reach the Upcheck API. Check <code>UPCHECK_API_URL</code> on
+                            this deployment.
+                        </>
+                    )}
                     <br />
                     <small>{(err as Error).message}</small>
                 </p>

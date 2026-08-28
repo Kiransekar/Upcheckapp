@@ -30,6 +30,7 @@ import leave from './leave';
 import attendance from './attendance';
 import team from './team';
 import feedback from './feedback';
+import sync from './sync';
 
 export default {
   common,
@@ -58,4 +59,5 @@ export default {
   attendance,
   team,
   feedback,
+  sync,
 };

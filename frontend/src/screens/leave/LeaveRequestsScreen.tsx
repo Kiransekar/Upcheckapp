@@ -281,7 +281,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
                                 label={t('leave.startDateLabel')}
                                 value={startDate}
                                 onChangeText={setStartDate}
-                                placeholder="YYYY-MM-DD"
+                                placeholder={t('logs.datePlaceholder')}
                             />
                         </View>
                         <View style={{ flex: 1 }}>
@@ -289,7 +289,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
                                 label={t('leave.endDateLabel')}
                                 value={endDate}
                                 onChangeText={setEndDate}
-                                placeholder="YYYY-MM-DD"
+                                placeholder={t('logs.datePlaceholder')}
                             />
                         </View>
                     </View>

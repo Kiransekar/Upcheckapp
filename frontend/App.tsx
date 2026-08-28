@@ -2,7 +2,9 @@ import './src/i18n'; // initialise i18next before any screen renders
 import './src/theme/fontScaling'; // cap OS-level font scaling app-wide (docs/UI_UX_AUDIT.md Tier 1 #4)
 import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { linking } from './src/navigation/linking';
+import { queryClient, persistOptions, startFocusTracking } from './src/query/client';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
@@ -51,6 +53,10 @@ export default function App() {
       });
     }
   }, [isAuthenticated, expoPushToken]);
+
+  // React Native has no window focus event, so TanStack Query's refetch-on-focus
+  // needs AppState wiring or it never fires — see src/query/client.ts.
+  useEffect(() => startFocusTracking(), []);
 
   // Refresh the authoritative banned-substance list from the backend on launch
   // (BANNED-1). Best-effort: falls back to the cached/bundled list when offline.
@@ -114,13 +120,20 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <NavigationContainer linking={linking}>
-          <RootNavigator />
-        </NavigationContainer>
-        {/* App-wide transient confirmations (e.g. "Saved" after a log). */}
-        <ToastHost />
-      </SafeAreaProvider>
+      {/*
+        * The read cache, restored from AsyncStorage before the first paint.
+        * This is what lets a phone with no signal open on last-known farms,
+        * ponds and readings instead of a stack of error screens.
+        */}
+      <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
+        <SafeAreaProvider>
+          <NavigationContainer linking={linking}>
+            <RootNavigator />
+          </NavigationContainer>
+          {/* App-wide transient confirmations (e.g. "Saved" after a log). */}
+          <ToastHost />
+        </SafeAreaProvider>
+      </PersistQueryClientProvider>
     </ErrorBoundary>
   );
 }

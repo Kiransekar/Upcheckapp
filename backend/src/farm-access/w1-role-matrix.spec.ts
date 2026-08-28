@@ -86,6 +86,9 @@ function chainFor(role: FarmRole | null) {
         .mockResolvedValue({ id: POND, farmId: FARM, farm: { userId: OWNER } }),
     },
     farmsService,
+    // findOneAccessible now enforces POND scope, not just farm scope, so the
+    // matrix runs through the real access service for that too.
+    farmAccess,
   });
 
   return pondsService;

@@ -139,6 +139,8 @@ describe('PondsService', () => {
     farmAccess = {
       getAccessibleFarmIds: jest.fn().mockResolvedValue([mockFarm.id]),
       assertCanAccessFarm: jest.fn().mockResolvedValue(mockFarm),
+      // findOneAccessible enforces POND scope now, not just the farm.
+      assertCanAccessPond: jest.fn().mockResolvedValue(mockPond),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -307,9 +309,12 @@ describe('PondsService', () => {
 
       await service.update('pond-1', { displayName: 'X' }, 'manager-2');
 
-      expect(farmsService.verifyAccess).toHaveBeenCalledWith(
-        'farm-1',
+      // Asserted through assertCanAccessPond rather than verifyAccess: the
+      // delegation is the same, but it now checks THIS pond and not merely the
+      // farm, so a member scoped to other ponds is refused here too.
+      expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith(
         'manager-2',
+        'pond-1',
         'WRITE_MANAGEMENT',
       );
       expect(pondsRepository.update).toHaveBeenCalled();

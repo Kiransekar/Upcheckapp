@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "ଆପଣଙ୍କ ଫାର୍ମ",
+    overviewStocked: "{{total}} ମଧ୍ୟରୁ {{stocked}} ମହଜୁଦ",
   // HomeScreen
   greeting: 'ସ୍ୱାଗତ,',
   dashboardSummary: 'ଡ୍ୟାଶବୋର୍ଡ ସାରାଂଶ',
@@ -10,6 +12,9 @@ const home = {
   todayFeed: 'ଆଜିର ଖାଦ୍ୟ (kg)',
   noFarmEither: 'ନିଜ ଫାର୍ମ ସେଟ କରନ୍ତୁ, କିମ୍ବା ମାଲିକଙ୍କ କୋଡ୍ ସହିତ ଗୋଟିଏରେ ଯୋଗ ଦିଅନ୍ତୁ।',
   doThisFirst: 'ପ୍ରଥମେ ଏହା କରନ୍ତୁ',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} ଫାର୍ମ",
+  acrossPonds: "{{pl}} ପୋଖରୀ",
   oneOfN: '{{n}} ମଧ୍ୟରୁ ୧',
   markDone: 'କରିଦେଲି',
   later: 'ପରେ',

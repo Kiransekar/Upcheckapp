@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useSyncStore } from '../../store/syncStore';
 import { useAuthStore } from '../../store/authStore';
 import { drainRecordQueue } from '../../sync/recordSync';
+import { queryClient } from '../../query/client';
 import { theme } from '../../theme';
 
 export const OfflineIndicator = () => {
@@ -23,12 +24,22 @@ export const OfflineIndicator = () => {
         const onConnectivity = (connected: boolean) => {
             setConnected(connected);
             if (connected) {
-                // Restore a real session first (AUTH-1 reconnect), then flush writes.
+                // Restore a real session first (AUTH-1 reconnect), then flush
+                // writes, then refresh whatever the farmer is looking at.
+                //
+                // The drain invalidates the keys its own ops touched; this
+                // catches the other half — signal came back with an empty queue
+                // and the screen on display is still showing the cached copy
+                // from before the tunnel. Only ACTIVE queries refetch, so this
+                // is one screen's worth of requests, not the whole cache.
                 useAuthStore
                     .getState()
                     .recoverSession()
                     .catch(() => undefined)
-                    .finally(() => drainRecordQueue().catch(() => undefined));
+                    .finally(() => {
+                        drainRecordQueue().catch(() => undefined);
+                        void queryClient.invalidateQueries({ type: 'active' });
+                    });
             }
         };
 

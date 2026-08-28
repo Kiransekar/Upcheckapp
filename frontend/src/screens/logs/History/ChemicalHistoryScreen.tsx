@@ -114,8 +114,8 @@ export const ChemicalHistoryScreen = ({ route, navigation }: any) => {
                 {item.ammoniaNh3Ppm != null && <MetricPill label="NH₃" value={`${item.ammoniaNh3Ppm} ppm`} />}
                 {item.nitriteNo2Ppm != null && <MetricPill label="NO₂" value={`${item.nitriteNo2Ppm} ppm`} />}
                 {item.nitrateNo3Ppm != null && <MetricPill label="NO₃" value={`${item.nitrateNo3Ppm} ppm`} />}
-                {item.alkalinityPpm != null && <MetricPill label="Alk" value={`${item.alkalinityPpm} ppm`} />}
-                {item.hardnessPpm != null && <MetricPill label="Hard" value={`${item.hardnessPpm} ppm`} />}
+                {item.alkalinityPpm != null && <MetricPill label={t('history.chemAlkalinity')} value={`${item.alkalinityPpm} ppm`} />}
+                {item.hardnessPpm != null && <MetricPill label={t('history.chemHardness')} value={`${item.hardnessPpm} ppm`} />}
                 {item.calciumCaPpm != null && <MetricPill label="Ca" value={`${item.calciumCaPpm} ppm`} />}
                 {item.magnesiumMgPpm != null && <MetricPill label="Mg" value={`${item.magnesiumMgPpm} ppm`} />}
                 {item.phosphatePo4Ppm != null && <MetricPill label="PO₄" value={`${item.phosphatePo4Ppm} ppm`} />}

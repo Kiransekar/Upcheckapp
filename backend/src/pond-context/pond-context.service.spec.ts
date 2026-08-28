@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { PondContextService } from './pond-context.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 
@@ -11,6 +12,7 @@ function makeService(
     feeds?: any[];
     tray?: any;
     accessiblePonds?: string[];
+    accessibleFarms?: string[];
   } = {},
 ) {
   const samplingRepo = {
@@ -62,10 +64,11 @@ function makeService(
       ),
   };
   const cropsService = {
-    findOneAccessible: jest.fn().mockResolvedValue(over.crop ?? null),
+    findOneForVerifiedPond: jest.fn().mockResolvedValue(over.crop ?? null),
   };
   const farmAccess = {
     getAccessiblePondIds: jest.fn().mockResolvedValue(over.accessiblePonds ?? []),
+    getAccessibleFarmIds: jest.fn().mockResolvedValue(over.accessibleFarms ?? []),
   };
   const svc = new PondContextService(
     samplingRepo as any,
@@ -78,7 +81,7 @@ function makeService(
     new ShrimpCalculationsService(),
     farmAccess as any,
   );
-  return { svc, pondsService, farmAccess };
+  return { svc, pondsService, cropsService, farmAccess };
 }
 
 describe('PondContextService', () => {
@@ -334,5 +337,83 @@ describe('PondContextService.getFarmContexts', () => {
 
     expect(ctxs).toHaveLength(14);
     expect(peak).toBeLessThanOrEqual(6);
+  });
+});
+
+/**
+ * getContext used to READ-check the pond, then read the crop through
+ * `cropsService.findOneAccessible`, which re-fetched and re-checked that same
+ * pond. Dropping the second check must not drop the FIRST one — that one is
+ * the whole gate.
+ */
+describe('PondContextService.getContext — access', () => {
+  it('propagates the pond READ refusal instead of returning a context', async () => {
+    const { svc, pondsService, cropsService } = makeService();
+    pondsService.findOneAccessible.mockRejectedValue(
+      new ForbiddenException('nope'),
+    );
+
+    await expect(svc.getContext('p1', 'worker')).rejects.toThrow(
+      ForbiddenException,
+    );
+    // And it must not have gone on to read the crop anyway.
+    expect(cropsService.findOneForVerifiedPond).not.toHaveBeenCalled();
+  });
+
+  it('hands the crop read the pond it just cleared, so it is not re-checked', async () => {
+    const { svc, cropsService } = makeService({
+      pond: { id: 'p1', calculatedAreaM2: 4000, activeCycleId: 'c1' },
+      crop: { id: 'c1', pondId: 'p1', stockingCount: 100000 },
+    });
+
+    await svc.getContext('p1', 'u');
+
+    expect(cropsService.findOneForVerifiedPond).toHaveBeenCalledWith(
+      'c1',
+      'p1',
+      'u',
+    );
+  });
+
+  it('drops a pond the caller cannot read from a farm-wide fetch, without failing the rest', async () => {
+    const { svc, pondsService } = makeService({
+      accessiblePonds: ['ok', 'denied'],
+    });
+    pondsService.findOneAccessible.mockImplementation((id: string) =>
+      id === 'denied'
+        ? Promise.reject(new ForbiddenException('nope'))
+        : Promise.resolve({ id, calculatedAreaM2: 4000, activeCycleId: null }),
+    );
+
+    const ctxs = await svc.getFarmContexts('farm-1', 'worker');
+
+    expect(ctxs.map((c) => c.pondId)).toEqual(['ok']);
+  });
+});
+
+/** `?scope=mine` — every readable pond across every farm, one request. */
+describe('PondContextService.getMyContexts', () => {
+  it('covers every accessible farm, one farm at a time', async () => {
+    const { svc, farmAccess, pondsService } = makeService({
+      accessibleFarms: ['farm-1', 'farm-2'],
+    });
+    farmAccess.getAccessiblePondIds.mockImplementation(
+      async (_u: string, farmId: string) =>
+        farmId === 'farm-1' ? ['p1', 'p2'] : ['p3'],
+    );
+    pondsService.findOneAccessible.mockImplementation((id: string) =>
+      Promise.resolve({ id, calculatedAreaM2: 4000, activeCycleId: null }),
+    );
+
+    const ctxs = await svc.getMyContexts('u');
+
+    expect(ctxs.map((c) => c.pondId)).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  it('returns nothing for a user on no farms', async () => {
+    const { svc, farmAccess } = makeService({ accessibleFarms: [] });
+
+    await expect(svc.getMyContexts('nobody')).resolves.toEqual([]);
+    expect(farmAccess.getAccessiblePondIds).not.toHaveBeenCalled();
   });
 });

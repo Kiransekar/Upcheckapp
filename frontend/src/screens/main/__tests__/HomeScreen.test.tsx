@@ -25,7 +25,7 @@ jest.mock('../../../api/farmMembers', () => ({
     farmMembersApi: { listMembers: jest.fn() },
 }));
 jest.mock('../../../api/alertCenter', () => ({
-    alertCenterApi: { liveBriefing: jest.fn(), briefing: jest.fn() },
+    alertCenterApi: { today: jest.fn(), liveBriefing: jest.fn(), briefing: jest.fn() },
 }));
 jest.mock('../../../api/tasks', () => ({
     tasksApi: { getAll: jest.fn() },
@@ -68,6 +68,7 @@ const mockedPondContext = pondContextApi.get as jest.Mock;
 const mockedForFarm = pondContextApi.forFarm as jest.Mock;
 const mockedAttendance = attendanceApi.getAll as jest.Mock;
 const mockedListMembers = farmMembersApi.listMembers as jest.Mock;
+const mockedToday = alertCenterApi.today as jest.Mock;
 const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
 const mockedBriefing = alertCenterApi.briefing as jest.Mock;
 const mockedTasksGetAll = tasksApi.getAll as jest.Mock;
@@ -87,6 +88,7 @@ const POND = { id: 'p1', farmId: 'farm-1', name: 'Pond 1', displayName: 'Pond 1'
 const POND_2 = { id: 'p2', farmId: 'farm-2', name: 'Pond 2', displayName: 'Pond 2' };
 
 const emptyPondContext = {
+    pondId: 'p1',
     doc: null, waterQuality: null, freeAmmoniaMgL: null, abwG: null, livePopulation: null,
     biomassKg: null, crop: null, cumulativeFeedKg: null, runningFcr: null, latestTrayResidue: null,
     lastFeedAt: null, lastTrayAt: null, samplingAt: null,
@@ -126,6 +128,20 @@ const resetMocks = async () => {
     mockedLiveBriefing.mockResolvedValue({ data: [] });
     mockedBriefing.mockResolvedValue({ data: [] });
     mockedTasksGetAll.mockResolvedValue({ data: [] });
+    // GET /alert-center/today is what the screen actually calls now. Compose it
+    // from the same forFarm/liveBriefing fixtures every test already sets, so
+    // the switch to one request did not mean rewriting thirty tests — and so a
+    // fixture change still flows through to whichever path is exercised.
+    mockedToday.mockImplementation(async () => {
+        const farms = (await mockedGetAll()).data ?? [];
+        const perFarm = await Promise.all(farms.map((f: any) => mockedForFarm(f.id)));
+        return {
+            data: {
+                contexts: perFarm.flatMap((r: any) => r.data ?? []),
+                briefing: (await mockedLiveBriefing()).data ?? [],
+            },
+        };
+    });
 };
 
 describe('HomeScreen — farm scope', () => {
@@ -138,7 +154,12 @@ describe('HomeScreen — farm scope', () => {
         useActiveFarmStore.setState({ selectedFarm: FARM } as any);
         mockedForFarm.mockImplementation((farmId: string) =>
             Promise.resolve({
-                data: [{ ...emptyPondContext, cropId: 'c1', biomassKg: farmId === 'farm-1' ? 400 : 600 }],
+                data: [{
+                    ...emptyPondContext,
+                    pondId: farmId === 'farm-1' ? 'p1' : 'p2',
+                    cropId: 'c1',
+                    biomassKg: farmId === 'farm-1' ? 400 : 600,
+                }],
             }),
         );
     });
@@ -154,11 +175,11 @@ describe('HomeScreen — farm scope', () => {
     });
 
     it('narrows to one farm when it is picked from the Filter', async () => {
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         await findByText('All farms');
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // The title is the scope, so the picked farm replaces "All farms".
         await waitFor(() => expect(queryByText('All farms')).toBeNull());
@@ -173,11 +194,11 @@ describe('HomeScreen — farm scope', () => {
             }],
         });
 
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         expect(await findByText('Start the aerators')).toBeTruthy();
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // p1 belongs to farm-1. Leaving it in the hero of farm-2 would tell a
         // farmer the wrong pond is dying.
@@ -185,11 +206,11 @@ describe('HomeScreen — farm scope', () => {
     });
 
     it('counts only what is in scope in the header', async () => {
-        const { findByText, getByText, queryByText } = renderScreen();
+        const { findByText, findAllByText, getByText, queryByText } = renderScreen();
         expect(await findByText(/2 farms · 2 ponds/)).toBeTruthy();
 
         fireEvent.press(getByText('Filter'));
-        fireEvent.press(await findByText('Kakinada East'));
+        fireEvent.press((await findAllByText('Kakinada East'))[0]);
 
         // One farm in scope: saying "2 farms" would contradict the title above it.
         await waitFor(() => expect(queryByText(/2 farms/)).toBeNull());
@@ -291,7 +312,12 @@ describe('HomeScreen — Getting Started checklist', () => {
 
     it('marks items done as their real milestones are met, without hiding until all are', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } }); // ponds: done
-        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } });
+        // "Logged a reading" is read off the Today snapshot now rather than a
+        // per-focus probe of one representative pond, so the fixture that
+        // drives it moved with it.
+        mockedForFarm.mockResolvedValue({
+            data: [{ ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' }],
+        });
         mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }] }); // invite: not done
 
         const { findByText } = renderScreen();
@@ -301,7 +327,12 @@ describe('HomeScreen — Getting Started checklist', () => {
 
     it('disappears entirely once every milestone is complete', async () => {
         mockedGetById.mockResolvedValue({ data: { ...FARM, plannedPondCount: 1 } });
-        mockedPondContext.mockResolvedValue({ data: { ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' } });
+        // "Logged a reading" is read off the Today snapshot now rather than a
+        // per-focus probe of one representative pond, so the fixture that
+        // drives it moved with it.
+        mockedForFarm.mockResolvedValue({
+            data: [{ ...emptyPondContext, lastFeedAt: '2026-07-01T00:00:00.000Z' }],
+        });
         mockedListMembers.mockResolvedValue({ data: [{ id: 'owner-1' }, { id: 'worker-1' }] });
 
         const { queryByText, findByText } = renderScreen();

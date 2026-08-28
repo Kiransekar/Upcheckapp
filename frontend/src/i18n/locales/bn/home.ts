@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "আপনার খামার",
+    overviewStocked: "{{total}} এর {{stocked}} মজুত",
   // HomeScreen
   greeting: 'স্বাগতম,',
   dashboardSummary: 'ড্যাশবোর্ড সারসংক্ষেপ',
@@ -10,6 +12,9 @@ const home = {
   todayFeed: 'আজকের খাবার (kg)',
   noFarmEither: 'নিজের খামার সেট করুন, বা মালিকের কোড দিয়ে একটিতে যোগ দিন।',
   doThisFirst: 'আগে এটি করুন',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} খামার",
+  acrossPonds: "{{pl}} পুকুর",
   oneOfN: '{{n}} এর মধ্যে ১',
   markDone: 'করে ফেলেছি',
   later: 'পরে',

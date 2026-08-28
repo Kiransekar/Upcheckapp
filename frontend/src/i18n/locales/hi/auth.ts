@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Google से जारी रखें",
+    continueWithTruecaller: "Truecaller से जारी रखें",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'झींगा जलकृषि प्रबंधन',

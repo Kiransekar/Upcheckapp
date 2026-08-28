@@ -4,7 +4,6 @@ import { InventoryService } from '../inventory/inventory.service';
 import { FeedRecordsService } from '../feed-records/feed-records.service';
 import { HarvestsService } from '../harvests/harvests.service';
 import { ExpensesService } from '../finances/expenses.service';
-import { RedisService } from '../redis/redis.service';
 import { SamplingService } from '../sampling/sampling.service';
 import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -25,7 +24,6 @@ export class ReportsService {
     private readonly feedRecordsService: FeedRecordsService,
     private readonly harvestsService: HarvestsService,
     private readonly expensesService: ExpensesService,
-    private readonly redisService: RedisService,
     private readonly samplingService: SamplingService,
     private readonly cropsService: CropsService,
     private readonly farmAccess: FarmAccessService,
@@ -46,14 +44,11 @@ export class ReportsService {
     // must own or belong to farmId before we query or cache anything for it.
     await this.farmAccess.assertCanAccessFarm(userId, farmId, 'READ');
 
-    const cacheKey = `dashboard_summary:${userId}:${farmId}`;
-    const cachedData = await this.redisService.get(cacheKey);
-
-    if (cachedData) {
-      return JSON.parse(cachedData);
-    }
-
-    // Execute independent queries concurrently
+    // Deliberately NOT cached. This used to sit behind a 300s TTL with no
+    // invalidation anywhere, so logging feed left `todayFeedUsage` showing the
+    // old number for up to five minutes — a plausible-but-wrong figure, which
+    // is worse than a slightly slower one. The four counts below are already
+    // parallel and indexed; a shorter TTL would not fix the class of bug.
     const [activePondsCount, totalPondsCount, lowStockAlerts, todayFeedUsage] =
       await Promise.all([
         this.pondsService.countActivePonds(farmId),
@@ -62,22 +57,12 @@ export class ReportsService {
         this.feedRecordsService.getDailyFeedUsage(farmId, new Date()),
       ]);
 
-    const summaryData = {
+    return {
       activePondsCount,
       totalPondsCount,
       lowStockAlerts,
       todayFeedUsage,
     };
-
-    // Cache the dashboard summary for 5 minutes (300 seconds)
-    await this.redisService.set(
-      cacheKey,
-      JSON.stringify(summaryData),
-      'EX',
-      300,
-    );
-
-    return summaryData;
   }
 
   async getCycleAnalysis(cycleId: string, userId: string) {

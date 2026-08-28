@@ -37,4 +37,22 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
 // strings under test instead of raw keys.
 import './i18n';
 
+// The read cache is a module singleton, so without this a query cached by one
+// test satisfies the next one from cache and its mocked API is never called —
+// a confusing "toHaveBeenCalled" failure with no obvious cause. Retries are off
+// for the same reason: a test asserting an error state should not wait out a
+// backoff first.
+import { notifyManager } from '@tanstack/react-query';
+import { queryClient } from './query/client';
+// TanStack batches its re-renders through a setTimeout(0) by default, which puts
+// a query result a macrotask behind a plain setState. Every screen test here was
+// written against setState timing; scheduling synchronously under test keeps
+// them honest instead of sprinkling extra waitFors through the suite.
+notifyManager.setScheduler((cb) => cb());
+const defaults = queryClient.getDefaultOptions();
+queryClient.setDefaultOptions({ ...defaults, queries: { ...defaults.queries, retry: false } });
+afterEach(() => {
+    queryClient.clear();
+});
+
 export {};

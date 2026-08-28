@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Google ସହ ଜାରି ରଖନ୍ତୁ",
+    continueWithTruecaller: "Truecaller ସହ ଜାରି ରଖନ୍ତୁ",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'ଚିଙ୍ଗୁଡ଼ି ଜଳକୃଷି ପ୍ରବନ୍ଧନ',

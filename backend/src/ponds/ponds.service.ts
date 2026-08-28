@@ -499,8 +499,21 @@ export class PondsService {
       throw new NotFoundException(`Pond with ID ${id} not found`);
     }
     // Owner fast-path, else delegate to the membership layer.
+    //
+    // POND scope, not just farm scope. This used to call
+    // `farmsService.verifyAccess(pond.farmId, …)`, which asks only "are you on
+    // this farm" — so a worker assigned ponds 1–3 could not WRITE to pond 7
+    // (every write path goes through assertCanAccessPond) but could READ its
+    // full context: biomass, DOC, feed totals, water-quality history. The
+    // write half of per-pond assignment was enforced and the read half was
+    // not, which makes the feature mean less than it says.
+    //
+    // Safe to tighten: `isPondInScope` treats "no scoping rows" as "all
+    // ponds", so this is a no-op for every farm that has not assigned ponds to
+    // anyone — which is all of them today. It starts biting the moment
+    // somebody uses the feature, which is when it should.
     if (!pond.farm || pond.farm.userId !== userId) {
-      await this.farmsService.verifyAccess(pond.farmId, userId, capability);
+      await this.farmAccess.assertCanAccessPond(userId, id, capability);
     }
     return pond;
   }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet } from 'react-native';
 import { Button } from './Button';
 import { theme } from '../../theme';
@@ -10,9 +11,10 @@ interface Props {
 }
 
 export const GoogleLoginButton = ({ onPress, loading }: Props) => {
+    const { t } = useTranslation();
     return (
         <Button
-            title="Continue with Google"
+            title={t('auth.continueWithGoogle')}
             onPress={onPress}
             loading={loading}
             variant="outlined"

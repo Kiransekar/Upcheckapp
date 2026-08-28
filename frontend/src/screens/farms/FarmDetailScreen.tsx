@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { SummaryRow } from '../../components/ui/SummaryRow';
 import { StatRow } from '../../components/ui/StatRow';
 import { Icon, type IconName } from '../../components/ui/Icon';
@@ -31,8 +32,11 @@ import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import {
     buildPondRows,
+    mergeBriefings,
     rollUpFarm,
     sortByHealth,
     pondLabel,
@@ -64,15 +68,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const setSelectedFarm = useActiveFarmStore((s) => s.setSelectedFarm);
     const perms = usePermissions(farmId);
 
-    const [farm, setFarm] = useState<Farm | null>(null);
-    const [ponds, setPonds] = useState<Pond[]>([]);
-    const [contexts, setContexts] = useState<PondContext[]>([]);
-    const [briefing, setBriefing] = useState<BriefingItem[]>([]);
     const [expanded, setExpanded] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [offline, setOffline] = useState(false);
 
     // #37: Home's summary reads the active farm, so opening a specific farm has
     // to sync it — otherwise a multi-farm owner returns to Home still seeing the
@@ -83,36 +79,52 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         }, [farmId, farmName, setSelectedFarm]),
     );
 
-    const load = useCallback(async () => {
-        setError(null);
-        setOffline(false);
-        try {
+    /** One cached, disk-persisted read for the farm and every pond on it. */
+    const query = useAppQuery({
+        queryKey: qk.farm(farmId),
+        queryFn: async () => {
             const [pondsRes, ctxRes, briefingRes, farmRes] = await Promise.all([
                 pondsApi.getAll(farmId, { take: 100 }),
                 // One request for every pond's snapshot — see pondContextApi.forFarm.
                 pondContextApi.forFarm(farmId).catch(() => ({ data: [] as PondContext[] })),
-                alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                // LIVE, merged with the persisted stream — not persisted alone.
+                // The live briefing is recomputed from each pond's latest
+                // reading, so it is the only one that describes the pond NOW;
+                // the persisted stream is notification history and can be
+                // empty for a pond that is currently in a watch band. Reading
+                // only the second is why this screen said "2/2 good" while
+                // Today showed one of the two ponds amber.
+                Promise.all([
+                    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+                    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+                ]).then(([live, persisted]) => ({ data: mergeBriefings(live.data, persisted.data) })),
                 farmsApi.getById(farmId).catch(() => ({ data: null as Farm | null })),
             ]);
             const result: any = pondsRes.data;
-            setPonds(Array.isArray(result) ? result : (result?.data ?? []));
-            setContexts(ctxRes.data);
-            setBriefing(briefingRes.data);
-            setFarm(farmRes.data);
-        } catch (err: any) {
-            if (!err?.response) setOffline(true);
-            setError(err);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [farmId]);
+            return {
+                ponds: (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[],
+                contexts: ctxRes.data,
+                briefing: briefingRes.data,
+                farm: farmRes.data,
+            };
+        },
+        enabled: !!farmId,
+    });
 
+    const farm = query.data?.farm ?? null;
+    const ponds = query.data?.ponds ?? [];
+    const contexts = query.data?.contexts ?? [];
+    const briefing = query.data?.briefing ?? [];
+    // "Failed" and "this farm has no ponds" are different answers — never let a
+    // dead network render as an empty farm.
+    const hasData = query.data != null;
+    const offline = query.isError && !(query.error as any)?.response;
+
+    useRefetchOnFocus(qk.farm(farmId));
     useFocusEffect(
         useCallback(() => {
             loadMemberships();
-            load();
-        }, [load, loadMemberships]),
+        }, [loadMemberships]),
     );
 
     const rows = useMemo(
@@ -170,7 +182,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         />
     );
 
-    if (loading) {
+    if (query.isPending && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
@@ -181,20 +193,15 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         );
     }
 
-    if (offline) {
+    if (query.isError && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
-                <NetworkError onRetry={() => { setLoading(true); load(); }} />
-            </ScreenWrapper>
-        );
-    }
-
-    if (error && !ponds.length) {
-        return (
-            <ScreenWrapper scroll={false} padded={false}>
-                {header}
-                <ErrorState title={t('farms.errorPondsTitle')} error={error} onRetry={() => { setLoading(true); load(); }} />
+                {offline ? (
+                    <NetworkError onRetry={() => query.refetch()} />
+                ) : (
+                    <ErrorState title={t('farms.errorPondsTitle')} error={query.error} onRetry={() => query.refetch()} />
+                )}
             </ScreenWrapper>
         );
     }
@@ -202,13 +209,14 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             {header}
+            <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={() => { setRefreshing(true); load(); }}
+                        refreshing={query.isRefetching}
+                        onRefresh={() => query.refetch()}
                         colors={[theme.roles.light.primary]}
                         tintColor={theme.roles.light.primary}
                     />

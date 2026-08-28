@@ -1,12 +1,21 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import Redis from 'ioredis';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+import Redis, { RedisOptions } from 'ioredis';
 import { ConfigService } from '@nestjs/config';
 
+/** How often the in-memory fallback drops keys whose TTL has passed. */
+const MEMORY_SWEEP_INTERVAL_MS = 60_000;
+
 @Injectable()
-export class RedisService implements OnModuleInit {
+export class RedisService implements OnModuleInit, OnModuleDestroy {
   private client: Redis | null = null;
   private memoryStore: Map<string, { value: string; expiresAt: number }> =
     new Map();
+  private memorySweep: NodeJS.Timeout | null = null;
   private readonly logger = new Logger(RedisService.name);
   private useMemory = false;
 
@@ -23,26 +32,34 @@ export class RedisService implements OnModuleInit {
   }
 
   async onModuleInit() {
+    // REDIS_URL is what render.yaml provisions and .env.example documents, so
+    // it has to win. This service only ever read REDIS_HOST/REDIS_PORT, which
+    // nothing sets — production therefore dialled localhost, failed, and ran
+    // silently on the per-process memory fallback. Host/port stay as the
+    // fallback for anyone whose local setup uses them.
+    const redisUrl = this.configService.get<string>('REDIS_URL');
     const redisHost = this.configService.get<string>('REDIS_HOST', 'localhost');
     const redisPort = this.configService.get<number>('REDIS_PORT', 6379);
 
+    const options: RedisOptions = {
+      lazyConnect: true,
+      // Keep retrying indefinitely (capped backoff) instead of giving up after
+      // 3 tries — a transient outage should self-heal once Redis comes back
+      // rather than pinning the process on the in-memory fallback forever.
+      retryStrategy: (times) => {
+        if (times > 3) {
+          this.enableMemoryFallback(
+            'Redis connection failed, switching to in-memory store.',
+          );
+        }
+        return Math.min(times * 50, 5000);
+      },
+    };
+
     try {
-      this.client = new Redis({
-        host: redisHost,
-        port: redisPort,
-        lazyConnect: true,
-        // Keep retrying indefinitely (capped backoff) instead of giving up after
-        // 3 tries — a transient outage should self-heal once Redis comes back
-        // rather than pinning the process on the in-memory fallback forever.
-        retryStrategy: (times) => {
-          if (times > 3) {
-            this.enableMemoryFallback(
-              'Redis connection failed, switching to in-memory store.',
-            );
-          }
-          return Math.min(times * 50, 5000);
-        },
-      });
+      this.client = redisUrl
+        ? new Redis(redisUrl, options)
+        : new Redis({ ...options, host: redisHost, port: redisPort });
 
       this.client.on('error', (err) => {
         this.logger.warn(`Redis client error: ${err.message}`);
@@ -71,6 +88,7 @@ export class RedisService implements OnModuleInit {
   private enableMemoryFallback(reason: string): void {
     if (this.useMemory) return; // warn once
     this.useMemory = true;
+    this.startMemorySweep();
     this.logger.warn(reason);
     if (process.env.NODE_ENV === 'production') {
       this.logger.warn(
@@ -86,8 +104,40 @@ export class RedisService implements OnModuleInit {
   private handleReconnect(): void {
     if (this.useMemory) {
       this.useMemory = false;
+      this.stopMemorySweep();
+      this.memoryStore.clear();
       this.logger.log('Redis reconnected — leaving in-memory fallback.');
     }
+  }
+
+  /**
+   * Expire memory-store keys on a timer, not only when someone reads them.
+   * `get` alone is not enough: a 2FA temp token or Truecaller nonce that is
+   * minted and never read again would sit in the Map for the life of the
+   * process, which on a 512MB instance is an unbounded leak.
+   */
+  private startMemorySweep(): void {
+    if (this.memorySweep) return;
+    this.memorySweep = setInterval(() => {
+      const now = Date.now();
+      for (const [key, item] of this.memoryStore) {
+        if (item.expiresAt < now) this.memoryStore.delete(key);
+      }
+    }, MEMORY_SWEEP_INTERVAL_MS);
+    // Don't hold the event loop open — this timer must never keep a process
+    // (or a Jest worker) alive on its own.
+    this.memorySweep.unref?.();
+  }
+
+  private stopMemorySweep(): void {
+    if (!this.memorySweep) return;
+    clearInterval(this.memorySweep);
+    this.memorySweep = null;
+  }
+
+  async onModuleDestroy() {
+    this.stopMemorySweep();
+    await this.client?.quit().catch(() => undefined);
   }
 
   async set(

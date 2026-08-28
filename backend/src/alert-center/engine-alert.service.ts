@@ -132,10 +132,18 @@ export class EngineAlertService {
     return drafts;
   }
 
-  /** Live per-pond briefing across all of a user's active ponds. */
-  async liveBriefing(userId: string): Promise<BriefingItem[]> {
+  /**
+   * Every active pond's context across the user's farms.
+   *
+   * Split out of `liveBriefing` so `today` can hand the same contexts to the
+   * client instead of throwing them away: the home screen needs both the
+   * contexts and the alerts derived from them, and computing each pond's
+   * context twice (once here, once via /pond-context) was the single biggest
+   * source of queries on that screen.
+   */
+  private async activeContexts(userId: string): Promise<PondContext[]> {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
-    if (farmIds.length === 0) return this.alertCenter.buildBriefing([]);
+    if (farmIds.length === 0) return [];
 
     const mine = await this.pondRepo.find({
       where: { activeCycleId: Not(IsNull()), farmId: In(farmIds) },
@@ -145,20 +153,24 @@ export class EngineAlertService {
     // 143), but cap concurrency to the pool size (app.module.ts: max: 5) so an
     // N-pond farm doesn't hammer the connection pool.
     const POOL_LIMIT = 5;
-    const drafts: AlertDraft[] = [];
+    const contexts: PondContext[] = [];
     for (let i = 0; i < mine.length; i += POOL_LIMIT) {
       const batch = mine.slice(i, i + POOL_LIMIT);
       const results = await Promise.all(
         batch.map((p) =>
           this.pondContext
             .getContext(p.id, userId)
-            .then((ctx) => this.evaluate(ctx))
-            .catch(() => []), // Skip a pond that errors; don't fail the whole briefing.
+            .catch(() => null), // Skip a pond that errors; don't fail the whole briefing.
         ),
       );
-      for (const r of results) drafts.push(...r);
+      contexts.push(...(results.filter(Boolean) as PondContext[]));
     }
+    return contexts;
+  }
 
+  /** Roll evaluated contexts into the briefing shape the client renders. */
+  private briefingFrom(contexts: PondContext[]): BriefingItem[] {
+    const drafts: AlertDraft[] = contexts.flatMap((ctx) => this.evaluate(ctx));
     return this.alertCenter.buildBriefing(
       drafts.map((d) => ({
         pondId: d.pondId,
@@ -167,5 +179,27 @@ export class EngineAlertService {
         data: { source: d.source, steps: d.steps },
       })),
     );
+  }
+
+  /** Live per-pond briefing across all of a user's active ponds. */
+  async liveBriefing(userId: string): Promise<BriefingItem[]> {
+    return this.briefingFrom(await this.activeContexts(userId));
+  }
+
+  /**
+   * The home screen in one request: the contexts AND the briefing computed
+   * from them.
+   *
+   * The screen used to call /alert-center/live-briefing and /pond-context per
+   * farm, and both walked every active pond's context — the same contexts,
+   * computed twice, roughly 56 queries on a 3-pond account against a pool of
+   * 5. `evaluate` is pure over a context, so this is only a matter of not
+   * discarding what liveBriefing already had in hand.
+   */
+  async today(
+    userId: string,
+  ): Promise<{ contexts: PondContext[]; briefing: BriefingItem[] }> {
+    const contexts = await this.activeContexts(userId);
+    return { contexts, briefing: this.briefingFrom(contexts) };
   }
 }

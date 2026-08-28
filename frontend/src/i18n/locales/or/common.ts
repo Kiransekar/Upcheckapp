@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "କିଛି ଭୁଲ ହୋଇଛି",
+  crashBody: "ଆପରେ ଅପ୍ରତ୍ୟାଶିତ ସମସ୍ୟା। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।",
+  tryAgain: "ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ",
+  noOptions: "କୌଣସି ବିକଳ୍ପ ନାହିଁ",
+  selectPlaceholder: "ବାଛନ୍ତୁ…",
   appName: 'Upcheck',
   save: 'ସଞ୍ଚୟ କରନ୍ତୁ',
   cancel: 'ବାତିଲ',
@@ -53,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}} ରେକର୍ଡ ସିଙ୍କ ହୋଇପାରିଲା ନାହିଁ। ବର୍ତ୍ତମାନ ପୁଣି ଚେଷ୍ଟା କରିବେ?',
   syncFailedBanner: 'ରେକର୍ଡ ଉପରେ ଧ୍ୟାନ ଦିଅନ୍ତୁ',
   syncFailedA11y: '{{count}} ରେକର୍ଡ ସିଙ୍କ ହେଲା ନାହିଁ, ପୁଣି ଚେଷ୍ଟା କରିବାକୁ ଟାପ୍ କରନ୍ତୁ',
+  cachedAsOf: "ସଞ୍ଚିତ ତଥ୍ୟ ଦେଖାଯାଉଛି · {{when}} ସୁଦ୍ଧା",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "ଜାରି ରଖନ୍ତୁ",

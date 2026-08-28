@@ -23,6 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { SummaryRow } from '../../components/ui/SummaryRow';
 import { StatRow, type Stat } from '../../components/ui/StatRow';
@@ -37,6 +38,10 @@ import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pnlApi, type CropPnl } from '../../api/pnl';
 import { useMembershipStore } from '../../store/membershipStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { usePendingRecords } from '../../sync/pending';
+import { formatTime } from '../../utils/formatDate';
 
 /** The create form already names these; the detail view must not re-word them. */
 const SHAPE_KEY: Record<string, string> = {
@@ -112,27 +117,20 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
 
-    const [pond, setPond] = useState<Pond | null>(null);
-    const [cycle, setCycle] = useState<Crop | null>(null);
-    const [context, setContext] = useState<PondContext | null>(null);
-    const [alert, setAlert] = useState<BriefingItem | null>(null);
     const [pnl, setPnl] = useState<CropPnl | null>(null);
     const [mode, setMode] = useState<LogMode>('log');
     const [showAll, setShowAll] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState<any>(null);
-    const [offline, setOffline] = useState(false);
 
-    const perms = usePermissions(pond?.farmId);
-
-    const load = useCallback(async () => {
-        setError(null);
-        setOffline(false);
-        try {
+    /**
+     * The pond, its cycle, its snapshot and its alert — one cached, persisted
+     * read. Offline this paints from the last visit; every figure it shows is
+     * the server's, stamped with the age via CacheNotice below.
+     */
+    const query = useAppQuery({
+        queryKey: qk.pond(pondId),
+        enabled: !!pondId,
+        queryFn: async () => {
             const { data: pondData } = await pondsApi.getById(pondId);
-            setPond(pondData);
-
             // Everything below needs only the pond (and its cycle id), so it all
             // goes out at once rather than in a chain.
             const [ctxRes, cycleRes, briefRes] = await Promise.all([
@@ -142,23 +140,42 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                     : Promise.resolve({ data: null as Crop | null }),
                 alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
             ]);
-            setContext(ctxRes.data);
-            setCycle(cycleRes.data);
-            setAlert(briefRes.data.find((b) => b.pondId === pondId && b.topSeverity !== 'info') ?? null);
-        } catch (err: any) {
-            if (!err?.response) setOffline(true);
-            setError(err);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [pondId]);
+            return {
+                pond: pondData,
+                context: ctxRes.data,
+                cycle: cycleRes.data,
+                alert: briefRes.data.find((b) => b.pondId === pondId && b.topSeverity !== 'info') ?? null,
+            };
+        },
+    });
 
+    const pond = query.data?.pond ?? null;
+    const cycle = query.data?.cycle ?? null;
+    const context = query.data?.context ?? null;
+    const alert = query.data?.alert ?? null;
+    const hasData = query.data != null;
+    const offline = query.isError && !(query.error as any)?.response;
+
+    const perms = usePermissions(pond?.farmId);
+
+    /**
+     * Records this farmer saved against THIS pond that have not reached the
+     * server yet. Without this the pond looked untouched right after a log with
+     * no signal — "Saved — will sync" and then nothing, which is the complaint.
+     *
+     * These are shown as their own rows and are deliberately NOT mixed into the
+     * figures above. See src/sync/pending.ts for why that line must not be
+     * crossed: a queued mortality changing `livePopulation`, or a queued
+     * sampling changing `biomassKg`, would put a confident wrong number in front
+     * of a farmer about to act on it.
+     */
+    const pendingHere = usePendingRecords({ pondId });
+
+    useRefetchOnFocus(qk.pond(pondId));
     useFocusEffect(
         useCallback(() => {
             loadMemberships();
-            load();
-        }, [load, loadMemberships]),
+        }, [loadMemberships]),
     );
 
     // Costs are a separate, permissioned call — a worker never triggers it.
@@ -246,7 +263,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         />
     );
 
-    if (loading) {
+    if (query.isPending && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
@@ -259,20 +276,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         );
     }
 
-    if (offline) {
+    // Only when there is no cached copy at all. With one, the pond renders from
+    // it and CacheNotice says how old it is — a failed read must never look
+    // like an empty pond.
+    if (query.isError && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
-                <NetworkError onRetry={() => { setLoading(true); load(); }} />
-            </ScreenWrapper>
-        );
-    }
-
-    if (error && !pond) {
-        return (
-            <ScreenWrapper scroll={false} padded={false}>
-                {header}
-                <ErrorState title={t('ponds.errorPondTitle')} error={error} onRetry={() => { setLoading(true); load(); }} />
+                {offline ? (
+                    <NetworkError onRetry={() => query.refetch()} />
+                ) : (
+                    <ErrorState title={t('ponds.errorPondTitle')} error={query.error} onRetry={() => query.refetch()} />
+                )}
             </ScreenWrapper>
         );
     }
@@ -283,18 +298,48 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             {header}
+            <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={() => { setRefreshing(true); load(); }}
+                        refreshing={query.isRefetching}
+                        onRefresh={() => query.refetch()}
                         colors={[theme.roles.light.primary]}
                         tintColor={theme.roles.light.primary}
                     />
                 }
             >
+                {/*
+                  * What the farmer logged that the server has not got yet.
+                  * Placed above the figures on purpose: the numbers below are
+                  * the SERVER's, and this row is the honest explanation of why
+                  * they have not moved yet.
+                  */}
+                {pendingHere.length > 0 && (
+                    <>
+                        <SectionHeader
+                            label={t('sync.pendingSectionTitle')}
+                            trailing={pendingHere.length}
+                            actionLabel={t('sync.viewAll')}
+                            onAction={() => navigation.navigate('SyncStatus')}
+                        />
+                        {pendingHere.map((rec) => (
+                            <SummaryRow
+                                key={rec.id}
+                                icon={rec.failed ? 'warning' : 'schedule'}
+                                title={t(`sync.entity_${rec.entity}`, {
+                                    defaultValue: rec.entity.replace(/_/g, ' '),
+                                })}
+                                subtitle={`${t('sync.savedAt', { when: formatTime(rec.createdAt) })} · ${
+                                    rec.failed ? t('sync.needsAttention') : t('sync.pending')
+                                }`}
+                                onPress={() => navigation.navigate('SyncStatus')}
+                            />
+                        ))}
+                    </>
+                )}
                 {/*
                   * The pond's problem, in the engine's own words, above everything
                   * else. "Done" sends them to the log rather than clearing the

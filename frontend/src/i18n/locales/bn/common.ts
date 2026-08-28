@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "কিছু একটা ভুল হয়েছে",
+  crashBody: "অ্যাপে অপ্রত্যাশিত সমস্যা হয়েছে। আবার চেষ্টা করুন।",
+  tryAgain: "আবার চেষ্টা করুন",
+  noOptions: "কোনো বিকল্প নেই",
+  selectPlaceholder: "বাছুন…",
   appName: 'Upcheck',
   save: 'সংরক্ষণ করুন',
   cancel: 'বাতিল',
@@ -53,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}}টি রেকর্ড সিঙ্ক করা যায়নি। এখন আবার চেষ্টা করবেন?',
   syncFailedBanner: 'রেকর্ডে মনোযোগ দিন',
   syncFailedA11y: '{{count}}টি রেকর্ড সিঙ্ক হয়নি, আবার চেষ্টা করতে ট্যাপ করুন',
+  cachedAsOf: "সংরক্ষিত তথ্য দেখানো হচ্ছে · {{when}} পর্যন্ত",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "চালিয়ে যান",
