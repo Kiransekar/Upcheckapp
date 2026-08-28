@@ -256,4 +256,75 @@ describe('NewsIngestionService', () => {
       await expect(service.run()).resolves.toMatchObject({ persisted: 0 });
     });
   });
+
+  /**
+   * The feature shipped with an empty News page: `@Cron(EVERY_HOUR)` fires at
+   * minute :00 only, and the process it runs in is a Render free instance that
+   * sleeps when idle and redeploys on every master commit — so it kept dying
+   * between two ticks without ever ingesting anything.
+   *
+   * Running on boot fixes that, but only safely if §2.6's one-poll-per-hour
+   * budget survives a restart, which the Redis lock alone does not: the Redis
+   * client degrades to a per-process in-memory Map, so every boot starts with
+   * an empty lock. The budget therefore has to live on `last_fetched_at`.
+   */
+  describe('actually running (spec §2.6)', () => {
+    const minutesAgo = (n: number) => new Date(Date.now() - n * 60_000);
+
+    it('ingests on boot rather than waiting for the next top-of-hour tick', async () => {
+      const run = jest.spyOn(service, 'run').mockResolvedValue({} as any);
+
+      service.onApplicationBootstrap();
+      // Nest does not await this hook's work — let the floating promise settle.
+      await Promise.resolve();
+
+      expect(run).toHaveBeenCalledTimes(1);
+    });
+
+    it('never lets a boot-time run take the app down with it', async () => {
+      jest.spyOn(service, 'run').mockRejectedValue(new Error('feeds are down'));
+
+      expect(() => service.onApplicationBootstrap()).not.toThrow();
+      await Promise.resolve();
+    });
+
+    it('does not re-poll a source within the hour once a restart has cleared the Redis lock', async () => {
+      // The exact production shape: lock gone (fresh process on the memory
+      // fallback), but the durable column says we polled ten minutes ago.
+      redis.get.mockResolvedValue(null);
+
+      const stats = await service.ingestSource(
+        source({ lastFetchedAt: minutesAgo(10) }),
+      );
+
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+      expect(stats).toMatchObject({ fetched: 0, persisted: 0 });
+    });
+
+    it('polls again once the hour is actually up', async () => {
+      redis.get.mockResolvedValue(null);
+
+      await service.ingestSource(source({ lastFetchedAt: minutesAgo(60) }));
+
+      expect(mockedAxios.get).toHaveBeenCalled();
+      expect(saved.length).toBeGreaterThan(0);
+    });
+
+    it('polls a source that has never been fetched', async () => {
+      await service.ingestSource(source({ lastFetchedAt: null }));
+
+      expect(mockedAxios.get).toHaveBeenCalled();
+    });
+
+    it('stamps last_fetched_at on a failed poll too, so a dead feed is not retried every boot', async () => {
+      mockedAxios.get.mockRejectedValue(new Error('403 Forbidden'));
+
+      await service.ingestSource(source());
+
+      expect(sources.update).toHaveBeenCalledWith(
+        's1',
+        expect.objectContaining({ lastFetchedAt: expect.any(Date) }),
+      );
+    });
+  });
 });
