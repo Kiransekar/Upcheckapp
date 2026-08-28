@@ -35,6 +35,7 @@ const common = {
   tabFarm: 'Farm',
   tabMoney: 'Money',
   tabTeam: 'Team',
+  tabNews: 'News',
   tabSettings: 'Settings',
   tabDashboard: 'Dashboard',
   tabFarms: 'Farms',

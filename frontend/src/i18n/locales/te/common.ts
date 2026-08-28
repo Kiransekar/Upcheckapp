@@ -35,6 +35,7 @@ const common = {
   tabFarm: 'ఫారం',
   tabMoney: 'డబ్బు',
   tabTeam: 'టీం',
+  tabNews: 'వార్తలు',
   tabSettings: 'సెట్టింగ్‌లు',
   tabDashboard: 'డాష్‌బోర్డ్',
   tabFarms: 'ఫారాలు',
