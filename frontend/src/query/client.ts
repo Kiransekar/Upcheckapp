@@ -36,6 +36,7 @@ import {
 } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { removeOldestQuery } from '@tanstack/query-persist-client-core';
+import { clearOfflineCache } from '../api/offlineCache';
 
 /** A persisted cache older than this is thrown away rather than shown. */
 export const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -43,10 +44,14 @@ export const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 /**
  * Query-key roots written to disk.
  *
- * Farms, ponds and the pond-context/briefing snapshot are what a farmer opens
- * the app to see; money and team are bigger, less urgent, and re-fetch cheaply,
- * so they stay in memory. Adding a root here costs Android storage against a
- * hard 6MB ceiling we cannot raise over the air — weigh it.
+ * Everything a farmer opens the app to see. Adding a root here costs Android
+ * storage against a hard ~6MB ceiling we cannot raise over the air — weigh it,
+ * though the persister now evicts oldest-first rather than failing the whole
+ * write (see `retry` below).
+ *
+ * NOTE: this only covers the 7 screens that read through TanStack. The other
+ * ~89 fetch straight into `useState`; their offline behaviour comes from the
+ * HTTP-layer cache in src/api/offlineCache.ts instead.
  */
 export const PERSISTED_ROOTS = new Set([
     'farms',
@@ -216,6 +221,10 @@ export const clearCachedReads = (): void => {
     // previous user's data.
     queryClient.clear();
     void persister.removeClient();
+    // The HTTP-layer cache holds the same user's responses for the ~89 screens
+    // that never went through TanStack. Leaving it behind would recreate the
+    // shared-device leak this function exists to close.
+    void clearOfflineCache();
 };
 
 export const invalidateForEntity = (entity: string): void => {
