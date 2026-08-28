@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Institutional Notices</title>
+  <link href="https://example-institution.test/"/>
+  <updated>2026-08-19T10:00:00Z</updated>
+  <entry>
+    <title>Registration of aquaculture units: revised procedure</title>
+    <link href="https://example-institution.test/notices/registration-revised"/>
+    <id>tag:example-institution.test,2026:notice-77</id>
+    <updated>2026-08-19T10:00:00Z</updated>
+    <summary>Revised procedure for registration of aquaculture units.</summary>
+    <content type="html">&lt;p&gt;THE FULL NOTICE TEXT, which is still not ours to store.&lt;/p&gt;</content>
+  </entry>
+  <entry>
+    <title>Advisory on white spot syndrome virus in coastal districts</title>
+    <link href="https://example-institution.test/notices/wssv-advisory"/>
+    <id>tag:example-institution.test,2026:notice-78</id>
+    <updated>2026-08-19T11:00:00Z</updated>
+    <summary>Farmers in affected districts are advised on biosecurity measures.</summary>
+  </entry>
+</feed>

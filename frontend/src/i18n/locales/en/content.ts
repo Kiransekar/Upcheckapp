@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: "Couldn't Load Article",
     emptyTitle: 'No News Articles',
     emptySubtitle: 'Check back later for the latest updates.',
+    categories: {
+      market: 'Market & prices',
+      regulation: 'Rules & regulations',
+      disease: 'Disease & health',
+      research: 'Research',
+      production: 'Farming & production',
+      trade: 'Exports & trade',
+    },
+    attribution: 'via {{source}}',
+    readAtSource: 'Read at {{source}}',
+    readFullArticle: 'Read the full article',
+    offlineTitle: 'Showing saved news',
+    offlineMessage: 'No connection — last updated {{date}}.',
+    offlineLink: 'This article needs a connection.',
   },
 };
 

@@ -12,6 +12,7 @@ import {
 import { NewsService } from './news.service';
 import { CreateNewsArticleDto } from './dto/create-news-article.dto';
 import { UpdateNewsArticleDto } from './dto/update-news-article.dto';
+import { ListNewsDto } from './dto/list-news.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/roles.enum';
@@ -29,14 +30,15 @@ export class NewsController {
     return this.newsService.create(createDto);
   }
 
+  /** Paginated, published-only, newest first. `locale` falls back to English. */
   @Get()
-  findAll(@Query('category') category?: string) {
-    return this.newsService.findAll(category);
+  findAll(@Query() query: ListNewsDto) {
+    return this.newsService.findAll(query);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.newsService.findOne(id);
+  findOne(@Param('id') id: string, @Query('locale') locale?: string) {
+    return this.newsService.findOne(id, locale);
   }
 
   @Patch(':id')
