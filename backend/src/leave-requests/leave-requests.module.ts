@@ -12,5 +12,7 @@ import { LeaveRequestsController } from './leave-requests.controller';
   imports: [TypeOrmModule.forFeature([LeaveRequest])],
   controllers: [LeaveRequestsController],
   providers: [LeaveRequestsService],
+  // See AttendanceModule — exported for TeamOverviewModule's batching layer.
+  exports: [LeaveRequestsService],
 })
 export class LeaveRequestsModule {}
