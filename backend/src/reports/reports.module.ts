@@ -23,5 +23,8 @@ import { TransactionsModule } from '../transactions/transactions.module';
   ],
   controllers: [ReportsController],
   providers: [ReportsService],
+  // Exported so MoneyOverviewModule can batch the Money tab's per-farm reports
+  // through the SAME service — and therefore the same VIEW_FINANCIALS check.
+  exports: [ReportsService],
 })
 export class ReportsModule {}

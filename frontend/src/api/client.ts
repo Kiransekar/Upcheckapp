@@ -1,6 +1,7 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import i18n from '../i18n';
+import { readCached, writeCached } from './offlineCache';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
@@ -47,15 +48,62 @@ const processQueue = (error: any, token: string | null = null) => {
     failedQueue = [];
 };
 
+/** The cache key for a request — path plus query, ignoring the host. */
+const cacheKeyFor = (config?: InternalAxiosRequestConfig): string | null => {
+    if (!config || (config.method ?? 'get').toLowerCase() !== 'get') return null;
+    const url = config.url ?? '';
+    if (!url) return null;
+    const params = config.params
+        ? JSON.stringify(config.params, Object.keys(config.params).sort())
+        : '';
+    return `${url}${params}`;
+};
+
 // Response interceptor — handle 401 with refresh
 apiClient.interceptors.response.use(
-    (response) => response,
+    (response) => {
+        // Remember successful GETs so the same read survives losing signal.
+        // Fire-and-forget: a cache write must never delay a response that has
+        // already arrived.
+        const key = cacheKeyFor(response.config as InternalAxiosRequestConfig);
+        if (key) void writeCached(key, response.data);
+        return response;
+    },
     async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-        // No response at all — timeout or no connectivity. Surface a friendly
-        // message instead of axios internals like "timeout of 15000ms exceeded".
+        // No response at all — timeout or no connectivity.
         if (!error.response) {
+            /**
+             * Serve the last-known-good copy rather than an error screen.
+             *
+             * Only 7 of ~96 screens read through TanStack Query; the rest fetch
+             * straight into `useState` and had no cache at all, so losing
+             * signal made them unusable instantly — even for data the farmer
+             * had just been looking at.
+             *
+             * GET only, and only on a NETWORK failure: a 4xx/5xx is the server
+             * answering, and substituting stale data there would hide a real
+             * error. Writes still reject, because they go through the offline
+             * queue in src/sync/, which is what actually guarantees they land.
+             */
+            const key = cacheKeyFor(originalRequest);
+            if (key) {
+                const cached = await readCached(key);
+                if (cached) {
+                    return {
+                        data: cached.data,
+                        status: 200,
+                        statusText: 'OK (offline cache)',
+                        // Screens that care can show the age; the rest just render.
+                        headers: { 'x-upcheck-cached-at': String(cached.at) },
+                        config: originalRequest,
+                        request: null,
+                    } as any;
+                }
+            }
+            // Nothing cached — surface a friendly message instead of axios
+            // internals like "timeout of 15000ms exceeded".
             error.message = i18n.t('common.networkError');
             return Promise.reject(error);
         }
