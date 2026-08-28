@@ -164,6 +164,34 @@ const DEFAULT_QUERY_KEYS: readonly (readonly string[])[] = [['pond'], ['briefing
  * an op lands, which is what stops the farmer having to pull-to-refresh their
  * own reading back into view.
  */
+/**
+ * Drop every cached read, in memory AND on disk.
+ *
+ * Called from `clearSession()`, which is the same choke point that already
+ * clears active-farm, notifications and pending uploads for one reason: this is
+ * a SHARED-DEVICE app. Without this, the persisted roots (farms, ponds, home,
+ * briefing) survive a logout and are rehydrated at the next cold start, so User
+ * B's first paint is User A's farms, biomass and alerts. `staleTime` does not
+ * save us — a refetch replaces that data eventually, but "eventually" is never
+ * if B has no signal, and the stale render is A's private data either way.
+ *
+ * `invalidateForEntity` is deliberately NOT enough here: invalidation marks
+ * data stale but keeps serving it while refetching. On a user switch the old
+ * data must be gone, not merely stale.
+ *
+ * Only reached when the user is genuinely gone — explicit logout, account
+ * deletion, or a refresh token the server rejected. A transient/offline refresh
+ * failure calls `enterOfflineSession()` instead (AUTH-1), so a farmer with no
+ * bars keeps their cache.
+ */
+export const clearCachedReads = (): void => {
+    // Order matters: empty the cache first so any throttled write that lands
+    // after `removeClient()` writes emptiness rather than resurrecting the
+    // previous user's data.
+    queryClient.clear();
+    void persister.removeClient();
+};
+
 export const invalidateForEntity = (entity: string): void => {
     const keys = ENTITY_QUERY_KEYS[entity] ?? DEFAULT_QUERY_KEYS;
     for (const key of keys) {

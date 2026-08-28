@@ -247,6 +247,24 @@ export const HomeScreen = ({ navigation }: any) => {
      * them and must not be spliced in — see src/sync/pending.ts. It shows as a
      * pending row on the pond instead.
      */
+    /**
+     * The age the cache notice reports: the OLDEST of the reads on screen.
+     *
+     * The notice used to quote `farmsQuery` alone, but farms is just the names
+     * — every NUMBER here (biomass, logs today, every pond's band) comes from
+     * the snapshot. Offline they refetch independently, so a farms copy from
+     * 09:00 sitting over a snapshot from 06:00 labelled the whole screen
+     * "09:00". A farmer deciding whether to run the aerators would read a
+     * three-hour-old dissolved-oxygen figure as current.
+     *
+     * `dataUpdatedAt` is 0 for a query that has never resolved; those are
+     * dropped rather than treated as 1970 (which would win every min()).
+     */
+    const oldestUpdatedAt = React.useMemo(() => {
+        const stamps = [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt].filter(Boolean);
+        return stamps.length ? Math.min(...stamps) : 0;
+    }, [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt]);
+
     const bandReady = !!alertsQuery.data && !alertsQuery.isError;
 
     const homeBiomassKg = React.useMemo(() => {
@@ -654,7 +672,7 @@ export const HomeScreen = ({ navigation }: any) => {
             {/* The whole screen is the server's numbers. If they are the last
                 copy rather than a fresh one, say so and say how old. */}
             <CacheNotice
-                updatedAt={farmsQuery.dataUpdatedAt}
+                updatedAt={oldestUpdatedAt}
                 stale={farmsQuery.isError || alertsQuery.isError}
             />
 

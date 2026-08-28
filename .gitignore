@@ -69,3 +69,8 @@ Upcheck_Architecture_UX_Document.docx
 env
 frontend/env
 backend/env
+
+# Vendored agent tooling (Upstash skills) - installed per-developer, not app code
+.claude/skills/
+.claude/worktrees/
+skills-lock.json
