@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: 'ଆର୍ଟିକ୍ଲ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
     emptyTitle: 'କୌଣସି ସମ୍ବାଦ ଆର୍ଟିକ୍ଲ ନାହିଁ',
     emptySubtitle: 'ସର୍ବଶେଷ ଅଦ୍ୟତନ ପାଇଁ ପରେ ଦେଖନ୍ତୁ।',
+    categories: {
+      market: 'ବଜାର ଓ ଦର',
+      regulation: 'ନିୟମ ଓ ବିଧି',
+      disease: 'ରୋଗ ଓ ସ୍ୱାସ୍ଥ୍ୟ',
+      research: 'ଗବେଷଣା',
+      production: 'ଚାଷ ଓ ଉତ୍ପାଦନ',
+      trade: 'ରପ୍ତାନି ଓ ବାଣିଜ୍ୟ',
+    },
+    attribution: '{{source}} ରୁ',
+    readAtSource: '{{source}} ରେ ପଢ଼ନ୍ତୁ',
+    readFullArticle: 'ସମ୍ପୂର୍ଣ୍ଣ ଆର୍ଟିକ୍ଲ ପଢ଼ନ୍ତୁ',
+    offlineTitle: 'ସଞ୍ଚିତ ସମ୍ବାଦ ଦେଖାଯାଉଛି',
+    offlineMessage: 'ସଂଯୋଗ ନାହିଁ — ଶେଷ ଅଦ୍ୟତନ {{date}}।',
+    offlineLink: 'ଏହି ଆର୍ଟିକ୍ଲ ପାଇଁ ଇଣ୍ଟରନେଟ ସଂଯୋଗ ଆବଶ୍ୟକ।',
   },
 };
 

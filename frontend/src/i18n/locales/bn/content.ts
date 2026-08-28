@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: 'নিবন্ধ লোড করা যায়নি',
     emptyTitle: 'কোনো সংবাদ নিবন্ধ নেই',
     emptySubtitle: 'সর্বশেষ আপডেটের জন্য পরে আবার দেখুন।',
+    categories: {
+      market: 'বাজার ও দাম',
+      regulation: 'নিয়ম ও বিধি',
+      disease: 'রোগ ও স্বাস্থ্য',
+      research: 'গবেষণা',
+      production: 'চাষ ও উৎপাদন',
+      trade: 'রপ্তানি ও বাণিজ্য',
+    },
+    attribution: '{{source}} থেকে',
+    readAtSource: '{{source}}-এ পড়ুন',
+    readFullArticle: 'সম্পূর্ণ প্রতিবেদন পড়ুন',
+    offlineTitle: 'সংরক্ষিত খবর দেখানো হচ্ছে',
+    offlineMessage: 'সংযোগ নেই — সর্বশেষ আপডেট {{date}}।',
+    offlineLink: 'এই প্রতিবেদনটির জন্য ইন্টারনেট সংযোগ দরকার।',
   },
 };
 
