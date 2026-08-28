@@ -13,10 +13,16 @@ function makeService(
     tray?: any;
     accessiblePonds?: string[];
     accessibleFarms?: string[];
+    // Batch-path fixtures (whole-farm reads).
+    wqRows?: any[];
+    farmPonds?: any[];
+    crops?: any[];
   } = {},
 ) {
   const samplingRepo = {
     findOne: jest.fn().mockResolvedValue(over.sampling ?? null),
+    // The batch path resolves "latest per crop/pond" with DISTINCT ON.
+    query: jest.fn().mockResolvedValue([]),
   };
   // getContext now sums via SQL (SUM/MAX) instead of loading rows — mock the
   // aggregate query builders to return the same total the row arrays imply.
@@ -27,8 +33,11 @@ function makeService(
   const mortalityRepo = {
     createQueryBuilder: jest.fn(() => ({
       select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ total: mortalityTotal }),
+      getRawMany: jest.fn().mockResolvedValue([]),
     })),
   };
   const feedTotal = (over.feeds ?? []).reduce(
@@ -47,13 +56,39 @@ function makeService(
       select: jest.fn().mockReturnThis(),
       addSelect: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
       getRawOne: jest
         .fn()
         .mockResolvedValue({ totalFeed: feedTotal, lastFeedAt: feedLastAt }),
+      getRawMany: jest.fn().mockResolvedValue([]),
     })),
   };
-  const trayRepo = { findOne: jest.fn().mockResolvedValue(over.tray ?? null) };
-  const wqRepo = { find: jest.fn().mockResolvedValue(over.wqRecords ?? []) };
+  const trayRepo = {
+    findOne: jest.fn().mockResolvedValue(over.tray ?? null),
+    query: jest.fn().mockResolvedValue([]),
+  };
+  const wqRepo = {
+    find: jest.fn().mockResolvedValue(over.wqRecords ?? []),
+    // The batch path reads water quality through a LATERAL join (top-60 per
+    // pond in one statement), not through find().
+    query: jest.fn().mockResolvedValue(over.wqRows ?? []),
+  };
+  // The whole-farm path loads ponds and crops in bulk, by the ids the ACCESS
+  // LAYER already authorised — it does not re-check each pond.
+  const pondRepo = {
+    // Echo back exactly the ids asked for, so a test that changes which ponds
+    // the ACCESS LAYER authorises does not also have to restate the fixture.
+    find: jest.fn().mockImplementation(async (opts: any) => {
+      if (over.farmPonds) return over.farmPonds;
+      const ids: string[] = opts?.where?.id?.value ?? opts?.where?.id?._value ?? [];
+      return ids.map((id) => ({
+        id,
+        calculatedAreaM2: 4000,
+        activeCycleId: null,
+      }));
+    }),
+  };
+  const cropRepo = { find: jest.fn().mockResolvedValue(over.crops ?? []) };
   // Pond context is a dashboard read: it goes through the member-aware
   // helpers at READ, not the owner-only / financial-strict variants.
   const pondsService = {
@@ -76,12 +111,26 @@ function makeService(
     feedRepo as any,
     trayRepo as any,
     wqRepo as any,
+    pondRepo as any,
+    cropRepo as any,
     pondsService as any,
     cropsService as any,
     new ShrimpCalculationsService(),
     farmAccess as any,
   );
-  return { svc, pondsService, cropsService, farmAccess };
+  return {
+    svc,
+    pondsService,
+    cropsService,
+    farmAccess,
+    pondRepo,
+    cropRepo,
+    wqRepo,
+    samplingRepo,
+    trayRepo,
+    mortalityRepo,
+    feedRepo,
+  };
 }
 
 describe('PondContextService', () => {
@@ -263,19 +312,45 @@ describe('PondContextService', () => {
  */
 describe('PondContextService.getFarmContexts', () => {
   it('returns a snapshot per accessible pond, in one call', async () => {
-    const { svc, pondsService } = makeService({
-      accessiblePonds: ['p1', 'p2', 'p3'],
-    });
+    const { svc } = makeService({ accessiblePonds: ['p1', 'p2', 'p3'] });
 
     const ctxs = await svc.getFarmContexts('farm-1', 'u');
 
-    expect(ctxs).toHaveLength(3);
-    expect(pondsService.findOneAccessible).toHaveBeenCalledTimes(3);
-    // Every snapshot went through the per-pond READ check, not a bulk query
-    // that skips it.
-    for (const id of ['p1', 'p2', 'p3']) {
-      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(id, 'u', 'READ');
-    }
+    expect(ctxs.map((c) => c.pondId).sort()).toEqual(['p1', 'p2', 'p3']);
+  });
+
+  // The whole point of the refactor. Previously each pond cost ~7 queries, so
+  // a 43-pond farm issued ~300 round trips to a database on the other side of
+  // the Pacific. If this ever regresses to per-pond work, this test fails.
+  it('costs the SAME number of queries for 3 ponds as for 60', async () => {
+    const countQueries = async (n: number) => {
+      const ids = Array.from({ length: n }, (_, i) => `p${i}`);
+      const svcs = makeService({ accessiblePonds: ids });
+      await svcs.svc.getFarmContexts('farm-1', 'u');
+      return (
+        svcs.pondRepo.find.mock.calls.length +
+        svcs.cropRepo.find.mock.calls.length +
+        svcs.wqRepo.query.mock.calls.length +
+        svcs.samplingRepo.query.mock.calls.length +
+        svcs.trayRepo.query.mock.calls.length +
+        svcs.mortalityRepo.createQueryBuilder.mock.calls.length +
+        svcs.feedRepo.createQueryBuilder.mock.calls.length
+      );
+    };
+
+    expect(await countQueries(60)).toBe(await countQueries(3));
+  });
+
+  it('loads ponds in bulk rather than one at a time', async () => {
+    const { svc, pondsService, pondRepo } = makeService({
+      accessiblePonds: ['p1', 'p2', 'p3'],
+    });
+
+    await svc.getFarmContexts('farm-1', 'u');
+
+    expect(pondRepo.find).toHaveBeenCalledTimes(1);
+    // The per-pond re-read is exactly the cost this removes.
+    expect(pondsService.findOneAccessible).not.toHaveBeenCalled();
   });
 
   it('asks the access layer for the pond set — never the farm wholesale', async () => {
@@ -293,54 +368,33 @@ describe('PondContextService.getFarmContexts', () => {
   it('returns nothing for someone with no access to the farm', async () => {
     // A pond-scoped worker on another farm, or a non-member: the access layer
     // hands back an empty set and no pond is ever read.
-    const { svc, pondsService } = makeService({ accessiblePonds: [] });
+    const { svc, pondRepo } = makeService({ accessiblePonds: [] });
 
     expect(await svc.getFarmContexts('farm-1', 'stranger')).toEqual([]);
-    expect(pondsService.findOneAccessible).not.toHaveBeenCalled();
+    expect(pondRepo.find).not.toHaveBeenCalled();
   });
 
-  it('drops a pond that fails rather than failing the whole farm', async () => {
-    const { svc, pondsService } = makeService({
-      accessiblePonds: ['ok', 'gone'],
-    });
-    pondsService.findOneAccessible.mockImplementation((id: string) =>
-      id === 'gone'
-        ? Promise.reject(new Error('deleted mid-flight'))
-        : Promise.resolve({ id, calculatedAreaM2: 4000, activeCycleId: null }),
-    );
+  /**
+   * Access now comes SOLELY from getAccessiblePondIds, which resolves the
+   * farm-level capability AND per-pond scoping (getScopedPondIds) before
+   * returning. Dropping the redundant per-pond re-check is only safe because
+   * of that, so this locks in that ponds are loaded strictly by the ids the
+   * access layer authorised — never by farm.
+   */
+  it('loads only the ponds the access layer authorised', async () => {
+    const { svc, pondRepo } = makeService({ accessiblePonds: ['ok'] });
 
-    const ctxs = await svc.getFarmContexts('farm-1', 'u');
+    await svc.getFarmContexts('farm-1', 'scoped-worker');
 
-    expect(ctxs).toHaveLength(1);
-    expect(ctxs[0].pondId).toBe('ok');
+    const where = pondRepo.find.mock.calls[0][0].where;
+    expect(where.id._value ?? where.id.value).toEqual(['ok']);
+    // Never "every pond on the farm".
+    expect(where.farmId).toBeUndefined();
   });
 
-  it('chunks a large farm instead of putting every query in flight at once', async () => {
-    // 45 ponds × ~7 queries each would be ~315 concurrent statements against a
-    // pool of 20. The chunk is sized TO the pool (20) rather than below it —
-    // the goal is to keep the pool busy, not idle — so this asserts the bound
-    // still exists, not that it is small. 45 forces more than one chunk.
-    const ids = Array.from({ length: 45 }, (_, i) => `p${i}`);
-    const { svc, pondsService } = makeService({ accessiblePonds: ids });
-
-    let inFlight = 0;
-    let peak = 0;
-    pondsService.findOneAccessible.mockImplementation((id: string) => {
-      inFlight += 1;
-      peak = Math.max(peak, inFlight);
-      return new Promise((resolve) =>
-        setImmediate(() => {
-          inFlight -= 1;
-          resolve({ id, calculatedAreaM2: 4000, activeCycleId: null });
-        }),
-      );
-    });
-
-    const ctxs = await svc.getFarmContexts('farm-1', 'u');
-
-    expect(ctxs).toHaveLength(45);
-    expect(peak).toBeLessThanOrEqual(20);
-  });
+  // The old "chunks a large farm" test is gone with the chunking it guarded:
+  // work is no longer proportional to pond count, so there is nothing left to
+  // chunk. The constant-query-count test above is its replacement.
 });
 
 /**
@@ -378,15 +432,11 @@ describe('PondContextService.getContext — access', () => {
     );
   });
 
-  it('drops a pond the caller cannot read from a farm-wide fetch, without failing the rest', async () => {
-    const { svc, pondsService } = makeService({
-      accessiblePonds: ['ok', 'denied'],
-    });
-    pondsService.findOneAccessible.mockImplementation((id: string) =>
-      id === 'denied'
-        ? Promise.reject(new ForbiddenException('nope'))
-        : Promise.resolve({ id, calculatedAreaM2: 4000, activeCycleId: null }),
-    );
+  // A pond the caller may not read is now excluded UPSTREAM, by
+  // getAccessiblePondIds, rather than fetched and then refused per pond. The
+  // observable guarantee is unchanged: it never reaches the response.
+  it('never returns a pond the access layer withheld', async () => {
+    const { svc } = makeService({ accessiblePonds: ['ok'] });
 
     const ctxs = await svc.getFarmContexts('farm-1', 'worker');
 
