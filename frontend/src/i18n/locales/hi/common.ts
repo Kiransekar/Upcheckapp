@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "कुछ गड़बड़ हो गई",
+  crashBody: "ऐप में अनपेक्षित समस्या आई। फिर कोशिश करें।",
+  tryAgain: "फिर कोशिश करें",
+  noOptions: "कोई विकल्प नहीं",
+  selectPlaceholder: "चुनें…",
   appName: 'Upcheck',
   save: 'सहेजें',
   cancel: 'रद्द करें',
@@ -53,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}} रिकॉर्ड सिंक नहीं हो सके। अभी पुनः प्रयास करें?',
   syncFailedBanner: 'रिकॉर्ड पर ध्यान दें',
   syncFailedA11y: '{{count}} रिकॉर्ड सिंक नहीं हुए, पुनः प्रयास के लिए टैप करें',
+  cachedAsOf: "सहेजा गया डेटा दिख रहा है · {{when}} तक",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "जारी रखें",

@@ -238,6 +238,9 @@ export const SettingsScreen = ({ navigation }: any) => {
                 ))}
 
                 <SectionHeader label={t('settings.about')} />
+                {/* "Is my data saved?" needs an answer that is always reachable,
+                    not one that only appears while something is stuck. */}
+                <Row row={{ key: 'sync', icon: 'schedule', label: t('sync.title'), route: 'SyncStatus' }} />
                 <Row row={{ key: 'help', icon: 'lightbulb', label: t('home.moreHelp'), route: 'Help' }} />
                 {/*
                   * Directly under Help & Support, and with a subtitle — this is

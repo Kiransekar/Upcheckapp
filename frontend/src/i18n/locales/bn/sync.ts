@@ -1,0 +1,37 @@
+const sync = {
+  title: 'সিঙ্ক',
+  stateOnline: 'সংযুক্ত',
+  viewAll: 'সব ›',
+
+  pendingSectionTitle: 'সিঙ্ক হওয়ার অপেক্ষায়',
+  pending: 'সিঙ্ক হওয়ার অপেক্ষায়',
+  needsAttention: 'মনোযোগ প্রয়োজন',
+  savedAt: '{{when}}-এ সংরক্ষিত',
+
+  needsAttentionSection: 'মনোযোগ প্রয়োজন',
+  needsAttentionBody: 'এগুলি এই ফোনে সংরক্ষিত আছে, কিন্তু সার্ভার গ্রহণ করেনি। কিছুই হারায়নি — আবার চেষ্টা করুন, বা সমস্যাটি জানান।',
+  waitingSection: 'সিঙ্ক হওয়ার অপেক্ষায়',
+  waitingBodyOnline: 'এই ফোনে সংরক্ষিত। পটভূমিতে পাঠানো হবে।',
+  waitingBodyOffline: 'এই ফোনে সংরক্ষিত। সিগন্যাল পেলেই পাঠানো হবে।',
+  syncNow: 'এখনই সিঙ্ক করুন',
+  allSyncedTitle: 'সবকিছু সিঙ্ক হয়ে গেছে',
+  allSyncedSubtitle: 'এই ফোনে কিছুই অপেক্ষায় নেই।',
+  lastSynced: 'শেষ সিঙ্ক {{when}}',
+  footnote: 'বায়োমাস ও বেঁচে থাকার হারের মতো মোট হিসাব সার্ভারে করা হয়, তাই রেকর্ড সিঙ্ক হওয়ার পরেই সেগুলি বদলায়।',
+
+  entity_water_quality: 'জলের গুণমান রিডিং',
+  entity_feed: 'খাদ্য রেকর্ড',
+  entity_sampling: 'স্যাম্পলিং',
+  entity_mortality: 'মৃত্যুহার',
+  entity_harvest: 'ফসল সংগ্রহ',
+  entity_treatment: 'চিকিৎসা',
+  entity_chemical: 'রাসায়নিক প্রয়োগ',
+  entity_disease: 'রোগ রেকর্ড',
+  entity_plankton: 'প্ল্যাঙ্কটন পরীক্ষা',
+  entity_microbiology: 'অণুজীব পরীক্ষা',
+  entity_measurement: 'পরিমাপ',
+  entity_feeding_tray_check: 'খাদ্য ট্রে পরীক্ষা',
+  entity_attendance: 'উপস্থিতি',
+  entity_leave_request: 'ছুটির আবেদন',
+};
+export default sync;

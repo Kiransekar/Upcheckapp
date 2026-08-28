@@ -7,6 +7,7 @@ import {
     sortByHealth,
     rollUpFarm,
     buildPondRows,
+    mergeBriefings,
     type PondWithHealth,
 } from '../pondHealth';
 import type { Pond } from '../../api/ponds';
@@ -183,5 +184,80 @@ describe('buildPondRows', () => {
         );
         expect(rows[0].context).toBeNull();
         expect(rows[1].context?.biomassKg).toBe(690);
+    });
+});
+
+/**
+ * The reported contradiction: a farm page saying "2/2 good" while Today showed
+ * one of those two ponds amber. The farm screens judged health from the
+ * PERSISTED briefing alone; Today merged it with the live one. They were
+ * answering different questions and only one of them was about right now.
+ */
+describe('mergeBriefings', () => {
+    const item = (over: Partial<BriefingItem>): BriefingItem => ({
+        pondId: 'p1',
+        topTitle: 'Low oxygen',
+        topSeverity: 'watch',
+        source: 'wq',
+        steps: [],
+        alertCount: 1,
+        ...over,
+    });
+
+    it('keeps a pond the LIVE briefing flags but the persisted one has never heard of', () => {
+        const out = mergeBriefings([item({ pondId: 'p1' })], []);
+
+        // This is the whole bug: persisted-only screens saw nothing here and
+        // rendered the pond as healthy.
+        expect(out).toHaveLength(1);
+        expect(out[0].pondId).toBe('p1');
+    });
+
+    it('takes the higher severity when both sources know the pond', () => {
+        const out = mergeBriefings(
+            [item({ topSeverity: 'critical' })],
+            [item({ topSeverity: 'watch' })],
+        );
+
+        expect(out).toHaveLength(1);
+        expect(out[0].topSeverity).toBe('critical');
+    });
+
+    // Two sources flagging one pond is two reasons to look at it, and the count
+    // is what breaks ties in the hero's ranking.
+    it('adds the counts rather than picking one', () => {
+        const out = mergeBriefings(
+            [item({ alertCount: 2 })],
+            [item({ alertCount: 3 })],
+        );
+
+        expect(out[0].alertCount).toBe(5);
+    });
+
+    it('sorts worst first, so callers can take the top without re-sorting', () => {
+        const out = mergeBriefings(
+            [
+                item({ pondId: 'p1', topSeverity: 'info' }),
+                item({ pondId: 'p2', topSeverity: 'critical' }),
+                item({ pondId: 'p3', topSeverity: 'watch' }),
+            ],
+            [],
+        );
+
+        expect(out.map((o) => o.pondId)).toEqual(['p2', 'p3', 'p1']);
+    });
+
+    // A farm-wide alert carries no pondId, so it cannot be keyed by pond —
+    // without a distinct key two different farm-wide alerts would collapse.
+    it('keeps two different farm-wide alerts apart', () => {
+        const out = mergeBriefings(
+            [
+                item({ pondId: null, source: 'inventory', topTitle: 'Feed low' }),
+                item({ pondId: null, source: 'weather', topTitle: 'Storm coming' }),
+            ],
+            [],
+        );
+
+        expect(out).toHaveLength(2);
     });
 });

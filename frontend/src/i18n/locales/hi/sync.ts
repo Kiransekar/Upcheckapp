@@ -1,0 +1,37 @@
+const sync = {
+  title: 'सिंक',
+  stateOnline: 'जुड़ा हुआ',
+  viewAll: 'सभी ›',
+
+  pendingSectionTitle: 'सिंक होना बाकी',
+  pending: 'सिंक होना बाकी',
+  needsAttention: 'ध्यान देने की ज़रूरत',
+  savedAt: '{{when}} पर सहेजा गया',
+
+  needsAttentionSection: 'ध्यान देने की ज़रूरत',
+  needsAttentionBody: 'ये इस फ़ोन में सहेजे गए हैं लेकिन सर्वर ने इन्हें स्वीकार नहीं किया। कुछ भी खोया नहीं है — दोबारा कोशिश करें, या समस्या की सूचना दें।',
+  waitingSection: 'सिंक होना बाकी',
+  waitingBodyOnline: 'इस फ़ोन में सहेजे गए। ये पृष्ठभूमि में भेजे जाएँगे।',
+  waitingBodyOffline: 'इस फ़ोन में सहेजे गए। सिग्नल मिलते ही ये भेज दिए जाएँगे।',
+  syncNow: 'अभी सिंक करें',
+  allSyncedTitle: 'सब कुछ सिंक हो चुका है',
+  allSyncedSubtitle: 'इस फ़ोन पर कुछ भी बाकी नहीं है।',
+  lastSynced: 'अंतिम सिंक {{when}}',
+  footnote: 'बायोमास और उत्तरजीविता जैसे कुल आँकड़े सर्वर पर निकाले जाते हैं, इसलिए रिकॉर्ड सिंक होने के बाद ही वे बदलते हैं।',
+
+  entity_water_quality: 'जल गुणवत्ता रीडिंग',
+  entity_feed: 'फ़ीड रिकॉर्ड',
+  entity_sampling: 'सैंपलिंग',
+  entity_mortality: 'मृत्यु दर',
+  entity_harvest: 'कटाई',
+  entity_treatment: 'उपचार',
+  entity_chemical: 'रसायन प्रयोग',
+  entity_disease: 'रोग रिकॉर्ड',
+  entity_plankton: 'प्लवक जाँच',
+  entity_microbiology: 'सूक्ष्मजीव परीक्षण',
+  entity_measurement: 'माप',
+  entity_feeding_tray_check: 'फ़ीड ट्रे जाँच',
+  entity_attendance: 'उपस्थिति',
+  entity_leave_request: 'छुट्टी अनुरोध',
+};
+export default sync;

@@ -1,4 +1,24 @@
 const history = {
+  // Metric labels. Chemical notation (NH₃, NO₂, Ca…) and the Latin genus
+  // names Vibrio / Bacillus stay untranslated: they are the vocabulary the
+  // industry already uses, and localising them would make a pill LESS
+  // recognisable, not more. Only the plain-English words around them move.
+  waterQualityMetricAmmonia: "Ammonia",
+  waterQualityMetricNitrite: "Nitrite",
+  waterQualityMetricAlkalinity: "Alkalinity",
+  chemAlkalinity: "Alk",
+  chemHardness: "Hard",
+  microTotalVibrio: "Total Vibrio",
+  microYellowVibrio: "Yellow Vibrio",
+  microGreenVibrio: "Green Vibrio",
+  microLuminescent: "Luminescent",
+  planktonGreenAlgae: "Green algae",
+  planktonProtozoa: "Protozoa",
+  planktonZoo: "Zooplankton",
+  planktonGoldBrown: "Gold-brown",
+  planktonGoldGreen: "Gold-green",
+  planktonYellowGreen: "Yellow-green",
+  planktonOther: "Other",
   // ── Shared across all history screens ─────────────────────────────────────
   couldNotLoad: "Couldn't Load Records",
 

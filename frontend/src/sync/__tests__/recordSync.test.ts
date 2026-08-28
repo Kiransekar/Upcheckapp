@@ -5,7 +5,7 @@ jest.mock('../../api/client', () => ({
 }));
 
 import apiClient from '../../api/client';
-import { useSyncStore } from '../../store/syncStore';
+import { useSyncStore, RETRY_COUNT_INTERVAL_MS } from '../../store/syncStore';
 import { saveRecord, replayQueuedOp } from '../recordSync';
 
 const mockedPost = apiClient.post as jest.Mock;
@@ -127,14 +127,49 @@ describe('syncStore.drainQueue behaviour', () => {
         expect(useSyncStore.getState().failedOperations).toHaveLength(1);
     });
 
-    it('caps retries — a poison op is parked after MAX_SYNC_RETRIES (SYNC-3)', async () => {
+    it('caps retries — a poison op is parked after MAX_SYNC_RETRIES of SPACED attempts (SYNC-3)', async () => {
+        enqueue();
+        const realNow = Date.now;
+        let clock = realNow();
+        jest.spyOn(Date, 'now').mockImplementation(() => clock);
+        try {
+            for (let i = 0; i < 10; i++) {
+                useSyncStore.getState().setStatus('online');
+                await useSyncStore.getState().drainQueue(async () => 'retry');
+                clock += RETRY_COUNT_INTERVAL_MS; // a genuinely separate attempt
+            }
+        } finally {
+            (Date.now as jest.Mock).mockRestore();
+        }
+        expect(useSyncStore.getState().queue).toHaveLength(0);          // no infinite ping-pong
+        expect(useSyncStore.getState().failedOperations).toHaveLength(1); // parked, visible
+    });
+
+    // The bug this guards: NetInfo fires a drain on every cell handoff, so a
+    // Render cold start serving 502s across five handoffs used to park a
+    // perfectly valid record as "needs attention" — which reads to the farmer
+    // as THEIR data being wrong.
+    it('a burst of reconnect-driven drains does NOT spend the retry budget', async () => {
         enqueue();
         for (let i = 0; i < 10; i++) {
             useSyncStore.getState().setStatus('online');
             await useSyncStore.getState().drainQueue(async () => 'retry');
         }
-        expect(useSyncStore.getState().queue).toHaveLength(0);          // no infinite ping-pong
-        expect(useSyncStore.getState().failedOperations).toHaveLength(1); // parked, visible
+        expect(useSyncStore.getState().failedOperations).toHaveLength(0); // still trusted
+        expect(useSyncStore.getState().queue).toHaveLength(1);
+        expect(useSyncStore.getState().queue[0].retryCount).toBe(1);     // one counted attempt
+    });
+
+    it('reports the entities that actually landed, so caches can be invalidated', async () => {
+        enqueue();
+        const synced = await useSyncStore.getState().drainQueue(async () => 'done');
+        expect(synced).toEqual(['feed']);
+    });
+
+    it('reports nothing when an op only failed', async () => {
+        enqueue();
+        const synced = await useSyncStore.getState().drainQueue(async () => 'failed');
+        expect(synced).toEqual([]);
     });
 
     it('only replays ops owned by the current user (SYNC-4)', async () => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { StyleSheet, View } from 'react-native';
 import { Button } from './Button';
 import { theme } from '../../theme';
@@ -11,9 +12,10 @@ interface Props {
 }
 
 export const TruecallerLoginButton = ({ onPress, loading, disabled }: Props) => {
+  const { t } = useTranslation();
   return (
     <Button
-      title="Continue with Truecaller"
+      title={t('auth.continueWithTruecaller')}
       onPress={onPress}
       loading={loading}
       disabled={disabled}

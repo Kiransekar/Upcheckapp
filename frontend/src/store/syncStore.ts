@@ -14,6 +14,30 @@ export type SyncStatus = 'online' | 'offline' | 'syncing';
 // poison op ping-pongs between queues forever (SYNC-3).
 export const MAX_SYNC_RETRIES = 5;
 
+/**
+ * A failed attempt only COUNTS against the cap above once this long has passed
+ * since the last counted one.
+ *
+ * The budget used to burn per drain, and NetInfo fires a drain on every cell
+ * handoff — so a farmer walking between two towers while the Render free-tier
+ * backend cold-starts could park five perfectly valid records as "needs
+ * attention" inside a minute. To the farmer that reads as THEIR data being
+ * wrong. Counting spaced attempts instead means the cap still catches a
+ * genuinely poisonous op (five failures over ~an hour of connectivity) without
+ * ever punishing a flaky commute.
+ */
+export const RETRY_COUNT_INTERVAL_MS = 15 * 60 * 1000;
+
+/**
+ * Pause between ops in a drain. Twenty queued records used to hit a
+ * cold-starting Render as fast as the radio allowed, against a 5-connection
+ * pool. Nobody is watching a background drain, so a few seconds of politeness
+ * costs the farmer nothing and costs the backend a lot less.
+ */
+export const DRAIN_OP_DELAY_MS = 250;
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export type QueuedOperation = {
     id: string;
     type: 'CREATE' | 'UPDATE' | 'DELETE';
@@ -28,6 +52,12 @@ export type QueuedOperation = {
     userId?: string;
     retryCount: number;
     createdAt: string;
+    /**
+     * When this op last had a failure COUNTED against its retry budget (not
+     * when it was last attempted). See RETRY_COUNT_INTERVAL_MS — the gap is
+     * what stops a burst of reconnects from eating the budget.
+     */
+    retryCountedAt?: string;
 };
 
 /**
@@ -66,8 +96,14 @@ interface SyncState {
      * MAX_SYNC_RETRIES); 'failed' ops are parked immediately. When `currentUserId`
      * is given, only ops owned by that user (or legacy ops with no owner) replay.
      * No-ops when offline or already syncing.
+     *
+     * Returns the DISTINCT entities that actually landed this drain. Nothing
+     * used to observe a successful drain at all — `lastSyncedAt` was written
+     * and no screen read it — so a record synced in the background stayed
+     * invisible until the farmer pulled to refresh. The caller uses this to
+     * invalidate the affected reads.
      */
-    drainQueue: (handler: DrainHandler, currentUserId?: string) => Promise<void>;
+    drainQueue: (handler: DrainHandler, currentUserId?: string) => Promise<string[]>;
 }
 
 export const useSyncStore = create<SyncState>()(
@@ -115,7 +151,9 @@ export const useSyncStore = create<SyncState>()(
             incrementRetry: (id) =>
                 set((state) => ({
                     queue: state.queue.map((o) =>
-                        o.id === id ? { ...o, retryCount: o.retryCount + 1 } : o,
+                        o.id === id
+                            ? { ...o, retryCount: o.retryCount + 1, retryCountedAt: new Date().toISOString() }
+                            : o,
                     ),
                 })),
 
@@ -124,7 +162,14 @@ export const useSyncStore = create<SyncState>()(
             // infinite loop); the drain retries in-queue ops on its own.
             retryFailed: () =>
                 set((state) => ({
-                    queue: [...state.queue, ...state.failedOperations.map((o) => ({ ...o, retryCount: 0 }))],
+                    queue: [
+                        ...state.queue,
+                        ...state.failedOperations.map((o) => ({
+                            ...o,
+                            retryCount: 0,
+                            retryCountedAt: undefined,
+                        })),
+                    ],
                     failedOperations: [],
                 })),
 
@@ -134,9 +179,10 @@ export const useSyncStore = create<SyncState>()(
 
             drainQueue: async (handler, currentUserId) => {
                 const state = get();
-                if (!state.isConnected || state.status === 'syncing') return;
-                if (state.queue.length === 0) return;
+                if (!state.isConnected || state.status === 'syncing') return [];
+                if (state.queue.length === 0) return [];
 
+                const synced = new Set<string>();
                 set({ status: 'syncing' });
                 // Snapshot the queue so concurrent enqueues during drain are safe.
                 // Only replay ops owned by the active user (SYNC-4); legacy ops with
@@ -145,7 +191,12 @@ export const useSyncStore = create<SyncState>()(
                     (op) => !currentUserId || !op.userId || op.userId === currentUserId,
                 );
 
-                for (const op of opsToProcess) {
+                for (let i = 0; i < opsToProcess.length; i++) {
+                    const op = opsToProcess[i];
+                    // Space the ops out — see DRAIN_OP_DELAY_MS. Between, not
+                    // before, so a single queued record still syncs instantly.
+                    if (i > 0) await sleep(DRAIN_OP_DELAY_MS);
+
                     let outcome: DrainOutcome;
                     try {
                         outcome = await handler(op);
@@ -154,6 +205,7 @@ export const useSyncStore = create<SyncState>()(
                     }
 
                     if (outcome === 'done') {
+                        synced.add(op.entity);
                         get().dequeue(op.id);
                     } else if (outcome === 'failed') {
                         get().markFailed(op.id); // permanent → park as visible, never drop
@@ -167,9 +219,21 @@ export const useSyncStore = create<SyncState>()(
                         // if NetInfo hasn't fired yet a server-side 5xx still counts. Fine —
                         // the cap is meant to catch persistent server rejects, not outages.
                         if (!get().isConnected) break;
-                        // Keep retrying until the cap, then park it.
+                        // Keep retrying until the cap, then park it — but only
+                        // count a failure that is genuinely SPACED from the last
+                        // counted one (RETRY_COUNT_INTERVAL_MS). A burst of
+                        // reconnect-triggered drains against a cold-starting
+                        // backend must not spend the budget of a valid record.
                         const cur = get().queue.find((o) => o.id === op.id);
-                        if (cur && cur.retryCount + 1 >= MAX_SYNC_RETRIES) {
+                        if (!cur) continue;
+                        const lastCounted = cur.retryCountedAt ? Date.parse(cur.retryCountedAt) : null;
+                        const counts =
+                            lastCounted == null ||
+                            Number.isNaN(lastCounted) ||
+                            Date.now() - lastCounted >= RETRY_COUNT_INTERVAL_MS;
+                        if (!counts) continue;
+
+                        if (cur.retryCount + 1 >= MAX_SYNC_RETRIES) {
                             get().markFailed(op.id);
                         } else {
                             get().incrementRetry(op.id);
@@ -182,6 +246,7 @@ export const useSyncStore = create<SyncState>()(
                     status: nowConnected ? 'online' : 'offline',
                     lastSyncedAt: new Date().toISOString(),
                 });
+                return [...synced];
             },
         }),
         {

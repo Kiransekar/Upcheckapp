@@ -4,16 +4,18 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Task } from './task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { FarmAccessService } from '../farm-access/farm-access.service';
 
 @Injectable()
 export class TasksService {
   constructor(
     @InjectRepository(Task)
     private tasksRepository: Repository<Task>,
+    private readonly farmAccess: FarmAccessService,
   ) {}
 
   async create(createDto: CreateTaskDto, createdById?: string) {
@@ -64,6 +66,31 @@ export class TasksService {
   ) {
     const where: Record<string, string> = {};
     if (filters.farmId) where.farmId = filters.farmId;
+    if (filters.status) where.status = filters.status;
+    if (filters.assignedToId) where.assignedToId = filters.assignedToId;
+    return this.tasksRepository.find({
+      where,
+      order: { status: 'ASC', dueDate: 'ASC', createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Tasks across ALL the caller's farms.
+   *
+   * `GET /tasks` is guarded by `@OwnsResource('Farm', 'farmId', …)`, so a
+   * client wanting "my tasks" had to call it once per farm. This scopes by
+   * `getAccessibleFarmIds` instead — same convention as `GET /ponds/mine` —
+   * which is also why it needs no route guard: a non-member's farm list is
+   * empty, so the query is empty.
+   */
+  async findMine(
+    userId: string,
+    filters: { status?: string; assignedToId?: string } = {},
+  ) {
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    if (farmIds.length === 0) return [];
+
+    const where: Record<string, unknown> = { farmId: In(farmIds) };
     if (filters.status) where.status = filters.status;
     if (filters.assignedToId) where.assignedToId = filters.assignedToId;
     return this.tasksRepository.find({

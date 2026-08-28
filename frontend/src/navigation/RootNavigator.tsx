@@ -87,6 +87,7 @@ import { DeleteAccountScreen } from '../screens/settings/DeleteAccountScreen';
 import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
 import { HelpScreen } from '../screens/settings/HelpScreen';
 import { ReportIssueScreen } from '../screens/settings/ReportIssueScreen';
+import { SyncStatusScreen } from '../screens/settings/SyncStatusScreen';
 import { FeedbackDetailScreen } from '../screens/settings/FeedbackDetailScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
 import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
@@ -217,6 +218,7 @@ export type RootStackParamList = {
     Notifications: undefined;
     Help: undefined;
     ReportIssue: undefined;
+    SyncStatus: undefined;
     FeedbackDetail: { id: string };
     About: undefined;
     Inventory: undefined;
@@ -432,6 +434,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="Notifications" component={NotificationsScreen} />
                     <Stack.Screen name="Help" component={HelpScreen} />
                     <Stack.Screen name="ReportIssue" component={ReportIssueScreen} />
+                    <Stack.Screen name="SyncStatus" component={SyncStatusScreen} />
                     <Stack.Screen name="FeedbackDetail" component={FeedbackDetailScreen} />
                     <Stack.Screen name="About" component={AboutScreen} />
                     <Stack.Screen name="Inventory" component={InventoryListScreen} />

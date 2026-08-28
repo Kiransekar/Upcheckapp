@@ -1,0 +1,37 @@
+const sync = {
+  title: 'ஒத்திசைவு',
+  stateOnline: 'இணைக்கப்பட்டுள்ளது',
+  viewAll: 'அனைத்தும் ›',
+
+  pendingSectionTitle: 'ஒத்திசைக்க காத்திருக்கிறது',
+  pending: 'ஒத்திசைக்க காத்திருக்கிறது',
+  needsAttention: 'கவனம் தேவை',
+  savedAt: '{{when}} இல் சேமிக்கப்பட்டது',
+
+  needsAttentionSection: 'கவனம் தேவை',
+  needsAttentionBody: 'இவை இந்த ஃபோனில் சேமிக்கப்பட்டுள்ளன, ஆனால் சர்வர் ஏற்கவில்லை. எதுவும் இழக்கப்படவில்லை — மீண்டும் முயற்சிக்கவும், அல்லது சிக்கலைத் தெரிவிக்கவும்.',
+  waitingSection: 'ஒத்திசைக்க காத்திருக்கிறது',
+  waitingBodyOnline: 'இந்த ஃபோனில் சேமிக்கப்பட்டது. பின்னணியில் அனுப்பப்படும்.',
+  waitingBodyOffline: 'இந்த ஃபோனில் சேமிக்கப்பட்டது. சிக்னல் கிடைத்தவுடன் அனுப்பப்படும்.',
+  syncNow: 'இப்போது ஒத்திசைக்கவும்',
+  allSyncedTitle: 'அனைத்தும் ஒத்திசைக்கப்பட்டுவிட்டன',
+  allSyncedSubtitle: 'இந்த ஃபோனில் எதுவும் நிலுவையில் இல்லை.',
+  lastSynced: 'கடைசி ஒத்திசைவு {{when}}',
+  footnote: 'உயிரித்திரள், உயிர்வாழ்வு போன்ற மொத்த எண்கள் சர்வரில் கணக்கிடப்படுகின்றன, எனவே பதிவு ஒத்திசைந்த பிறகே அவை மாறும்.',
+
+  entity_water_quality: 'நீர் தர அளவீடு',
+  entity_feed: 'தீவனப் பதிவு',
+  entity_sampling: 'மாதிரி எடுத்தல்',
+  entity_mortality: 'இறப்பு',
+  entity_harvest: 'அறுவடை',
+  entity_treatment: 'சிகிச்சை',
+  entity_chemical: 'இரசாயனப் பயன்பாடு',
+  entity_disease: 'நோய்ப் பதிவு',
+  entity_plankton: 'பிளாங்க்டன் சோதனை',
+  entity_microbiology: 'நுண்ணுயிரியல் சோதனை',
+  entity_measurement: 'அளவீடு',
+  entity_feeding_tray_check: 'தீவனத் தட்டு சோதனை',
+  entity_attendance: 'வருகை',
+  entity_leave_request: 'விடுப்பு கோரிக்கை',
+};
+export default sync;

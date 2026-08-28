@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import apiClient from '../api/client';
 import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
+import { invalidateForEntity } from '../query/client';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -12,6 +13,19 @@ import { useAuthStore } from '../store/authStore';
  * Online  → POST immediately; on a *network* error, queue for later.
  * Offline → queue immediately and return optimistically ("saved, will sync").
  * A server rejection (4xx/5xx with a response) is a real error and is thrown.
+ *
+ * This is also where FRESHNESS-AFTER-YOUR-OWN-WRITE is enforced. All sixteen
+ * log screens save through here and every one already passes `entity`, so a
+ * single `invalidateForEntity()` call on the success path (and on a landed
+ * drain) refreshes every cached read that write could have moved — without any
+ * screen having to know about it. The farmer complained once about having to
+ * refresh manually after logging; do not trade that back for a smaller diff.
+ *
+ * NOTE for whoever adds the seventeenth endpoint: the backend's ValidationPipe
+ * runs with `whitelist: true` (backend/src/main.ts), so a DTO that forgets to
+ * declare `id` has the client-minted id SILENTLY STRIPPED — the idempotency
+ * guard then has nothing to key on and every replay inserts a duplicate, with
+ * no error anywhere. All sixteen current DTOs declare it. Check yours.
  */
 export interface SaveRecordArgs {
     entity: string; // e.g. 'water_quality', 'feed', 'sampling', 'mortality'
@@ -48,6 +62,8 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
 
     try {
         const { data } = await apiClient.post(endpoint, body);
+        // The server now has it — every cached read this record moves is stale.
+        invalidateForEntity(entity);
         return { id, queued: false, data };
     } catch (err) {
         if (isNetworkError(err)) {
@@ -84,10 +100,15 @@ export async function replayQueuedOp(op: QueuedOperation): Promise<DrainOutcome>
  * Flush pending writes — call on reconnect and on app start. Drains ops owned by
  * the current user (SYNC-4); in-queue transient failures are retried by the
  * drain itself. No-op when offline or the queue is empty.
+ *
+ * Anything that actually landed invalidates its cached reads, so the record the
+ * farmer logged with no signal appears in its pond the moment it syncs — rather
+ * than sitting invisible until they happen to pull-to-refresh.
  */
 export async function drainRecordQueue(): Promise<void> {
     const sync = useSyncStore.getState();
     if (!sync.isConnected) return;
     const userId = useAuthStore.getState().user?.id;
-    await sync.drainQueue(replayQueuedOp, userId);
+    const syncedEntities = await sync.drainQueue(replayQueuedOp, userId);
+    syncedEntities.forEach(invalidateForEntity);
 }

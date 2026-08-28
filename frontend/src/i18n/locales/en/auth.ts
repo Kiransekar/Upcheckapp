@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Continue with Google",
+    continueWithTruecaller: "Continue with Truecaller",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'Shrimp Aquaculture Management',

@@ -10,6 +10,7 @@ import { useSyncStore } from './syncStore';
 import { useActiveFarmStore } from './activeFarmStore';
 import { useNotificationStore } from './notificationStore';
 import { useUploadStore } from './uploadStore';
+import { clearCachedReads } from '../query/client';
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -260,6 +261,10 @@ export const useAuthStore = create<AuthState>()(
                 useActiveFarmStore.getState().clearAll();
                 useNotificationStore.getState().clearAll();
                 useUploadStore.getState().reset();
+                // The cached READS are the biggest store of User A's data and
+                // the only one that survives a cold start on disk — without
+                // this, User B's first paint is A's farms, ponds and alerts.
+                clearCachedReads();
                 set({
                     session: null,
                     accessToken: null,

@@ -124,19 +124,19 @@ export const PlanktonHistoryScreen = ({ route, navigation }: any) => {
                 </View>
                 <Text style={styles.totalText}>{t('history.planktonTotalLabel', { total: total.toLocaleString() })}</Text>
                 <View style={styles.grid}>
-                    {item.greenAlgaeGaCellMl != null && <MetricPill label="Green Algae" value={item.greenAlgaeGaCellMl} />}
+                    {item.greenAlgaeGaCellMl != null && <MetricPill label={t('history.planktonGreenAlgae')} value={item.greenAlgaeGaCellMl} />}
                     {item.blueGreenAlgaeBgaCellMl != null && <MetricPill label="BGA" value={item.blueGreenAlgaeBgaCellMl} />}
                     {item.diatomCellMl != null && <MetricPill label="Diatom" value={item.diatomCellMl} />}
                     {item.dinoflagellataCellMl != null && <MetricPill label="Dino" value={item.dinoflagellataCellMl} />}
-                    {item.protozoaCellMl != null && <MetricPill label="Protozoa" value={item.protozoaCellMl} />}
-                    {item.zooCellMl != null && <MetricPill label="Zoo" value={item.zooCellMl} />}
+                    {item.protozoaCellMl != null && <MetricPill label={t('history.planktonProtozoa')} value={item.protozoaCellMl} />}
+                    {item.zooCellMl != null && <MetricPill label={t('history.planktonZoo')} value={item.zooCellMl} />}
                     {item.euglenophytaCellMl != null && <MetricPill label="Eugleno" value={item.euglenophytaCellMl} />}
                     {item.flocCellMl != null && <MetricPill label="Floc" value={item.flocCellMl} />}
-                    {item.goldenBrownAlgaeCellMl != null && <MetricPill label="Gold-Brown" value={item.goldenBrownAlgaeCellMl} />}
-                    {item.goldenGreenAlgaeCellMl != null && <MetricPill label="Gold-Green" value={item.goldenGreenAlgaeCellMl} />}
-                    {item.yellowGreenAlgaeCellMl != null && <MetricPill label="Yel-Green" value={item.yellowGreenAlgaeCellMl} />}
+                    {item.goldenBrownAlgaeCellMl != null && <MetricPill label={t('history.planktonGoldBrown')} value={item.goldenBrownAlgaeCellMl} />}
+                    {item.goldenGreenAlgaeCellMl != null && <MetricPill label={t('history.planktonGoldGreen')} value={item.goldenGreenAlgaeCellMl} />}
+                    {item.yellowGreenAlgaeCellMl != null && <MetricPill label={t('history.planktonYellowGreen')} value={item.yellowGreenAlgaeCellMl} />}
                     {item.haptoyphytaCellMl != null && <MetricPill label="Hapto" value={item.haptoyphytaCellMl} />}
-                    {item.otherPlanktonCellMl != null && <MetricPill label="Other" value={item.otherPlanktonCellMl} />}
+                    {item.otherPlanktonCellMl != null && <MetricPill label={t('history.planktonOther')} value={item.otherPlanktonCellMl} />}
                 </View>
             </Card>
         );

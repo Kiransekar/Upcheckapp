@@ -1,0 +1,37 @@
+const sync = {
+  title: 'ସିଙ୍କ',
+  stateOnline: 'ସଂଯୁକ୍ତ',
+  viewAll: 'ସବୁ ›',
+
+  pendingSectionTitle: 'ସିଙ୍କ ହେବାକୁ ବାକି',
+  pending: 'ସିଙ୍କ ହେବାକୁ ବାକି',
+  needsAttention: 'ଧ୍ୟାନ ଆବଶ୍ୟକ',
+  savedAt: '{{when}}ରେ ସଞ୍ଚିତ',
+
+  needsAttentionSection: 'ଧ୍ୟାନ ଆବଶ୍ୟକ',
+  needsAttentionBody: 'ଏଗୁଡ଼ିକ ଏହି ଫୋନରେ ସଞ୍ଚିତ ଅଛି, କିନ୍ତୁ ସର୍ଭର ଗ୍ରହଣ କରିନାହିଁ। କିଛି ହଜିନାହିଁ — ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ, କିମ୍ବା ସମସ୍ୟା ଜଣାନ୍ତୁ।',
+  waitingSection: 'ସିଙ୍କ ହେବାକୁ ବାକି',
+  waitingBodyOnline: 'ଏହି ଫୋନରେ ସଞ୍ଚିତ। ପୃଷ୍ଠପଟରେ ପଠାଯିବ।',
+  waitingBodyOffline: 'ଏହି ଫୋନରେ ସଞ୍ଚିତ। ସିଗନାଲ ମିଳିବା ମାତ୍ରେ ପଠାଯିବ।',
+  syncNow: 'ବର୍ତ୍ତମାନ ସିଙ୍କ କରନ୍ତୁ',
+  allSyncedTitle: 'ସବୁକିଛି ସିଙ୍କ ହୋଇଯାଇଛି',
+  allSyncedSubtitle: 'ଏହି ଫୋନରେ କିଛି ବାକି ନାହିଁ।',
+  lastSynced: 'ଶେଷ ସିଙ୍କ {{when}}',
+  footnote: 'ବାୟୋମାସ ଓ ବଞ୍ଚିବା ହାର ପରି ମୋଟ ସଂଖ୍ୟା ସର୍ଭରରେ ହିସାବ ହୁଏ, ତେଣୁ ରେକର୍ଡ ସିଙ୍କ ହେବା ପରେ ହିଁ ସେଗୁଡ଼ିକ ବଦଳେ।',
+
+  entity_water_quality: 'ଜଳ ଗୁଣବତ୍ତା ପାଠ',
+  entity_feed: 'ଖାଦ୍ୟ ରେକର୍ଡ',
+  entity_sampling: 'ନମୁନା ସଂଗ୍ରହ',
+  entity_mortality: 'ମୃତ୍ୟୁହାର',
+  entity_harvest: 'ଅମଳ',
+  entity_treatment: 'ଚିକିତ୍ସା',
+  entity_chemical: 'ରାସାୟନିକ ପ୍ରୟୋଗ',
+  entity_disease: 'ରୋଗ ରେକର୍ଡ',
+  entity_plankton: 'ପ୍ଲାଙ୍କଟନ ଯାଞ୍ଚ',
+  entity_microbiology: 'ଅଣୁଜୀବ ପରୀକ୍ଷା',
+  entity_measurement: 'ମାପ',
+  entity_feeding_tray_check: 'ଖାଦ୍ୟ ଟ୍ରେ ଯାଞ୍ଚ',
+  entity_attendance: 'ଉପସ୍ଥିତି',
+  entity_leave_request: 'ଛୁଟି ଅନୁରୋଧ',
+};
+export default sync;

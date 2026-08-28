@@ -71,6 +71,50 @@ export const healthOf = (
 };
 
 /** Worst severity per pond, from a briefing that spans every farm. */
+/**
+ * Merge the LIVE briefing with the persisted one into a single per-pond view.
+ *
+ * The two answer different questions and the difference has already caused a
+ * visible contradiction: the live briefing is recomputed from each pond's
+ * latest reading, so it describes the pond NOW; the persisted stream is
+ * notification history, and is empty for a pond that has drifted into a watch
+ * band without anything being written. A screen reading only the persisted
+ * one reported "2/2 good" while Today, which merged both, showed one of those
+ * two ponds amber.
+ *
+ * Every screen that judges pond health must use this, so they cannot disagree.
+ * Higher severity wins; counts add, because the same pond flagged by two
+ * sources is two reasons to look at it.
+ */
+export const mergeBriefings = (
+    live: BriefingItem[],
+    persisted: BriefingItem[],
+): BriefingItem[] => {
+    const merged = new Map<string, BriefingItem>();
+    for (const item of [...live, ...persisted]) {
+        const key = item.pondId ?? `${item.source}:${item.topTitle}`;
+        const existing = merged.get(key);
+        if (!existing) {
+            merged.set(key, item);
+            continue;
+        }
+        const higher =
+            SEVERITY_RANK_ALERT[item.topSeverity] > SEVERITY_RANK_ALERT[existing.topSeverity]
+                ? item
+                : existing;
+        merged.set(key, { ...higher, alertCount: existing.alertCount + item.alertCount });
+    }
+    return Array.from(merged.values()).sort(
+        (a, b) => SEVERITY_RANK_ALERT[b.topSeverity] - SEVERITY_RANK_ALERT[a.topSeverity],
+    );
+};
+
+const SEVERITY_RANK_ALERT: Record<AlertSeverity, number> = {
+    critical: 3,
+    watch: 2,
+    info: 1,
+};
+
 export const severityByPond = (items: BriefingItem[]): Map<string, AlertSeverity> => {
     const rank: Record<AlertSeverity, number> = { critical: 3, watch: 2, info: 1 };
     const out = new Map<string, AlertSeverity>();

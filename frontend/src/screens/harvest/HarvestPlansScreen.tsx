@@ -422,7 +422,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                                     label={t('harvestPlans.plannedDate', 'Planned Harvest Date')}
                                     value={formPlannedDate}
                                     onChangeText={setFormPlannedDate}
-                                    placeholder="YYYY-MM-DD"
+                                    placeholder={t('logs.datePlaceholder')}
                                     required
                                     leftIcon="calendar-outline"
                                 />

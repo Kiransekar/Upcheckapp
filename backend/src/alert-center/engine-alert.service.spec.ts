@@ -100,3 +100,70 @@ describe('EngineAlertService.liveBriefing', () => {
     expect(getContext).toHaveBeenCalledWith('p3', 'user-1');
   });
 });
+
+/**
+ * `today` exists so the home screen stops computing every pond context twice
+ * — once for the briefing, once via /pond-context. It must return the same
+ * briefing liveBriefing does, off ONE pass over the contexts.
+ */
+describe('EngineAlertService.today', () => {
+  const build = (getContext: jest.Mock) => {
+    const pondRepo = {
+      find: jest.fn().mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]),
+    };
+    return new EngineAlertService(
+      pondRepo as any,
+      { getContext } as any,
+      new LunarService(),
+      { buildBriefing: jest.fn((drafts) => drafts) } as any,
+      {
+        getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+      } as any,
+    );
+  };
+
+  it('returns the contexts alongside the briefing, computing each once', async () => {
+    const getContext = jest.fn((pondId: string) =>
+      Promise.resolve({ ...baseCtx, pondId }),
+    );
+    const svc = build(getContext);
+
+    const { contexts, briefing } = await svc.today('user-1');
+
+    expect(contexts.map((c) => c.pondId)).toEqual(['p1', 'p2']);
+    expect(getContext).toHaveBeenCalledTimes(2);
+    // Same body live-briefing would have returned for the same data.
+    expect(briefing).toEqual(await svc.liveBriefing('user-1'));
+  });
+
+  it('surfaces a pond alert in the briefing and its context in the same response', async () => {
+    // A pond over the free-ammonia threshold: the alert and the numbers it was
+    // derived from have to travel together, or the screen renders one without
+    // the other.
+    const getContext = jest.fn((pondId: string) =>
+      Promise.resolve({ ...baseCtx, pondId, freeAmmoniaMgL: 0.5 }),
+    );
+    const svc = build(getContext);
+
+    const { contexts, briefing } = await svc.today('user-1');
+
+    expect(briefing.length).toBeGreaterThan(0);
+    expect(contexts).toHaveLength(2);
+    for (const item of briefing) {
+      expect(contexts.some((c) => c.pondId === item.pondId)).toBe(true);
+    }
+  });
+
+  it('drops a pond whose context fails rather than failing the whole screen', async () => {
+    const getContext = jest.fn((pondId: string) =>
+      pondId === 'p2'
+        ? Promise.reject(new Error('boom'))
+        : Promise.resolve({ ...baseCtx, pondId }),
+    );
+    const svc = build(getContext);
+
+    const { contexts } = await svc.today('user-1');
+
+    expect(contexts.map((c) => c.pondId)).toEqual(['p1']);
+  });
+});

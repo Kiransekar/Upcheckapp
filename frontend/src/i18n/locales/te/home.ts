@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "మీ ఫారాలు",
+    overviewStocked: "{{total}} లో {{stocked}} నిల్వ",
   // HomeScreen
   greeting: 'స్వాగతం,',
   dashboardSummary: 'డాష్‌బోర్డ్ సారాంశం',
@@ -10,6 +12,9 @@ const home = {
   todayFeed: "నేటి దాణా (kg)",
   noFarmEither: 'మీ సొంత ఫారం సెటప్ చేయండి, లేదా యజమాని కోడ్‌తో ఒకదానిలో చేరండి.',
   doThisFirst: 'ముందు ఇది చేయండి',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} ఫారాలు",
+  acrossPonds: "{{pl}} చెరువులు",
   oneOfN: '{{n}} లో 1',
   markDone: 'చేశాను',
   later: 'తర్వాత',

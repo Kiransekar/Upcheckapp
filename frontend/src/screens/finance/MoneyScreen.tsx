@@ -24,8 +24,10 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { Icon } from '../../components/ui/Icon';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
@@ -36,8 +38,16 @@ import { creditApi, type CreditLedger } from '../../api/credit';
 import { farmsApi, type Farm } from '../../api/farms';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
 const c = theme.roles.light;
+
+// Stable empty fallbacks — a fresh `[]`/`{}` on every render would defeat the
+// useMemo dependencies below.
+const EMPTY_REPORTS: Record<string, FinancialReport> = {};
+const EMPTY_ENTRIES: Transaction[] = [];
+const EMPTY_CREDIT: CreditLedger[] = [];
 
 /** Recent entries shown before "All ›" takes over. */
 const RECENT_COUNT = 6;
@@ -110,12 +120,50 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     // THIS farm's money". Everything else opens combined.
     const [scope, setScope] = useState<string>(route?.params?.farmId ?? ALL);
 
-    const [farms, setFarms] = useState<Farm[]>([]);
-    const [reports, setReports] = useState<Record<string, FinancialReport>>({});
-    const [allEntries, setAllEntries] = useState<Transaction[]>([]);
-    const [credit, setCredit] = useState<CreditLedger[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
+    /**
+     * One cached read for the tab. Memory-only, not persisted to disk: Money is
+     * the biggest of these payloads and the least urgent to have on a phone with
+     * no signal, and Android's AsyncStorage ceiling is a fixed ~6MB we cannot
+     * raise over the air (see src/query/client.ts).
+     */
+    const query = useAppQuery({
+        queryKey: qk.money(),
+        queryFn: async () => {
+            const list = (await farmsApi.getAll()).data ?? [];
+            const [reportPairs, txRes, creditRes] = await Promise.all([
+                Promise.all(
+                    list.map((farm) =>
+                        reportsApi
+                            .getFinancialReport(farm.id)
+                            .then((r) => [farm.id, r.data] as const)
+                            .catch(() => null),
+                    ),
+                ),
+                // No farmId — the backend already scopes this to the farms where
+                // the caller may view financials, so one call covers every farm.
+                transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
+                // Credit is a separate ledger and may simply not exist for a farmer
+                // who buys nothing on account.
+                creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
+            ]);
+            const reports: Record<string, FinancialReport> = {};
+            for (const pair of reportPairs) if (pair) reports[pair[0]] = pair[1];
+            return {
+                farms: list,
+                reports,
+                allEntries: txRes.data ?? [],
+                credit: creditRes.data ?? [],
+            };
+        },
+    });
+
+    useRefetchOnFocus(qk.money());
+
+    const farms = query.data?.farms ?? [];
+    const reports = query.data?.reports ?? EMPTY_REPORTS;
+    const allEntries = query.data?.allEntries ?? EMPTY_ENTRIES;
+    const credit = query.data?.credit ?? EMPTY_CREDIT;
+    const hasData = query.data != null;
 
     // Farms whose financials actually loaded. A worker-only farm 403s on the
     // report; leaving it out of both the total and the list keeps the two
@@ -139,39 +187,6 @@ export const MoneyScreen = ({ navigation, route }: any) => {
         visibleFarms.find((f) => f.id === selectedFarm?.id) ??
         visibleFarms[0];
     const perms = usePermissions(writeFarm?.id);
-
-    const load = useCallback(async () => {
-        const farmRes = await farmsApi.getAll().catch(() => ({ data: [] as Farm[] }));
-        const list = farmRes.data ?? [];
-        setFarms(list);
-
-        const [reportPairs, txRes, creditRes] = await Promise.all([
-            Promise.all(
-                list.map((farm) =>
-                    reportsApi
-                        .getFinancialReport(farm.id)
-                        .then((r) => [farm.id, r.data] as const)
-                        .catch(() => null),
-                ),
-            ),
-            // No farmId — the backend already scopes this to the farms where
-            // the caller may view financials, so one call covers every farm.
-            transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
-            // Credit is a separate ledger and may simply not exist for a farmer
-            // who buys nothing on account.
-            creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
-        ]);
-
-        const next: Record<string, FinancialReport> = {};
-        for (const pair of reportPairs) if (pair) next[pair[0]] = pair[1];
-        setReports(next);
-        setAllEntries(txRes.data ?? []);
-        setCredit(creditRes.data ?? []);
-        setLoading(false);
-        setRefreshing(false);
-    }, []);
-
-    useFocusEffect(useCallback(() => { load(); }, [load]));
 
     const report = useMemo(
         () => combineReports(scopedFarms.map((f) => reports[f.id])),
@@ -238,7 +253,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
         />
     );
 
-    if (loading) {
+    if (query.isPending && !hasData) {
         return (
             <ScreenWrapper scroll={false} padded={false}>
                 {header}
@@ -247,6 +262,18 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                     <Skeleton width="100%" height={90} style={styles.mb} />
                     <Skeleton width="100%" height={140} />
                 </View>
+            </ScreenWrapper>
+        );
+    }
+
+    // "We could not read your books" is not "you have no farms". Before this,
+    // a failed load fell straight through to the empty state and told an owner
+    // with three farms to go and create one.
+    if (query.isError && !hasData) {
+        return (
+            <ScreenWrapper scroll={false} padded={false}>
+                {header}
+                <ErrorState title={t('finance.moneyTitle')} error={query.error} onRetry={() => query.refetch()} />
             </ScreenWrapper>
         );
     }
@@ -267,6 +294,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     return (
         <ScreenWrapper scroll={false} padded={false}>
             {header}
+            <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
             {/*
               * Scope chips. Only worth the row when there is more than one farm
               * to switch between — with one farm, "All farms" and its name are
@@ -297,7 +325,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.content}
                 refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />
+                    <RefreshControl refreshing={query.isRefetching} onRefresh={() => query.refetch()} />
                 }
             >
                 {/*

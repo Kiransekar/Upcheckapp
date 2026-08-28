@@ -9,20 +9,22 @@
  * "daily" territory with no clear front door — see docs/UI_UX_AUDIT.md
  * Tier 1 #2 and docs/ONBOARDING_MODULE_PLAN.md Phase 2).
  */
-import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
+import { CacheNotice } from '../../components/ui/CacheNotice';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { ErrorState } from '../../components/ui/ErrorState';
 import { SeverityPill, type Severity } from '../../components/ui/SeverityPill';
 import { theme } from '../../theme';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondContextApi } from '../../api/pondContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 
 const isToday = (iso: string | null | undefined) =>
   !!iso && new Date(iso).toDateString() === new Date().toDateString();
@@ -63,67 +65,60 @@ const sourceIcon: Record<string, keyof typeof MaterialCommunityIcons.glyphMap> =
   weather: 'weather-lightning-rainy',
 };
 
+/**
+ * Alerts, and — on a good day, when there are none — the routine checklist.
+ *
+ * One cached, disk-persisted read under `['briefing']`, so this screen opens on
+ * yesterday's answer with no signal instead of a spinner that never resolves.
+ * The routine fan-out still only runs when there are zero alerts: a farmer with
+ * real alerts should not wait on N pond-context calls they do not need yet.
+ */
+const loadBriefing = async (): Promise<{ items: BriefingItem[]; routines: RoutineSummary[] | null }> => {
+  // Live engine alerts (recomputed from latest data) + persisted alerts,
+  // merged to one card per pond keeping the highest severity.
+  const [live, persisted] = await Promise.all([
+    alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
+    alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
+  ]);
+  const items = mergeByPond([...live.data, ...persisted.data]);
+  if (items.length > 0) return { items, routines: null };
+
+  const { data: ponds } = await pondsApi.getMine();
+  const active = ponds.filter((p: Pond) => p.activeCycleId);
+  const summaries = await Promise.all(
+    active.map(async (p: Pond) => {
+      try {
+        const { data: ctx } = await pondContextApi.get(p.id);
+        return {
+          pondId: p.id,
+          pondName: p.displayName || p.name,
+          doc: ctx.doc,
+          wqDone: isToday(ctx.waterQuality?.recordedAt),
+          feedDone: isToday(ctx.lastFeedAt),
+          trayDone: isToday(ctx.lastTrayAt),
+        } as RoutineSummary;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return { items, routines: summaries.filter((s): s is RoutineSummary => s != null) };
+};
+
 export const MorningBriefingScreen = ({ navigation }: any) => {
   const { t } = useTranslation();
-  const [items, setItems] = useState<BriefingItem[] | null>(null);
-  const [routines, setRoutines] = useState<RoutineSummary[] | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const query = useAppQuery({ queryKey: qk.briefing(), queryFn: loadBriefing });
 
-  // Only fetched when there are zero alerts — this is the "good day" path,
-  // where the screen becomes a cross-pond routine checklist instead of a
-  // dead end. Kept out of the alert path so a farmer with real alerts isn't
-  // slowed down by N extra pond-context calls they don't need yet.
-  const loadRoutines = useCallback(async () => {
-    try {
-      const { data: ponds } = await pondsApi.getMine();
-      const active = ponds.filter((p: Pond) => p.activeCycleId);
-      const summaries = await Promise.all(
-        active.map(async (p: Pond) => {
-          try {
-            const { data: ctx } = await pondContextApi.get(p.id);
-            return {
-              pondId: p.id,
-              pondName: p.displayName || p.name,
-              doc: ctx.doc,
-              wqDone: isToday(ctx.waterQuality?.recordedAt),
-              feedDone: isToday(ctx.lastFeedAt),
-              trayDone: isToday(ctx.lastTrayAt),
-            } as RoutineSummary;
-          } catch {
-            return null;
-          }
-        }),
-      );
-      setRoutines(summaries.filter((s): s is RoutineSummary => s != null));
-    } catch {
-      setRoutines([]);
-    }
-  }, []);
-
-  const load = useCallback(async () => {
-    try {
-      // Live engine alerts (recomputed from latest data) + persisted alerts,
-      // merged to one card per pond keeping the highest severity.
-      const [live, persisted] = await Promise.all([
-        alertCenterApi.liveBriefing().catch(() => ({ data: [] as BriefingItem[] })),
-        alertCenterApi.briefing().catch(() => ({ data: [] as BriefingItem[] })),
-      ]);
-      const merged = mergeByPond([...live.data, ...persisted.data]);
-      setItems(merged);
-      if (merged.length === 0) await loadRoutines();
-    } catch {
-      setItems([]);
-      await loadRoutines();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [loadRoutines]);
-
-  // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
+  // Refetch on FOCUS, not just on mount. React Navigation keeps a screen mounted
   // once it has been opened, so a mount-only effect never ran again: log
   // something in a pond, come back here, and the page still showed the
   // figures from before the log until the app was force-refreshed.
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useRefetchOnFocus(qk.briefing());
+
+  const items = query.data?.items ?? null;
+  const routines = query.data?.routines ?? null;
+  const refreshing = query.isRefetching;
+  const load = () => query.refetch();
 
   return (
     <ScreenWrapper>
@@ -132,12 +127,18 @@ export const MorningBriefingScreen = ({ navigation }: any) => {
         <Text style={styles.title}>{t('engines.briefing.title')}</Text>
       </View>
 
-      {items === null ? (
+      <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
+
+      {/* A failed read is not "all clear" — that distinction is the whole point
+          of the error branch. Only shown when there is no cached copy at all. */}
+      {query.isError && items === null ? (
+        <ErrorState error={query.error} onRetry={load} />
+      ) : items === null ? (
         <ActivityIndicator color={theme.roles.light.primary} style={{ marginTop: theme.spacing[8] }} />
       ) : items.length === 0 ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
         >
           <View style={styles.allClearBanner}>
             <MaterialCommunityIcons name="check-circle-outline" size={20} color={theme.roles.light.successText} />
@@ -180,7 +181,7 @@ export const MorningBriefingScreen = ({ navigation }: any) => {
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} />}
         >
           {items.map((it, i) => (
             <Card key={i} style={[styles.card, { borderLeftColor: barColor(it.topSeverity) }]}>

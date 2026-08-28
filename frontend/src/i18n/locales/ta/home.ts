@@ -1,4 +1,6 @@
 const home = {
+    overviewTitle: "உங்கள் பண்ணைகள்",
+    overviewStocked: "{{total}} இல் {{stocked}} நிரம்பியது",
   // HomeScreen
   greeting: 'மீண்டும் வரவேற்கிறோம்,',
   dashboardSummary: 'டாஷ்போர்டு சுருக்கம்',
@@ -10,6 +12,9 @@ const home = {
   todayFeed: 'இன்றைய தீவனம் (kg)',
   noFarmEither: 'உங்கள் சொந்தப் பண்ணையை அமைக்கவும், அல்லது உரிமையாளரின் குறியீட்டுடன் ஒன்றில் சேரவும்.',
   doThisFirst: 'இதை முதலில் செய்யுங்கள்',
+  // How much ground one hero action covers — see NextActionCard.
+  acrossFarms: "{{pl}} பண்ணைகள்",
+  acrossPonds: "{{pl}} குளங்கள்",
   oneOfN: '{{n}} இல் 1',
   markDone: 'செய்துவிட்டேன்',
   later: 'பிறகு',

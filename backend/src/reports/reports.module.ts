@@ -7,7 +7,6 @@ import { FeedRecordsModule } from '../feed-records/feed-records.module';
 import { HarvestsModule } from '../harvests/harvests.module';
 import { FinancesModule } from '../finances/finances.module';
 import { InventoryModule } from '../inventory/inventory.module';
-import { RedisModule } from '../redis/redis.module';
 import { SamplingModule } from '../sampling/sampling.module';
 import { TransactionsModule } from '../transactions/transactions.module';
 
@@ -19,7 +18,6 @@ import { TransactionsModule } from '../transactions/transactions.module';
     HarvestsModule,
     FinancesModule,
     InventoryModule,
-    RedisModule,
     SamplingModule,
     TransactionsModule,
   ],

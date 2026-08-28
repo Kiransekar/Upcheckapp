@@ -1,4 +1,9 @@
 const common = {
+  crashTitle: "ఏదో తప్పు జరిగింది",
+  crashBody: "యాప్‌లో ఊహించని సమస్య. మళ్ళీ ప్రయత్నించండి.",
+  tryAgain: "మళ్ళీ ప్రయత్నించు",
+  noOptions: "ఎంపికలు లేవు",
+  selectPlaceholder: "ఎంచుకోండి…",
   appName: 'Upcheck',
   save: 'సేవ్ చేయి',
   cancel: 'రద్దు చేయి',
@@ -53,6 +58,7 @@ const common = {
   syncFailedBody: '{{count}} రికార్డు(లు) సింక్ కాలేదు. ఇప్పుడు మళ్లీ ప్రయత్నించాలా?',
   syncFailedBanner: 'రికార్డులకు శ్రద్ధ అవసరం',
   syncFailedA11y: '{{count}} రికార్డులు సింక్ కాలేదు, మళ్లీ ప్రయత్నించడానికి నొక్కండి',
+  cachedAsOf: "సేవ్ చేసిన డేటా చూపబడుతోంది · {{when}} నాటికి",
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "కొనసాగించు",

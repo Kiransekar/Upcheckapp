@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Googleతో కొనసాగండి",
+    continueWithTruecaller: "Truecallerతో కొనసాగండి",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'రొయ్యల జలకృషి నిర్వహణ',

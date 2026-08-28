@@ -37,6 +37,19 @@ export class AlertCenterController {
     return this.engineAlerts.liveBriefing(user.id);
   }
 
+  /**
+   * The home screen in one round trip: `{ contexts, briefing }`.
+   *
+   * Same body as `live-briefing`, plus the pond contexts it already computed
+   * to produce it. The screen used to fetch live-briefing AND /pond-context
+   * per farm, which walked the identical contexts a second time. Both of those
+   * routes stay — other screens use them.
+   */
+  @Get('today')
+  today(@CurrentUser() user) {
+    return this.engineAlerts.today(user.id);
+  }
+
   /** Emit an alert into the unified stream. */
   @Post('emit')
   emit(@Body() body: EmitBody, @CurrentUser() user) {

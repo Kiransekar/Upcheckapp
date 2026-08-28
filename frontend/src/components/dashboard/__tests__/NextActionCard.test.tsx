@@ -6,7 +6,7 @@
 // screen points the farmer at the wrong pond.
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { NextActionCard, rankActions } from '../NextActionCard';
+import { NextActionCard, rankActions, groupActions } from '../NextActionCard';
 import type { BriefingItem } from '../../../api/alertCenter';
 
 const item = (over: Partial<BriefingItem> = {}): BriefingItem => ({
@@ -87,11 +87,52 @@ describe('NextActionCard', () => {
         expect(getByText('Kakinada East')).toBeTruthy();
     });
 
-    it('counts how many are waiting behind it', () => {
+    it('counts distinct FINDINGS waiting behind it, not ponds', () => {
         const { getByText } = render(
-            <NextActionCard items={[item(), item({ pondId: 'p2' }), item({ pondId: 'p3' })]} onDone={noop} onLater={noop} />,
+            <NextActionCard
+                items={[
+                    item({ topTitle: 'Toxic ammonia' }),
+                    item({ topTitle: 'Oxygen low', topSeverity: 'watch' }),
+                    item({ topTitle: 'Feed running out', topSeverity: 'watch' }),
+                ]}
+                onDone={noop}
+                onLater={noop}
+            />,
         );
         expect(getByText('1 of 3')).toBeTruthy();
+    });
+
+    // The reported bug: the same finding on three ponds is ONE thing to do, and
+    // naming one of the three told a farmer they were done when they were a
+    // third done.
+    it('states one action covering every pond it applies to', () => {
+        const { getByText, queryByText } = render(
+            <NextActionCard
+                items={[item(), item({ pondId: 'p2' }), item({ pondId: 'p3' })]}
+                farmNameForPond={() => 'Kakinada East'}
+                onDone={noop}
+                onLater={noop}
+            />,
+        );
+
+        expect(getByText(/3 ponds/)).toBeTruthy();
+        // One finding, so nothing is queued behind it.
+        expect(queryByText(/1 of/)).toBeNull();
+    });
+
+    it('names the farm count when one finding spans several farms', () => {
+        const farms: Record<string, string> = { 'pond-1': 'North', p2: 'South', p3: 'East' };
+        const { getByText } = render(
+            <NextActionCard
+                items={[item(), item({ pondId: 'p2' }), item({ pondId: 'p3' })]}
+                farmNameForPond={(id) => (id ? farms[id] : undefined)}
+                onDone={noop}
+                onLater={noop}
+            />,
+        );
+
+        // Not 'North' — picking one farm for a three-farm problem is the bug.
+        expect(getByText(/3 farms · 3 ponds/)).toBeTruthy();
     });
 
     it('omits the counter when it is the only thing to do', () => {
@@ -108,7 +149,7 @@ describe('NextActionCard', () => {
         expect(toJSON()).toBeNull();
     });
 
-    it('reports the acted-on item to both handlers', () => {
+    it('reports the acted-on GROUP to both handlers', () => {
         const onDone = jest.fn();
         const onLater = jest.fn();
         const critical = item({ topTitle: 'Start the aerators in Pond 04' });
@@ -117,10 +158,15 @@ describe('NextActionCard', () => {
             <NextActionCard items={[critical]} onDone={onDone} onLater={onLater} />,
         );
         fireEvent.press(getByText('Done it'));
-        expect(onDone).toHaveBeenCalledWith(expect.objectContaining({ topTitle: critical.topTitle }));
+        // The GROUP, so the caller can defer every pond it covers at once.
+        expect(onDone).toHaveBeenCalledWith(
+            expect.objectContaining({ title: critical.topTitle, items: [critical] }),
+        );
 
         rerender(<NextActionCard items={[critical]} onDone={onDone} onLater={onLater} />);
         fireEvent.press(getByText('Later'));
-        expect(onLater).toHaveBeenCalledWith(expect.objectContaining({ topTitle: critical.topTitle }));
+        expect(onLater).toHaveBeenCalledWith(
+            expect.objectContaining({ title: critical.topTitle }),
+        );
     });
 });

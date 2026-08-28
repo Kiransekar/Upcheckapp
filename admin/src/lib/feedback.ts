@@ -48,6 +48,14 @@ export interface FeedbackReport {
     updatedAt: string;
 }
 
+/** Carries the HTTP status so the page can tell refused from unreachable. */
+export class ApiError extends Error {
+    constructor(message: string, readonly status: number) {
+        super(message);
+        this.name = 'ApiError';
+    }
+}
+
 function config() {
     const baseUrl = process.env.UPCHECK_API_URL;
     const key = process.env.ADMIN_API_KEY;
@@ -74,7 +82,31 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
         cache: 'no-store',
     });
     if (!res.ok) {
-        throw new Error(`${init?.method ?? 'GET'} ${path} failed: ${res.status}`);
+        // Say which end refused, and quote the API's own words.
+        //
+        // A 401 was reported as "could not reach the Upcheck API", which sent
+        // someone to check UPCHECK_API_URL when the URL was perfectly fine —
+        // the request had arrived and been turned away. The backend already
+        // distinguishes the two cases it cares about ("Admin API is not
+        // configured" when ADMIN_API_KEY is unset on ITS side, "Invalid admin
+        // key" when the two halves disagree), and that sentence is the whole
+        // diagnosis. Passing it through beats paraphrasing it into something
+        // vaguer.
+        const detail = await res.text().then(
+            (body) => {
+                try {
+                    return (JSON.parse(body) as { message?: string }).message ?? '';
+                } catch {
+                    return body.slice(0, 200);
+                }
+            },
+            () => '',
+        );
+        throw new ApiError(
+            `${init?.method ?? 'GET'} ${path} failed: ${res.status}` +
+                (detail ? ` — ${detail}` : ''),
+            res.status,
+        );
     }
     return res.json() as Promise<T>;
 }

@@ -120,19 +120,19 @@ export const MicrobiologyHistoryScreen = ({ route, navigation }: any) => {
                 </View>
                 <View style={styles.grid}>
                     {item.totalVibrioCountTvcCfuMl != null && (
-                        <MetricPill label="Total Vibrio" value={`${item.totalVibrioCountTvcCfuMl} CFU/mL`} />
+                        <MetricPill label={t('history.microTotalVibrio')} value={`${item.totalVibrioCountTvcCfuMl} CFU/mL`} />
                     )}
                     {item.totalBacillusCfuMl != null && (
                         <MetricPill label="Bacillus" value={`${item.totalBacillusCfuMl} CFU/mL`} />
                     )}
                     {item.yellowVibrioCountTvcCfuMl != null && (
-                        <MetricPill label="Yellow Vibrio" value={`${item.yellowVibrioCountTvcCfuMl} CFU/mL`} />
+                        <MetricPill label={t('history.microYellowVibrio')} value={`${item.yellowVibrioCountTvcCfuMl} CFU/mL`} />
                     )}
                     {item.greenVibrioCountTvcCfuMl != null && (
-                        <MetricPill label="Green Vibrio" value={`${item.greenVibrioCountTvcCfuMl} CFU/mL`} />
+                        <MetricPill label={t('history.microGreenVibrio')} value={`${item.greenVibrioCountTvcCfuMl} CFU/mL`} />
                     )}
                     {item.luminescentBacteriaLbCfuMl != null && (
-                        <MetricPill label="Luminescent" value={`${item.luminescentBacteriaLbCfuMl} CFU/mL`} />
+                        <MetricPill label={t('history.microLuminescent')} value={`${item.luminescentBacteriaLbCfuMl} CFU/mL`} />
                     )}
                 </View>
                 {item.note && <Text style={styles.notesText}>{item.note}</Text>}

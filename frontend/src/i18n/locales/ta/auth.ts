@@ -1,4 +1,6 @@
 const auth = {
+    continueWithGoogle: "Google மூலம் தொடரவும்",
+    continueWithTruecaller: "Truecaller மூலம் தொடரவும்",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
   title: 'Upcheck',
   subtitle: 'இறால் மீன்வளர்ப்பு மேலாண்மை',
