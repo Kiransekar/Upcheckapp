@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -20,6 +20,15 @@ import {
 const USER_AGENT = 'UpcheckBot/1.0 (+https://upcheck.in/bot; bot@upcheck.in)';
 const FETCH_TIMEOUT_MS = 10_000;
 const FETCH_ATTEMPTS = 3;
+
+/**
+ * §2.6 — at most one poll per source per hour, enforced on the durable
+ * `news_sources.last_fetched_at` column and not on the Redis lock alone:
+ * RedisService falls back to a PER-PROCESS in-memory Map when Redis is
+ * unreachable (which it regularly is in production), so a restart empties the
+ * lock and the next run re-polls every publisher. 55 minutes to match the TTL.
+ */
+const MIN_POLL_INTERVAL_MS = 55 * 60 * 1000;
 
 /** A misconfigured feed must not be able to insert ten thousand rows. */
 const MAX_ITEMS_PER_RUN = 200;
@@ -67,7 +76,7 @@ const emptyStats = (): IngestionStats => ({
 });
 
 @Injectable()
-export class NewsIngestionService {
+export class NewsIngestionService implements OnApplicationBootstrap {
   private readonly logger = new Logger(NewsIngestionService.name);
   private readonly parser = new Parser();
 
@@ -78,6 +87,23 @@ export class NewsIngestionService {
     private readonly sources: Repository<NewsSource>,
     private readonly redis: RedisService,
   ) {}
+
+  /**
+   * Poll once as soon as the app is up, not only on the next top-of-hour tick.
+   *
+   * `EVERY_HOUR` fires at minute :00 and nowhere else, while this service runs
+   * on a Render free instance that sleeps when idle and redeploys on every
+   * master commit. A process can therefore live its entire life between two
+   * ticks and ingest nothing — which is exactly how the feed shipped empty.
+   * The per-source hourly guard in `ingestSource` is what stops this from
+   * re-polling publishers on every restart, so it stays inside §2.6.
+   *
+   * Deliberately not awaited: ingestion must never hold up the boot, and
+   * `runScheduled` already swallows its own failures.
+   */
+  onApplicationBootstrap(): void {
+    void this.runScheduled();
+  }
 
   @Cron(CronExpression.EVERY_HOUR)
   async runScheduled(): Promise<void> {
@@ -124,6 +150,13 @@ export class NewsIngestionService {
 
   async ingestSource(source: NewsSource): Promise<IngestionStats> {
     const stats = emptyStats();
+
+    // §2.6, durably: this column survives the restarts and Redis outages that
+    // the lock below does not. Checked first because it costs no I/O.
+    if (this.polledWithinTheHour(source)) {
+      this.logger.debug(`Skipping ${source.name} — polled within the hour`);
+      return stats;
+    }
 
     // Per-source lock so two dynos don't double-fetch, and so §2.6's one poll
     // per source per hour holds even if the cron fires twice.
@@ -321,10 +354,24 @@ export class NewsIngestionService {
     }
   }
 
+  /** Whether §2.6's one-poll-per-hour budget for this source is already spent. */
+  private polledWithinTheHour(source: NewsSource): boolean {
+    if (!source.lastFetchedAt) return false;
+    const last = new Date(source.lastFetchedAt).getTime();
+    if (Number.isNaN(last)) return false;
+    return Date.now() - last < MIN_POLL_INTERVAL_MS;
+  }
+
   private async recordError(source: NewsSource, message: string) {
     this.logger.warn(`Feed ${source.name} failed: ${message}`);
     await this.sources
-      .update(source.id, { lastError: message.slice(0, 500) })
+      // `last_fetched_at` records when we last POLLED, not when we last
+      // succeeded — otherwise a feed that 403s is re-polled on every boot,
+      // which is precisely the hammering §2.6 forbids.
+      .update(source.id, {
+        lastFetchedAt: new Date(),
+        lastError: message.slice(0, 500),
+      })
       .catch(() => undefined);
   }
 }
