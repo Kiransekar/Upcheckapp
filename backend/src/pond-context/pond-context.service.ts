@@ -150,14 +150,25 @@ export class PondContextService {
       'READ',
     );
 
-    // Each context fans out to ~6 queries of its own, so a 24-pond farm would
-    // put ~144 in flight at once and starve the connection pool. Chunk it.
-    // ponytail: fixed chunk of 6; make it configurable only if a farm ever
-    // gets big enough for the round-trip count to matter again.
+    // Each context fans out to ~7 queries of its own, so this is chunked to
+    // avoid starving the pool. The chunk was 6, chosen when the pool was 5 —
+    // which meant a 43-pond farm ran ~300 queries through 5 connections, and
+    // every one of those is a round trip to Singapore from Oregon.
+    //
+    // Sized to the pool (20) rather than below it: the point is to keep the
+    // pool BUSY, not idle. Still bounded, so one enormous farm cannot queue
+    // unbounded work.
+    //
+    // ponytail: this only reduces the WAIT for ~7-queries-per-pond; it does
+    // not reduce the COUNT. The real fix is making this set-based — one
+    // GROUP BY per data type instead of per pond, taking ~300 queries to ~7.
+    // That is a larger refactor of the core dashboard path and is deliberately
+    // not bundled with an urgent latency fix.
+    const CHUNK = 20;
     const out: PondContext[] = [];
-    for (let i = 0; i < pondIds.length; i += 6) {
+    for (let i = 0; i < pondIds.length; i += CHUNK) {
       const batch = await Promise.all(
-        pondIds.slice(i, i + 6).map((id) =>
+        pondIds.slice(i, i + CHUNK).map((id) =>
           this.getContext(id, userId).catch(() => null),
         ),
       );
