@@ -120,14 +120,34 @@ import { FeedbackModule } from './feedback/feedback.module';
           extra: {
             // Maximum time to wait for connection (10 seconds)
             connectionTimeoutMillis: 10000,
-            // Pool size - keep small for Render free tier
-            max: 5,
+            /**
+             * Pool size. Was 5, which was the app's real concurrency limit:
+             * one Farms screen fans out to ~300 queries (≈7 per pond across
+             * 43 ponds), and with 5 connections those serialise into ~60
+             * waves. Every wave is a round trip to Supabase in Singapore from
+             * a backend in Oregon (~180ms), so the pool alone was costing
+             * ~11s on that screen.
+             *
+             * DATABASE_URL points at the Supabase POOLER in transaction mode,
+             * which multiplexes onto far fewer server connections, so 20
+             * client connections here is comfortable rather than reckless.
+             */
+            max: 20,
             // Minimum connections to maintain (helps with cold starts)
-            min: 1,
-            // Idle timeout - close connections after 30 seconds of inactivity
-            idleTimeoutMillis: 30000,
-            // How long a connection can be used before being closed
-            maxLifetimeMillis: 60000,
+            min: 2,
+            /**
+             * Idle/lifetime were 30s and 60s. Recycling a connection every
+             * 60s meant constantly re-opening one — `pgbouncer.get_auth` was
+             * the single most-called statement in the database at 18,311
+             * calls, each a TLS handshake plus auth ACROSS THE PACIFIC before
+             * any query could run.
+             *
+             * Keeping connections warm removes that setup cost from the hot
+             * path entirely. Still bounded, so a leaked or wedged connection
+             * is eventually reclaimed.
+             */
+            idleTimeoutMillis: 600000, // 10 min
+            maxLifetimeMillis: 1800000, // 30 min
           },
           // Retry connection on startup (important for cold starts)
           connectTimeoutMS: 10000,

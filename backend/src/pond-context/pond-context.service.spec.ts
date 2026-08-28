@@ -316,8 +316,11 @@ describe('PondContextService.getFarmContexts', () => {
   });
 
   it('chunks a large farm instead of putting every query in flight at once', async () => {
-    // 14 ponds × ~6 queries each would be ~84 concurrent statements.
-    const ids = Array.from({ length: 14 }, (_, i) => `p${i}`);
+    // 45 ponds × ~7 queries each would be ~315 concurrent statements against a
+    // pool of 20. The chunk is sized TO the pool (20) rather than below it —
+    // the goal is to keep the pool busy, not idle — so this asserts the bound
+    // still exists, not that it is small. 45 forces more than one chunk.
+    const ids = Array.from({ length: 45 }, (_, i) => `p${i}`);
     const { svc, pondsService } = makeService({ accessiblePonds: ids });
 
     let inFlight = 0;
@@ -335,8 +338,8 @@ describe('PondContextService.getFarmContexts', () => {
 
     const ctxs = await svc.getFarmContexts('farm-1', 'u');
 
-    expect(ctxs).toHaveLength(14);
-    expect(peak).toBeLessThanOrEqual(6);
+    expect(ctxs).toHaveLength(45);
+    expect(peak).toBeLessThanOrEqual(20);
   });
 });
 

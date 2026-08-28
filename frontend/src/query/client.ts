@@ -35,6 +35,7 @@ import {
     type Query,
 } from '@tanstack/react-query';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { removeOldestQuery } from '@tanstack/query-persist-client-core';
 
 /** A persisted cache older than this is thrown away rather than shown. */
 export const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -47,7 +48,21 @@ export const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
  * so they stay in memory. Adding a root here costs Android storage against a
  * hard 6MB ceiling we cannot raise over the air — weigh it.
  */
-export const PERSISTED_ROOTS = new Set(['farms', 'farm', 'ponds', 'pond', 'home', 'briefing']);
+export const PERSISTED_ROOTS = new Set([
+    'farms',
+    'farm',
+    'ponds',
+    'pond',
+    'home',
+    'briefing',
+    // Team and Money were memory-only, which meant they were the two screens
+    // that ALWAYS showed an error with no signal — the app looked online-only
+    // exactly where a farmer checks who is on duty and what was spent. The
+    // storage argument for excluding them was never measured; both are lists
+    // of small rows, far smaller than the pond contexts already persisted.
+    'team',
+    'money',
+]);
 
 /**
  * Query keys, one place.
@@ -101,6 +116,17 @@ export const persister = createAsyncStoragePersister({
     key: 'upcheck-query-cache',
     // Batch the write; the default throttle already coalesces bursts.
     throttleTime: 2_000,
+    /**
+     * On a write failure — overwhelmingly the ~6MB Android AsyncStorage
+     * ceiling we cannot raise over the air — drop the oldest query and try
+     * again, repeatedly, instead of losing the entire cache.
+     *
+     * Without this, one oversized entry fails the write for EVERYTHING, so a
+     * farmer with too much history offline gets no cache at all. Degrading to
+     * "the most recent screens are cached" beats degrading to nothing. This is
+     * TanStack's own retryer; do not hand-roll trimming here.
+     */
+    retry: removeOldestQuery,
 });
 
 /** Only the allow-listed roots reach disk — see PERSISTED_ROOTS. */

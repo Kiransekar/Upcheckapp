@@ -8,6 +8,40 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createHash } from 'crypto';
+import { RedisService } from '../../redis/redis.service';
+
+/**
+ * How long a SUCCESSFUL token verification is trusted from cache.
+ *
+ * This is the revocation window: a session revoked on Supabase stays accepted
+ * here for at most this long. Kept deliberately short — the win is already
+ * enormous (a farmer opening one screen fires ~30 requests, and without this
+ * every one of them pays a full round trip to Supabase Auth in Singapore from
+ * a backend in Oregon; measured at ~200ms each).
+ */
+const AUTH_CACHE_TTL_S = 30;
+
+/**
+ * Seconds until the token's own `exp`, used ONLY to shorten the cache TTL.
+ *
+ * This reads the payload WITHOUT verifying the signature, which is safe here
+ * precisely because it can only ever cache something for less time. It is
+ * never used to decide whether a token is valid — `supabase.auth.getUser()`
+ * remains the only authority for that, and it has already returned success by
+ * the time this is called. An unreadable or absent `exp` yields the default.
+ */
+function secondsUntilExpiry(token: string): number {
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString('utf8'),
+    );
+    if (typeof payload?.exp !== 'number') return AUTH_CACHE_TTL_S;
+    return Math.floor(payload.exp - Date.now() / 1000);
+  } catch {
+    return AUTH_CACHE_TTL_S;
+  }
+}
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -17,6 +51,7 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     configService: ConfigService,
+    private readonly redis: RedisService,
   ) {
     // Build a self-contained Supabase admin client.
     // ConfigService is globally available — no circular-dependency risk.
@@ -51,6 +86,23 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const token = authHeader.substring(7);
+
+    // Cache the VERIFICATION RESULT, never the token itself: the key is a
+    // SHA-256 of the token so nothing that reaches Redis can be replayed as a
+    // credential if the cache is ever exposed.
+    const cacheKey = `authtok:${createHash('sha256').update(token).digest('hex')}`;
+
+    const cached = await this.redis.get(cacheKey).catch(() => null);
+    if (cached) {
+      try {
+        req.user = JSON.parse(cached);
+        return true;
+      } catch {
+        // Corrupt entry — fall through and verify for real rather than
+        // letting a malformed cache decide an auth outcome either way.
+      }
+    }
+
     // Hot-path: keep verification quiet by default. No email (PII) in logs
     // and no per-request "[AUTH OK]" spam — only the user id, at debug level.
     this.logger.debug(
@@ -79,6 +131,18 @@ export class JwtAuthGuard implements CanActivate {
         id: supabaseUser.id,
         email: supabaseUser.email,
       };
+
+      // Only SUCCESSFUL verifications are cached — a rejection must always be
+      // re-checked, so a token cannot be denied from a stale entry.
+      //
+      // The TTL never outlives the token: a token expiring in 5s is cached for
+      // 5s, so the cache can't keep a dead token alive past its own `exp`.
+      const ttl = Math.min(AUTH_CACHE_TTL_S, secondsUntilExpiry(token));
+      if (ttl > 0) {
+        await this.redis
+          .set(cacheKey, JSON.stringify(req.user), 'EX', ttl)
+          .catch(() => undefined); // a cache write failure must never fail auth
+      }
       return true;
     } catch (err: any) {
       this.logger.error(`[UNAUTHORIZED] ${method} ${url} — ${err.message}`);
