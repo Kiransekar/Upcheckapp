@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { Pond } from '../ponds/pond.entity';
+import { Crop } from '../crops/crop.entity';
 import { SamplingData } from '../sampling/sampling-data.entity';
 import { MortalityRecord } from '../mortality/mortality-record.entity';
 import { FeedRecord } from '../feed-records/feed-record.entity';
@@ -121,6 +123,10 @@ export class PondContextService {
     private readonly trayRepo: Repository<FeedingTrayCheck>,
     @InjectRepository(WaterQualityRecord)
     private readonly wqRepo: Repository<WaterQualityRecord>,
+    @InjectRepository(Pond)
+    private readonly pondRepo: Repository<Pond>,
+    @InjectRepository(Crop)
+    private readonly cropRepo: Repository<Crop>,
     private readonly pondsService: PondsService,
     private readonly cropsService: CropsService,
     private readonly calc: ShrimpCalculationsService,
@@ -150,31 +156,179 @@ export class PondContextService {
       'READ',
     );
 
-    // Each context fans out to ~7 queries of its own, so this is chunked to
-    // avoid starving the pool. The chunk was 6, chosen when the pool was 5 —
-    // which meant a 43-pond farm ran ~300 queries through 5 connections, and
-    // every one of those is a round trip to Singapore from Oregon.
-    //
-    // Sized to the pool (20) rather than below it: the point is to keep the
-    // pool BUSY, not idle. Still bounded, so one enormous farm cannot queue
-    // unbounded work.
-    //
-    // ponytail: this only reduces the WAIT for ~7-queries-per-pond; it does
-    // not reduce the COUNT. The real fix is making this set-based — one
-    // GROUP BY per data type instead of per pond, taking ~300 queries to ~7.
-    // That is a larger refactor of the core dashboard path and is deliberately
-    // not bundled with an urgent latency fix.
-    const CHUNK = 20;
-    const out: PondContext[] = [];
-    for (let i = 0; i < pondIds.length; i += CHUNK) {
-      const batch = await Promise.all(
-        pondIds.slice(i, i + CHUNK).map((id) =>
-          this.getContext(id, userId).catch(() => null),
-        ),
-      );
-      out.push(...(batch.filter(Boolean) as PondContext[]));
+    return this.buildContextsFor(pondIds);
+  }
+
+  /**
+   * Build contexts for an ALREADY-AUTHORISED set of ponds, using a fixed
+   * number of set-based queries rather than one fan-out per pond.
+   *
+   * This used to call `getContext` per pond: ~7 queries each, so a 43-pond
+   * farm issued ~300. Every one is a round trip to Supabase in Singapore from
+   * a backend in Oregon (~180ms), which is where the Farms screen's load time
+   * went — the queries themselves run in well under a millisecond.
+   *
+   * Now it is 9 queries REGARDLESS of pond count. The caller must already
+   * have authorised `pondIds` (getFarmContexts does, via
+   * getAccessiblePondIds); nothing here re-checks access, which is also what
+   * removes the per-pond pond+farm read.
+   */
+  private async buildContextsFor(pondIds: string[]): Promise<PondContext[]> {
+    if (!pondIds.length) return [];
+
+    const ponds = await this.pondRepo.find({ where: { id: In(pondIds) } });
+    const cropIds = ponds
+      .map((p) => p.activeCycleId)
+      .filter((id): id is string => !!id);
+    // A pond with an active crop takes its sampling from THAT crop; a pond
+    // without one falls back to its latest sampling overall. Same rule as
+    // getContext, expressed as two set queries instead of one per pond.
+    const cropPondPairs = ponds
+      .filter((p) => p.activeCycleId)
+      .map((p) => ({ pondId: p.id, cropId: p.activeCycleId as string }));
+    const croplessPondIds = ponds
+      .filter((p) => !p.activeCycleId)
+      .map((p) => p.id);
+
+    const [crops, wqRows, samplingByCrop, samplingByPond, mortality, feed, trays] =
+      await Promise.all([
+        cropIds.length
+          ? this.cropRepo.find({
+              where: { id: In(cropIds) },
+              relations: ['species'],
+            })
+          : Promise.resolve([]),
+        this.latestWaterQualityFor(pondIds),
+        cropPondPairs.length
+          ? this.latestSamplingByCrop(cropPondPairs.map((p) => p.cropId))
+          : Promise.resolve([]),
+        croplessPondIds.length
+          ? this.latestSamplingByPond(croplessPondIds)
+          : Promise.resolve([]),
+        cropIds.length
+          ? this.mortalityRepo
+              .createQueryBuilder('m')
+              .select('m.crop_id', 'cropId')
+              .addSelect('SUM(m.estimatedTotal)', 'total')
+              .where('m.cropId IN (:...cropIds)', { cropIds })
+              .groupBy('m.crop_id')
+              .getRawMany()
+          : Promise.resolve([]),
+        cropIds.length
+          ? this.feedRepo
+              .createQueryBuilder('feed')
+              .select('feed.crop_id', 'cropId')
+              .addSelect('SUM(feed.quantityKg)', 'totalFeed')
+              .addSelect('MAX(feed.recordedAt)', 'lastFeedAt')
+              .where('feed.cropId IN (:...cropIds)', { cropIds })
+              .groupBy('feed.crop_id')
+              .getRawMany()
+          : Promise.resolve([]),
+        cropIds.length
+          ? this.latestTrayByCrop(cropIds)
+          : Promise.resolve([]),
+      ]);
+
+    const cropById = new Map(crops.map((c) => [c.id, c]));
+    const mortalityByCrop = new Map(mortality.map((r) => [r.cropId, r]));
+    const feedByCrop = new Map(feed.map((r) => [r.cropId, r]));
+    const trayByCrop = new Map(trays.map((t) => [t.cropId, t]));
+    const samplingForCrop = new Map(samplingByCrop.map((s) => [s.cropId, s]));
+    const samplingForPond = new Map(samplingByPond.map((s) => [s.pondId, s]));
+
+    const wqByPond = new Map<string, WaterQualityRecord[]>();
+    for (const row of wqRows) {
+      const list = wqByPond.get(row.pondId);
+      if (list) list.push(row);
+      else wqByPond.set(row.pondId, [row]);
     }
-    return out;
+
+    return ponds.map((pond) => {
+      const cropId = pond.activeCycleId ?? null;
+      return this.buildContext(pond, {
+        crop: cropId ? (cropById.get(cropId) ?? null) : null,
+        wqRecords: wqByPond.get(pond.id) ?? [],
+        sampling: cropId
+          ? (samplingForCrop.get(cropId) ?? null)
+          : (samplingForPond.get(pond.id) ?? null),
+        mortalityAgg: cropId ? (mortalityByCrop.get(cropId) ?? null) : null,
+        feedAgg: cropId ? (feedByCrop.get(cropId) ?? null) : null,
+        tray: cropId ? (trayByCrop.get(cropId) ?? null) : null,
+      });
+    });
+  }
+
+  /**
+   * The newest 60 water-quality rows for EACH pond, in one query.
+   *
+   * A LATERAL join is what makes "top N per group" a single statement instead
+   * of one query per pond. It walks the (pond_id, recorded_at DESC) composite
+   * index straight to each pond's newest rows and stops — the index added in
+   * AddWaterQualityPondRecordedAtIndex exists precisely for this shape.
+   *
+   * Columns are aliased to the ENTITY's property names because
+   * `resolveWaterQuality` reads them by property (dissolvedOxygen, recordedAt,
+   * …). Only those it actually reads are selected.
+   */
+  private async latestWaterQualityFor(
+    pondIds: string[],
+  ): Promise<WaterQualityRecord[]> {
+    return this.wqRepo.query(
+      `SELECT w.pond_id AS "pondId",
+              w.recorded_at AS "recordedAt",
+              w.dissolved_oxygen AS "dissolvedOxygen",
+              w.ph, w.temperature, w.salinity,
+              w.ammonia, w.nitrite, w.nitrate, w.alkalinity
+         FROM unnest($1::uuid[]) AS p(id)
+         JOIN LATERAL (
+              SELECT * FROM water_quality_records w2
+               WHERE w2.pond_id = p.id
+               ORDER BY w2.recorded_at DESC
+               LIMIT 60
+         ) w ON true`,
+      [pondIds],
+    );
+  }
+
+  /** Latest sampling per crop — DISTINCT ON collapses to one row per group. */
+  private async latestSamplingByCrop(cropIds: string[]): Promise<SamplingData[]> {
+    return this.samplingRepo.query(
+      `SELECT DISTINCT ON (crop_id)
+              crop_id AS "cropId", pond_id AS "pondId",
+              sampling_date AS "samplingDate", mbw_g AS "mbwG"
+         FROM sampling_data
+        WHERE crop_id = ANY($1::uuid[])
+        ORDER BY crop_id, sampling_date DESC`,
+      [cropIds],
+    );
+  }
+
+  /** Latest sampling per pond, for ponds with no active crop. */
+  private async latestSamplingByPond(pondIds: string[]): Promise<SamplingData[]> {
+    return this.samplingRepo.query(
+      `SELECT DISTINCT ON (pond_id)
+              pond_id AS "pondId", crop_id AS "cropId",
+              sampling_date AS "samplingDate", mbw_g AS "mbwG"
+         FROM sampling_data
+        WHERE pond_id = ANY($1::uuid[])
+        ORDER BY pond_id, sampling_date DESC`,
+      [pondIds],
+    );
+  }
+
+  /** Latest feeding-tray check per crop. */
+  private async latestTrayByCrop(
+    cropIds: string[],
+  ): Promise<FeedingTrayCheck[]> {
+    return this.trayRepo.query(
+      `SELECT DISTINCT ON (crop_id)
+              crop_id AS "cropId", check_date AS "checkDate",
+              remaining_feed_status AS "remainingFeedStatus"
+         FROM feeding_tray_checks
+        WHERE crop_id = ANY($1::uuid[])
+        ORDER BY crop_id, check_date DESC`,
+      [cropIds],
+    );
   }
 
   /**
@@ -299,9 +453,6 @@ export class PondContextService {
   async getContext(pondId: string, userId: string): Promise<PondContext> {
     // Dashboard read — READ is enough (owner, manager, worker, viewer).
     const pond = await this.pondsService.findOneAccessible(pondId, userId, 'READ');
-    const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
-    const installedAeratorHp =
-      pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
     const cropId = pond.activeCycleId ?? null;
 
     // Everything below only depends on pondId/cropId (known once the pond is
@@ -349,6 +500,49 @@ export class PondContextService {
             })
           : Promise.resolve(null),
       ]);
+
+    return this.buildContext(pond, {
+      crop,
+      wqRecords,
+      sampling,
+      mortalityAgg,
+      feedAgg,
+      tray,
+    });
+  }
+
+  /**
+   * Assemble one context from data that has ALREADY been fetched.
+   *
+   * Split out so the single-pond path (`getContext`, one pond at a time) and
+   * the whole-farm path (`getFarmContexts`, one set-based query per data type)
+   * produce byte-identical results from the same code. The arithmetic lives
+   * here exactly once; only the FETCHING strategy differs between them.
+   *
+   * Access is the caller's job — this method performs no checks and must
+   * never be handed a pond the caller has not already cleared.
+   */
+  private buildContext(
+    pond: Pond,
+    deps: {
+      crop: Crop | null;
+      wqRecords: WaterQualityRecord[];
+      sampling: SamplingData | null;
+      mortalityAgg: { total?: number | string | null } | null;
+      feedAgg: {
+        totalFeed?: number | string | null;
+        lastFeedAt?: Date | string | null;
+      } | null;
+      tray: FeedingTrayCheck | null;
+    },
+  ): PondContext {
+    const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray } = deps;
+    const pondId = pond.id;
+    const cropId = pond.activeCycleId ?? null;
+    const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
+    const installedAeratorHp =
+      pond.installedAeratorHp != null ? Number(pond.installedAeratorHp) : null;
+
     const wq = this.resolveWaterQuality(wqRecords);
     const abwG = sampling?.mbwG != null ? Number(sampling.mbwG) : null;
     const samplingAt = sampling?.samplingDate

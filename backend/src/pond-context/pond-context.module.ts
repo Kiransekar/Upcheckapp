@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Pond } from '../ponds/pond.entity';
+import { Crop } from '../crops/crop.entity';
 import { SamplingData } from '../sampling/sampling-data.entity';
 import { MortalityRecord } from '../mortality/mortality-record.entity';
 import { FeedRecord } from '../feed-records/feed-record.entity';
@@ -23,6 +25,8 @@ import { ShrimpCalculationsModule } from '../shrimp-calculations/shrimp-calculat
       FeedRecord,
       FeedingTrayCheck,
       WaterQualityRecord,
+      Pond,
+      Crop,
     ]),
     PondsModule,
     CropsModule,
