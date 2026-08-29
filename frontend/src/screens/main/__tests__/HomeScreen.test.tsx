@@ -30,6 +30,11 @@ jest.mock('../../../api/alertCenter', () => ({
 jest.mock('../../../api/tasks', () => ({
     tasksApi: { getAll: jest.fn() },
 }));
+// The roster and "my tasks" used to fan out per farm — attendance + members +
+// tasks, three calls each. Today now takes all three from ONE batched request.
+jest.mock('../../../api/teamOverview', () => ({
+    fetchTeamOverview: jest.fn(),
+}));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
 // wrapper below doesn't provide.
@@ -57,6 +62,7 @@ import { attendanceApi } from '../../../api/attendance';
 import { farmMembersApi } from '../../../api/farmMembers';
 import { alertCenterApi } from '../../../api/alertCenter';
 import { tasksApi } from '../../../api/tasks';
+import { fetchTeamOverview } from '../../../api/teamOverview';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
 import { useAuthStore } from '../../../store/authStore';
@@ -72,6 +78,13 @@ const mockedToday = alertCenterApi.today as jest.Mock;
 const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
 const mockedBriefing = alertCenterApi.briefing as jest.Mock;
 const mockedTasksGetAll = tasksApi.getAll as jest.Mock;
+const mockedTeamOverview = fetchTeamOverview as jest.Mock;
+
+/** Drive the batched call the way the server would answer it. */
+const teamOverview = (over: any = {}) => ({
+    farms: [], myAttendance: null, allAttendance: [], pendingLeave: [],
+    tasks: [], members: [], ...over,
+});
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // react-native-safe-area-context's initialWindowMetrics is statically null
@@ -128,6 +141,7 @@ const resetMocks = async () => {
     mockedLiveBriefing.mockResolvedValue({ data: [] });
     mockedBriefing.mockResolvedValue({ data: [] });
     mockedTasksGetAll.mockResolvedValue({ data: [] });
+    mockedTeamOverview.mockResolvedValue(teamOverview());
     // GET /alert-center/today is what the screen actually calls now. Compose it
     // from the same forFarm/liveBriefing fixtures every test already sets, so
     // the switch to one request did not mean rewriting thirty tests — and so a
@@ -275,8 +289,18 @@ describe('HomeScreen — the stat band', () => {
                 { ...emptyPondContext, cropId: null },
             ],
         });
-        mockedListMembers.mockResolvedValue({ data: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
-        mockedAttendance.mockResolvedValue({ data: [{ userId: 'a' }, { userId: 'a' }, { userId: 'b' }] });
+        // Two distinct people checked in out of three on the roster — the same
+        // person twice in a day is one person on duty. Deduped by userId.
+        mockedTeamOverview.mockResolvedValue(
+            teamOverview({
+                members: [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }],
+                allAttendance: [
+                    { userId: 'a', checkInAt: new Date().toISOString() },
+                    { userId: 'a', checkInAt: new Date().toISOString() },
+                    { userId: 'b', checkInAt: new Date().toISOString() },
+                ],
+            }),
+        );
     });
 
     it('shows biomass, logs today and on duty', async () => {
@@ -463,26 +487,32 @@ describe('HomeScreen — my tasks', () => {
     // handed on for verification is not open work for the person who did it,
     // even though it stays in the list with a Verify button for whoever checks.
     it('counts only work still to do', async () => {
-        mockedTasksGetAll.mockResolvedValue({
-            data: [
-                { id: 't1', status: 'open', title: 'Check trays' },
-                { id: 't2', status: 'in_progress', title: 'Top up lime' },
-                { id: 't3', status: 'done', title: 'Sampling' },
-            ],
-        });
+        mockedTeamOverview.mockResolvedValue(
+            teamOverview({
+                tasks: [
+                    { id: 't1', status: 'open', title: 'Check trays', assignedToId: 'worker-1' },
+                    { id: 't2', status: 'in_progress', title: 'Top up lime', assignedToId: 'worker-1' },
+                    { id: 't3', status: 'done', title: 'Sampling', assignedToId: 'worker-1' },
+                    // Someone else's work must not be counted as this farmer's.
+                    { id: 't4', status: 'open', title: 'Not mine', assignedToId: 'other' },
+                ],
+            }),
+        );
 
         const { findByText } = renderScreen();
 
         expect(await findByText('2 open')).toBeTruthy();
-        expect(mockedTasksGetAll).toHaveBeenCalledWith('farm-1', { assignedToId: 'worker-1' });
+
     });
 
     it('opens the task list filtered to this person, not the whole farm', async () => {
-        mockedTasksGetAll.mockResolvedValue({
-            // farmId comes back on every task; the row carries it through so
-            // the list opens the right farm.
-            data: [{ id: 't1', farmId: 'farm-1', status: 'open', title: 'Check trays' }],
-        });
+        mockedTeamOverview.mockResolvedValue(
+            teamOverview({
+                // farmId comes back on every task; the row carries it through
+                // so the list opens the right farm.
+                tasks: [{ id: 't1', farmId: 'farm-1', status: 'open', title: 'Check trays', assignedToId: 'worker-1' }],
+            }),
+        );
 
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Open'));

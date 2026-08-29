@@ -98,7 +98,20 @@ export const qk = {
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 30_000,
+            /**
+             * Was 30s, which production logs showed was a refetch treadmill:
+             * the SAME per-farm attendance and members calls went out at
+             * 17:59:14, 18:00:16, 18:00:46, 18:00:57 and 18:02:35 — five times
+             * in three minutes, for data that had not changed.
+             *
+             * Freshness after the farmer's OWN write does not depend on this
+             * at all: `saveRecord()` calls `invalidateForEntity()`, which marks
+             * exactly the affected reads stale so they refetch on the next
+             * focus. That is the guarantee; staleTime only governs how often we
+             * re-ask about data nobody has touched. Five minutes on a rural
+             * connection is the difference between usable and not.
+             */
+            staleTime: 5 * 60_000,
             gcTime: CACHE_MAX_AGE_MS,
             // See (1) above — always attempt, never park in `paused`.
             networkMode: 'always',
