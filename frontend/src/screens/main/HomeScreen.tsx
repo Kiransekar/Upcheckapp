@@ -37,8 +37,8 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { fetchTodaySnapshot } from '../../api/todaySnapshot';
 import { farmMembersApi } from '../../api/farmMembers';
-import { attendanceApi } from '../../api/attendance';
-import { tasksApi, type Task } from '../../api/tasks';
+import { type Task } from '../../api/tasks';
+import { fetchTeamOverview } from '../../api/teamOverview';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { qk } from '../../query/client';
@@ -165,9 +165,7 @@ export const HomeScreen = ({ navigation }: any) => {
     const [checklistHidden, setChecklistHidden] = useState(true);
     // Worker first-run interstitial — see WORKER_WELCOME_FLAG above.
     const [showWorkerWelcome, setShowWorkerWelcome] = useState(false);
-    // Worker dashboard v1: tasks assigned to this worker, not yet done.
-    const [myOpenTasks, setMyOpenTasks] = useState<Task[] | null>(null);
-    // "Needs Attention" — the cross-pond alert severity data already proven in
+    // Worker dashboard v1: tasks assigned to this worker, not yet done.    // "Needs Attention" — the cross-pond alert severity data already proven in
     // MorningBriefingScreen, surfaced at the top of Home so a critical issue
     // in any pond doesn't sit unseen behind five other sections and a "Today"
     // tap (docs/UI_UX_AUDIT.md homepage redesign, Phase 1).
@@ -296,31 +294,37 @@ export const HomeScreen = ({ navigation }: any) => {
         };
     }, [bandReady, contexts]);
 
-    /** The only part of the band that still needs the network. */
-    const rosterQuery = useAppQuery({
-        queryKey: [...qk.home(scopeFarmId), 'roster', scopeFarms.map((f) => f.id).join(',')],
-        enabled: scopeFarms.length > 0 && perms.canManageOperations,
-        queryFn: async (): Promise<{ present: number; total: number } | null> => {
-            // Same rule: a roster we could not read is not a roster of nobody.
-            const rosters = await Promise.all(
-                scopeFarms.map(async (f) => {
-                    const [att, members] = await Promise.all([
-                        attendanceApi.getAll(f.id, todayLocalISODate()).then((r) => r.data).catch(() => null),
-                        farmMembersApi.listMembers(f.id).then((r) => r.data).catch(() => null),
-                    ]);
-                    if (!att || !members) return null;
-                    return { present: new Set(att.map((x) => x.userId)).size, total: members.length };
-                }),
-            );
-            if (rosters.some((r) => r === null)) return null;
-            const complete = rosters as NonNullable<(typeof rosters)[number]>[];
-            const total = complete.reduce((x, r) => x + r.total, 0);
-            return total > 0
-                ? { present: complete.reduce((x, r) => x + r.present, 0), total }
-                : null;
-        },
+    /**
+     * The roster AND this farmer's tasks, in ONE request.
+     *
+     * Both used to fan out per farm — attendance + members + tasks, three calls
+     * each. For a five-farm owner that was 15 requests for two small numbers
+     * and a task list, on top of everything else Today asks for. Production
+     * logs showed the same per-farm calls repeating every ~30s.
+     *
+     * `/team/overview` already returns exactly this (members, attendance,
+     * tasks) for every farm in scope, with the same per-farm permission checks
+     * — so Home reuses it rather than growing an endpoint of its own.
+     */
+    const teamQuery = useAppQuery({
+        queryKey: qk.team(scopeFarmId ?? 'all'),
+        enabled: scopeFarms.length > 0,
+        queryFn: () => fetchTeamOverview(scopeFarmId ?? 'all'),
     });
-    const onDutyToday = rosterQuery.data ?? null;
+
+    const onDutyToday = React.useMemo(() => {
+        // A roster we could not read is not a roster of nobody.
+        if (!teamQuery.data || teamQuery.isError || !perms.canManageOperations) return null;
+        const today = todayLocalISODate();
+        const present = new Set(
+            (teamQuery.data.allAttendance ?? [])
+                .filter((a: any) => (a.checkInAt ?? '').startsWith(today))
+                .map((a: any) => a.userId),
+        ).size;
+        // Someone on two farms is one member of the team, so dedupe by user.
+        const total = new Set((teamQuery.data.members ?? []).map((m: any) => m.userId)).size;
+        return total > 0 ? { present, total } : null;
+    }, [teamQuery.data, teamQuery.isError, perms.canManageOperations]);
 
     /**
      * Can the Getting Started checklist still appear at all?
@@ -367,9 +371,9 @@ export const HomeScreen = ({ navigation }: any) => {
         void farmsQuery.refetch();
         void pondsQuery.refetch();
         void alertsQuery.refetch();
-        void rosterQuery.refetch();
+        void teamQuery.refetch();
         fetchPlannedPondCount();
-    }, [farmsQuery, pondsQuery, alertsQuery, rosterQuery, fetchPlannedPondCount]);
+    }, [farmsQuery, pondsQuery, alertsQuery, teamQuery, fetchPlannedPondCount]);
 
     const onRetry = useCallback(() => {
         void farmsQuery.refetch();
@@ -596,41 +600,24 @@ export const HomeScreen = ({ navigation }: any) => {
         AsyncStorage.setItem(WORKER_WELCOME_FLAG, '1').catch(() => {});
     };
 
-    // Worker dashboard v1: surface the worker's own assigned, not-yet-done
-    // tasks right on Home instead of requiring a drill into Farms → Farm →
-    // Tasks to discover them. Re-fetches on focus (screen stays mounted).
-    const fetchMyTasks = useCallback(() => {
-        // Was gated on `perms.isWorker`. Artboard 1b gives "My tasks" to
-        // EVERYONE — an owner is assigned work too, and hiding their own tasks
-        // from them was the reason this section only ever appeared for workers.
-        if (!user?.id) {
-            setMyOpenTasks(null);
-            return;
-        }
-        // Home spans every farm, so ask each one. `verified` is excluded but
-        // `done` is NOT: a finished task waiting on a verifier is precisely
-        // what 1b's "Verify" button is for.
-        if (scopeFarms.length === 0) {
-            setMyOpenTasks(null);
-            return;
-        }
-        Promise.all(
-            scopeFarms.map((f) =>
-                tasksApi
-                    .getAll(f.id, { assignedToId: user.id })
-                    .then(({ data }) => (Array.isArray(data) ? data : (data as any)?.data ?? []))
-                    .catch(() => [] as Task[]),
-            ),
-        )
-            .then((lists) =>
-                setMyOpenTasks(
-                    lists.flat().filter((task: Task) => task.status !== 'verified'),
-                ),
-            )
-            .catch(() => setMyOpenTasks(null));
-    }, [scopeFarms, user?.id]);
+    /**
+     * This farmer's own open tasks, taken from the SAME request as the roster.
+     *
+     * This used to be one call per farm on top of the roster's two — 15
+     * requests for a five-farm owner. Artboard 1b gives "My tasks" to
+     * everyone, not just workers: an owner is assigned work too.
+     *
+     *  is excluded but  is NOT — a finished task waiting on a
+     * verifier is precisely what 1b's "Verify" button is for.
+     */
+    const myOpenTasks = React.useMemo(() => {
+        if (!user?.id || !teamQuery.data || teamQuery.isError) return null;
+        return (teamQuery.data.tasks ?? []).filter(
+            (task: any) => task.assignedToId === user.id && task.status !== 'verified',
+        );
+    }, [teamQuery.data, teamQuery.isError, user?.id]);
 
-    useFocusEffect(useCallback(() => { fetchMyTasks(); }, [fetchMyTasks]));
+    
 
 
     /**
