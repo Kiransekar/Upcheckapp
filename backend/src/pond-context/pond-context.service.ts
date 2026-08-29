@@ -173,7 +173,7 @@ export class PondContextService {
    * getAccessiblePondIds); nothing here re-checks access, which is also what
    * removes the per-pond pond+farm read.
    */
-  private async buildContextsFor(pondIds: string[]): Promise<PondContext[]> {
+  async buildContextsFor(pondIds: string[]): Promise<PondContext[]> {
     if (!pondIds.length) return [];
 
     const ponds = await this.pondRepo.find({ where: { id: In(pondIds) } });

@@ -67,83 +67,108 @@ describe('EngineAlertService.evaluate', () => {
   });
 });
 
-/** AUDIT id 143: liveBriefing fans per-pond context fetches out, not N+1. */
-describe('EngineAlertService.liveBriefing', () => {
-  it('fetches contexts for all active ponds and skips a pond that errors', async () => {
-    const ponds = [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }];
-    const pondRepo = { find: jest.fn().mockResolvedValue(ponds) };
-    const getContext = jest.fn((pondId: string) =>
-      pondId === 'p2'
-        ? Promise.reject(new Error('boom'))
-        : Promise.resolve({ ...baseCtx, pondId }),
-    );
-    const pondContext = { getContext };
-    const alertCenter = { buildBriefing: jest.fn((drafts) => drafts) };
-    const farmAccess = {
-      getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
-    };
+/**
+ * activeContexts backs BOTH /alert-center/live-briefing and /alert-center/today.
+ *
+ * It used to fetch each pond's context individually, in batches of five — a
+ * limit chosen when the connection pool was 5. At ~7 queries per pond a
+ * 43-pond account meant ~300 statements in nine sequential batches, each a
+ * round trip to Supabase in Singapore from a backend in Oregon, so this one
+ * method took 10-15s and tripped the client's 15s timeout. Since it runs on
+ * both endpoints, it made Today, the pond page and Money slow at once.
+ *
+ * It now builds every context in ONE set-based pass.
+ */
+const buildSvc = (over: any = {}) => {
+  const buildContextsFor = over.buildContextsFor
+    ?? jest.fn(async (ids: string[]) => ids.map((pondId) => ({ ...baseCtx, pondId })));
+  const allPonds = over.ponds ?? [{ id: 'p1' }, { id: 'p2' }];
+  const pondRepo = {
+    // Honour the id filter the way the database would, so the scope test below
+    // is testing the scoping rather than the mock.
+    find: jest.fn(async (opts: any) => {
+      const ids = opts?.where?.id?.value ?? opts?.where?.id?._value ?? null;
+      return ids ? allPonds.filter((p: any) => ids.includes(p.id)) : allPonds;
+    }),
+  };
+  const farmAccess = {
+    getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
+    getAccessiblePondIds: jest
+      .fn()
+      .mockResolvedValue(over.readablePonds ?? ['p1', 'p2']),
+  };
+  const svc = new EngineAlertService(
+    pondRepo as any,
+    { buildContextsFor } as any,
+    new LunarService(),
+    { buildBriefing: jest.fn((drafts) => drafts) } as any,
+    farmAccess as any,
+  );
+  return { svc, buildContextsFor, pondRepo, farmAccess };
+};
 
-    const svc = new EngineAlertService(
-      pondRepo as any,
-      pondContext as any,
-      new LunarService(),
-      alertCenter as any,
-      farmAccess as any,
-    );
+describe('EngineAlertService.activeContexts', () => {
+  it('builds every pond context in ONE call, not one per pond', async () => {
+    const { svc, buildContextsFor } = buildSvc({
+      ponds: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }],
+      readablePonds: ['p1', 'p2', 'p3'],
+    });
 
     await svc.liveBriefing('user-1');
 
-    // All 3 ponds fetched (fanned out), including the one that errors.
-    expect(getContext).toHaveBeenCalledTimes(3);
-    expect(getContext).toHaveBeenCalledWith('p1', 'user-1');
-    expect(getContext).toHaveBeenCalledWith('p2', 'user-1');
-    expect(getContext).toHaveBeenCalledWith('p3', 'user-1');
+    // The invariant that matters: work does not scale with pond count.
+    expect(buildContextsFor).toHaveBeenCalledTimes(1);
+    expect(buildContextsFor).toHaveBeenCalledWith(['p1', 'p2', 'p3']);
+  });
+
+  /**
+   * Per-POND scope, not just farm scope. This used to rely on getContext's own
+   * check refusing and the error being swallowed; building in bulk means the
+   * pond set has to be resolved through the access layer up front instead.
+   */
+  it("never builds a context for a pond outside the caller scope", async () => {
+    const { svc, buildContextsFor, pondRepo } = buildSvc({
+      readablePonds: ['p1'],
+    });
+
+    await svc.liveBriefing('scoped-worker');
+
+    expect(pondRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: expect.anything() }) }),
+    );
+    const asked = buildContextsFor.mock.calls[0][0];
+    expect(asked).not.toContain('p2');
+  });
+
+  it('returns nothing, and asks for nothing, when no pond is readable', async () => {
+    const { svc, buildContextsFor } = buildSvc({ readablePonds: [] });
+
+    expect(await svc.liveBriefing('stranger')).toEqual([]);
+    expect(buildContextsFor).not.toHaveBeenCalled();
   });
 });
 
-/**
- * `today` exists so the home screen stops computing every pond context twice
- * — once for the briefing, once via /pond-context. It must return the same
- * briefing liveBriefing does, off ONE pass over the contexts.
- */
 describe('EngineAlertService.today', () => {
-  const build = (getContext: jest.Mock) => {
-    const pondRepo = {
-      find: jest.fn().mockResolvedValue([{ id: 'p1' }, { id: 'p2' }]),
-    };
-    return new EngineAlertService(
-      pondRepo as any,
-      { getContext } as any,
-      new LunarService(),
-      { buildBriefing: jest.fn((drafts) => drafts) } as any,
-      {
-        getAccessibleFarmIds: jest.fn().mockResolvedValue(['farm-1']),
-      } as any,
-    );
-  };
-
   it('returns the contexts alongside the briefing, computing each once', async () => {
-    const getContext = jest.fn((pondId: string) =>
-      Promise.resolve({ ...baseCtx, pondId }),
-    );
-    const svc = build(getContext);
+    const { svc, buildContextsFor } = buildSvc();
 
     const { contexts, briefing } = await svc.today('user-1');
 
     expect(contexts.map((c) => c.pondId)).toEqual(['p1', 'p2']);
-    expect(getContext).toHaveBeenCalledTimes(2);
+    expect(buildContextsFor).toHaveBeenCalledTimes(1);
     // Same body live-briefing would have returned for the same data.
-    expect(briefing).toEqual(await svc.liveBriefing('user-1'));
+    expect(briefing).toEqual(await buildSvc().svc.liveBriefing('user-1'));
   });
 
   it('surfaces a pond alert in the briefing and its context in the same response', async () => {
     // A pond over the free-ammonia threshold: the alert and the numbers it was
     // derived from have to travel together, or the screen renders one without
     // the other.
-    const getContext = jest.fn((pondId: string) =>
-      Promise.resolve({ ...baseCtx, pondId, freeAmmoniaMgL: 0.5 }),
-    );
-    const svc = build(getContext);
+    const { svc } = buildSvc({
+      buildContextsFor: jest.fn(async (ids: string[]) =>
+        ids.map((pondId) => ({ ...baseCtx, pondId, freeAmmoniaMgL: 0.5 })),
+      ),
+    });
 
     const { contexts, briefing } = await svc.today('user-1');
 
@@ -152,18 +177,5 @@ describe('EngineAlertService.today', () => {
     for (const item of briefing) {
       expect(contexts.some((c) => c.pondId === item.pondId)).toBe(true);
     }
-  });
-
-  it('drops a pond whose context fails rather than failing the whole screen', async () => {
-    const getContext = jest.fn((pondId: string) =>
-      pondId === 'p2'
-        ? Promise.reject(new Error('boom'))
-        : Promise.resolve({ ...baseCtx, pondId }),
-    );
-    const svc = build(getContext);
-
-    const { contexts } = await svc.today('user-1');
-
-    expect(contexts.map((c) => c.pondId)).toEqual(['p1']);
   });
 });

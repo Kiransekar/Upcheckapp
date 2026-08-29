@@ -145,27 +145,50 @@ export class EngineAlertService {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     if (farmIds.length === 0) return [];
 
-    const mine = await this.pondRepo.find({
-      where: { activeCycleId: Not(IsNull()), farmId: In(farmIds) },
-    });
+    /**
+     * PER-POND scope, not just farm scope.
+     *
+     * This used to read every pond on an accessible farm and lean on
+     * `getContext`'s own check to drop the ones the caller may not read — the
+     * errors were swallowed, so it worked, but only as a side effect. Asking
+     * the access layer up front keeps that guarantee explicit now that the
+     * contexts are built in bulk: `getAccessiblePondIds` resolves the
+     * farm-level capability AND `farm_member_ponds` scoping.
+     *
+     * One query per farm (a handful), against the ~300 this replaces.
+     */
+    const scoped = await Promise.all(
+      farmIds.map((farmId) =>
+        this.farmAccess.getAccessiblePondIds(userId, farmId, 'READ'),
+      ),
+    );
+    const readable = new Set(scoped.flat());
+    if (readable.size === 0) return [];
 
-    // Fan out per-pond context fetches instead of serializing them (AUDIT id
-    // 143), but cap concurrency to the pool size (app.module.ts: max: 5) so an
-    // N-pond farm doesn't hammer the connection pool.
-    const POOL_LIMIT = 5;
-    const contexts: PondContext[] = [];
-    for (let i = 0; i < mine.length; i += POOL_LIMIT) {
-      const batch = mine.slice(i, i + POOL_LIMIT);
-      const results = await Promise.all(
-        batch.map((p) =>
-          this.pondContext
-            .getContext(p.id, userId)
-            .catch(() => null), // Skip a pond that errors; don't fail the whole briefing.
-        ),
-      );
-      contexts.push(...(results.filter(Boolean) as PondContext[]));
-    }
-    return contexts;
+    const mine = await this.pondRepo.find({
+      where: {
+        activeCycleId: Not(IsNull()),
+        id: In([...readable]),
+      },
+    });
+    if (mine.length === 0) return [];
+
+    /**
+     * Build every context in ONE set-based pass.
+     *
+     * This was a per-pond fan-out in batches of five — a limit chosen when the
+     * connection pool was 5. At ~7 queries per pond, a 43-pond account meant
+     * ~300 statements in NINE sequential batches; every one of them a round
+     * trip to Supabase in Singapore from a backend in Oregon (~180ms), so this
+     * single method took 10-15s and tripped the client's 15s timeout. It runs
+     * on `/alert-center/today` AND `/alert-center/live-briefing`, which is why
+     * Today, the pond page and Money were all slow at once.
+     *
+     * `buildContextsFor` does it in 9 queries regardless of pond count. It
+     * performs no access checks of its own, which is why the pond set above is
+     * resolved through the access layer first.
+     */
+    return this.pondContext.buildContextsFor(mine.map((p) => p.id));
   }
 
   /** Roll evaluated contexts into the briefing shape the client renders. */
