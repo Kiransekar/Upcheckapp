@@ -8,8 +8,69 @@ import {
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { createHash } from 'crypto';
+import { createHash, createPublicKey, type KeyObject } from 'crypto';
+import * as jwt from 'jsonwebtoken';
 import { RedisService } from '../../redis/redis.service';
+
+/**
+ * Supabase's public signing keys, cached in process.
+ *
+ * WHY LOCAL VERIFICATION EXISTS
+ *
+ * Every request used to call `supabase.auth.getUser()`, a round trip to
+ * Supabase Auth in Singapore from a backend in Oregon. Measured against
+ * production: 0.5-1.3s PER REQUEST, before any of the farmer's data is read.
+ * A screen makes four or five requests, so that alone was most of an 8-15s
+ * page load.
+ *
+ * The Redis cache added earlier was supposed to absorb this and did not — a
+ * live check found ZERO `authtok:` keys and no key with a TTL, while the logs
+ * showed `verifying via supabase.auth.getUser()` on requests only ten seconds
+ * apart, well inside the 30s window. Rather than keep chasing why the cache
+ * misses, this removes the need for it: an ES256 signature check against the
+ * project's published JWKS is local CPU work, microseconds, no network.
+ *
+ * THE TRADE-OFF, STATED PLAINLY
+ *
+ * `getUser()` asks Supabase whether the session is still valid, so it catches
+ * a revoked session immediately. A signature check cannot: a token stays
+ * accepted until its own `exp`. That widens the revocation window from ~0 to
+ * the token's lifetime. It is a deliberate trade for an app that is otherwise
+ * unusable, and it is bounded — `jwt.verify` enforces `exp` itself.
+ *
+ * Anything this cannot verify (unknown kid, non-ES256, malformed, expired)
+ * falls through to `getUser()` unchanged, so no token is ever accepted here
+ * that the old path would have rejected.
+ */
+let jwksCache: Map<string, KeyObject> | null = null;
+let jwksFetchedAt = 0;
+const JWKS_TTL_MS = 60 * 60 * 1000;
+
+async function loadJwks(supabaseUrl: string, force = false): Promise<Map<string, KeyObject>> {
+  const fresh = Date.now() - jwksFetchedAt < JWKS_TTL_MS;
+  if (jwksCache && fresh && !force) return jwksCache;
+
+  const res = await fetch(`${supabaseUrl}/auth/v1/.well-known/jwks.json`);
+  const body = (await res.json()) as { keys?: any[] };
+  const map = new Map<string, KeyObject>();
+  for (const jwk of body.keys ?? []) {
+    if (!jwk.kid) continue;
+    try {
+      map.set(jwk.kid, createPublicKey({ key: jwk, format: 'jwk' }));
+    } catch {
+      // A key we cannot import is simply not usable locally; getUser() covers it.
+    }
+  }
+  jwksCache = map;
+  jwksFetchedAt = Date.now();
+  return map;
+}
+
+/** Exported for tests — a fresh process must not inherit another test's keys. */
+export function __resetJwksCacheForTests(): void {
+  jwksCache = null;
+  jwksFetchedAt = 0;
+}
 
 /**
  * How long a SUCCESSFUL token verification is trusted from cache.
@@ -47,6 +108,8 @@ function secondsUntilExpiry(token: string): number {
 export class JwtAuthGuard implements CanActivate {
   private readonly logger = new Logger(JwtAuthGuard.name);
   private readonly supabase: SupabaseClient;
+  /** Kept for the JWKS endpoint — see loadJwks / verifyLocally. */
+  private readonly supabaseUrl: string;
 
   constructor(
     private reflector: Reflector,
@@ -57,9 +120,53 @@ export class JwtAuthGuard implements CanActivate {
     // ConfigService is globally available — no circular-dependency risk.
     const url = configService.get<string>('SUPABASE_URL') ?? '';
     const key = configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    this.supabaseUrl = url;
     this.supabase = createClient(url, key, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+  }
+
+  /**
+   * Verify the token's ES256 signature against the project's JWKS.
+   *
+   * Returns null — never throws, and never a partial user — for ANYTHING it
+   * cannot fully verify. The caller then falls through to
+   * `supabase.auth.getUser()`, so this can only ever make an accepted token
+   * faster, never make a rejected one accepted.
+   */
+  private async verifyLocally(
+    token: string,
+  ): Promise<{ id: string; email?: string } | null> {
+    try {
+      const decoded = jwt.decode(token, { complete: true });
+      const kid = decoded?.header?.kid;
+      // Only the asymmetric algorithm this project actually signs with. An
+      // `alg` we do not expect is refused outright rather than trusted.
+      if (!kid || decoded?.header?.alg !== 'ES256') return null;
+
+      const url = this.supabaseUrl;
+      if (!url) return null;
+
+      let keys = await loadJwks(url);
+      let key = keys.get(kid);
+      if (!key) {
+        // Unknown kid usually means Supabase rotated its signing key; refetch
+        // once before giving up so a rotation does not fail every request.
+        keys = await loadJwks(url, true);
+        key = keys.get(kid);
+      }
+      if (!key) return null;
+
+      // Verifies the signature AND `exp` — an expired token throws here.
+      const payload = jwt.verify(token, key, {
+        algorithms: ['ES256'],
+      }) as jwt.JwtPayload;
+
+      if (!payload?.sub) return null;
+      return { id: payload.sub, email: payload.email as string | undefined };
+    } catch {
+      return null;
+    }
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -91,6 +198,13 @@ export class JwtAuthGuard implements CanActivate {
     // SHA-256 of the token so nothing that reaches Redis can be replayed as a
     // credential if the cache is ever exposed.
     const cacheKey = `authtok:${createHash('sha256').update(token).digest('hex')}`;
+
+    // Fastest path: verify the signature ourselves. No network at all.
+    const local = await this.verifyLocally(token);
+    if (local) {
+      req.user = local;
+      return true;
+    }
 
     const cached = await this.redis.get(cacheKey).catch(() => null);
     if (cached) {
