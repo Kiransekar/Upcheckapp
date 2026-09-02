@@ -29,6 +29,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
 import type { PondContext } from '../../api/pondContext';
+import { survivalPctFrom, didPrefillAnything } from './prefill';
 
 const c = theme.roles.light;
 
@@ -71,14 +72,16 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
         setPondId(id);
         if (!ctx) return;
         setDoc(ctx.doc ?? null);
-        setPrefilled(true);
+        // Only claim the form was filled from the pond when the pond could fill
+        // the REQUIRED field (QA BUG-018).
+        setPrefilled(didPrefillAnything(ctx));
         if (ctx.abwG != null) setMbwG((v) => v || String(ctx.abwG));
         if (ctx.crop?.stockingCount != null) {
             setInitialCount((v) => v || String(ctx.crop!.stockingCount));
-            if (ctx.livePopulation != null && ctx.crop.stockingCount > 0) {
-                const sr = Math.round((ctx.livePopulation / ctx.crop.stockingCount) * 100);
-                setSrPct((v) => v || String(sr));
-            }
+            // Null until a sampling backs it — never the fabricated 100%
+            // (QA BUG-019).
+            const sr = survivalPctFrom(ctx);
+            if (sr != null) setSrPct((v) => v || String(sr));
         }
         if (ctx.areaM2 != null) setPondAreaM2((v) => v || String(Math.round(ctx.areaM2!)));
     }, []);

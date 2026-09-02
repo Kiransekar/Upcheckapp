@@ -34,6 +34,7 @@ import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { survivalPctFrom } from '../calculators/prefill';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pnlApi, type CropPnl } from '../../api/pnl';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -192,13 +193,12 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         }, [perms.canViewFinancials, pond?.activeCycleId]),
     );
 
-    /** Survival = live population over what was stocked. */
-    const survival = useMemo(() => {
-        const stocked = context?.crop?.stockingCount;
-        const live = context?.livePopulation;
-        if (!stocked || live == null) return null;
-        return Math.round((live / stocked) * 100);
-    }, [context]);
+    /**
+     * Survival = live population over what was stocked, but only once a
+     * sampling exists. Without one this rendered 100% directly above a card
+     * saying survival cannot be worked out without a sampling (QA BUG-019).
+     */
+    const survival = useMemo(() => survivalPctFrom(context), [context]);
 
     /** Days between today and the cycle's target length. */
     const daysToTarget = useMemo(() => {
