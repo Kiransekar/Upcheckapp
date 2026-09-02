@@ -211,6 +211,9 @@ const home = {
   hideChecklistTitle: "सेटअप सूची छिपाएँ?",
   hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",
   hideChecklistConfirm: "हमेशा के लिए छिपाएँ",
+
+  logProgressTitle: "लॉग प्रगति",
+  logProgressOutstanding: "अभी लॉग करना बाकी",
 };
 
 export default home;

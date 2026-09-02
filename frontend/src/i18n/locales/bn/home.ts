@@ -211,6 +211,9 @@ const home = {
   hideChecklistTitle: "সেটআপ তালিকা লুকাবেন?",
   hideChecklistBody: "এটি আর ফিরে আসবে না। পুকুর তৈরি, রিডিং নথিভুক্ত করা ও দলকে ডাকা খামার ও দল ট্যাব থেকে এখনও করা যাবে।",
   hideChecklistConfirm: "চিরতরে লুকান",
+
+  logProgressTitle: "লগ অগ্রগতি",
+  logProgressOutstanding: "এখনও লগ করা বাকি",
 };
 
 export default home;

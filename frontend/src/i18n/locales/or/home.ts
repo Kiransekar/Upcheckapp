@@ -211,6 +211,9 @@ const home = {
   hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
   hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",
   hideChecklistConfirm: "ସବୁଦିନ ପାଇଁ ଲୁଚାନ୍ତୁ",
+
+  logProgressTitle: "ଲଗ୍ ପ୍ରଗତି",
+  logProgressOutstanding: "ଏବେ ବି ଲଗ୍ କରିବାକୁ ବାକି",
 };
 
 export default home;

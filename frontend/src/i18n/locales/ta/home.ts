@@ -211,6 +211,9 @@ const home = {
   hideChecklistTitle: "அமைப்புப் பட்டியலை மறைக்கவா?",
   hideChecklistBody: "இது மீண்டும் வராது. குளங்கள் அமைப்பது, அளவீடு பதிவது, குழுவை அழைப்பது எல்லாம் பண்ணை மற்றும் குழு தாவல்களில் தொடரும்.",
   hideChecklistConfirm: "நிரந்தரமாக மறை",
+
+  logProgressTitle: "பதிவு முன்னேற்றம்",
+  logProgressOutstanding: "இன்னும் பதிவு செய்ய வேண்டியவை",
 };
 
 export default home;
