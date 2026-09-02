@@ -3,6 +3,8 @@ import apiClient from '../api/client';
 import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
 import { invalidateForEntity } from '../query/client';
+import { alertCenterApi } from '../api/alertCenter';
+import { syncReminders } from '../utils/notifications';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -64,6 +66,21 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
         const { data } = await apiClient.post(endpoint, body);
         // The server now has it — every cached read this record moves is stale.
         invalidateForEntity(entity);
+        // Re-arm reminders against the record just logged — best-effort, not
+        // awaited (a slow read must never delay the save the farmer is
+        // waiting on) and never allowed to turn a successful save into a
+        // queued/failed one if it throws. See syncReminders in
+        // utils/notifications.ts.
+        try {
+            alertCenterApi
+                .today()
+                .then((r) => syncReminders(r.data.contexts ?? []))
+                .catch(() => {
+                    /* best-effort; the next foreground or save will retry */
+                });
+        } catch {
+            /* best-effort; see above */
+        }
         return { id, queued: false, data };
     } catch (err) {
         if (isNetworkError(err)) {

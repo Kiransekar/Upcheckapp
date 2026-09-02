@@ -1,6 +1,7 @@
 import './src/i18n'; // initialise i18next before any screen renders
 import './src/theme/fontScaling'; // cap OS-level font scaling app-wide (docs/UI_UX_AUDIT.md Tier 1 #4)
 import React, { useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { linking } from './src/navigation/linking';
@@ -10,7 +11,8 @@ import * as Notifications from 'expo-notifications';
 import RootNavigator from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastHost } from './src/components/ui/ToastHost';
-import { registerForPushNotificationsAsync, scheduleDailyWaterQualityReminders, scheduleWeeklyChemistryReminder } from './src/utils/notifications';
+import { registerForPushNotificationsAsync, syncReminders } from './src/utils/notifications';
+import { alertCenterApi } from './src/api/alertCenter';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
@@ -58,6 +60,29 @@ export default function App() {
   // needs AppState wiring or it never fires — see src/query/client.ts.
   useEffect(() => startFocusTracking(), []);
 
+  // (Re)arm the water-quality/chemistry reminders against the latest pond
+  // contexts on launch and every time the app comes back to the foreground —
+  // a slot the farmer already logged is simply not scheduled (see
+  // syncReminders). Also re-armed from saveRecord()'s success path
+  // (src/sync/recordSync.ts) so logging while the app is open takes effect
+  // immediately, not just at the next foreground.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const armReminders = () => {
+      alertCenterApi
+        .today()
+        .then((r) => syncReminders(r.data.contexts ?? []))
+        .catch(() => {
+          /* best-effort; the next foreground or save will retry */
+        });
+    };
+    armReminders();
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') armReminders();
+    });
+    return () => sub.remove();
+  }, [isAuthenticated]);
+
   // Refresh the authoritative banned-substance list from the backend on launch
   // (BANNED-1). Best-effort: falls back to the cached/bundled list when offline.
   useEffect(() => {
@@ -91,12 +116,6 @@ export default function App() {
     registerForPushNotificationsAsync()
       .then(token => {
         setExpoPushToken(token ?? '');
-        // Schedule the reminders that drive the continuous-data loop:
-        // 3×/day water-quality + a weekly chemistry check (both idempotent).
-        return Promise.all([
-          scheduleDailyWaterQualityReminders(),
-          scheduleWeeklyChemistryReminder(),
-        ]);
       })
       .catch((error: any) => setExpoPushToken(`${error}`));
 
