@@ -14,7 +14,7 @@ export const light = {
     // Text
     textPrimary: '#1A222B',
     textSecondary: '#3E5163',
-    textTertiary: '#7A909F',
+    textTertiary: '#5C6F7E',
     textDisabled: '#A3B5BF',
     textInverse: '#FFFFFF',
     textBrand: '#0B6DC7',
