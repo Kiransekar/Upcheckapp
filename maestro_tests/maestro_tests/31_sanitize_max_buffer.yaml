@@ -1,14 +1,16 @@
-# PILLAR: Boundary Resilience - oversized numeric buffer (EVIDENCE FLOW)
+# PILLAR: Boundary Resilience - oversized numeric buffer (EVIDENCE FLOW, FIXED)
 # INPUTS: MBW=20, SR=80, Count=99999999999999999999 (10^20), FR=3
 # EXPECTED (defensible): an upper-bound guard, or at minimum a figure the user
 #          can actually read.
-# ACTUAL: no bound at all. The app renders
-#             REQUIRED DAILY FEED = 48000000000000000.0 kg
-#         i.e. 4.8e16 kg/day (~48 trillion tonnes of feed) as a confident
-#         result, and the BIOMASS KG stat clips to "16,00,00,00..." because
-#         StatRow cannot fit the magnitude.
-# INTENT: prove there is no sanity ceiling on stocking count / biomass and that
-#         large magnitudes truncate rather than degrade gracefully.
+# ACTUAL (fixed): MAX_STOCKING_COUNT (100,000,000) now caps stocking count
+#         client-side, so a pond of 10^20 post-larvae is rejected with the
+#         same 'Validation Error' alert as any other invalid Count, instead of
+#         rendering REQUIRED DAILY FEED = 48000000000000000.0 kg (~48 trillion
+#         tonnes) as a confident result with the BIOMASS KG stat clipped to
+#         "16,00,00,00...".
+# INTENT: prove the sanity ceiling on stocking count now rejects the oversized
+#         buffer client-side rather than truncating a physically impossible
+#         magnitude into a plausible-looking result.
 # See: QA_ENGINEERING_HANDOVER_REPORT.md -> BUG-011
 appId: com.upcheck.app
 ---
@@ -27,9 +29,7 @@ appId: com.upcheck.app
 - inputText: "3"
 - hideKeyboard
 - tapOn: "Calculate"
-# No upper-bound guard fires ...
-- assertNotVisible: "Validation Error"
-# ... and a physically impossible figure is presented as a result.
-- assertVisible: "Required Daily Feed"
-- assertVisible: '.*48000000000000000\.0 kg.*'
-- assertVisible: '.*12000000000000000\.0.*'
+# The upper-bound guard now fires ...
+- assertVisible: "Validation Error"
+# ... and no physically impossible figure is ever rendered.
+- assertNotVisible: "Required Daily Feed"

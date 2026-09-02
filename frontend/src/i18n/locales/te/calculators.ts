@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'చెరువు వైశాల్యం ధన సంఖ్య అయి ఉండాలి',
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'ఉదా. 500000',
+    phDecimal: '0.0',
+    phDaysOfCulture: 'ఉదా. 120',
+    phFinalMbw: 'ఉదా. 25.0',
+    phFinalSr: 'ఉదా. 85',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'రేటు (% BW)',
     errorMbw: 'MBW ధన సంఖ్య అయి ఉండాలి',
     errorSr: 'మనుగడ రేటు 0 మరియు 100 మధ్య ఉండాలి',
-    errorCount: 'ప్రారంభ సంఖ్య ధన సంఖ్య అయి ఉండాలి',
-    errorFeedingRate: 'దాణా రేటు ధన సంఖ్య అయి ఉండాలి',
+    errorCount: 'స్టాకింగ్ సంఖ్య 1 మరియు 100,000,000 మధ్య ఉండాలి.',
+    errorFeedingRate: 'దాణా రేటు 0 మరియు 100% మధ్య ఉండాలి.',
     errorBiomassZero: 'లెక్కించిన బయోమాస్ సున్నా లేదా ప్రతికూలంగా ఉంది. ఇన్‌పుట్‌లు తనిఖీ చేయండి.',
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "ఒక్కో మేతకు కిగ్రా",
     meals: "మేతలు",
     logThisAmount: "{{kg}} కిగ్రా నమోదు చేయి",
+
+    // placeholders (QA BUG-013)
+    phMbw: '18.4',
+    phSr: '78',
+    phCount: '28700',
+    phFeedingRate: '3.2',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'చెరువు పరిమాణం',
     requiredAmount: 'అవసరమైన ఉత్పత్తి పరిమాణం',
     withConcentration: '{{conc}}% సాంద్రతతో:',
+    activeIngredientBasis: '100% క్రియాశీల-పదార్థ ప్రాతిపదికన:',
     errorArea: 'చెరువు వైశాల్యం ధన సంఖ్య అయి ఉండాలి',
     errorDepth: 'నీటి లోతు ధన సంఖ్య అయి ఉండాలి',
     errorPpm: 'లక్ష్య ppm ధన సంఖ్య అయి ఉండాలి',
     errorConc: 'సాంద్రత 0 మరియు 100 మధ్య ఉండాలి',
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'ఉదా. 5000',
+    phWaterDepth: 'ఉదా. 1.2',
+    phTargetConc: 'ఉదా. 5.0',
+    phProductConc: 'ఉదా. 100 (డిఫాల్ట్)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'ఉష్ణోగ్రత (°C)',
     labelSalinity: 'లవణీయత (ppt)',
-    hintSalinity: 'కేవలం సూచన కోసం',
+    hintSalinity: 'ఫలితాన్ని ప్రభావితం చేస్తుంది — మంచినీటి చెరువుల కోసం 0 నమోదు చేయండి',
     calculateBtn: 'NH₃ లెక్కించు',
     resultLabel: 'స్వేచ్ఛ అమ్మోనియా (NH₃)',
     serverSuffix: ' (సర్వర్)',
     toxicityTitle: 'విషప్రమాణ స్కేల్',
     safeLabel: 'సురక్షితం',
-    safeMessage: 'NH₃ స్థాయిలు సురక్షిత హద్దుల్లో ఉన్నాయి (< 0.1 ppm). చర్య అవసరం లేదు.',
+    safeMessage: 'NH₃ స్థాయిలు సురక్షిత హద్దుల్లో ఉన్నాయి (0.1 ppm కంటే తక్కువ). చర్య అవసరం లేదు.',
     warningLabel: 'హెచ్చరిక',
     warningMessage: 'NH₃ స్థాయిలు పెరిగాయి (0.1–0.5 ppm). దాణా తగ్గించడం లేదా పాక్షిక నీటి మార్పు పరిగణించండి.',
     criticalLabel: 'క్రిటికల్',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN ధన సంఖ్య అయి ఉండాలి',
     errorPh: 'pH 0 మరియు 14 మధ్య ఉండాలి',
     errorTemp: 'ఉష్ణోగ్రత ధన సంఖ్య అయి ఉండాలి',
+    errorSalinity: 'లవణీయత చెల్లుబాటు అయ్యే సంఖ్య అయి ఉండాలి',
     errorCalc: 'స్వేచ్ఛ అమ్మోనియా లెక్కించడం విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'ఉదా. 1.5',
+    phPh: 'ఉదా. 8.2',
+    phTemp: 'ఉదా. 29',
+    phSalinity: 'ఉదా. 15',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'సగటు బరువు ధన సంఖ్య అయి ఉండాలి',
     errorCalc: 'లెక్కింపు విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'ఉదా. 500000',
+    phSurvivalRate: 'ఉదా. 80',
+    phTargetWeight: 'ఉదా. 20',
+    phCurrentWeight: 'ఉదా. 5.0',
+    phAdg: 'ఉదా. 0.2',
+    phDaysToProject: 'ఉదా. 30',
+    phStockCount: 'ఉదా. 400000',
+    phAverageWeight: 'ఉదా. 12.5',
+    phAverageWeightRfr: 'ఉదా. 8.0',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

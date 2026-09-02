@@ -94,7 +94,11 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     </View>
 );
 
-const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
+// A 24dp icon needs 12dp on each side to reach the 48dp minimum (WCAG 2.1
+// SC 2.5.5 / Material). The previous symmetric 10dp gave 44.3dp wide — and
+// back is the primary escape affordance, in the hardest corner to reach
+// one-handed on a 6.7-inch device (QA BUG-015).
+const HIT_SLOP = { top: 12, bottom: 12, left: 12, right: 12 };
 
 const styles = StyleSheet.create({
     header: {

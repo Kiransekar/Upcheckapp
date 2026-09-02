@@ -72,7 +72,7 @@ done
 | 06 | `dailyfeed_boundary_large` | extreme |
 | 07 | `dailyfeed_special_characters` | invalid |
 | 08 | `dosage_valid_standard` | valid |
-| 09 | `dosage_with_concentration` | valid → **evidence for D4** |
+| 09 | `dosage_with_concentration` | valid — BUG-003 fixed, inverted |
 | 10 | `dosage_invalid_concentration` | boundary |
 | 11 | `dosage_invalid_empty` | invalid |
 | 12 | `ammonia_warning_band` | valid |
@@ -88,23 +88,22 @@ done
 | 22 | `growth_recommended_rate` | valid / table lookup |
 | 23 | `growth_invalid_sr` | boundary |
 | 24 | `ammonia_salinity_sensitivity` | **evidence for D2** |
-| 25 | `dailyfeed_pond_area_inert` | **evidence for D3** |
-| 26 | `ammonia_boundary_safe_side` | **evidence for D1** |
-| 27 | `ammonia_boundary_warning_side` | **evidence for D1** |
+| 26 | `ammonia_boundary_safe_side` | boundary — D1 fixed, inverted |
+| 27 | `ammonia_boundary_warning_side` | boundary — D1 fixed |
 | 28 | `performance_nonnumeric_area` | **evidence for D8** |
 | 29 | `dailyfeed_feedrate_over_100` | **evidence for D9** |
 | 30 | `sanitize_whitespace` | sanitization |
 | 31 | `sanitize_max_buffer` | **evidence for BUG-011** |
 | 32 | `sanitize_injection_chars` | sanitization |
 | 33 | `race_double_tap_calculate` | idempotency |
-| 34 | `i18n_hindi_calculators` | **evidence for BUG-013** |
+| 34 | `i18n_hindi_calculators` | i18n — BUG-013 fixed, inverted |
 | 35 | `i18n_restore_english` | housekeeping |
 | 36 | `sanitize_partial_parse` | **evidence for BUG-017** |
 | 37 | `locale_hi_dailyfeed_standard` | i18n x arithmetic |
 | 38 | `locale_hi_dailyfeed_decimal` | i18n x rounding |
 | 39 | `locale_hi_performance` | i18n x arithmetic |
 | 40 | `prefill_pond_picker` | prefill path |
-| 41 | `prefill_dailyfeed` | **evidence for BUG-018 / BUG-019** |
+| 41 | `prefill_dailyfeed` | **evidence for BUG-018 / BUG-019** (no longer asserts Pond Area — field removed, BUG-005) |
 | 42 | `smoke_settings_tools` | route smoke (9 routes) |
 | 43 | `smoke_tabs` | route smoke (6 tabs) |
 | 44 | `smoke_pond_logs` | route smoke (7 routes) |
@@ -129,11 +128,21 @@ done
 
 ## Reading the evidence flows
 
-Ten flows — 09, 24, 25, 26, 27, 28, 29, 31, 34 and 36 — are written to **assert
-the buggy behaviour that is actually there**, so they pass today. They are
-regression tripwires: when a defect is fixed, its evidence flow should start
-failing, and the assertion should then be inverted to lock in the fix. Each file
-documents the expected-vs-actual split in its header comment.
+Flow 24 is written to **assert the buggy behaviour that is actually there**,
+so it passes today. It is a regression tripwire: when its defect is fixed,
+the flow should start failing, and the assertion should then be inverted to
+lock in the fix. The file documents the expected-vs-actual split in its
+header comment.
+
+Flows 09, 26, 28, 29, 31, 34 and 36 started life as evidence flows the same
+way, but their defects (BUG-003, BUG-001, BUG-009, BUG-010, BUG-011,
+BUG-013 and BUG-017) are now fixed, so each has already been inverted to
+assert the corrected behaviour instead. Flow 27 asserted WARNING for an
+input that bands WARNING under both the buggy and the fixed classifier, so
+it never needed inverting — it now simply documents the fixed rule alongside
+26, its (previously mismatched) pair. Flow 25 no longer exists: the Pond
+Area field it proved was dead input (BUG-005) was removed rather than wired
+up, so there is nothing left for it to assert.
 
 Flows 30–36 cover the cross-cutting audit pillars — input sanitization and
 boundary resilience (30, 31, 32, 36), idempotency and race conditions (33), and

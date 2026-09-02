@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'तालाब क्षेत्रफल एक धनात्मक संख्या होनी चाहिए',
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'उदा. 500000',
+    phDecimal: '0.0',
+    phDaysOfCulture: 'उदा. 120',
+    phFinalMbw: 'उदा. 25.0',
+    phFinalSr: 'उदा. 85',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'दर (% BW)',
     errorMbw: 'MBW एक धनात्मक संख्या होनी चाहिए',
     errorSr: 'उत्तरजीविता दर 0 से 100 के बीच होनी चाहिए',
-    errorCount: 'प्रारंभिक संख्या एक धनात्मक संख्या होनी चाहिए',
-    errorFeedingRate: 'आहार दर एक धनात्मक संख्या होनी चाहिए',
+    errorCount: 'स्टॉकिंग संख्या 1 से 100,000,000 के बीच होनी चाहिए।',
+    errorFeedingRate: 'आहार दर 0 से 100% के बीच होनी चाहिए।',
     errorBiomassZero: 'परिकलित जैव भार शून्य या ऋणात्मक है। इनपुट जांचें।',
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "प्रति भोजन किग्रा",
     meals: "भोजन",
     logThisAmount: "{{kg}} किग्रा दर्ज करें",
+
+    // placeholders (QA BUG-013)
+    phMbw: '18.4',
+    phSr: '78',
+    phCount: '28700',
+    phFeedingRate: '3.2',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'तालाब की मात्रा',
     requiredAmount: 'आवश्यक उत्पाद मात्रा',
     withConcentration: '{{conc}}% सांद्रता के साथ:',
+    activeIngredientBasis: '100% सक्रिय-घटक आधार पर:',
     errorArea: 'तालाब क्षेत्रफल एक धनात्मक संख्या होनी चाहिए',
     errorDepth: 'जल गहराई एक धनात्मक संख्या होनी चाहिए',
     errorPpm: 'लक्ष्य ppm एक धनात्मक संख्या होनी चाहिए',
     errorConc: 'सांद्रता 0 से 100 के बीच होनी चाहिए',
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'उदा. 5000',
+    phWaterDepth: 'उदा. 1.2',
+    phTargetConc: 'उदा. 5.0',
+    phProductConc: 'उदा. 100 (डिफ़ॉल्ट)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'तापमान (°C)',
     labelSalinity: 'लवणता (ppt)',
-    hintSalinity: 'केवल संदर्भ के लिए',
+    hintSalinity: 'परिणाम को प्रभावित करती है — मीठे पानी के तालाबों के लिए 0 दर्ज करें',
     calculateBtn: 'NH₃ गणना करें',
     resultLabel: 'मुक्त अमोनिया (NH₃)',
     serverSuffix: ' (सर्वर)',
     toxicityTitle: 'विषाक्तता पैमाना',
     safeLabel: 'सुरक्षित',
-    safeMessage: 'NH₃ स्तर सुरक्षित सीमा के भीतर हैं (< 0.1 ppm)। कोई कार्रवाई आवश्यक नहीं।',
+    safeMessage: 'NH₃ स्तर सुरक्षित सीमा के भीतर हैं (0.1 ppm से कम)। कोई कार्रवाई आवश्यक नहीं।',
     warningLabel: 'चेतावनी',
     warningMessage: 'NH₃ स्तर बढ़े हुए हैं (0.1–0.5 ppm)। आहार कम करने या आंशिक जल परिवर्तन पर विचार करें।',
     criticalLabel: 'गंभीर',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN एक धनात्मक संख्या होनी चाहिए',
     errorPh: 'pH 0 से 14 के बीच होनी चाहिए',
     errorTemp: 'तापमान एक धनात्मक संख्या होना चाहिए',
+    errorSalinity: 'लवणता एक मान्य संख्या होनी चाहिए',
     errorCalc: 'मुक्त अमोनिया गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'उदा. 1.5',
+    phPh: 'उदा. 8.2',
+    phTemp: 'उदा. 29',
+    phSalinity: 'उदा. 15',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'औसत वजन एक धनात्मक संख्या होना चाहिए',
     errorCalc: 'गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'उदा. 500000',
+    phSurvivalRate: 'उदा. 80',
+    phTargetWeight: 'उदा. 20',
+    phCurrentWeight: 'उदा. 5.0',
+    phAdg: 'उदा. 0.2',
+    phDaysToProject: 'उदा. 30',
+    phStockCount: 'उदा. 400000',
+    phAverageWeight: 'उदा. 12.5',
+    phAverageWeightRfr: 'उदा. 8.0',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

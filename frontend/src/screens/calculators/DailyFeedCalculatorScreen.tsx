@@ -29,6 +29,8 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
 import type { PondContext } from '../../api/pondContext';
+import { survivalPctFrom, didPrefillAnything } from './prefill';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
 
 const c = theme.roles.light;
 
@@ -56,7 +58,6 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     const [mbwG, setMbwG] = useState('');
     const [srPct, setSrPct] = useState('');
     const [initialCount, setInitialCount] = useState('');
-    const [pondAreaM2, setPondAreaM2] = useState('');
     const [feedingRatePct, setFeedingRatePct] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
@@ -71,16 +72,17 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
         setPondId(id);
         if (!ctx) return;
         setDoc(ctx.doc ?? null);
-        setPrefilled(true);
+        // Only claim the form was filled from the pond when the pond could fill
+        // the REQUIRED field (QA BUG-018).
+        setPrefilled(didPrefillAnything(ctx));
         if (ctx.abwG != null) setMbwG((v) => v || String(ctx.abwG));
         if (ctx.crop?.stockingCount != null) {
             setInitialCount((v) => v || String(ctx.crop!.stockingCount));
-            if (ctx.livePopulation != null && ctx.crop.stockingCount > 0) {
-                const sr = Math.round((ctx.livePopulation / ctx.crop.stockingCount) * 100);
-                setSrPct((v) => v || String(sr));
-            }
+            // Null until a sampling backs it — never the fabricated 100%
+            // (QA BUG-019).
+            const sr = survivalPctFrom(ctx);
+            if (sr != null) setSrPct((v) => v || String(sr));
         }
-        if (ctx.areaM2 != null) setPondAreaM2((v) => v || String(Math.round(ctx.areaM2!)));
     }, []);
 
     // Clear a stale result when any input changes — a number sitting under
@@ -88,27 +90,31 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     useEffect(() => {
         setResult(null);
         setBiomassKg(null);
-    }, [mbwG, srPct, initialCount, pondAreaM2, feedingRatePct]);
+    }, [mbwG, srPct, initialCount, feedingRatePct]);
 
     const handleCalculate = async () => {
-        const mbw = parseFloat(mbwG);
-        const sr = parseFloat(srPct);
-        const count = parseFloat(initialCount);
-        const fr = parseFloat(feedingRatePct);
+        const mbw = parseNumericInput(mbwG);
+        const sr = parseNumericInput(srPct);
+        const count = parseNumericInput(initialCount);
+        const fr = parseNumericInput(feedingRatePct);
 
-        if (!mbw || mbw <= 0) {
+        if (mbw === null || mbw <= 0) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorMbw'));
             return;
         }
-        if (!sr || sr <= 0 || sr > 100) {
+        if (sr === null || sr <= 0 || sr > 100) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorSr'));
             return;
         }
-        if (!count || count <= 0) {
+        if (count === null || count <= 0 || count > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorCount'));
             return;
         }
-        if (!fr || fr <= 0) {
+        // Mirror the server's @Max(100) (calculation.dto.ts:45) so an
+        // out-of-range rate fails with the same field-named message every other
+        // input gives, instead of a wasted round-trip and a generic error
+        // (QA BUG-010).
+        if (fr === null || fr <= 0 || fr > 100) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorFeedingRate'));
             return;
         }
@@ -176,7 +182,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={mbwG}
                                 onChangeText={setMbwG}
                                 keyboardType="decimal-pad"
-                                placeholder="18.4"
+                                placeholder={t('calculators.dailyFeed.phMbw')}
                                 required
                             />
                         </View>
@@ -186,7 +192,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={srPct}
                                 onChangeText={setSrPct}
                                 keyboardType="decimal-pad"
-                                placeholder="78"
+                                placeholder={t('calculators.dailyFeed.phSr')}
                                 required
                             />
                         </View>
@@ -196,7 +202,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={initialCount}
                                 onChangeText={setInitialCount}
                                 keyboardType="number-pad"
-                                placeholder="28700"
+                                placeholder={t('calculators.dailyFeed.phCount')}
                                 required
                             />
                         </View>
@@ -212,19 +218,10 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={feedingRatePct}
                                 onChangeText={setFeedingRatePct}
                                 keyboardType="decimal-pad"
-                                placeholder="3.2"
+                                placeholder={t('calculators.dailyFeed.phFeedingRate')}
                                 required
                             />
                             <Text style={styles.typedNote}>{t('calculators.dailyFeed.typedByYou')}</Text>
-                        </View>
-                        <View style={styles.half}>
-                            <Input
-                                label={t('calculators.dailyFeed.labelPondArea')}
-                                value={pondAreaM2}
-                                onChangeText={setPondAreaM2}
-                                keyboardType="decimal-pad"
-                                placeholder="4000"
-                            />
                         </View>
                     </View>
 

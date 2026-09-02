@@ -1,14 +1,14 @@
-# FEATURE: Cultivation Performance - non-numeric optional Pond Area (EVIDENCE FLOW)
-# PURPOSE: Guard at CultivationPerformanceScreen.tsx:75 is
-#              if (areaM2 && (area <= 0))
-#          With area="abc", parseFloat -> NaN and (NaN <= 0) === false, so the
-#          guard does NOT fire. Productivity is then gated on (area > 0), which
-#          is also false for NaN, so the metric silently disappears with no
-#          error shown to the user.
+# FEATURE: Cultivation Performance - non-numeric optional Pond Area (EVIDENCE FLOW, FIXED)
+# PURPOSE: Guard at CultivationPerformanceScreen.tsx is now
+#              if (areaM2 && (area === null || area <= 0))
+#          area comes from parseNumericInput, so area="abc" parses to null
+#          instead of NaN, and null is tested explicitly - the guard fires
+#          and the farmer sees the same "Pond area must be a positive number"
+#          alert as any other invalid optional field, instead of the
+#          Productivity metric silently disappearing with no error.
 # INPUTS: Seed=100000, Harvested=1500, Feed=2250, Days=120, MBW=20, SR=80, Area="abc"
-# EXPECTED (documented behaviour): either a "Pond area must be a positive
-#          number' alert, or a Productivity metric.
-# ACTUAL (asserted here): no validation error, FCR/ADG/SR render, Productivity absent.
+# EXPECTED (fixed behaviour): the "Pond area must be a positive number" alert.
+# ACTUAL (asserted here): Validation Error alert fires, no results render.
 appId: com.upcheck.app
 ---
 - runFlow: _nav_to_hub.yaml
@@ -43,7 +43,5 @@ appId: com.upcheck.app
       text: "Calculate"
     direction: DOWN
 - tapOn: "Calculate"
-- assertNotVisible: "Validation Error"
-- assertVisible: "Results"
-- assertVisible: '.*1\.50.*'
-- assertNotVisible: "Productivity"
+- assertVisible: "Validation Error"
+- assertNotVisible: "Results"

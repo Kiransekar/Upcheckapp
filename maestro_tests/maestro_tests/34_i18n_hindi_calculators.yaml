@@ -1,9 +1,12 @@
 # PILLAR: Localization (i18n) - Hindi rendering of the calculator surface
-# INTENT: two things at once -
+# INTENT: two things at once, both now asserting FIXED behaviour -
 #   (a) translated keys DO render in Hindi (hub title, calculator names, labels)
-#   (b) the hardcoded placeholders in the calculator screens do NOT translate -
-#       e.g. CultivationPerformanceScreen.tsx:165 placeholder="e.g. 500000"
-#       stays English under a Hindi UI. That is the i18n defect this proves.
+#   (b) the placeholders DO translate too. BUG-013 found 39 hardcoded English
+#       literals across the five calculator screens - including every
+#       placeholder="..." prop - that survived a language switch. They are now
+#       routed through t(), so CultivationPerformanceScreen's Total Seed and
+#       Days of Culture placeholders render as "उदा. 500000" and "उदा. 120"
+#       under a Hindi UI instead of the old literal "e.g. 500000" / "e.g. 120".
 # NOTE: this flow leaves the app in HINDI. Run 35_i18n_restore_english.yaml
 #       afterwards to put the device back the way it was found.
 appId: com.upcheck.app
@@ -25,6 +28,6 @@ appId: com.upcheck.app
 - assertVisible: "वृद्धि और कटाई"
 - tapOn: "उत्पादन प्रदर्शन"
 - assertVisible: "कुल बीज (संख्या)"
-# (b) hardcoded English placeholder survives the language switch -> i18n defect
-- assertVisible: "e.g. 500000"
-- assertVisible: "e.g. 120"
+# (b) placeholders now translate too -> BUG-013 fixed
+- assertVisible: "उदा. 500000"
+- assertVisible: "उदा. 120"

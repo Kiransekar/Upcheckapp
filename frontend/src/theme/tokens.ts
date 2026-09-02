@@ -34,10 +34,15 @@ export const tokens = {
         labelFontFamily: 'DMSans-SemiBold',
         labelFontSize: 12,
         labelColor: '#3E5163',
-        placeholderColor: '#A3B5BF',
+        // Placeholders carry the worked example of magnitude and unit, so they are
+        // informational text and owe WCAG AA 4.5:1 — not the disabled-grey budget
+        // they used to borrow from textDisabled. 4.70:1 on #EEF2F5 (QA BUG-006).
+        placeholderColor: '#586E82',
         textColor: '#1A222B',
         helperFontSize: 11,
-        helperColor: '#7A909F',
+        // Hints at 11px have no large-text exemption; #7A909F was 3.32:1 on a
+        // white card (QA BUG-014). 5.21:1.
+        helperColor: '#5C6F7E',
         errorColor: '#A41B1B',
         iconColor: '#7A909F',
         iconColorFocus: '#0D84D6',
@@ -99,7 +104,9 @@ export const tokens = {
         bgColor: '#F5F8FA',
         fontSize: 11,
         fontFamily: 'DMSans-SemiBold',
-        color: '#7A909F',
+        // #7A909F was 3.32:1 on white, failing WCAG AA at 11px (QA BUG-014).
+        // 5.21:1.
+        color: '#5C6F7E',
         letterSpacing: 0.8,
         textTransform: 'uppercase' as const,
     },

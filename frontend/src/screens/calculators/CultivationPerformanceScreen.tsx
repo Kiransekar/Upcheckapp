@@ -13,15 +13,14 @@ import {
     FcrResponse,
     AdgResponse,
     SurvivalRateResponse,
-    CultivationPerformanceResponse,
 } from '../../api/calculators';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
 
 interface PerformanceResults {
     fcr: number | null;
     adg: number | null;
     sr: number | null;
     productivity: number | null;
-    perf: CultivationPerformanceResponse | null;
 }
 
 export const CultivationPerformanceScreen = ({ navigation }: any) => {
@@ -39,39 +38,43 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
     const [results, setResults] = useState<PerformanceResults | null>(null);
 
     const handleCalculate = async () => {
-        const seed = parseFloat(totalSeed);
-        const harvestKg = parseFloat(totalHarvestKg);
-        const feedKg = parseFloat(totalFeedKg);
-        const days = parseFloat(daysOfCulture);
-        const mbw = parseFloat(finalMbwG);
-        const sr = parseFloat(finalSrPct);
-        const area = areaM2 ? parseFloat(areaM2) : 0;
+        const seed = parseNumericInput(totalSeed);
+        const harvestKg = parseNumericInput(totalHarvestKg);
+        const feedKg = parseNumericInput(totalFeedKg);
+        const days = parseNumericInput(daysOfCulture);
+        const mbw = parseNumericInput(finalMbwG);
+        const sr = parseNumericInput(finalSrPct);
+        const area = areaM2 ? parseNumericInput(areaM2) : 0;
 
-        if (!seed || seed <= 0) {
+        if (seed === null || seed <= 0 || seed > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSeed'));
             return;
         }
-        if (!harvestKg || harvestKg <= 0) {
+        if (harvestKg === null || harvestKg <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorHarvest'));
             return;
         }
-        if (!feedKg || feedKg <= 0) {
+        if (feedKg === null || feedKg <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorFeed'));
             return;
         }
-        if (!days || days <= 0) {
+        if (days === null || days <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorDays'));
             return;
         }
-        if (!mbw || mbw <= 0) {
+        if (mbw === null || mbw <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorMbw'));
             return;
         }
-        if (!sr || sr <= 0 || sr > 100) {
+        if (sr === null || sr <= 0 || sr > 100) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSr'));
             return;
         }
-        if (areaM2 && (area <= 0)) {
+        // 'abc' used to parse to NaN, pass this guard, and then silently delete
+        // the Productivity metric the farmer asked for (QA BUG-009). null is the
+        // parser's "not a number", and it must be rejected explicitly — `!area`
+        // would also reject a legitimate 0.
+        if (areaM2 && (area === null || area <= 0)) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorArea'));
             return;
         }
@@ -80,7 +83,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
         try {
             const harvestedCount = Math.round(seed * sr / 100);
 
-            const [fcrRes, adgRes, srRes, perfRes] = await Promise.all([
+            const [fcrRes, adgRes, srRes] = await Promise.all([
                 calculatorsApi.calculateFcr({
                     totalFeedKg: feedKg,
                     harvestWeightKg: harvestKg,
@@ -94,23 +97,15 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                     initialStock: seed,
                     harvestedCount,
                 }),
-                calculatorsApi.calculateCultivationPerformance({
-                    dailyFeed: feedKg / days,
-                    fr: (feedKg / days) / ((seed * sr / 100) * mbw / 1000) * 100 || 0,
-                    abw: mbw,
-                    cumulativeFeed: feedKg,
-                    initialStocking: seed,
-                }),
             ]);
 
-            const productivity = area > 0 ? harvestKg / area : null;
+            const productivity = area !== null && area > 0 ? harvestKg / area : null;
 
             setResults({
                 fcr: fcrRes.data.fcr,
                 adg: adgRes.data.adgG,
                 sr: srRes.data.survivalRatePercent,
                 productivity,
-                perf: perfRes.data,
             });
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.performance.errorCalc'));
@@ -162,7 +157,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                         value={totalSeed}
                         onChangeText={setTotalSeed}
                         keyboardType="number-pad"
-                        placeholder="e.g. 500000"
+                        placeholder={t('calculators.performance.phTotalSeed')}
                         required
                     />
                     <View style={styles.row}>
@@ -172,7 +167,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={totalHarvestKg}
                                 onChangeText={setTotalHarvestKg}
                                 keyboardType="decimal-pad"
-                                placeholder="0.0"
+                                placeholder={t('calculators.performance.phDecimal')}
                                 required
                             />
                         </View>
@@ -182,7 +177,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={totalFeedKg}
                                 onChangeText={setTotalFeedKg}
                                 keyboardType="decimal-pad"
-                                placeholder="0.0"
+                                placeholder={t('calculators.performance.phDecimal')}
                                 required
                             />
                         </View>
@@ -194,7 +189,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={daysOfCulture}
                                 onChangeText={setDaysOfCulture}
                                 keyboardType="number-pad"
-                                placeholder="e.g. 120"
+                                placeholder={t('calculators.performance.phDaysOfCulture')}
                                 required
                             />
                         </View>
@@ -204,7 +199,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={finalMbwG}
                                 onChangeText={setFinalMbwG}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 25.0"
+                                placeholder={t('calculators.performance.phFinalMbw')}
                                 required
                             />
                         </View>
@@ -216,7 +211,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={finalSrPct}
                                 onChangeText={setFinalSrPct}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 85"
+                                placeholder={t('calculators.performance.phFinalSr')}
                                 required
                             />
                         </View>

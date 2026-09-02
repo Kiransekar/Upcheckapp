@@ -1,7 +1,11 @@
 # FEATURE: Product Dosage - product concentration adjustment
 # INPUTS: Area=5000, Depth=1.2, Target=2 ppm, Concentration=50 %
-# EXPECTED: server amountKg (concentration-independent) = 12.00 kg
-#           client adjusted = (6000*2)/(50*10) = 24.000 kg
+# EXPECTED: headline is the mass the farmer weighs out, i.e. the
+#           concentration-corrected figure = (6000*2)/(50*10) = 24.000 kg
+#           (fixed: BUG-003 - a 50% product previously headlined the
+#           100%-active-basis 12.00 kg, half the dose the farmer needed).
+#           The 100%-active-ingredient basis, server amountKg = 12.00 kg,
+#           still appears as supporting detail.
 appId: com.upcheck.app
 ---
 - runFlow: _nav_to_hub.yaml
@@ -19,6 +23,6 @@ appId: com.upcheck.app
 - inputText: "50"
 - hideKeyboard
 - tapOn: "Calculate"
-- assertVisible: '.*12\.00.*'
-- assertVisible: '.*24\.000 kg.*'
-- assertVisible: "With 50% concentration:"
+- assertVisible: '.*24\.000.*'
+- assertVisible: '.*12\.00 kg.*'
+- assertVisible: "100% active-ingredient basis:"
