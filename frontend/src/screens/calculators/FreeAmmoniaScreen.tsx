@@ -57,7 +57,12 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
     const [tan, setTan] = useState('');
     const [ph, setPh] = useState('');
     const [temperature, setTemperature] = useState('');
-    const [salinity, setSalinity] = useState('15');
+    // Not pre-filled: salinity is a real term in the pKa model (QA BUG-002), and
+    // a brackish default silently biases a freshwater pond's reading LOW - i.e.
+    // toward "safe" - on a toxicity screen. Blank submits 0 via
+    // `parseFloat(salinity) || 0` below, which is the freshwater Emerson form,
+    // and the hint now says so.
+    const [salinity, setSalinity] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<FreeAmmoniaResponse | null>(null);
