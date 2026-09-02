@@ -178,3 +178,168 @@ confirmed live.
 
 Money surfaces, log-entry forms, history totals, and every engine screen. The
 report's own verdict covers the five calculators and the prefill path only.
+
+---
+
+# Workstream B — Smart logging reminders and progress visibility
+
+Added 2026-09-02 by request. Everything in this workstream is **OTA-shippable;
+nothing requires a native build.** That is a verified claim, not an assumption —
+see §B2.
+
+## B1. What already exists
+
+This is not a greenfield feature. The audit of the tree found:
+
+| Capability | Where | State |
+|---|---|---|
+| Daily reminders 06:30 / 13:00 / 18:00 | `frontend/src/utils/notifications.ts:76-109` | Ships today. Fires **unconditionally**. |
+| Weekly chemistry reminder, Sunday 07:30 | `notifications.ts:135-155` | Ships today. Fires **unconditionally**. |
+| Push token registration | `utils/notifications.ts:18`, `SettingsScreen.tsx:84`, `api/push.ts` | Working |
+| Server push delivery | `backend/src/push/push.service.ts` — `users.push_token` + Expo Push API | Working |
+| "Was it already logged?" data | `PondContext.waterQuality.recordedAt`, `.chemistryAsOf`, `.lastFeedAt`, `.lastTrayAt` | Already on the wire |
+| Every pond's context in one request | `/alert-center/today` → `fetchTodaySnapshot` | Already fetched by Today |
+| Support reply storage | `feedback_reports.admin_response`, admin `@Patch(':id')` | Stored, **no push sent** |
+| Reply detail screen | `frontend/src/screens/settings/FeedbackDetailScreen.tsx` | Exists — deep-link target |
+
+**So the request is narrower than it sounds:** make existing reminders
+conditional, derive progress from data already fetched, and wire a push onto an
+admin action that already happens.
+
+## B2. Why this is OTA, with evidence
+
+| Dependency | Version | Added | In the shipped binary? |
+|---|---|---|---|
+| `expo-notifications` | `~0.32.16` | before the 2026-08-24 build | yes — plugin configured in `app.config.ts:56-65` |
+| `expo-device` | `~8.0.10` | same | yes |
+| `@react-native-picker/picker` | `2.11.1` | commit `00df9c5`, 2026-02-17 | yes — already used by `MeasurementsScreen.tsx` |
+
+Editable reminder times (decision D7) use `@react-native-picker/picker`, which
+predates the build and is already exercised in JS. **No new native module, no
+rebuild.**
+
+Anything that later needs a *new* native dependency must be marked **NATIVE** and
+scheduled against a binary release. Nothing in this workstream is.
+
+## B3. Decisions taken
+
+| # | Question | Decision |
+|---|---|---|
+| D5 | Reminder accuracy model | **On-device now, QStash later.** Ship on-device conditional scheduling here; a separate follow-up spec covers moving to server-decided push. |
+| D6 | What counts as "done" for a slot | **Every active pond must be logged.** A slot stays pending until all active ponds have a reading in that window. |
+| D7 | Reminder times | **Keep 06:30 / 13:00 / 18:00 and Sunday 07:30 as defaults, but let the farmer edit them** in Settings, persisted locally. |
+
+## B4. The one real constraint
+
+A local notification can be made conditional only when it is **scheduled**,
+never when it **fires** — nothing of ours runs at fire time. The design
+therefore recomputes and re-arms whenever the app can: on foreground, and at the
+`saveRecord()` choke point after any log lands.
+
+**Scheduling model.** Replace the three repeating `DAILY` triggers and the one
+`WEEKLY` trigger with a **rolling 7-day window of one-shot `DATE` triggers**,
+re-armed on every sync. A slot already satisfied is simply not scheduled.
+21 daily + 1 weekly pending notifications sits far inside platform limits.
+
+Two consequences, both accepted and documented rather than designed around:
+
+1. **If the app is not opened for 7 days the reminders lapse.** The repeating
+   triggers they replace never lapse. Judged acceptable: the window is re-armed
+   on every open, and a farmer who has not opened the app in a week has been
+   reminded every day of that week.
+2. **Multi-device / multi-user false positives.** If a worker logs the morning
+   check on their phone, the owner's phone still reminds until it next syncs.
+   This is exactly what D5's QStash upgrade removes, because a server decides at
+   send time. Until then it is a known limitation, and the notification copy
+   should be a nudge rather than an accusation.
+
+## B5. Design
+
+### B5.1 Derivation — one pure module, no new requests
+
+`frontend/src/features/logProgress.ts` (new). Pure functions over
+`PondContext[]`, so every rule is unit-testable without a device or a network:
+
+- `slotAt(date)` — which window (`morning` / `afternoon` / `evening`) a time falls in
+- `pondSlotDone(ctx, slot, now)` — `waterQuality.recordedAt` inside today's slot window
+- `pondFedThisSession(ctx, slot, now)` — `lastFeedAt` inside today's slot window
+- `chemistryDone(ctx, now)` — `chemistryAsOf` within the last 7 days
+- `progressFor(contexts)` — `{ overall, byFarm, byPond }` counts for the UI
+
+This module is the single definition of "done". The reminders, the Today card
+and the farm/pond hints all read it, so they cannot disagree with each other —
+which is the failure mode BUG-019 is an instance of elsewhere in this codebase.
+
+### B5.2 Reminder engine
+
+`notifications.ts` gains `syncReminders(contexts, times)`:
+
+1. Cancel all tagged pending notifications.
+2. For each slot occurrence in the next 7 days, schedule a one-shot **unless**
+   that slot is already satisfied for every active pond.
+3. Same for the weekly chemistry slot.
+
+Called from the app-foreground handler and from `saveRecord()`'s success path —
+the same choke point that already drives `invalidateForEntity()`.
+
+### B5.3 Today progress card
+
+`frontend/src/components/today/LogProgressCard.tsx` (new). Overall progress bar,
+expandable to per-farm and then per-pond rows. Reads the `home` query's existing
+contexts — **no new endpoint and no additional request.**
+
+**Backend change required:** `PondContext` carries no `farmId`, and
+`fetchTodaySnapshot` flattens per-farm results, losing the association. Add
+`farmId` to the payload — additive and backwards-compatible. Folds into the
+backend PR already in this plan rather than adding a deploy.
+
+### B5.4 Farm and pond session hints
+
+A small shared badge driven by the same `logProgress` module: on the farm page's
+pond rows, and on the pond dashboard header — whether this pond has been logged
+and fed for the current session.
+
+### B5.5 Support-reply notification
+
+- **Backend:** where `admin_response` is written, call
+  `pushService.sendToUser(report.userId, ...)` with
+  `data: { type: 'feedback_reply', reportId }`. Best-effort, consistent with
+  `sendToUser`'s never-throws contract.
+- **Frontend:** a notification-response handler routes that payload to
+  `FeedbackDetailScreen`, plus an in-app unread marker via the existing
+  `notificationStore`.
+
+### B5.6 Editable times
+
+Settings gains hour/minute selection per slot using `@react-native-picker/picker`,
+persisted to AsyncStorage and fed into `syncReminders`. Defaults unchanged.
+
+## B6. Sequence (continues §5)
+
+| PR | Deploy | Content |
+|---|---|---|
+| **5** *(extended)* | backend | BUG-004/007/008 **+ `farmId` on `PondContext` + feedback-reply push send** |
+| **9** | OTA | `logProgress.ts` + tests; reminder engine rewritten to the rolling window |
+| **10** | OTA | Today `LogProgressCard` (overall / per-farm / per-pond) |
+| **11** | OTA | Farm-page and pond-page session hints |
+| **12** | OTA | Editable reminder times; support-reply deep link and unread marker |
+
+PR 9 must precede 10 and 11 — both consume `logProgress`. PR 5 must precede 10,
+which needs `farmId`.
+
+## B7. Verification
+
+`logProgress.ts` is pure, so slot-boundary behaviour is unit-tested directly:
+midnight rollover, a reading exactly on a slot boundary, a pond with no reading
+at all, and the all-ponds-done rule with one pond outstanding. The reminder
+engine is tested against a faked `expo-notifications` module asserting which
+slots were scheduled and which suppressed — no device needed.
+
+Not verifiable here: actual delivery, notification tap-through, and the picker
+UI. Those need the handset.
+
+## B8. Explicitly out of scope
+
+Server-decided push (the QStash upgrade, D5), quiet hours, per-member reminder
+routing, and reminders for any log type beyond water quality, feed and weekly
+chemistry.
