@@ -1,4 +1,4 @@
-import { parseNumericInput, MAX_STOCKING_COUNT } from '../parseNumericInput';
+import { parseNumericInput, MAX_STOCKING_COUNT, parseNumericInputOrDefault } from '../parseNumericInput';
 
 /**
  * QA BUG-017. parseFloat is a PREFIX parser: parseFloat('20abc') is 20, so a
@@ -52,5 +52,27 @@ describe('MAX_STOCKING_COUNT', () => {
     it('a count guard (count > MAX_STOCKING_COUNT) accepts the ceiling itself and rejects one past it', () => {
         expect(parseNumericInput('100000000')! > MAX_STOCKING_COUNT).toBe(false);
         expect(parseNumericInput('100000001')! > MAX_STOCKING_COUNT).toBe(true);
+    });
+});
+
+/**
+ * QA BUG-002 follow-up. FreeAmmoniaScreen's salinity field must keep
+ * defaulting a blank entry to 0 (freshwater) while still rejecting garbage
+ * that `parseFloat(salinity) || 0` used to swallow silently.
+ */
+describe('parseNumericInputOrDefault', () => {
+    it('defaults an empty or whitespace-only field instead of rejecting it', () => {
+        expect(parseNumericInputOrDefault('', 0)).toBe(0);
+        expect(parseNumericInputOrDefault('   ', 0)).toBe(0);
+    });
+
+    it('rejects non-empty garbage rather than silently falling back to the default', () => {
+        expect(parseNumericInputOrDefault('abc', 0)).toBeNull();
+        expect(parseNumericInputOrDefault('12abc', 0)).toBeNull();
+    });
+
+    it('parses a real value over the default', () => {
+        expect(parseNumericInputOrDefault('15', 0)).toBe(15);
+        expect(parseNumericInputOrDefault('0', 5)).toBe(0);
     });
 });

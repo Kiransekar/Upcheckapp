@@ -166,6 +166,7 @@ const calculators = {
     errorTan: 'TAN must be a positive number',
     errorPh: 'pH must be between 0 and 14',
     errorTemp: 'Temperature must be a positive number',
+    errorSalinity: 'Salinity must be a valid number',
     errorCalc: 'Failed to calculate free ammonia',
     validationTitle: 'Validation Error',
 

@@ -166,6 +166,7 @@ const calculators = {
     errorTan: 'TAN एक धनात्मक संख्या होनी चाहिए',
     errorPh: 'pH 0 से 14 के बीच होनी चाहिए',
     errorTemp: 'तापमान एक धनात्मक संख्या होना चाहिए',
+    errorSalinity: 'लवणता एक मान्य संख्या होनी चाहिए',
     errorCalc: 'मुक्त अमोनिया गणना विफल',
     validationTitle: 'सत्यापन त्रुटि',
 

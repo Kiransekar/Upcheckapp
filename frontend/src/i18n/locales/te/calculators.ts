@@ -166,6 +166,7 @@ const calculators = {
     errorTan: 'TAN ధన సంఖ్య అయి ఉండాలి',
     errorPh: 'pH 0 మరియు 14 మధ్య ఉండాలి',
     errorTemp: 'ఉష్ణోగ్రత ధన సంఖ్య అయి ఉండాలి',
+    errorSalinity: 'లవణీయత చెల్లుబాటు అయ్యే సంఖ్య అయి ఉండాలి',
     errorCalc: 'స్వేచ్ఛ అమ్మోనియా లెక్కించడం విఫలమైంది',
     validationTitle: 'ధృవీకరణ లోపం',
 

@@ -8,7 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, FreeAmmoniaResponse } from '../../api/calculators';
-import { parseNumericInput } from '../../features/parseNumericInput';
+import { parseNumericInput, parseNumericInputOrDefault } from '../../features/parseNumericInput';
 
 type ToxicityLevel = 'safe' | 'warning' | 'critical';
 
@@ -85,6 +85,17 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorTemp'));
             return;
         }
+        // Blank salinity is deliberate freshwater shorthand for 0 (QA BUG-002)
+        // and must keep submitting silently. Anything else that isn't a valid
+        // number used to fall through `parseFloat(salinity) || 0` with no
+        // alert, while every sibling field here raises one — that silent
+        // fallback maximises computed NH₃ (over-warns) instead of catching the
+        // typo.
+        const salinityVal = parseNumericInputOrDefault(salinity, 0);
+        if (salinityVal === null) {
+            Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorSalinity'));
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -92,7 +103,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                 tan: tanVal,
                 ph: phVal,
                 temperature: tempVal,
-                salinity: parseFloat(salinity) || 0,
+                salinity: salinityVal,
             });
             setResult(data);
         } catch (error: any) {

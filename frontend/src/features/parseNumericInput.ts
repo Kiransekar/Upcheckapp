@@ -24,3 +24,13 @@ export const parseNumericInput = (raw: string): number | null => {
  * with the confidence of a real answer (QA BUG-011).
  */
 export const MAX_STOCKING_COUNT = 100_000_000;
+
+/**
+ * Same strict parse, but an empty field is a deliberate value rather than
+ * "absent" — e.g. blank salinity meaning 0 ppt (freshwater). Non-empty
+ * garbage still returns null so the caller can raise a validation error
+ * instead of silently substituting the default (QA BUG-002 follow-up:
+ * `parseFloat('abc') || 0` swallowed typos with no alert).
+ */
+export const parseNumericInputOrDefault = (raw: string, defaultValue: number): number | null =>
+    raw.trim() === '' ? defaultValue : parseNumericInput(raw);

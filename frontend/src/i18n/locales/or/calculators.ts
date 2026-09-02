@@ -166,6 +166,7 @@ const calculators = {
     errorTan: 'TAN ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorPh: 'pH ୦ ଓ ୧୪ ମଧ୍ୟରେ ହେବା ଦରକାର',
     errorTemp: 'ତାପମାତ୍ରା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
+    errorSalinity: 'ଲବଣତ ଏକ ବୈଧ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
 
