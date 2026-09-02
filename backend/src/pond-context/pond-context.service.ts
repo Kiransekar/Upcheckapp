@@ -15,6 +15,8 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 
 export interface PondContext {
   pondId: string;
+  /** Owning farm — lets a caller group contexts without a second request. */
+  farmId: string;
   cropId: string | null;
   /** Cultured species (free text, e.g. "Penaeus monodon") — tunes the engines. */
   species: string | null;
@@ -538,6 +540,7 @@ export class PondContextService {
   ): PondContext {
     const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray } = deps;
     const pondId = pond.id;
+    const farmId = pond.farmId;
     const cropId = pond.activeCycleId ?? null;
     const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
     const installedAeratorHp =
@@ -662,6 +665,7 @@ export class PondContextService {
 
     return {
       pondId,
+      farmId,
       cropId,
       species: crop?.species?.scientificName ?? crop?.speciesType ?? null,
       areaM2,

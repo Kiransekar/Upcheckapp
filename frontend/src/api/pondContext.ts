@@ -2,6 +2,8 @@ import apiClient from './client';
 
 export interface PondContext {
   pondId: string;
+  /** Owning farm — lets the Today screen group by farm with no extra request. */
+  farmId: string;
   cropId: string | null;
   /** Cultured species (free text, e.g. "Penaeus monodon") — tunes the engines. */
   species: string | null;
