@@ -46,6 +46,14 @@ const FEEDING_RATE_TABLE = [
     { sizeRange: '> 20 g', rate: '2–2.5%' },
 ];
 
+/**
+ * A pond holding more than 100 million post-larvae does not exist. Without a
+ * ceiling the screen rendered 4.8e16 kg of feed per day with the confidence of
+ * a real answer, and the biomass stat clipped silently past
+ * Number.MAX_SAFE_INTEGER (QA BUG-011).
+ */
+const MAX_STOCKING_COUNT = 100_000_000;
+
 export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
 
@@ -106,11 +114,15 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorSr'));
             return;
         }
-        if (count === null || count <= 0) {
+        if (count === null || count <= 0 || count > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorCount'));
             return;
         }
-        if (fr === null || fr <= 0) {
+        // Mirror the server's @Max(100) (calculation.dto.ts:45) so an
+        // out-of-range rate fails with the same field-named message every other
+        // input gives, instead of a wasted round-trip and a generic error
+        // (QA BUG-010).
+        if (fr === null || fr <= 0 || fr > 100) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorFeedingRate'));
             return;
         }

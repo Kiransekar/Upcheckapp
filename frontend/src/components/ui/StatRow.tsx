@@ -55,6 +55,12 @@ export const StatRow: React.FC<StatRowProps> = ({ stats, size = 'md', divider = 
                             { color },
                         ]}
                         numberOfLines={1}
+                        // Shrink rather than ellipsise: truncating a figure drops
+                        // its LEAST significant digits and leaves a wrong number
+                        // that still looks right, with no visual cue (QA BUG-011).
+                        // The screen headline already does this.
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
                     >
                         {s.value}
                         {!!s.unit && (
