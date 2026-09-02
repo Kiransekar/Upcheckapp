@@ -30,6 +30,7 @@ import { StatRow, type Stat } from '../../components/ui/StatRow';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { SessionHint } from '../../components/ui/SessionHint';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
@@ -401,6 +402,15 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                         .filter(Boolean)
                                         .join(' · ')}
                                 </Text>
+                                {/* Logged / fed this session — same rule the
+                                    reminders and the Today progress card use
+                                    (features/logProgress.ts), so this pond
+                                    cannot disagree with either. */}
+                                {!!context && (
+                                    <View style={styles.sessionHint}>
+                                        <SessionHint ctx={context} />
+                                    </View>
+                                )}
                             </View>
                             {perms.canRecordData && (
                                 <TouchableOpacity
@@ -691,6 +701,7 @@ const styles = StyleSheet.create({
     cycleDivider: { width: 1, alignSelf: 'stretch', backgroundColor: theme.roles.light.borderDefault },
     cycleName: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     cycleMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: theme.roles.light.textTertiary },
+    sessionHint: { marginTop: theme.spacing[1.5] },
     harvestBtn: {
         borderWidth: 1.5,
         borderColor: theme.roles.light.successText,

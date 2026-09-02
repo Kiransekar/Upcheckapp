@@ -124,5 +124,8 @@ const ponds = {
   fieldSurveyedArea: "জরিপ করা এলাকা (m²)",
   surveyedDifferent: "জরিপ করা এলাকা আলাদা",
   surveyedDifferentSub: "হিসাব করা এলাকা বদলান",
+
+  sessionHintLogged: "লগ হয়েছে",
+  sessionHintFed: "খাওয়ানো হয়েছে",
 };
 export default ponds;

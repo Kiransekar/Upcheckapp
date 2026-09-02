@@ -124,5 +124,8 @@ const ponds = {
   fieldSurveyedArea: "సర్వే చేసిన విస్తీర్ణం (m²)",
   surveyedDifferent: "సర్వే విస్తీర్ణం వేరుగా ఉంది",
   surveyedDifferentSub: "లెక్కించిన విస్తీర్ణాన్ని మార్చండి",
+
+  sessionHintLogged: "నమోదైంది",
+  sessionHintFed: "మేత ఇచ్చారు",
 };
 export default ponds;

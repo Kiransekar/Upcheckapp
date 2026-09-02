@@ -124,5 +124,8 @@ const ponds = {
   fieldSurveyedArea: "அளந்த பரப்பு (m²)",
   surveyedDifferent: "அளந்த பரப்பு வேறாக உள்ளது",
   surveyedDifferentSub: "கணக்கிட்ட பரப்பை மாற்று",
+
+  sessionHintLogged: "பதிவானது",
+  sessionHintFed: "உணவளிக்கப்பட்டது",
 };
 export default ponds;

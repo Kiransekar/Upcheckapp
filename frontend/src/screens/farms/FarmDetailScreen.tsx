@@ -24,6 +24,7 @@ import { Icon, type IconName } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { SessionHint } from '../../components/ui/SessionHint';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { farmsApi, type Farm } from '../../api/farms';
@@ -390,6 +391,13 @@ const PondRow: React.FC<{
                 <Text style={[styles.pondReason, { color: HEALTH_TEXT[health] }]} numberOfLines={1}>
                     {reason ?? t('farms.pondActive')}
                 </Text>
+                {/* Logged / fed this session — same rule as the reminders and
+                    the Today progress card (features/logProgress.ts). */}
+                {!!context && (
+                    <View style={styles.sessionHint}>
+                        <SessionHint ctx={context} />
+                    </View>
+                )}
             </View>
             <Text style={[styles.cell, styles.colDay]}>{context?.doc ?? '—'}</Text>
             <Text
@@ -481,6 +489,7 @@ const styles = StyleSheet.create({
         lineHeight: 16,
         color: theme.roles.light.textTertiary,
     },
+    sessionHint: { marginTop: theme.spacing[1] },
     cell: {
         fontFamily: 'DMMono-Regular',
         fontSize: 15,

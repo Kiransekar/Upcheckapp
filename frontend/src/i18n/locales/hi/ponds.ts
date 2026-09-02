@@ -124,5 +124,8 @@ const ponds = {
   fieldSurveyedArea: "सर्वे किया क्षेत्र (m²)",
   surveyedDifferent: "सर्वे किया क्षेत्र अलग है",
   surveyedDifferentSub: "गणना किए क्षेत्र को बदलें",
+
+  sessionHintLogged: "दर्ज",
+  sessionHintFed: "खिलाया",
 };
 export default ponds;
