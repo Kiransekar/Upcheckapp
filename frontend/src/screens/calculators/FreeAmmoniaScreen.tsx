@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, FreeAmmoniaResponse } from '../../api/calculators';
+import { parseNumericInput } from '../../features/parseNumericInput';
 
 type ToxicityLevel = 'safe' | 'warning' | 'critical';
 
@@ -68,19 +69,19 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
     const [result, setResult] = useState<FreeAmmoniaResponse | null>(null);
 
     const handleCalculate = async () => {
-        const tanVal = parseFloat(tan);
-        const phVal = parseFloat(ph);
-        const tempVal = parseFloat(temperature);
+        const tanVal = parseNumericInput(tan);
+        const phVal = parseNumericInput(ph);
+        const tempVal = parseNumericInput(temperature);
 
-        if (!tanVal || tanVal <= 0) {
+        if (tanVal === null || tanVal <= 0) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorTan'));
             return;
         }
-        if (!phVal || phVal <= 0 || phVal > 14) {
+        if (phVal === null || phVal <= 0 || phVal > 14) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorPh'));
             return;
         }
-        if (!tempVal || tempVal <= 0) {
+        if (tempVal === null || tempVal <= 0) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorTemp'));
             return;
         }

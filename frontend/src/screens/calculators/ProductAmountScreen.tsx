@@ -8,6 +8,7 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, ProductDosageResponse } from '../../api/calculators';
+import { parseNumericInput } from '../../features/parseNumericInput';
 
 export const ProductAmountScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -22,24 +23,24 @@ export const ProductAmountScreen = ({ navigation }: any) => {
     const [clientResult, setClientResult] = useState<number | null>(null);
 
     const handleCalculate = async () => {
-        const area = parseFloat(pondArea);
-        const depth = parseFloat(waterDepth);
-        const ppm = parseFloat(targetPpm);
-        const conc = concentration ? parseFloat(concentration) : 100;
+        const area = parseNumericInput(pondArea);
+        const depth = parseNumericInput(waterDepth);
+        const ppm = parseNumericInput(targetPpm);
+        const conc = concentration ? parseNumericInput(concentration) : 100;
 
-        if (!area || area <= 0) {
+        if (area === null || area <= 0) {
             Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorArea'));
             return;
         }
-        if (!depth || depth <= 0) {
+        if (depth === null || depth <= 0) {
             Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorDepth'));
             return;
         }
-        if (!ppm || ppm <= 0) {
+        if (ppm === null || ppm <= 0) {
             Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorPpm'));
             return;
         }
-        if (concentration && (conc <= 0 || conc > 100)) {
+        if (concentration && (conc === null || conc <= 0 || conc > 100)) {
             Alert.alert(t('calculators.productDosage.validationTitle'), t('calculators.productDosage.errorConc'));
             return;
         }
@@ -55,7 +56,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
             });
             setResult(data);
 
-            if (concentration && conc > 0) {
+            if (concentration && conc !== null && conc > 0) {
                 // active ingredient (kg) = volume(m³) × ppm(g/m³) / 1000; a
                 // product that is conc% active needs ÷(conc/100) more mass →
                 // volume × ppm / (10 × conc). (Was ÷(conc×10000) = 1000× too
@@ -72,8 +73,10 @@ export const ProductAmountScreen = ({ navigation }: any) => {
         }
     };
 
-    const pondVolume = pondArea && waterDepth
-        ? (parseFloat(pondArea) * parseFloat(waterDepth))
+    const parsedArea = pondArea ? parseNumericInput(pondArea) : null;
+    const parsedDepth = waterDepth ? parseNumericInput(waterDepth) : null;
+    const pondVolume = parsedArea !== null && parsedDepth !== null
+        ? parsedArea * parsedDepth
         : null;
 
     return (

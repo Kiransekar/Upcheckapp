@@ -30,6 +30,7 @@ import { theme } from '../../theme';
 import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
 import type { PondContext } from '../../api/pondContext';
 import { survivalPctFrom, didPrefillAnything } from './prefill';
+import { parseNumericInput } from '../../features/parseNumericInput';
 
 const c = theme.roles.light;
 
@@ -92,24 +93,24 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     }, [mbwG, srPct, initialCount, feedingRatePct]);
 
     const handleCalculate = async () => {
-        const mbw = parseFloat(mbwG);
-        const sr = parseFloat(srPct);
-        const count = parseFloat(initialCount);
-        const fr = parseFloat(feedingRatePct);
+        const mbw = parseNumericInput(mbwG);
+        const sr = parseNumericInput(srPct);
+        const count = parseNumericInput(initialCount);
+        const fr = parseNumericInput(feedingRatePct);
 
-        if (!mbw || mbw <= 0) {
+        if (mbw === null || mbw <= 0) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorMbw'));
             return;
         }
-        if (!sr || sr <= 0 || sr > 100) {
+        if (sr === null || sr <= 0 || sr > 100) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorSr'));
             return;
         }
-        if (!count || count <= 0) {
+        if (count === null || count <= 0) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorCount'));
             return;
         }
-        if (!fr || fr <= 0) {
+        if (fr === null || fr <= 0) {
             Alert.alert(t('calculators.dailyFeed.validationTitle'), t('calculators.dailyFeed.errorFeedingRate'));
             return;
         }

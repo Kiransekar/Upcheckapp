@@ -15,6 +15,7 @@ import {
     SurvivalRateResponse,
     CultivationPerformanceResponse,
 } from '../../api/calculators';
+import { parseNumericInput } from '../../features/parseNumericInput';
 
 interface PerformanceResults {
     fcr: number | null;
@@ -39,39 +40,43 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
     const [results, setResults] = useState<PerformanceResults | null>(null);
 
     const handleCalculate = async () => {
-        const seed = parseFloat(totalSeed);
-        const harvestKg = parseFloat(totalHarvestKg);
-        const feedKg = parseFloat(totalFeedKg);
-        const days = parseFloat(daysOfCulture);
-        const mbw = parseFloat(finalMbwG);
-        const sr = parseFloat(finalSrPct);
-        const area = areaM2 ? parseFloat(areaM2) : 0;
+        const seed = parseNumericInput(totalSeed);
+        const harvestKg = parseNumericInput(totalHarvestKg);
+        const feedKg = parseNumericInput(totalFeedKg);
+        const days = parseNumericInput(daysOfCulture);
+        const mbw = parseNumericInput(finalMbwG);
+        const sr = parseNumericInput(finalSrPct);
+        const area = areaM2 ? parseNumericInput(areaM2) : 0;
 
-        if (!seed || seed <= 0) {
+        if (seed === null || seed <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSeed'));
             return;
         }
-        if (!harvestKg || harvestKg <= 0) {
+        if (harvestKg === null || harvestKg <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorHarvest'));
             return;
         }
-        if (!feedKg || feedKg <= 0) {
+        if (feedKg === null || feedKg <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorFeed'));
             return;
         }
-        if (!days || days <= 0) {
+        if (days === null || days <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorDays'));
             return;
         }
-        if (!mbw || mbw <= 0) {
+        if (mbw === null || mbw <= 0) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorMbw'));
             return;
         }
-        if (!sr || sr <= 0 || sr > 100) {
+        if (sr === null || sr <= 0 || sr > 100) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSr'));
             return;
         }
-        if (areaM2 && (area <= 0)) {
+        // 'abc' used to parse to NaN, pass this guard, and then silently delete
+        // the Productivity metric the farmer asked for (QA BUG-009). null is the
+        // parser's "not a number", and it must be rejected explicitly — `!area`
+        // would also reject a legitimate 0.
+        if (areaM2 && (area === null || area <= 0)) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorArea'));
             return;
         }
@@ -103,7 +108,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                 }),
             ]);
 
-            const productivity = area > 0 ? harvestKg / area : null;
+            const productivity = area !== null && area > 0 ? harvestKg / area : null;
 
             setResults({
                 fcr: fcrRes.data.fcr,

@@ -14,6 +14,7 @@ import {
     BiomassResponse,
     RecommendedFeedingRateResponse,
 } from '../../api/calculators';
+import { parseNumericInput } from '../../features/parseNumericInput';
 
 export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -45,19 +46,19 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
 
     // ── Handlers ────────────────────────────────────────────
     const handleExpectedHarvest = async () => {
-        const stockingCount = parseFloat(ehStockingCount);
-        const survivalRatePercent = parseFloat(ehSurvivalRate);
-        const targetWeightG = parseFloat(ehTargetWeight);
+        const stockingCount = parseNumericInput(ehStockingCount);
+        const survivalRatePercent = parseNumericInput(ehSurvivalRate);
+        const targetWeightG = parseNumericInput(ehTargetWeight);
 
-        if (!stockingCount || stockingCount <= 0) {
+        if (stockingCount === null || stockingCount <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorStockingCount'));
             return;
         }
-        if (!survivalRatePercent || survivalRatePercent <= 0 || survivalRatePercent > 100) {
+        if (survivalRatePercent === null || survivalRatePercent <= 0 || survivalRatePercent > 100) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorSurvivalRate'));
             return;
         }
-        if (!targetWeightG || targetWeightG <= 0) {
+        if (targetWeightG === null || targetWeightG <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorTargetWeight'));
             return;
         }
@@ -78,19 +79,19 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     };
 
     const handleGrowthProjection = async () => {
-        const currentWeightG = parseFloat(gpCurrentWeight);
-        const adgG = parseFloat(gpAdg);
-        const daysToProject = parseFloat(gpDays);
+        const currentWeightG = parseNumericInput(gpCurrentWeight);
+        const adgG = parseNumericInput(gpAdg);
+        const daysToProject = parseNumericInput(gpDays);
 
-        if (!currentWeightG || currentWeightG <= 0) {
+        if (currentWeightG === null || currentWeightG <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorCurrentWeight'));
             return;
         }
-        if (!adgG || adgG <= 0) {
+        if (adgG === null || adgG <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorAdg'));
             return;
         }
-        if (!daysToProject || daysToProject <= 0) {
+        if (daysToProject === null || daysToProject <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorDaysToProject'));
             return;
         }
@@ -111,14 +112,14 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     };
 
     const handleBiomass = async () => {
-        const stockCount = parseFloat(bmStockCount);
-        const averageWeightG = parseFloat(bmAvgWeight);
+        const stockCount = parseNumericInput(bmStockCount);
+        const averageWeightG = parseNumericInput(bmAvgWeight);
 
-        if (!stockCount || stockCount <= 0) {
+        if (stockCount === null || stockCount <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorStockCount'));
             return;
         }
-        if (!averageWeightG || averageWeightG <= 0) {
+        if (averageWeightG === null || averageWeightG <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorAverageWeight'));
             return;
         }
@@ -135,9 +136,9 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     };
 
     const handleRecommendedFeedingRate = async () => {
-        const averageWeightG = parseFloat(rfrAvgWeight);
+        const averageWeightG = parseNumericInput(rfrAvgWeight);
 
-        if (!averageWeightG || averageWeightG <= 0) {
+        if (averageWeightG === null || averageWeightG <= 0) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorAverageWeight'));
             return;
         }
