@@ -146,10 +146,16 @@ apiClient.interceptors.response.use(
                 throw new Error('No refresh token available');
             }
 
-            // Call the refresh endpoint
-            const { data } = await axios.post(`${API_URL}/auth/supabase/refresh`, {
-                refreshToken,
-            });
+            // Call the refresh endpoint. Bare axios so this does not recurse
+            // through these interceptors — but it therefore does not inherit
+            // apiClient's timeout either, and axios defaults to NO timeout, so
+            // a refresh attempted as the signal dies would hang until the OS
+            // gave up rather than failing fast into the offline path below.
+            const { data } = await axios.post(
+                `${API_URL}/auth/supabase/refresh`,
+                { refreshToken },
+                { timeout: 15000 },
+            );
 
             const newSession = data.session;
             if (!newSession?.access_token) {
@@ -165,10 +171,33 @@ apiClient.interceptors.response.use(
             // Retry the original request
             originalRequest.headers.Authorization = `Bearer ${newSession.access_token}`;
             return apiClient(originalRequest);
-        } catch (refreshError) {
-            // Refresh failed — clear everything and log out
+        } catch (refreshError: any) {
             processQueue(refreshError, null);
-            getAuthState().clearSession();
+
+            /**
+             * A FAILED REFRESH IS NOT PROOF THE SESSION IS GONE (AUTH-1).
+             *
+             * This used to call `clearSession()` for any failure at all. That
+             * is the same mistake `restoreSession()` fixed on the cold-start
+             * path (authStore.ts) but this path never got: walking out of
+             * coverage with an expired token gets a real 401 while the last
+             * bars are alive, then the refresh POST above dies with no
+             * response — and the farmer was logged out AND had every cached
+             * read wiped, because `clearSession()` calls `clearCachedReads()`.
+             * Precisely the "app is unusable offline" complaint, arriving at
+             * the moment there is no signal to log back in with.
+             *
+             * Only the server SAYING the refresh token is bad ends the
+             * session. Anything else keeps the farmer authenticated against
+             * cached data with no access token; `recoverSession()` re-attempts
+             * a real refresh when OfflineIndicator sees connectivity return.
+             */
+            const status = refreshError?.response?.status;
+            if (status === 401 || status === 403) {
+                getAuthState().clearSession();
+            } else {
+                getAuthState().enterOfflineSession();
+            }
             return Promise.reject(refreshError);
         } finally {
             isRefreshing = false;

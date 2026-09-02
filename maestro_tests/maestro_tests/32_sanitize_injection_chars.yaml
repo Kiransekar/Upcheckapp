@@ -1,0 +1,26 @@
+# PILLAR: Input Sanitization - injection-shaped payload in a numeric field
+# INPUTS: MBW="'; DROP TABLE ponds;--", others valid
+# EXPECTED: parseFloat -> NaN -> client guard fires with
+#           "MBW must be a positive number"; payload never reaches the network.
+# INTENT: confirm the numeric guard rejects a string payload rather than
+#         forwarding it to the calculation API.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: "18.4"
+- inputText: "'; DROP TABLE ponds;--"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "3"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "MBW must be a positive number"
+- assertNotVisible: "Required Daily Feed"

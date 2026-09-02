@@ -1,0 +1,25 @@
+# PILLAR: Input Sanitization - leading/trailing whitespace in a numeric field
+# INPUTS: MBW=" 20 " (space-padded), SR=80, Count=100000, FR=3
+# EXPECTED: JS parseFloat tolerates leading/trailing whitespace, so the result
+#           must be identical to flow 01: feed 48.0 kg, biomass 1,600.
+# INTENT: confirm padded input is not rejected and does not corrupt the value.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: "18.4"
+- inputText: " 20 "
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "3"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: "Required Daily Feed"
+- assertVisible: '.*48\.0.*'
+- assertVisible: '.*1,600.*'

@@ -58,7 +58,28 @@ async function readIndex(): Promise<string[]> {
     }
 }
 
-export async function writeCached(url: string, data: unknown): Promise<void> {
+/**
+ * Serialises index updates.
+ *
+ * Opening a screen fires many GETs at once, so `writeCached` calls interleave.
+ * Each one read the index, appended itself and wrote the whole array back, so
+ * concurrent writers clobbered each other: every response body was stored but
+ * only the last writer's url stayed listed. The unlisted entries became
+ * orphans — invisible to eviction (so they grow against the ~6MB Android
+ * ceiling forever) and invisible to `clearOfflineCache()`, meaning the next
+ * farmer on a shared phone could still read the previous one's responses.
+ *
+ * A one-line promise chain is enough: the reads and writes are already async
+ * and cheap, and this is the only writer of the index.
+ */
+let writeChain: Promise<void> = Promise.resolve();
+
+export function writeCached(url: string, data: unknown): Promise<void> {
+    writeChain = writeChain.then(() => writeCachedSerially(url, data));
+    return writeChain;
+}
+
+async function writeCachedSerially(url: string, data: unknown): Promise<void> {
     try {
         const body = JSON.stringify({ data, at: Date.now() } satisfies CachedResponse);
         if (body.length > MAX_ENTRY_BYTES) return;
@@ -99,8 +120,17 @@ export async function readCached(url: string): Promise<CachedResponse | null> {
  */
 export async function clearOfflineCache(): Promise<void> {
     try {
-        const index = await readIndex();
-        await AsyncStorage.multiRemove([...index.map(keyFor), INDEX_KEY]);
+        /**
+         * Swept by PREFIX rather than by the index, deliberately.
+         *
+         * The index is a convenience for eviction; it must never be what
+         * decides whether the previous user's data is gone. Builds already in
+         * the field wrote orphans (see `writeChain`), and those are exactly the
+         * entries an index-based wipe would leave behind on a shared phone.
+         */
+        const all = await AsyncStorage.getAllKeys();
+        const ours = all.filter((k) => k.startsWith(PREFIX));
+        await AsyncStorage.multiRemove([...ours, INDEX_KEY]);
     } catch {
         // Best effort; a failure here must not block sign-out.
     }

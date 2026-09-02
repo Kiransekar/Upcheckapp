@@ -1,0 +1,63 @@
+# ############################################################################
+# !! MUTATES LIVE PRODUCTION DATA on api.upcheck.in !!
+#
+# One-time SETUP, not a test. Underscore-prefixed so the `[0-9]*.yaml` suite
+# glob never picks it up - re-running it creates a duplicate pond.
+#
+# Why it exists: the audit account owned 1 farm and 0 ponds, so the calculator
+# prefill path (PondPicker + applyContext) could not be exercised at all. This
+# creates the minimum object graph needed to reach it.
+#
+# CREATES: pond "QA-AUDIT-POND" - 100 m x 50 m x 1.5 m => 5000 m2 surveyed area.
+# RETAINED: the account owner has chosen to keep this pond. It is a standing
+#           fixture that flows 40/41/43/44 depend on - do not delete it without
+#           re-running this seed. Re-running it now would create a DUPLICATE.
+# ############################################################################
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Farm"
+    timeout: 30000
+- tapOn: "Farm"
+# The Farm tab opens the farms LIST, not a farm. Open the only farm on the
+# account first. Its display name is "1"; the card exposes the whole summary as
+# one accessibility string, so anchor on the prefix.
+- extendedWaitUntil:
+    visible: "Your farms"
+    timeout: 20000
+- tapOn: "1, Owner.*"
+- extendedWaitUntil:
+    visible: "Add Pond"
+    timeout: 20000
+- tapOn: "Add Pond"
+- extendedWaitUntil:
+    visible: "Pond Name"
+    timeout: 15000
+- tapOn: "e.g. North Pond"
+- inputText: "QA-AUDIT-POND"
+- hideKeyboard
+# Rect is the default shape; Length x Width drives the computed area.
+- tapOn:
+    text: "0.0"
+    index: 0
+- inputText: "100"
+- hideKeyboard
+- tapOn:
+    text: "0.0"
+    index: 1
+- inputText: "50"
+- hideKeyboard
+- tapOn: "e.g. 1.5"
+- inputText: "1.5"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Save Pond"
+    direction: DOWN
+- tapOn: "Save Pond"
+- extendedWaitUntil:
+    visible: "QA-AUDIT-POND"
+    timeout: 20000

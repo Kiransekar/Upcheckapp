@@ -1,0 +1,40 @@
+# PILLAR: Prefill path (applyContext) - previously UNTESTABLE (EVIDENCE FLOW)
+#
+# INPUTS: pick QA-AUDIT-POND (stocking count 500000, area 5000 m2, day 1,
+#         no sampling logged) then open Daily Feed Amount. Nothing is typed.
+#
+# EXPECTED (defensible): fields the pond can actually supply are filled, and the
+#          "Filled from the pond" banner reflects what was really filled.
+#
+# ACTUAL, confirmed by uiautomator dump of the EditText nodes:
+#     Count      = 500000   <- genuinely prefilled from crop.stockingCount
+#     Pond Area  = 5000     <- genuinely prefilled from areaM2 (and inert, BUG-005)
+#     SR (%)     = 100      <- FABRICATED. livePopulation == stockingCount on a
+#                              pond with no mortality logged, so applyContext
+#                              computes 100% survival and presents it as pond
+#                              data (BUG-019).
+#     MBW (g)    = EMPTY    <- abwG is null with no sampling, so the required
+#                              field is NOT filled ...
+#     ... yet the banner still reads "Filled from the pond you picked · day 1",
+#         because setPrefilled(true) is unconditional (BUG-018).
+#
+# INTENT: pin both defects on the prefill path.
+# See: QA_ENGINEERING_HANDOVER_REPORT.md -> BUG-018, BUG-019
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "QA-AUDIT-POND"
+- tapOn: "Daily Feed Amount"
+- extendedWaitUntil:
+    visible: "Daily feed"
+    timeout: 15000
+# The banner claims the form was filled from the pond ...
+- assertVisible: "Filled from the pond you picked.*"
+# ... and these two really were.
+- assertVisible: "500000"
+- assertVisible: "5000"
+# But survival rate was invented as 100%, not measured.
+- assertVisible: "100"
+# MBW is empty: its placeholder "18.4" is what is rendered, which is only
+# possible when the field holds no value.
+- assertVisible: "18.4"

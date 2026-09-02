@@ -1,0 +1,19 @@
+# FEATURE: Free Ammonia - CRITICAL band
+# INPUTS: TAN=5 ppm, pH=9, Temp=32 C, Salinity=15 ppt
+# EXPECTED: NH3 = 2.2693 ppm -> band CRITICAL (>0.5)
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: "5"
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: "9"
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "32"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: '.*2\.2693.*'
+- assertVisible: '.*CRITICAL \(Server\).*'

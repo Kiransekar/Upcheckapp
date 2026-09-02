@@ -1,0 +1,19 @@
+# FEATURE: Free Ammonia - pH above chemical maximum
+# INPUTS: TAN=1.5, pH=15, Temp=29
+# EXPECTED: alert 'pH must be between 0 and 14'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: '1.5'
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: "15"
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "29"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: "Validation Error"
+- assertVisible: "pH must be between 0 and 14"

@@ -1,0 +1,22 @@
+# FEATURE: Product Dosage - standard valid input
+# INPUTS: PondArea=5000 m2, Depth=1.2 m, Target=2 ppm, Concentration=(blank -> 100%)
+# EXPECTED: volume = 5000*1.2 = 6000 m3
+#           amountKg = 5000*1.2*2/1000 = 12.00 kg
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Product Dosage"
+- assertVisible: "Pond & Dosage Settings"
+- tapOn: 'e.g. 5000'
+- inputText: "5000"
+- hideKeyboard
+- tapOn: 'e.g. 1.2'
+- inputText: '1.2'
+- hideKeyboard
+- tapOn: 'e.g. 5.0'
+- inputText: "2"
+- hideKeyboard
+- assertVisible: '.*6000 m.*'
+- tapOn: "Calculate"
+- assertVisible: "Required Product Amount"
+- assertVisible: '.*12\.00.*'

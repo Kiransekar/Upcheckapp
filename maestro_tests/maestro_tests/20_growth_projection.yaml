@@ -1,0 +1,32 @@
+# FEATURE: Growth & Harvest - Growth Projection
+# INPUTS: CurrentWeight=10 g, ADG=0.25 g/day, DaysToProject=30
+# EXPECTED: projected = 10 + 0.25*30 = 17.50 g
+#           weekly = 11.75 / 13.50 / 15.25 / 17.00 / 17.50
+#           (weeks are min(7w, days), so week 5 clamps to day 30)
+# NOTE: the weekly breakdown renders below the headline and needs a scroll -
+#       assertVisible only matches what is actually on screen.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Growth & Harvest"
+- scrollUntilVisible:
+    element:
+      text: "Growth Projection"
+    direction: DOWN
+- tapOn: "e.g. 5.0"
+- inputText: "10"
+- hideKeyboard
+- tapOn: "e.g. 0.2"
+- inputText: "0.25"
+- hideKeyboard
+- tapOn: "e.g. 30"
+- inputText: "30"
+- hideKeyboard
+- tapOn:
+    text: "Calculate"
+    index: 1
+- assertVisible: "Projected Weight"
+- assertVisible: '.*17\.50.*'
+- scroll
+- scroll
+- assertVisible: '.*11\.75.*'

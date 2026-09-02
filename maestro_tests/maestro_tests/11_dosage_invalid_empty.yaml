@@ -1,0 +1,11 @@
+# FEATURE: Product Dosage - empty required fields
+# INPUTS: none
+# EXPECTED: alert 'Pond area must be a positive number'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Product Dosage"
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "Pond area must be a positive number"
+- assertNotVisible: "Required Product Amount"

@@ -1,0 +1,28 @@
+# PILLAR: Localization x Arithmetic - rounding under a non-English locale.
+# Re-runs TC-02's payload with the UI in Hindi.
+# INPUTS: MBW=12.5, SR=85, Count=500000, FR=2.5   (identical to TC-02)
+# EXPECTED: identical to TC-02 - biomass 5,313 (5312.5 rounded), feed 132.8 kg
+#           (132.8125 -> server 2dp 132.81 -> display 1dp), per-meal 33.2.
+# INTENT: prove the rounding boundary and the en-IN grouping of a 4-digit figure
+#         are unaffected by the UI language.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub_hi.yaml
+- tapOn: "दैनिक आहार मात्रा"
+- tapOn: "18.4"
+- inputText: "12.5"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "85"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "500000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "2.5"
+- hideKeyboard
+- tapOn: "गणना करें"
+- assertVisible: "आवश्यक दैनिक आहार"
+- assertVisible: '.*132\.8.*'
+- assertVisible: '.*5,313.*'
+- assertVisible: '.*33\.2.*'

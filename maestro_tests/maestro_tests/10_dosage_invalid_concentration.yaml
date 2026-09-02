@@ -1,0 +1,23 @@
+# FEATURE: Product Dosage - concentration out of range (>100 %)
+# INPUTS: Area=5000, Depth=1.2, Target=2, Concentration=150
+# EXPECTED: alert 'Concentration must be between 0 and 100'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Product Dosage"
+- tapOn: 'e.g. 5000'
+- inputText: "5000"
+- hideKeyboard
+- tapOn: 'e.g. 1.2'
+- inputText: '1.2'
+- hideKeyboard
+- tapOn: 'e.g. 5.0'
+- inputText: "2"
+- hideKeyboard
+- tapOn: 'e.g. 100.*'
+- inputText: "150"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "Concentration must be between 0 and 100"
+- assertNotVisible: "Required Product Amount"

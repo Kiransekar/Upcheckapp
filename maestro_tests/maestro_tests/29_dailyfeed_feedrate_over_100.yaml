@@ -1,0 +1,29 @@
+# FEATURE: Daily Feed - feeding rate above the server maximum (EVIDENCE FLOW)
+# PURPOSE: The client guard (DailyFeedCalculatorScreen.tsx:111) only checks
+#          `!fr || fr <= 0` - it has NO upper bound. The server DTO
+#          (backend .../dto/calculation.dto.ts:45) enforces @Max(100) on
+#          feedingPercentage. So FR=150 passes the client, reaches the network,
+#          and comes back a 400 - surfacing as a generic failure rather than the
+#          field-level 'Validation Error' the other out-of-range inputs get.
+# INPUTS: MBW=20, SR=80, Count=100000, FeedingRate=150
+# EXPECTED (consistent behaviour): a client-side 'Validation Error' naming the field.
+# ACTUAL (asserted here): no client Validation Error, and no result rendered.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: '18.4'
+- inputText: "20"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: '3.2'
+- inputText: "150"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertNotVisible: "Validation Error"
+- assertNotVisible: "Required Daily Feed"
