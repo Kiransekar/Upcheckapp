@@ -19,7 +19,6 @@ interface DailyFeedInputs {
 }
 
 interface ProductAmountInputs {
-    pondAreaM2?: number;
     waterHeightM?: number;
     targetPpm?: number;
     productForm: 'granular' | 'liquid';

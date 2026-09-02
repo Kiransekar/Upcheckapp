@@ -13,7 +13,6 @@ import {
     FcrResponse,
     AdgResponse,
     SurvivalRateResponse,
-    CultivationPerformanceResponse,
 } from '../../api/calculators';
 import { parseNumericInput } from '../../features/parseNumericInput';
 
@@ -22,7 +21,6 @@ interface PerformanceResults {
     adg: number | null;
     sr: number | null;
     productivity: number | null;
-    perf: CultivationPerformanceResponse | null;
 }
 
 export const CultivationPerformanceScreen = ({ navigation }: any) => {
@@ -85,7 +83,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
         try {
             const harvestedCount = Math.round(seed * sr / 100);
 
-            const [fcrRes, adgRes, srRes, perfRes] = await Promise.all([
+            const [fcrRes, adgRes, srRes] = await Promise.all([
                 calculatorsApi.calculateFcr({
                     totalFeedKg: feedKg,
                     harvestWeightKg: harvestKg,
@@ -99,13 +97,6 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                     initialStock: seed,
                     harvestedCount,
                 }),
-                calculatorsApi.calculateCultivationPerformance({
-                    dailyFeed: feedKg / days,
-                    fr: (feedKg / days) / ((seed * sr / 100) * mbw / 1000) * 100 || 0,
-                    abw: mbw,
-                    cumulativeFeed: feedKg,
-                    initialStocking: seed,
-                }),
             ]);
 
             const productivity = area !== null && area > 0 ? harvestKg / area : null;
@@ -115,7 +106,6 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                 adg: adgRes.data.adgG,
                 sr: srRes.data.survivalRatePercent,
                 productivity,
-                perf: perfRes.data,
             });
         } catch (error: any) {
             Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.performance.errorCalc'));
