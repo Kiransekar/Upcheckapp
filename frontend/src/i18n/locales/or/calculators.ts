@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'ପୋଖରୀ ଆୟତନ',
     requiredAmount: 'ଆବଶ୍ୟକ ଉତ୍ପାଦ ପରିମାଣ',
     withConcentration: '{{conc}}% ଗାଢ଼ତ୍ୱ ସହ:',
+    activeIngredientBasis: '100% ସକ୍ରିୟ-ଉପାଦାନ ଆଧାରରେ:',
     errorArea: 'ପୋଖରୀ କ୍ଷେତ୍ରଫଳ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorDepth: 'ଜଳ ଗଭୀରତା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorPpm: 'ଲକ୍ଷ୍ୟ ppm ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',

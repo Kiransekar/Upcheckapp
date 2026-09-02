@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'చెరువు పరిమాణం',
     requiredAmount: 'అవసరమైన ఉత్పత్తి పరిమాణం',
     withConcentration: '{{conc}}% సాంద్రతతో:',
+    activeIngredientBasis: '100% క్రియాశీల-పదార్థ ప్రాతిపదికన:',
     errorArea: 'చెరువు వైశాల్యం ధన సంఖ్య అయి ఉండాలి',
     errorDepth: 'నీటి లోతు ధన సంఖ్య అయి ఉండాలి',
     errorPpm: 'లక్ష్య ppm ధన సంఖ్య అయి ఉండాలి',

@@ -140,15 +140,22 @@ export const ProductAmountScreen = ({ navigation }: any) => {
 
                 {result && (
                     <View style={styles.resultBox}>
+                        {/* The headline must be the mass the farmer weighs out. For a
+                            sub-100% product that is the concentration-corrected figure,
+                            not the pure-active-ingredient basis (QA BUG-003) - promoting
+                            the latter under-doses a 50% product by half, and an
+                            under-dosed treatment fails with no visible symptom. */}
                         <Text style={styles.resultLabel}>{t('calculators.productDosage.requiredAmount')}</Text>
-                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.amountKg.toFixed(2)}</Text>
+                        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>
+                            {(clientResult ?? result.amountKg).toFixed(clientResult !== null ? 3 : 2)}
+                        </Text>
                         <Text style={styles.resultUnit}>kg</Text>
 
                         {clientResult !== null && (
                             <View style={styles.clientResultSection}>
                                 <View style={styles.divider} />
-                                <Text style={styles.clientLabel}>{t('calculators.productDosage.withConcentration', { conc: concentration || '100' })}</Text>
-                                <Text style={styles.clientValue}>{clientResult.toFixed(3)} kg</Text>
+                                <Text style={styles.clientLabel}>{t('calculators.productDosage.activeIngredientBasis')}</Text>
+                                <Text style={styles.clientValue}>{result.amountKg.toFixed(2)} kg</Text>
                                 <Text style={styles.clientFormula}>
                                     ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / (10 × {concentration || 100}%)
                                 </Text>

@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'குள கொள்ளளவு',
     requiredAmount: 'தேவையான பொருள் அளவு',
     withConcentration: '{{conc}}% செறிவுடன்:',
+    activeIngredientBasis: '100% தீவிர-மூலப்பொருள் அடிப்படையில்:',
     errorArea: 'குளப் பரப்பளவு ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorDepth: 'நீர் ஆழம் ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorPpm: 'இலக்கு ppm ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',

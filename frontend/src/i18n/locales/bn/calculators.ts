@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'পুকুরের আয়তন',
     requiredAmount: 'প্রয়োজনীয় পণ্যের পরিমাণ',
     withConcentration: '{{conc}}% ঘনত্বের সাথে:',
+    activeIngredientBasis: '১০০% সক্রিয়-উপাদান ভিত্তিতে:',
     errorArea: 'পুকুরের ক্ষেত্রফল অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorDepth: 'পানির গভীরতা অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorPpm: 'লক্ষ্য ppm অবশ্যই ধনাত্মক সংখ্যা হতে হবে',

@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'Pond Volume',
     requiredAmount: 'Required Product Amount',
     withConcentration: 'With {{conc}}% concentration:',
+    activeIngredientBasis: '100% active-ingredient basis:',
     errorArea: 'Pond area must be a positive number',
     errorDepth: 'Water depth must be a positive number',
     errorPpm: 'Target ppm must be a positive number',

@@ -111,6 +111,7 @@ const calculators = {
     pondVolume: 'तालाब की मात्रा',
     requiredAmount: 'आवश्यक उत्पाद मात्रा',
     withConcentration: '{{conc}}% सांद्रता के साथ:',
+    activeIngredientBasis: '100% सक्रिय-घटक आधार पर:',
     errorArea: 'तालाब क्षेत्रफल एक धनात्मक संख्या होनी चाहिए',
     errorDepth: 'जल गहराई एक धनात्मक संख्या होनी चाहिए',
     errorPpm: 'लक्ष्य ppm एक धनात्मक संख्या होनी चाहिए',
