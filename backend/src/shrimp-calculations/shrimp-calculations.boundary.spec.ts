@@ -39,3 +39,25 @@ describe('calculateFreeAmmonia — band boundaries', () => {
     expect(svc.calculateFreeAmmonia(8, 9, 32, 0).toxicityLevel).toBe('critical');
   });
 });
+
+/**
+ * QA BUG-008. CalculateSurvivalRateDto:32 documents a 100% clamp as the reason
+ * harvestedCount carries no @Max. The clamp was never implemented, so the guard
+ * lived nowhere and 150000 of 100000 returned 150%.
+ */
+describe('calculateSurvivalRate — clamp', () => {
+  const svc = new ShrimpCalculationsService();
+
+  it('clamps an overshoot to 100 rather than reporting an impossible rate', () => {
+    expect(svc.calculateSurvivalRate(100_000, 150_000)).toBe(100);
+    expect(svc.calculateSurvivalRate(1_000, 999_999)).toBe(100);
+  });
+
+  it('leaves a normal rate untouched', () => {
+    expect(svc.calculateSurvivalRate(100_000, 80_000)).toBe(80);
+  });
+
+  it('still returns 0 for an unstocked pond', () => {
+    expect(svc.calculateSurvivalRate(0, 500)).toBe(0);
+  });
+});

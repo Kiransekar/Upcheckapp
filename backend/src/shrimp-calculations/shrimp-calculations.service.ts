@@ -58,7 +58,12 @@ export class ShrimpCalculationsService {
    */
   calculateSurvivalRate(initialStock: number, harvestedCount: number): number {
     if (initialStock === 0) return 0;
-    return Math.round((harvestedCount / initialStock) * 10000) / 100;
+    // Clamped, as CalculateSurvivalRateDto:32 has always claimed. Field counts
+    // routinely overshoot stock slightly through estimation error, so report
+    // the ceiling rather than an impossible figure — or than rejecting a
+    // legitimate caller.
+    const pct = Math.round((harvestedCount / initialStock) * 10000) / 100;
+    return Math.min(pct, 100);
   }
 
   /**
