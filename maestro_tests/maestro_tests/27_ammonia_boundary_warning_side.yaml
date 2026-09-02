@@ -1,0 +1,22 @@
+# FEATURE: Free Ammonia - band boundary, WARNING side (EVIDENCE FLOW)
+# PURPOSE: Pair to 26_. Same displayed value '0.1000', opposite band.
+# INPUTS: TAN=1.0323, pH=8.2, Temp=29, Salinity=15 (default)
+# EXPECTED: raw nh3 = 0.10001306 -> band WARNING, displayed '0.1000'.
+#           Together with 26_ this shows one printed number, two bands.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: '1.0323'
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: '8.2'
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "29"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: '.*0\.1000.*'
+- assertVisible: '.*WARNING \(Server\).*'
+- assertNotVisible: '.*SAFE \(Server\).*'

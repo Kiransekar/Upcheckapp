@@ -17,11 +17,26 @@
       "Bash(npx jest *)",
       "Bash(npx tsc *)",
       "Bash(xargs cat)",
-      "Bash(EXPO_DEBUG=1 npx expo config)"
+      "Bash(EXPO_DEBUG=1 npx expo config)",
+      "mcp__render__update_environment_variables",
+      "mcp__render__list_workspaces",
+      "mcp__render__list_services",
+      "mcp__supabase-all__execute_sql",
+      "Bash(sed 's/process\\\\.env\\\\.//')",
+      "Read(//tmp/**)",
+      "mcp__upstash__redis_database_create_new",
+      "mcp__upstash__redis_database_run_redis_commands",
+      "Bash(node *)",
+      "mcp__render__get_deploy",
+      "Bash(curl -sf https://upcheckapp-sg.onrender.com/api/health)",
+      "Bash(curl -s https://upcheckapp-sg.onrender.com/api/health)",
+      "Bash(echo *)",
+      "mcp__upstash__redis_database_delete",
+      "mcp__upstash__redis_database_list_databases"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

@@ -1,0 +1,24 @@
+# FEATURE: Product Dosage - product concentration adjustment
+# INPUTS: Area=5000, Depth=1.2, Target=2 ppm, Concentration=50 %
+# EXPECTED: server amountKg (concentration-independent) = 12.00 kg
+#           client adjusted = (6000*2)/(50*10) = 24.000 kg
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Product Dosage"
+- tapOn: 'e.g. 5000'
+- inputText: "5000"
+- hideKeyboard
+- tapOn: 'e.g. 1.2'
+- inputText: '1.2'
+- hideKeyboard
+- tapOn: 'e.g. 5.0'
+- inputText: "2"
+- hideKeyboard
+- tapOn: 'e.g. 100.*'
+- inputText: "50"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: '.*12\.00.*'
+- assertVisible: '.*24\.000 kg.*'
+- assertVisible: "With 50% concentration:"

@@ -1,0 +1,31 @@
+# PILLAR: Idempotency & Race Conditions - rapid double submit
+# INPUTS: valid flow-01 payload; Calculate tapped twice with a 50 ms gap.
+# EXPECTED: Button.tsx:27 sets isDisabled = disabled || loading and applies it at
+#           :61/:83, and DailyFeedCalculatorScreen.tsx:234 passes
+#           disabled={isLoading}, so the second tap must be swallowed.
+#           Exactly one correct result renders and no error dialog appears.
+# INTENT: probe the window between the synchronous guard and setIsLoading(true).
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: "18.4"
+- inputText: "20"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "3"
+- hideKeyboard
+- tapOn:
+    text: "Calculate"
+    repeat: 2
+    delay: 50
+- assertVisible: "Required Daily Feed"
+- assertVisible: '.*48\.0.*'
+- assertNotVisible: "Validation Error"
+- assertNotVisible: "Something went wrong"

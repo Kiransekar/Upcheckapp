@@ -1,0 +1,27 @@
+# FEATURE: Free Ammonia - salinity sensitivity (EVIDENCE FLOW)
+# PURPOSE: The salinity field carries the hint "For reference only"
+#          (en/calculators.ts:130). This flow proves salinity DOES change the
+#          result, so that hint is factually wrong.
+# INPUTS: TAN=1.5, pH=8.2, Temp=29, Salinity=0 (cleared from the default 15)
+# EXPECTED: NH3 = 0.1593 ppm at S=0, vs 0.1453 ppm at S=15 (~9.6% higher).
+#           Asserting 0.1593 visible AND 0.1453 NOT visible proves sensitivity.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: '1.5'
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: '8.2'
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "29"
+- hideKeyboard
+- tapOn: "15"
+- eraseText
+- inputText: "0"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: '.*0\.1593.*'
+- assertNotVisible: '.*0\.1453.*'

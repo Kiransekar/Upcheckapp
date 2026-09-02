@@ -1,0 +1,20 @@
+# FEATURE: Growth & Harvest - Recommended Feeding Rate (species table lookup)
+# INPUTS: AverageWeight=20 g  (vannamei default)
+# EXPECTED: table step 20 <= w <= 25 -> 2.5 % of body weight
+#           (service.ts:162 - the "20-25 g" bucket)
+# NOTE: the trailing "% of body weight" unit label renders below the value and
+#       is often off-screen; the value itself is the output under audit.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Growth & Harvest"
+- scrollUntilVisible:
+    element:
+      text: "Recommended Feeding Rate"
+    direction: DOWN
+- tapOn: "e.g. 8.0"
+- inputText: "20"
+- hideKeyboard
+- tapOn: "Get Rate"
+- assertVisible: "Recommended Rate"
+- assertVisible: '.*2\.5.*'

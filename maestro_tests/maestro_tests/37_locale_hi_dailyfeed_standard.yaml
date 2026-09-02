@@ -1,0 +1,30 @@
+# PILLAR: Localization x Arithmetic - does the maths survive a locale switch?
+# Re-runs TC-01's payload with the UI in Hindi.
+# INPUTS: MBW=20, SR=80, Count=100000, FR=3   (identical to TC-01)
+# EXPECTED: identical figures to TC-01 - feed 48.0 kg, biomass 1,600, per-meal
+#           12.0. The grouping stays Indian ("1,600") because
+#           DailyFeedCalculatorScreen.tsx:256 hardcodes toLocaleString('en-IN')
+#           rather than following the UI language.
+# INTENT: close the "single locale" limitation on the arithmetic assertions -
+#         prove the biomass/feed figures are not locale-dependent in practice.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub_hi.yaml
+- tapOn: "दैनिक आहार मात्रा"
+- tapOn: "18.4"
+- inputText: "20"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "3"
+- hideKeyboard
+- tapOn: "गणना करें"
+- assertVisible: "आवश्यक दैनिक आहार"
+- assertVisible: '.*48\.0.*'
+- assertVisible: '.*1,600.*'
+- assertVisible: '.*12\.0.*'

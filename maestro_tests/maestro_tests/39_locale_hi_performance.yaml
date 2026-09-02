@@ -1,0 +1,45 @@
+# PILLAR: Localization x Arithmetic - four server-computed metrics under Hindi.
+# Re-runs TC-17's payload with the UI in Hindi.
+# INPUTS: seed=100000, harvest=1500kg, feed=2250kg, 120d, MBW=20g, SR=80%,
+#         area=5000 m2   (identical to TC-17)
+# EXPECTED: identical to TC-17 - FCR 1.50, ADG 0.167, SR 80.0%, productivity
+#           0.30. Decimal separator stays "." under Hindi (Devanagari digits are
+#           not used, and toFixed() is locale-independent).
+# NOTE: the two "0.0" fields need index 0 and index 1 - Android keeps the hint
+#       attribute on a populated EditText, so a placeholder selector never stops
+#       matching the first field. Placeholders stay English under Hindi -> BUG-013.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub_hi.yaml
+- tapOn: "उत्पादन प्रदर्शन"
+- tapOn: "e.g. 500000"
+- inputText: "100000"
+- hideKeyboard
+- tapOn:
+    text: "0.0"
+    index: 0
+- inputText: "1500"
+- hideKeyboard
+- tapOn:
+    text: "0.0"
+    index: 1
+- inputText: "2250"
+- hideKeyboard
+- tapOn: "e.g. 120"
+- inputText: "120"
+- hideKeyboard
+- tapOn: "e.g. 25.0"
+- inputText: "20"
+- hideKeyboard
+- tapOn: "e.g. 85"
+- inputText: "80"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "गणना करें"
+    direction: DOWN
+- tapOn: "गणना करें"
+- assertVisible: "परिणाम"
+- assertVisible: '.*1\.50.*'
+- assertVisible: '.*0\.167.*'
+- assertVisible: '.*80\.0.*'

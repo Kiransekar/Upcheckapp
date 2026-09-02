@@ -1,0 +1,55 @@
+# ############################################################################
+# !! MUTATES LIVE PRODUCTION DATA on api.upcheck.in !!
+#
+# One-time SETUP, not a test. Run after _seed_01_create_pond.yaml.
+#
+# A pond is only offered by PondPicker when it has an ACTIVE CYCLE
+# (PondPicker.tsx:56 filters on p.activeCycleId when stockedOnly is set), so
+# creating the pond alone is not enough to reach the prefill path.
+#
+# CREATES: an active production cycle on QA-AUDIT-POND -
+#          stocking count 500000, species Vannamei.
+# RETAINED: kept by the account owner's decision. Note this cycle has no sampling
+#           and no mortality logged, which is the exact state that reproduces
+#           BUG-019 (survival reported as 100%) - it is a standing repro case.
+# ############################################################################
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Farm"
+    timeout: 30000
+- tapOn: "Farm"
+# Farm tab opens the farms LIST; open the farm ("1") to reach its pond rows.
+- extendedWaitUntil:
+    visible: "Your farms"
+    timeout: 20000
+- tapOn: "1, Owner.*"
+- extendedWaitUntil:
+    visible: "QA-AUDIT-POND"
+    timeout: 20000
+# A fallow pond renders "Fallow · ready to stock" plus a "Start a cycle" link.
+- scrollUntilVisible:
+    element:
+      text: "Start a cycle"
+    direction: DOWN
+- tapOn: "Start a cycle"
+- extendedWaitUntil:
+    visible: "Stocking Count"
+    timeout: 15000
+- tapOn: "e.g. 500000"
+- inputText: "500000"
+- hideKeyboard
+- tapOn: "e.g. Vannamei"
+- inputText: "Vannamei"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Start Production Cycle"
+    direction: DOWN
+- tapOn: "Start Production Cycle"
+- extendedWaitUntil:
+    visible: "QA-AUDIT-POND"
+    timeout: 25000

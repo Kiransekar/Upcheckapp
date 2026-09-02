@@ -1,0 +1,24 @@
+# FEATURE: Daily Feed Amount - extreme upper-bound values
+# INPUTS: MBW=50 g, SR=100 %, Count=2000000, FR=10 %
+# EXPECTED: biomass = 2000000*1.0*50/1000 = 100000 kg -> en-IN '1,00,000'
+#           dailyFeed = 100000*10/100 = 10000.00 -> '10000.0'
+#           perMeal = '2500.0'
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: '18.4'
+- inputText: "50"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "100"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "2000000"
+- hideKeyboard
+- tapOn: '3.2'
+- inputText: "10"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: '.*10000.0.*'
+- assertVisible: '.*2500.0.*'

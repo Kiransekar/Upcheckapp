@@ -1,0 +1,17 @@
+# PILLAR: Prefill path (PondPicker) - previously UNTESTABLE.
+# The audit account owned 0 stocked ponds, so this whole surface was dark.
+# _seed_01/_seed_02 create QA-AUDIT-POND with an active cycle to reach it.
+#
+# EXPECTED: with a stocked pond present the hub offers it under "PICK A POND
+#           FIRST" instead of the "No stocked ponds to pull numbers from."
+#           empty state, and every calculator remains listed.
+# INTENT: prove PondPicker's stockedOnly filter (PondPicker.tsx:56, p.activeCycleId)
+#         admits a pond once a cycle is running.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- assertVisible: "Pick a pond first"
+- assertVisible: "QA-AUDIT-POND"
+- assertNotVisible: "No stocked ponds to pull numbers from."
+- assertVisible: "Daily Feed Amount"
+- assertVisible: "Free Ammonia.*"

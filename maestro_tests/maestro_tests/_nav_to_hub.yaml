@@ -1,0 +1,30 @@
+# Shared subflow: open the Calculator Hub from a fully cold launch.
+#
+# stopApp is required - launchApp alone resumes the previous React Navigation
+# stack, so a prior flow would leave us deep inside a calculator.
+#
+# extendedWaitUntil rather than assertVisible: a cold start has to mount the RN
+# bundle, restore the session and let expo-updates check in, which on this
+# device intermittently takes longer than Maestro's default assertion window.
+#
+# Path: launch -> Settings tab -> TOOLS > Calculators
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+# "Calculators" lives in the TOOLS section partway down Settings; depending on
+# how tall the profile/language blocks render it can start below the fold, so
+# scroll to it rather than asserting it is already on screen.
+- scrollUntilVisible:
+    element:
+      text: "Calculators"
+    direction: DOWN
+- tapOn: "Calculators"
+- extendedWaitUntil:
+    visible: "Tools & Calculators"
+    timeout: 15000

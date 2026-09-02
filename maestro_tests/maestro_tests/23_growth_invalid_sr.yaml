@@ -1,0 +1,22 @@
+# FEATURE: Growth & Harvest - survival rate out of range (>100 %)
+# INPUTS: StockingCount=100000, SurvivalRate=150, TargetWeight=20
+# EXPECTED: alert 'Survival rate must be between 0 and 100'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Growth & Harvest"
+- tapOn: 'e.g. 500000'
+- inputText: "100000"
+- hideKeyboard
+- tapOn: 'e.g. 80'
+- inputText: "150"
+- hideKeyboard
+- tapOn: 'e.g. 20'
+- inputText: "20"
+- hideKeyboard
+- tapOn:
+    text: "Calculate"
+    index: 0
+- assertVisible: "Validation Error"
+- assertVisible: "Survival rate must be between 0 and 100"
+- assertNotVisible: "Expected Count"

@@ -1,0 +1,73 @@
+# ROUTE SMOKE - pond-scoped log/history surface, reachable only once a pond is
+# stocked. Every one of these routes was dark before _seed_01/_seed_02.
+#
+# Assertion pattern: after opening a log screen, "MONEY FOR THIS POND" (a string
+# unique to the pond dashboard) must no longer be visible - that proves a screen
+# actually pushed rather than the tap being swallowed.
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Farm"
+    timeout: 30000
+- tapOn: "Farm"
+- tapOn: "1, Owner.*"
+- extendedWaitUntil:
+    visible: "QA-AUDIT-POND"
+    timeout: 20000
+- tapOn: "QA-AUDIT-POND"
+- extendedWaitUntil:
+    visible: "MONEY FOR THIS POND"
+    timeout: 20000
+
+- scrollUntilVisible: { element: { text: "Water Quality" }, direction: DOWN, centerElement: true }
+- tapOn: "Water Quality"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Feed" }, direction: DOWN, centerElement: true }
+- tapOn: "Feed"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Daily Routine" }, direction: DOWN, centerElement: true }
+- tapOn: "Daily Routine"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Sampling" }, direction: DOWN, centerElement: true }
+- tapOn: "Sampling"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Measurements" }, direction: DOWN, centerElement: true }
+- tapOn: "Measurements"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Advisor" }, direction: DOWN, centerElement: true }
+- tapOn: "Advisor"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back
+
+# "View History" is a MODE TOGGLE (PondDashboardScreen.tsx:456-460,
+# setMode('history')), not a navigation action - it re-points the tile grid at
+# the *History routes and correctly stays on the dashboard. Exercise it as a
+# toggle, then open one history route through it.
+- scrollUntilVisible: { element: { text: "View History" }, direction: DOWN, centerElement: true }
+- tapOn: "View History"
+- assertVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- scrollUntilVisible: { element: { text: "Water Quality" }, direction: DOWN, centerElement: true }
+- tapOn: "Water Quality"
+- assertNotVisible: "MONEY FOR THIS POND"
+- assertNotVisible: "Something went wrong"
+- back

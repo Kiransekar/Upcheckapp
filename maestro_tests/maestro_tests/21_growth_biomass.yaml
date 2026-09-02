@@ -1,0 +1,30 @@
+# FEATURE: Growth & Harvest - Biomass
+# INPUTS: StockCount=100000, AverageWeight=20 g
+# EXPECTED: biomass = 100000*20/1000 = 2000.00 kg
+# NOTE: the screen has three identical "Calculate" buttons and Maestro indexes
+#       only what is ON SCREEN, so a fixed index is unstable. Scrolling to
+#       "Get Rate" brings the Biomass card's Calculate on screen, but the Growth
+#       Projection card's Calculate is visible too - a bare tapOn hits that one
+#       and trips "Current weight must be a positive number". Anchor with
+#       below: "Stock Count", which is unique to the Biomass card
+#       ("Stocking Count" in Expected Harvest does not full-match).
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Growth & Harvest"
+- scrollUntilVisible:
+    element:
+      text: "Get Rate"
+    direction: DOWN
+- tapOn: "e.g. 400000"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "e.g. 12.5"
+- inputText: "20"
+- hideKeyboard
+- tapOn:
+    text: "Calculate"
+    below:
+      text: "Stock Count"
+- assertVisible: "Total Biomass"
+- assertVisible: '.*2000\.00.*'

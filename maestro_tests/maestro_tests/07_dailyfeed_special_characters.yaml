@@ -1,0 +1,23 @@
+# FEATURE: Daily Feed Amount - non-numeric / special characters in MBW
+# INPUTS: MBW="abc!@#", SR=80, Count=100000, FR=3
+# EXPECTED: parseFloat -> NaN -> alert 'MBW must be a positive number'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: '18.4'
+- inputText: "abc!@#"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: '3.2'
+- inputText: "3"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "MBW must be a positive number"
+- assertNotVisible: "Required Daily Feed"

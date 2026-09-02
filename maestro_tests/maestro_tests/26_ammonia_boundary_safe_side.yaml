@@ -1,0 +1,24 @@
+# FEATURE: Free Ammonia - band boundary, SAFE side (EVIDENCE FLOW)
+# PURPOSE: Toxicity band is decided on the UNROUNDED nh3 while the screen
+#          prints 4 decimals, so values that both display as '0.1000' can fall
+#          in different bands. This is the safe-side half of the pair.
+# INPUTS: TAN=1.032, pH=8.2, Temp=29, Salinity=15 (default)
+# EXPECTED: raw nh3 = 0.09998399 -> band SAFE, but displayed value is '0.1000'.
+#           The SAFE message claims 'within safe limits (< 0.1 ppm)' next to 0.1000.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: '1.032'
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: '8.2'
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "29"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: '.*0\.1000.*'
+- assertVisible: '.*SAFE \(Server\).*'
+- assertNotVisible: '.*WARNING \(Server\).*'

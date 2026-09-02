@@ -1,0 +1,23 @@
+# FEATURE: Daily Feed Amount - boundary violation, survival rate > 100 %
+# INPUTS: MBW=20, SR=150, Count=100000, FR=3
+# EXPECTED: alert 'Survival rate must be between 0 and 100'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: '18.4'
+- inputText: "20"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "150"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: '3.2'
+- inputText: "3"
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "Survival rate must be between 0 and 100"
+- assertNotVisible: "Required Daily Feed"
