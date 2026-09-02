@@ -47,3 +47,27 @@ it('skips a response too large to be worth storing', async () => {
     await writeCached('/big', { blob: 'x'.repeat(300 * 1024) });
     expect(await readCached('/big')).toBeNull();
 });
+
+/**
+ * Opening one screen fires many GETs at once, so these writes INTERLEAVE.
+ *
+ * Each one used to read the index, append itself and write the whole thing
+ * back, so concurrent writers clobbered each other's index entries: the
+ * response bodies were all stored, but only the last writer's url was listed.
+ * The unlisted ones became orphans — never evicted (they grow against the ~6MB
+ * Android ceiling forever) and, worse, never removed by `clearOfflineCache()`,
+ * which is the sign-out wipe. On a shared phone the next farmer could read the
+ * previous one's responses, which is the exact leak that function exists to
+ * close.
+ */
+it('does not orphan entries when writes overlap, so sign-out really wipes them', async () => {
+    const urls = Array.from({ length: 20 }, (_, i) => `/concurrent/${i}`);
+    await Promise.all(urls.map((u) => writeCached(u, { u })));
+
+    // All present first — otherwise this test would pass for the wrong reason.
+    for (const u of urls) expect(await readCached(u)).not.toBeNull();
+
+    await clearOfflineCache();
+
+    for (const u of urls) expect(await readCached(u)).toBeNull();
+});
