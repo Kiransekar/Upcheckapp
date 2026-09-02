@@ -4,6 +4,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { FeedbackReport } from './feedback.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
+import { PushService } from '../push/push.service';
 
 const MINE = 'farmer-1';
 const THEIRS = 'farmer-2';
@@ -17,6 +18,7 @@ describe('FeedbackService', () => {
     save: jest.Mock;
   };
   let storage: { signAttachments: jest.Mock };
+  let push: { sendToUser: jest.Mock };
 
   beforeEach(async () => {
     repo = {
@@ -26,12 +28,14 @@ describe('FeedbackService', () => {
       save: jest.fn((x) => Promise.resolve(x)),
     };
     storage = { signAttachments: jest.fn().mockResolvedValue([]) };
+    push = { sendToUser: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         FeedbackService,
         { provide: getRepositoryToken(FeedbackReport), useValue: repo },
         { provide: FeedbackStorageService, useValue: storage },
+        { provide: PushService, useValue: push },
       ],
     }).compile();
 
@@ -229,6 +233,66 @@ describe('FeedbackService', () => {
       await expect(service.update('nope', { status: 'done' })).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  /**
+   * feedback_reports.admin_response has always been stored and PATCHable, but
+   * nothing told the farmer. They had to reopen the report and check.
+   */
+  describe('admin response notification', () => {
+    const existing = () => ({
+      id: 'r1',
+      userId: MINE,
+      status: 'new',
+      adminResponse: null,
+      respondedAt: null,
+      respondedBy: null,
+      attachmentPaths: [],
+    });
+
+    it('pushes to the reporter when a response is written', async () => {
+      repo.findOne.mockResolvedValue(existing());
+
+      await service.update('r1', { adminResponse: 'We have fixed this.' });
+
+      expect(push.sendToUser).toHaveBeenCalledWith(
+        MINE,
+        expect.objectContaining({
+          data: { type: 'feedback_reply', reportId: 'r1' },
+        }),
+      );
+    });
+
+    it('does not push when only the status changed', async () => {
+      repo.findOne.mockResolvedValue(existing());
+
+      await service.update('r1', { status: 'seen' });
+
+      expect(push.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('does not push when the response is cleared rather than written', async () => {
+      repo.findOne.mockResolvedValue({
+        ...existing(),
+        status: 'done',
+        adminResponse: 'oops, wrong report',
+      });
+
+      await service.update('r1', { adminResponse: '   ' });
+
+      expect(push.sendToUser).not.toHaveBeenCalled();
+    });
+
+    // sendToUser's contract is "never throws into the caller"; the admin's
+    // write must succeed even if delivery does not.
+    it('still saves the response when the push fails', async () => {
+      push.sendToUser.mockRejectedValue(new Error('expo down'));
+      repo.findOne.mockResolvedValue(existing());
+
+      await expect(
+        service.update('r1', { adminResponse: 'Fixed.' }),
+      ).resolves.toBeTruthy();
     });
   });
 });
