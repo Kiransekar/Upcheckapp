@@ -152,6 +152,14 @@ const settings = {
   signOutConfirm: "এই ডিভাইসে আপচেক থেকে সাইন আউট করবেন?",
   toolsSection: "সরঞ্জাম",
   farmSection: "খামার",
+
+  // ── রিমাইন্ডারের সময় (স্মার্ট রিমাইন্ডার) ──────────────────────────────
+  reminderTimes: "রিমাইন্ডারের সময়",
+  reminderTimesDesc: "Upcheck কখন আপনাকে পানির গুণমান লগ করার কথা মনে করিয়ে দেবে তা নির্বাচন করুন।",
+  reminderMorning: "সকালের চেক",
+  reminderAfternoon: "দুপুরের চেক",
+  reminderEvening: "সন্ধ্যার চেক",
+  reminderChemistry: "সাপ্তাহিক রসায়ন পরীক্ষা",
 };
 
 export default settings;

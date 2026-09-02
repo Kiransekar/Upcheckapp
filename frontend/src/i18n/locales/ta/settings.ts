@@ -152,6 +152,14 @@ const settings = {
   signOutConfirm: "இந்தச் சாதனத்தில் அப்செக்கிலிருந்து வெளியேறவா?",
   toolsSection: "கருவிகள்",
   farmSection: "பண்ணை",
+
+  // ── நினைவூட்டல் நேரங்கள் (ஸ்மார்ட் நினைவூட்டல்கள்) ───────────────────
+  reminderTimes: "நினைவூட்டல் நேரங்கள்",
+  reminderTimesDesc: "நீரின் தரத்தை பதிவு செய்ய Upcheck உங்களுக்கு எப்போது நினைவூட்ட வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.",
+  reminderMorning: "காலை சோதனை",
+  reminderAfternoon: "மதிய சோதனை",
+  reminderEvening: "மாலை சோதனை",
+  reminderChemistry: "வாராந்திர வேதியியல் சோதனை",
 };
 
 export default settings;

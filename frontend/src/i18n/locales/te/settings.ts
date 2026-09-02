@@ -152,6 +152,14 @@ const settings = {
   signOutConfirm: "ఈ పరికరంలో అప్‌చెక్ నుండి సైన్ అవుట్ చేయాలా?",
   toolsSection: "సాధనాలు",
   farmSection: "ఫారం",
+
+  // ── రిమైండర్ సమయాలు (స్మార్ట్ రిమైండర్లు) ────────────────────────────
+  reminderTimes: "రిమైండర్ సమయాలు",
+  reminderTimesDesc: "నీటి నాణ్యతను నమోదు చేయడానికి Upcheck మిమ్మల్ని ఎప్పుడు గుర్తు చేయాలో ఎంచుకోండి.",
+  reminderMorning: "ఉదయం తనిఖీ",
+  reminderAfternoon: "మధ్యాహ్నం తనిఖీ",
+  reminderEvening: "సాయంత్రం తనిఖీ",
+  reminderChemistry: "వారపు రసాయన తనిఖీ",
 };
 
 export default settings;
