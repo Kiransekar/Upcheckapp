@@ -42,6 +42,14 @@ describe('calculateFreeAmmonia — band boundaries', () => {
   it('bands just above 0.5 as critical and 0.5 itself as warning', () => {
     expect(svc.calculateFreeAmmonia(2, 8, 30, 0).toxicityLevel).toBe('warning');
     expect(svc.calculateFreeAmmonia(8, 9, 32, 0).toxicityLevel).toBe('critical');
+
+    // TAN=30, pH=7.6, Temp=21, Salinity=0 -> raw nh3 = 0.4999578754918073,
+    // which rounds to exactly 0.5000 (verified by running this test). The
+    // rule is inclusive-low on warning (>= 0.1) and exclusive-low on
+    // critical (> 0.5), so a reported 0.5 must band warning, not critical.
+    const boundary = svc.calculateFreeAmmonia(30, 7.6, 21, 0);
+    expect(boundary.unionizedAmmonia).toBe(0.5);
+    expect(boundary.toxicityLevel).toBe('warning');
   });
 });
 
