@@ -48,4 +48,16 @@ describe('theme contrast — WCAG 2.1 AA', () => {
     it('tertiary text clears AA on a white card', () => {
         expect(contrastRatio(theme.roles.light.textTertiary, '#FFFFFF')).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
     });
+
+    // Two more 11px tokens were left on the failing #7A909F after BUG-014's
+    // first pass — caption text and section-header labels. Both are real
+    // content, not decoration, so they owe the same AA budget as the hint
+    // text above.
+    it('caption text clears AA on a white card', () => {
+        expect(contrastRatio(theme.typeScale.caption.color, '#FFFFFF')).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    });
+
+    it('section header text clears AA on a white card', () => {
+        expect(contrastRatio(theme.tokens.sectionHeader.color, '#FFFFFF')).toBeGreaterThanOrEqual(AA_NORMAL_TEXT);
+    });
 });

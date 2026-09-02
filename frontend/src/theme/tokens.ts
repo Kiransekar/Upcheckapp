@@ -104,7 +104,9 @@ export const tokens = {
         bgColor: '#F5F8FA',
         fontSize: 11,
         fontFamily: 'DMSans-SemiBold',
-        color: '#7A909F',
+        // #7A909F was 3.32:1 on white, failing WCAG AA at 11px (QA BUG-014).
+        // 5.21:1.
+        color: '#5C6F7E',
         letterSpacing: 0.8,
         textTransform: 'uppercase' as const,
     },

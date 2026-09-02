@@ -113,7 +113,9 @@ export const typeScale = {
         fontFamily: 'DMSans-Regular',
         fontSize: 11,
         lineHeight: 16,
-        color: '#7A909F',
+        // #7A909F was 3.32:1 on white, failing WCAG AA at 11px (QA BUG-014).
+        // 5.21:1.
+        color: '#5C6F7E',
     },
     overline: {
         fontFamily: 'DMSans-SemiBold',
