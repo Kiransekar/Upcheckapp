@@ -1,0 +1,80 @@
+# ROUTE SMOKE - Settings tab: TOOLS, FARM and ABOUT sections (10 routes).
+#
+# Smoke contract for flows 42-45: open the screen, assert a string that only
+# THAT screen renders (so navigation is proven, not merely attempted), assert no
+# crash/error state, then return. It deliberately does not assert business
+# output - the five calculators are the only screens with falsifiable arithmetic
+# and TC-01..TC-41 cover those exhaustively.
+#
+# centerElement: true is REQUIRED on every scroll here. Without it
+# scrollUntilVisible stops as soon as the row is technically on screen, which
+# can leave it underneath the floating bottom tab bar - the subsequent tap then
+# lands on the centre "Quick log" FAB and opens the wrong screen entirely.
+#
+# Closes part of the "~85 routes were read, not run" limitation.
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+- tapOn: "Settings"
+
+# --- TOOLS -----------------------------------------------------------------
+- scrollUntilVisible: { element: { text: "Simulations" }, direction: DOWN, centerElement: true }
+- tapOn: "Simulations"
+- assertVisible: "PLANNING"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Disease Encyclopedia" }, direction: DOWN, centerElement: true }
+- tapOn: "Disease Encyclopedia"
+- assertVisible: "Search diseases.*"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Reference Data" }, direction: DOWN, centerElement: true }
+- tapOn: "Reference Data"
+- assertVisible: "Hatcheries"
+- assertNotVisible: "Something went wrong"
+- back
+
+# --- FARM ------------------------------------------------------------------
+- scrollUntilVisible: { element: { text: "All Workers" }, direction: DOWN, centerElement: true }
+- tapOn: "All Workers"
+- assertVisible: "Team: 1"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Inventory" }, direction: DOWN, centerElement: true }
+- tapOn: "Inventory"
+- assertVisible: "No Inventory Items"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Feed Products" }, direction: DOWN, centerElement: true }
+- tapOn: "Feed Products"
+- assertVisible: "No Feed Products"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Shop" }, direction: DOWN, centerElement: true }
+- tapOn: "Shop"
+- assertVisible: "No Products"
+- assertNotVisible: "Something went wrong"
+- back
+
+# --- ABOUT UPCHECK ---------------------------------------------------------
+- scrollUntilVisible: { element: { text: "Sync" }, direction: DOWN, centerElement: true }
+- tapOn: "Sync"
+- assertVisible: "Everything is synced"
+- assertNotVisible: "Something went wrong"
+- back
+
+- scrollUntilVisible: { element: { text: "Help & Support" }, direction: DOWN, centerElement: true }
+- tapOn: "Help & Support"
+- assertVisible: "How can we help?"
+- assertNotVisible: "Something went wrong"
+- back

@@ -1,0 +1,36 @@
+# FEATURE: Cultivation Performance - final SR out of range (>100 %)
+# INPUTS: Seed=100000, Harvested=1500, Feed=2250, Days=120, MBW=20, SR=150
+# EXPECTED: alert 'Final SR must be between 0 and 100'; no results block.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Cultivation Performance"
+- tapOn: 'e.g. 500000'
+- inputText: "100000"
+- hideKeyboard
+- tapOn:
+    text: '0.0'
+    index: 0
+- inputText: "1500"
+- hideKeyboard
+- tapOn:
+    text: '0.0'
+    index: 1
+- inputText: "2250"
+- hideKeyboard
+- tapOn: 'e.g. 120'
+- inputText: "120"
+- hideKeyboard
+- tapOn: 'e.g. 25.0'
+- inputText: "20"
+- hideKeyboard
+- tapOn: 'e.g. 85'
+- inputText: "150"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Calculate"
+    direction: DOWN
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "Final SR must be between 0 and 100"

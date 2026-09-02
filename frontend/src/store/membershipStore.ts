@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { farmMembersApi, type MyMembership, type FarmRole } from '../api/farmMembers';
+import { useAuthStore } from './authStore';
 
 interface MembershipState {
     memberships: MyMembership[];
@@ -20,6 +21,11 @@ export const useMembershipStore = create<MembershipState>((set, get) => ({
 
     load: async () => {
         if (get().loading) return;
+        // Production logs showed `[NO AUTH HEADER] GET /api/farm-members/mine`
+        // — this fired before the session was restored, so it 401'd and the
+        // store stayed empty. Wait for a token rather than spending a round
+        // trip on a request that cannot succeed.
+        if (!useAuthStore.getState().accessToken) return;
         set({ loading: true });
         try {
             const { data } = await farmMembersApi.listMine();

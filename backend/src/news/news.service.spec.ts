@@ -1,134 +1,162 @@
-import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { NewsService } from './news.service';
 import { NewsArticle } from './news-article.entity';
+import { NewsArticleTranslation } from './news-article-translation.entity';
 
-// Mock repository factory
-const createMockRepository = () => ({
+const article = (over: Partial<NewsArticle> = {}): NewsArticle =>
+  ({
+    id: 'a1',
+    title: 'MPEDA raises shrimp export target',
+    summary: 'Our summary.',
+    status: 'published',
+    isActive: true,
+    ...over,
+  }) as NewsArticle;
+
+const createArticlesRepo = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
-  save: jest
-    .fn()
-    .mockImplementation((entity) =>
-      Promise.resolve({ ...entity, id: 'test-id' }),
-    ),
-  find: jest.fn().mockResolvedValue([]),
+  save: jest.fn().mockImplementation((e) => Promise.resolve({ ...e, id: 'a1' })),
+  findAndCount: jest.fn().mockResolvedValue([[], 0]),
   findOneBy: jest.fn().mockResolvedValue(null),
   update: jest.fn().mockResolvedValue({ affected: 1 }),
   delete: jest.fn().mockResolvedValue({ affected: 1 }),
 });
 
+const createTranslationsRepo = () => ({ find: jest.fn().mockResolvedValue([]) });
+
 describe('NewsService', () => {
   let service: NewsService;
-  let mockRepository: any;
+  let articles: ReturnType<typeof createArticlesRepo>;
+  let translations: ReturnType<typeof createTranslationsRepo>;
 
   beforeEach(async () => {
+    articles = createArticlesRepo();
+    translations = createTranslationsRepo();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        {
-          provide: ConfigService,
-          useValue: { get: jest.fn().mockReturnValue('http://dummy.com') },
-        },
         NewsService,
+        { provide: getRepositoryToken(NewsArticle), useValue: articles },
         {
-          provide: getRepositoryToken(NewsArticle),
-          useValue: createMockRepository(),
+          provide: getRepositoryToken(NewsArticleTranslation),
+          useValue: translations,
         },
       ],
     }).compile();
-
-    service = module.get<NewsService>(NewsService);
-    mockRepository = module.get<Repository<NewsArticle>>(
-      getRepositoryToken(NewsArticle),
-    );
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('create', () => {
-    it('should create a new news article', async () => {
-      const createDto = {
-        title: 'New Aquaculture Technique',
-        content: 'Detailed content about the technique',
-        summary: 'Brief summary',
-        category: 'technology',
-        imageUrl: 'https://example.com/image.jpg',
-        author: 'Dr. Smith',
-        publishedAt: new Date().toISOString(),
-      };
-
-      const result = await service.create(createDto);
-
-      expect(mockRepository.create).toHaveBeenCalledWith(createDto);
-      expect(mockRepository.save).toHaveBeenCalled();
-      expect(result).toEqual(expect.objectContaining(createDto));
-    });
+    service = module.get(NewsService);
   });
 
   describe('findAll', () => {
-    it('should return all active news articles', async () => {
-      const mockArticles = [{ id: '1', title: 'Article 1' }];
-      mockRepository.find.mockResolvedValue(mockArticles);
+    it('returns a page, not the whole table — a daily ingestion run must not grow the response without bound', async () => {
+      articles.findAndCount.mockResolvedValue([[article()], 137]);
 
-      const result = await service.findAll();
+      const page = await service.findAll({ page: 2, take: 20 });
 
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { isActive: true },
-        order: { publishedAt: 'DESC' },
-      });
-      expect(result).toEqual(mockArticles);
+      expect(articles.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 20, skip: 20 }),
+      );
+      expect(page.data).toHaveLength(1);
+      expect(page.meta.itemCount).toBe(137);
+      expect(page.meta.pageCount).toBe(7);
+      expect(page.meta.hasNextPage).toBe(true);
     });
 
-    it('should filter by category', async () => {
-      const category = 'technology';
-      await service.findAll(category);
+    it('lists published items only, newest first', async () => {
+      await service.findAll({});
 
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { isActive: true, category },
-        order: { publishedAt: 'DESC' },
+      expect(articles.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { isActive: true, status: 'published' },
+          order: { publishedAt: 'DESC' },
+        }),
+      );
+    });
+
+    it('filters by category', async () => {
+      await service.findAll({ category: 'regulation' });
+
+      expect(articles.findAndCount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ category: 'regulation' }),
+        }),
+      );
+    });
+
+    it('still serves news when the feed migration has not been applied yet', async () => {
+      // One unmigrated column must not 500 an endpoint that already ships.
+      const undefinedColumn = Object.assign(new Error('column does not exist'), {
+        code: '42703',
       });
+      articles.findAndCount
+        .mockRejectedValueOnce(undefinedColumn)
+        .mockResolvedValueOnce([[article()], 1]);
+
+      const page = await service.findAll({});
+
+      expect(page.data).toHaveLength(1);
+      expect(articles.findAndCount).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: { isActive: true } }),
+      );
+    });
+
+    it('serves English when the requested locale has no translation row', async () => {
+      articles.findAndCount.mockResolvedValue([[article()], 1]);
+      translations.find.mockResolvedValue([]);
+
+      const page = await service.findAll({ locale: 'te' });
+
+      expect(page.data[0].title).toBe('MPEDA raises shrimp export target');
+    });
+
+    it('overlays the translation when one exists', async () => {
+      articles.findAndCount.mockResolvedValue([[article()], 1]);
+      translations.find.mockResolvedValue([
+        { articleId: 'a1', locale: 'te', title: 'తెలుగు శీర్షిక', summary: null },
+      ]);
+
+      const page = await service.findAll({ locale: 'te' });
+
+      expect(page.data[0].title).toBe('తెలుగు శీర్షిక');
+      // A null field on the translation row falls back rather than blanking.
+      expect(page.data[0].summary).toBe('Our summary.');
+    });
+
+    it('does not go looking for translations for English', async () => {
+      articles.findAndCount.mockResolvedValue([[article()], 1]);
+
+      await service.findAll({ locale: 'en' });
+
+      expect(translations.find).not.toHaveBeenCalled();
     });
   });
 
   describe('findOne', () => {
-    it('should return a news article by id', async () => {
-      const articleId = 'article-1';
-      const mockArticle = { id: articleId, title: 'Test Article' };
-      mockRepository.findOneBy.mockResolvedValue(mockArticle);
+    it('returns a published article', async () => {
+      articles.findOneBy.mockResolvedValue(article());
+      await expect(service.findOne('a1')).resolves.toMatchObject({ id: 'a1' });
+    });
 
-      const result = await service.findOne(articleId);
-
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: articleId });
-      expect(result).toEqual(mockArticle);
+    it('withholds an item still waiting on regulatory review, however it is reached', async () => {
+      articles.findOneBy.mockResolvedValue(
+        article({ status: 'pending_review' }),
+      );
+      await expect(service.findOne('a1')).resolves.toBeNull();
     });
   });
 
-  describe('update', () => {
-    it('should update a news article', async () => {
-      const articleId = 'article-1';
-      const updateDto = { title: 'Updated Title' };
-      const updatedArticle = { id: articleId, title: 'Updated Title' };
-
-      mockRepository.findOneBy.mockResolvedValue(updatedArticle);
-
-      const result = await service.update(articleId, updateDto);
-
-      expect(mockRepository.update).toHaveBeenCalledWith(articleId, updateDto);
-      expect(mockRepository.findOneBy).toHaveBeenCalledWith({ id: articleId });
-      expect(result).toEqual(updatedArticle);
+  describe('admin CRUD', () => {
+    it('creates a hand-written article', async () => {
+      const dto = { title: 'Upcheck update', content: 'We wrote this.' };
+      await expect(service.create(dto)).resolves.toMatchObject(dto);
+      expect(articles.save).toHaveBeenCalled();
     });
-  });
 
-  describe('remove', () => {
-    it('should remove a news article', async () => {
-      const articleId = 'article-1';
-      const result = await service.remove(articleId);
-
-      expect(mockRepository.delete).toHaveBeenCalledWith(articleId);
-      expect(result).toEqual({ affected: 1 });
+    it('updates and removes', async () => {
+      articles.findOneBy.mockResolvedValue(article({ title: 'New' }));
+      await expect(service.update('a1', { title: 'New' })).resolves.toMatchObject(
+        { title: 'New' },
+      );
+      await expect(service.remove('a1')).resolves.toEqual({ affected: 1 });
     });
   });
 });

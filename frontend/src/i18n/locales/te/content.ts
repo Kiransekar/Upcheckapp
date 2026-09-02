@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: 'వ్యాసం లోడ్ కాలేదు',
     emptyTitle: 'వార్తా వ్యాసాలు లేవు',
     emptySubtitle: 'తాజా నవీనతల కోసం తర్వాత తనిఖీ చేయండి.',
+    categories: {
+      market: 'మార్కెట్ & ధరలు',
+      regulation: 'నియమాలు & నిబంధనలు',
+      disease: 'వ్యాధి & ఆరోగ్యం',
+      research: 'పరిశోధన',
+      production: 'సాగు & ఉత్పత్తి',
+      trade: 'ఎగుమతులు & వాణిజ్యం',
+    },
+    attribution: '{{source}} నుండి',
+    readAtSource: '{{source}} లో చదవండి',
+    readFullArticle: 'పూర్తి కథనం చదవండి',
+    offlineTitle: 'సేవ్ చేసిన వార్తలు చూపుతోంది',
+    offlineMessage: 'కనెక్షన్ లేదు — చివరి అప్‌డేట్ {{date}}.',
+    offlineLink: 'ఈ కథనానికి ఇంటర్నెట్ కనెక్షన్ అవసరం.',
   },
 };
 

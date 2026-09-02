@@ -1,0 +1,25 @@
+# FEATURE: Daily Feed Amount - decimal inputs / server rounding
+# INPUTS: MBW=12.5 g, SR=85 %, Count=500000, FeedingRate=2.5 %
+# EXPECTED: biomass = (500000*0.85)*12.5/1000 = 5312.5 -> rounded '5,313'
+#           dailyFeed = 5312.5*2.5/100 = 132.8125 -> server 2dp 132.81 -> '132.8'
+#           perMeal = 132.81/4 = 33.2025 -> '33.2'
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: '18.4'
+- inputText: '12.5'
+- hideKeyboard
+- tapOn: "78"
+- inputText: "85"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "500000"
+- hideKeyboard
+- tapOn: '3.2'
+- inputText: '2.5'
+- hideKeyboard
+- tapOn: "Calculate"
+- assertVisible: '.*132.8.*'
+- assertVisible: '.*5,313.*'
+- assertVisible: '.*33.2.*'

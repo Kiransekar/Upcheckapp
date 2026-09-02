@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: 'लेख लोड नहीं हो सका',
     emptyTitle: 'कोई समाचार लेख नहीं',
     emptySubtitle: 'नवीनतम अपडेट के लिए बाद में देखें।',
+    categories: {
+      market: 'बाज़ार और भाव',
+      regulation: 'नियम और कानून',
+      disease: 'रोग और स्वास्थ्य',
+      research: 'शोध',
+      production: 'खेती और उत्पादन',
+      trade: 'निर्यात और व्यापार',
+    },
+    attribution: '{{source}} से',
+    readAtSource: '{{source}} पर पढ़ें',
+    readFullArticle: 'पूरा लेख पढ़ें',
+    offlineTitle: 'सहेजा गया समाचार दिख रहा है',
+    offlineMessage: 'कोई कनेक्शन नहीं — अंतिम अपडेट {{date}}।',
+    offlineLink: 'इस लेख के लिए इंटरनेट कनेक्शन चाहिए।',
   },
 };
 

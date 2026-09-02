@@ -36,6 +36,7 @@ import { reportsApi, type FinancialReport } from '../../api/reports';
 import { transactionsApi, type Transaction } from '../../api/transactions';
 import { creditApi, type CreditLedger } from '../../api/credit';
 import { farmsApi, type Farm } from '../../api/farms';
+import { fetchMoneyOverview } from '../../api/moneyOverview';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
@@ -121,40 +122,19 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     const [scope, setScope] = useState<string>(route?.params?.farmId ?? ALL);
 
     /**
-     * One cached read for the tab. Memory-only, not persisted to disk: Money is
-     * the biggest of these payloads and the least urgent to have on a phone with
-     * no signal, and Android's AsyncStorage ceiling is a fixed ~6MB we cannot
-     * raise over the air (see src/query/client.ts).
+     * One cached read for the tab, and ONE request to fill it.
+     *
+     * This used to fan out to 3 + N calls from the phone (the farm list, then a
+     * financial report per farm, plus transactions and credit). At ~265ms of
+     * network per request from rural India that fan-out WAS the load time — the
+     * server was never the slow part. See api/moneyOverview.ts.
+     *
+     * Persisted to disk since the offline work: Money is one of the two tabs
+     * that used to always fail with no signal.
      */
     const query = useAppQuery({
         queryKey: qk.money(),
-        queryFn: async () => {
-            const list = (await farmsApi.getAll()).data ?? [];
-            const [reportPairs, txRes, creditRes] = await Promise.all([
-                Promise.all(
-                    list.map((farm) =>
-                        reportsApi
-                            .getFinancialReport(farm.id)
-                            .then((r) => [farm.id, r.data] as const)
-                            .catch(() => null),
-                    ),
-                ),
-                // No farmId — the backend already scopes this to the farms where
-                // the caller may view financials, so one call covers every farm.
-                transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
-                // Credit is a separate ledger and may simply not exist for a farmer
-                // who buys nothing on account.
-                creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
-            ]);
-            const reports: Record<string, FinancialReport> = {};
-            for (const pair of reportPairs) if (pair) reports[pair[0]] = pair[1];
-            return {
-                farms: list,
-                reports,
-                allEntries: txRes.data ?? [],
-                credit: creditRes.data ?? [],
-            };
-        },
+        queryFn: () => fetchMoneyOverview(),
     });
 
     useRefetchOnFocus(qk.money());

@@ -1,0 +1,10 @@
+# FEATURE: Free Ammonia - empty required fields
+# INPUTS: none
+# EXPECTED: alert 'TAN must be a positive number'; no result.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'Calculate NH.*'
+- assertVisible: "Validation Error"
+- assertVisible: "TAN must be a positive number"

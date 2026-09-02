@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -7,29 +7,40 @@ import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { newsApi, NewsArticle } from '../../api/news';
+import { readNewsCache } from '../../features/newsCache';
+import { formatDate } from '../../utils/formatDate';
+import { useUIStore } from '../../store/uiStore';
+import { useSyncStore } from '../../store/syncStore';
 import { useFocusEffect } from '@react-navigation/native';
+import i18n from '../../i18n';
 
 export const NewsDetailScreen = ({ route, navigation }: any) => {
-    const { id } = route.params as { id: string };
+    const { id, article: seeded } = (route.params ?? {}) as {
+        id: string;
+        article?: NewsArticle;
+    };
     const { t } = useTranslation();
+    const showToast = useUIStore((s) => s.showToast);
+    const isConnected = useSyncStore((s) => s.isConnected);
 
-    const [article, setArticle] = useState<NewsArticle | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    // Seeded from the list so an offline tap opens instantly on cached data.
+    const [article, setArticle] = useState<NewsArticle | null>(seeded ?? null);
+    const [isLoading, setIsLoading] = useState(!seeded);
     const [error, setError] = useState<any>(null);
 
     const fetchArticle = useCallback(async () => {
-        setIsLoading(true);
         setError(null);
-
         try {
-            const response = await newsApi.getById(id);
+            const response = await newsApi.getById(id, i18n.language);
             setArticle(response.data);
         } catch (err: any) {
-            setError(err);
+            const cached = (await readNewsCache())?.items.find((a) => a.id === id);
+            if (cached) setArticle(cached);
+            else if (!seeded) setError(err);
         } finally {
             setIsLoading(false);
         }
-    }, [id]);
+    }, [id, seeded]);
 
     useFocusEffect(
         useCallback(() => {
@@ -37,17 +48,33 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
         }, [fetchArticle])
     );
 
-    const formatDate = (dateStr: string) => {
-        try {
-            return new Date(dateStr).toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-            });
-        } catch {
-            return dateStr;
+    /**
+     * §2.5 — the article itself is the publisher's, so it opens on the
+     * publisher's page. We never render their body inside Upcheck chrome that
+     * would imply we wrote it.
+     */
+    const openSource = useCallback(() => {
+        const url = article?.canonicalUrl;
+        if (!url) return;
+        if (isConnected === false) {
+            // A dead browser tab is a worse answer than a plain sentence.
+            showToast({ message: t('content.news.offlineLink'), type: 'info' });
+            return;
         }
-    };
+        Linking.openURL(url).catch(() =>
+            showToast({ message: t('content.news.offlineLink'), type: 'error' }),
+        );
+    }, [article, isConnected, showToast, t]);
+
+    const sourceHost = (() => {
+        try {
+            return article?.canonicalUrl
+                ? new URL(article.canonicalUrl).hostname.replace(/^www\./, '')
+                : null;
+        } catch {
+            return null;
+        }
+    })();
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -61,49 +88,84 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.headerSpacer} />
             </View>
 
-            {isLoading ? (
+            {isLoading && !article ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={theme.roles.light.primary} />
                 </View>
-            ) : error ? (
+            ) : error && !article ? (
                 <ErrorState
                     title={t('content.news.errorLoadArticle')}
                     error={error}
                     onRetry={fetchArticle}
                 />
             ) : article ? (
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                >
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     <Card style={styles.articleCard}>
-                        {/* Category + Date row */}
                         <View style={styles.metaRow}>
                             {article.category ? (
                                 <View style={styles.categoryBadge}>
-                                    <Text style={styles.categoryBadgeText}>{article.category}</Text>
+                                    <Text style={styles.categoryBadgeText}>
+                                        {t(`content.news.categories.${article.category}`, {
+                                            defaultValue: article.category,
+                                        })}
+                                    </Text>
                                 </View>
                             ) : null}
-                            <Text style={styles.dateText}>{formatDate(article.publishedAt)}</Text>
+                            <Text style={styles.dateText}>
+                                {formatDate(article.publishedAt, {
+                                    day: 'numeric',
+                                    month: 'long',
+                                    year: 'numeric',
+                                })}
+                            </Text>
                         </View>
 
-                        {/* Title */}
                         <Text style={styles.title}>{article.title}</Text>
 
-                        {/* Summary / excerpt */}
+                        {article.sourceName ? (
+                            <Text style={styles.attribution}>
+                                {t('content.news.attribution', { source: article.sourceName })}
+                            </Text>
+                        ) : null}
+
                         {article.summary ? (
                             <View style={styles.summaryContainer}>
                                 <Text style={styles.summaryText}>{article.summary}</Text>
                             </View>
                         ) : null}
 
-                        {/* Divider */}
-                        <View style={styles.divider} />
+                        {/* Upcheck's own editorial only — an aggregated item has
+                            no body here, by design. See news-article.entity.ts. */}
+                        {article.content ? (
+                            <>
+                                <View style={styles.divider} />
+                                <Text style={styles.contentText}>{article.content}</Text>
+                            </>
+                        ) : null}
 
-                        {/* Full content body */}
-                        <Text style={styles.contentText}>
-                            {article.content ?? ''}
-                        </Text>
+                        {article.canonicalUrl ? (
+                            <TouchableOpacity
+                                style={styles.sourceButton}
+                                onPress={openSource}
+                                accessibilityRole="link"
+                                accessibilityLabel={t('content.news.readFullArticle')}
+                            >
+                                <MaterialCommunityIcons
+                                    name="open-in-new"
+                                    size={18}
+                                    color={theme.roles.light.primary}
+                                />
+                                <Text style={styles.sourceButtonText}>
+                                    {article.sourceName
+                                        ? t('content.news.readAtSource', { source: article.sourceName })
+                                        : t('content.news.readFullArticle')}
+                                </Text>
+                            </TouchableOpacity>
+                        ) : null}
+
+                        {/* The domain is shown plainly so it is never in doubt
+                            whose page the reader is about to open. */}
+                        {sourceHost ? <Text style={styles.hostText}>{sourceHost}</Text> : null}
                     </Card>
                 </ScrollView>
             ) : null}
@@ -170,10 +232,17 @@ const styles = StyleSheet.create({
         ...theme.typeScale.h1,
         color: theme.roles.light.textPrimary,
         paddingHorizontal: theme.spacing[4],
-        paddingVertical: theme.spacing[3],
+        paddingTop: theme.spacing[3],
+    },
+    attribution: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        paddingHorizontal: theme.spacing[4],
+        paddingTop: theme.spacing[2],
     },
     summaryContainer: {
         marginHorizontal: theme.spacing[4],
+        marginTop: theme.spacing[3],
         marginBottom: theme.spacing[3],
         padding: theme.spacing[3],
         backgroundColor: theme.roles.light.surfaceVariant,
@@ -184,7 +253,6 @@ const styles = StyleSheet.create({
     summaryText: {
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textSecondary,
-        fontStyle: 'italic',
     },
     divider: {
         height: 1,
@@ -196,7 +264,28 @@ const styles = StyleSheet.create({
         ...theme.typeScale.bodyLarge,
         color: theme.roles.light.textPrimary,
         paddingHorizontal: theme.spacing[4],
-        paddingBottom: theme.spacing[6],
+        paddingBottom: theme.spacing[4],
         lineHeight: 28,
+    },
+    sourceButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing[2],
+        marginTop: theme.spacing[4],
+        paddingVertical: theme.spacing[4],
+        paddingHorizontal: theme.spacing[4],
+        backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    sourceButtonText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+    },
+    hostText: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textTertiary,
+        textAlign: 'center',
+        paddingBottom: theme.spacing[4],
+        backgroundColor: theme.roles.light.surfaceVariant,
     },
 });

@@ -1,0 +1,40 @@
+# ROUTE SMOKE - all six bottom tabs render with a stocked pond present.
+# Each tab asserts a string only that tab renders, so a tab that silently
+# failed to mount cannot pass. Run after _seed_01/_seed_02.
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 30000
+
+- tapOn: "Today"
+- assertVisible: "MY TASKS"
+- assertVisible: "YOUR FARMS"
+- assertNotVisible: "Something went wrong"
+
+- tapOn: "Farm"
+- assertVisible: "Your farms"
+- assertVisible: "Add Farm"
+- assertNotVisible: "Something went wrong"
+
+- tapOn: "Team"
+- assertVisible: "TEAM TASKS TODAY"
+- assertVisible: "Attendance"
+- assertNotVisible: "Something went wrong"
+
+- tapOn: "Money"
+- assertVisible: "RECENT ENTRIES"
+- assertNotVisible: "Something went wrong"
+
+- tapOn: "News"
+- assertVisible: "Market & prices"
+- assertVisible: "Disease & health"
+- assertNotVisible: "Something went wrong"
+
+- tapOn: "Settings"
+- assertVisible: "LANGUAGE"
+- assertVisible: "NOTIFICATIONS"
+- assertNotVisible: "Something went wrong"

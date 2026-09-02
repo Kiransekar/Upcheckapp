@@ -16,6 +16,7 @@ import { ReportsScreen } from '../screens/main/ReportsScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TeamScreen } from '../screens/main/TeamScreen';
 import { MoneyScreen } from '../screens/finance/MoneyScreen';
+import { NewsListScreen } from '../screens/news/NewsListScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -100,7 +101,19 @@ export const MainNavigator = () => {
                     tabBarIcon: ({ color }) => <Icon name="grid_view" color={color} size={22} />,
                 }}
             />
-            {/* Center quick-log action — opens the Quick Log modal, never a tab. */}
+            <Tab.Screen
+                name="Team"
+                component={TeamScreen}
+                options={{
+                    tabBarLabel: t('common.tabTeam'),
+                    tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
+                }}
+            />
+            {/* Center quick-log action — opens the Quick Log modal, never a tab.
+                Sits fourth of seven so the blue FAB lands in the middle of the
+                bar. A worker without Money has six tabs and the FAB therefore
+                sits just left of centre; keeping the ORDER stable across roles
+                matters more than perfect symmetry for one of them. */}
             <Tab.Screen
                 name="QuickLogTab"
                 component={NoopScreen}
@@ -124,11 +137,11 @@ export const MainNavigator = () => {
                 />
             )}
             <Tab.Screen
-                name="Team"
-                component={TeamScreen}
+                name="NewsTab"
+                component={NewsListScreen}
                 options={{
-                    tabBarLabel: t('common.tabTeam'),
-                    tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
+                    tabBarLabel: t('common.tabNews'),
+                    tabBarIcon: ({ color }) => <Icon name="newspaper" color={color} size={22} />,
                 }}
             />
             <Tab.Screen

@@ -1,0 +1,11 @@
+# FEATURE: Daily Feed Amount - invalid input (all fields empty)
+# INPUTS: none
+# EXPECTED: validation alert 'MBW must be a positive number'; no result rendered.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: "Calculate"
+- assertVisible: "Validation Error"
+- assertVisible: "MBW must be a positive number"
+- assertNotVisible: "Required Daily Feed"

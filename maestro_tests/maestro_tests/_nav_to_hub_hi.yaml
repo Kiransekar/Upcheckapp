@@ -1,0 +1,20 @@
+# Shared subflow: open the Calculator Hub with the UI switched to HINDI.
+#
+# Starts from English (the state 35_i18n_restore_english.yaml leaves the device
+# in) because the Settings tab label is itself localised, so an English cold
+# start is the only reliable anchor. Path:
+#   English nav -> hub -> back to Settings -> tap हिन्दी -> कैलकुलेटर -> hub
+#
+# Leaves the app in HINDI. Run 35_i18n_restore_english.yaml afterwards.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- back
+- tapOn: "हिन्दी"
+- extendedWaitUntil:
+    visible: "सेटिंग्स"
+    timeout: 15000
+- tapOn: "कैलकुलेटर"
+- extendedWaitUntil:
+    visible: "टूल्स और कैलकुलेटर"
+    timeout: 15000

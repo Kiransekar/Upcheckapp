@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Trade Press &#8212; Shrimp</title>
+    <link>https://example-trade-press.test/category/shrimp/</link>
+    <description>Shrimp coverage</description>
+    <item>
+      <title>Vannamei prices firm in Nellore as processors return to the market</title>
+      <link>https://example-trade-press.test/2026/08/vannamei-nellore-prices</link>
+      <pubDate>Wed, 19 Aug 2026 06:30:00 +0000</pubDate>
+      <guid>https://example-trade-press.test/?p=1001</guid>
+      <description>Farmgate rates for 30-count shrimp rose across Andhra Pradesh this week.</description>
+      <content:encoded><![CDATA[<p>THE FULL ARTICLE BODY. This paragraph is the publisher's copyrighted prose and must never reach the database. It is here precisely so a test can prove that it does not.</p>]]></content:encoded>
+    </item>
+    <item>
+      <title>Norwegian salmon prices climb to a third-quarter record</title>
+      <link>https://example-trade-press.test/2026/08/norway-salmon-record</link>
+      <pubDate>Wed, 19 Aug 2026 07:00:00 +0000</pubDate>
+      <guid>https://example-trade-press.test/?p=1002</guid>
+      <description>Spot prices in Norway rose again as harvest volumes tightened.</description>
+    </item>
+    <item>
+      <title>Coastal Aquaculture Authority notification tightens farm registration rules</title>
+      <link>https://example-trade-press.test/2026/08/caa-registration-rules</link>
+      <pubDate>Wed, 19 Aug 2026 08:00:00 +0000</pubDate>
+      <guid>https://example-trade-press.test/?p=1003</guid>
+      <description>The Authority has issued a circular on registration of shrimp farms in India.</description>
+    </item>
+    <item>
+      <title>An item with no link at all</title>
+      <pubDate>Wed, 19 Aug 2026 09:00:00 +0000</pubDate>
+      <description>Shrimp shrimp India Andhra aquaculture pond, but nowhere to send the reader.</description>
+    </item>
+  </channel>
+</rss>

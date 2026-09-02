@@ -4,8 +4,10 @@ export class CreateNewsArticleDto {
   @IsString()
   title: string;
 
+  /** Hand-written editorial body. Optional — a link-out item has none. */
   @IsString()
-  content: string;
+  @IsOptional()
+  content?: string;
 
   @IsString()
   @IsOptional()

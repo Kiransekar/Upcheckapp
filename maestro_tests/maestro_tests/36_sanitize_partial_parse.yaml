@@ -1,0 +1,36 @@
+# PILLAR: Input Sanitization - trailing-garbage numeric input (EVIDENCE FLOW)
+# INPUTS: MBW="20abc", SR=80, Count=100000, FR=3
+# EXPECTED (defensible): the field is declared numeric, so a value carrying
+#          trailing letters is not a number and must be rejected with the same
+#          "MBW must be a positive number" alert TC-07 ("abc!@#") produces.
+# ACTUAL: parseFloat("20abc") === 20 - JS stops at the first invalid character
+#         and returns the prefix. The garbage is silently discarded and the app
+#         computes on 20 g, rendering 48.0 kg exactly as if "20" had been typed.
+#         Nothing tells the farmer their input was truncated.
+# INTENT: prove the numeric guards accept a partially numeric string, i.e. the
+#         validation tests truthiness of a parseFloat prefix rather than
+#         validating that the whole field is a number.
+# See: QA_ENGINEERING_HANDOVER_REPORT.md -> BUG-017
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: "Daily Feed Amount"
+- tapOn: "18.4"
+- inputText: "20abc"
+- hideKeyboard
+- tapOn: "78"
+- inputText: "80"
+- hideKeyboard
+- tapOn: "28700"
+- inputText: "100000"
+- hideKeyboard
+- tapOn: "3.2"
+- inputText: "3"
+- hideKeyboard
+- tapOn: "Calculate"
+# The guard that fires for "abc!@#" (TC-07) does NOT fire for "20abc" ...
+- assertNotVisible: "Validation Error"
+# ... and the truncated prefix is computed on as though it were the input.
+- assertVisible: "Required Daily Feed"
+- assertVisible: '.*48\.0.*'
+- assertVisible: '.*1,600.*'

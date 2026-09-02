@@ -1,0 +1,10 @@
+# FEATURE: Calculator Hub navigation + inventory
+# EXPECTED: hub reachable from Settings; all five calculators listed.
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- assertVisible: "Cultivation Performance"
+- assertVisible: "Daily Feed Amount"
+- assertVisible: "Product Dosage"
+- assertVisible: 'Free Ammonia.*'
+- assertVisible: "Growth & Harvest"

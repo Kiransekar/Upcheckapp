@@ -26,7 +26,7 @@ export type IconName =
     // navigation / chrome
     | 'flag' | 'grid_view' | 'edit_note' | 'currency_rupee' | 'groups' | 'settings'
     | 'arrow_back' | 'arrow_forward' | 'chevron_left' | 'chevron_right' | 'expand_more' | 'more_vert'
-    | 'menu' | 'add' | 'check' | 'cancel' | 'close'
+    | 'menu' | 'add' | 'check' | 'cancel' | 'close' | 'newspaper' | 'open_in_new'
     // domain
     | 'water_drop' | 'grain' | 'set_meal' | 'grass' | 'agriculture' | 'science'
     | 'scale' | 'warehouse' | 'waves'

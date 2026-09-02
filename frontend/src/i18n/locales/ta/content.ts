@@ -135,6 +135,20 @@ const content = {
     errorLoadArticle: 'கட்டுரையை ஏற்ற முடியவில்லை',
     emptyTitle: 'செய்தி கட்டுரைகள் இல்லை',
     emptySubtitle: 'சமீபத்திய புதுப்பிப்புகளுக்கு பின்னர் சரிபார்க்கவும்.',
+    categories: {
+      market: 'சந்தை & விலை',
+      regulation: 'விதிகள் & ஒழுங்குமுறை',
+      disease: 'நோய் & ஆரோக்கியம்',
+      research: 'ஆராய்ச்சி',
+      production: 'பண்ணை & உற்பத்தி',
+      trade: 'ஏற்றுமதி & வணிகம்',
+    },
+    attribution: '{{source}} வழியாக',
+    readAtSource: '{{source}} இல் படிக்கவும்',
+    readFullArticle: 'முழு கட்டுரையைப் படிக்கவும்',
+    offlineTitle: 'சேமித்த செய்திகள் காட்டப்படுகின்றன',
+    offlineMessage: 'இணைப்பு இல்லை — கடைசி புதுப்பிப்பு {{date}}.',
+    offlineLink: 'இந்தக் கட்டுரைக்கு இணைய இணைப்பு தேவை.',
   },
 };
 

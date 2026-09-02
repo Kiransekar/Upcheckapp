@@ -40,6 +40,7 @@ const common = {
   tabFarm: 'খামার',
   tabMoney: 'টাকা',
   tabTeam: 'দল',
+  tabNews: 'খবর',
   tabSettings: 'সেটিংস',
   tabDashboard: 'ড্যাশবোর্ড',
   tabFarms: 'খামার',

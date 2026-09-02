@@ -1,0 +1,17 @@
+# HOUSEKEEPING: restore the app to English after 34_i18n_hindi_calculators.
+# Not a test of the product - it exists so the suite leaves the device in the
+# state it was found in. Safe to run at any time.
+appId: com.upcheck.app
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "सेटिंग्स"
+    timeout: 30000
+- tapOn: "सेटिंग्स"
+- tapOn: "English"
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 15000
+- assertVisible: "Calculators"

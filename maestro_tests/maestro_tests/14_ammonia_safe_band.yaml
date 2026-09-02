@@ -1,0 +1,20 @@
+# FEATURE: Free Ammonia - SAFE band
+# INPUTS: TAN=0.5 ppm, pH=7, Temp=25 C, Salinity=15 ppt
+# EXPECTED: NH3 = 0.0025 ppm -> band SAFE (<0.1)
+appId: com.upcheck.app
+---
+- runFlow: _nav_to_hub.yaml
+- tapOn: 'Free Ammonia.*'
+- tapOn: 'e.g. 1.5'
+- inputText: '0.5'
+- hideKeyboard
+- tapOn: 'e.g. 8.2'
+- inputText: "7"
+- hideKeyboard
+- tapOn: 'e.g. 29'
+- inputText: "25"
+- hideKeyboard
+- tapOn: 'Calculate NH.*'
+- assertVisible: '.*0\.0025.*'
+- assertVisible: '.*SAFE \(Server\).*'
+- assertNotVisible: '.*CRITICAL \(Server\).*'

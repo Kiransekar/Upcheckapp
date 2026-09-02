@@ -47,11 +47,25 @@ describe('MainNavigator — the tab set follows the capability matrix', () => {
         mockPerms = OWNER;
     });
 
-    it('gives an owner all six tabs from the design', () => {
+    it('gives an owner every tab from the design', () => {
         const { getByText } = renderNav();
-        for (const label of ['Today', 'Farm', 'Money', 'Team', 'Settings']) {
+        for (const label of ['Today', 'Farm', 'Team', 'Money', 'News', 'Settings']) {
             expect(getByText(label)).toBeTruthy();
         }
+    });
+
+    // The blue quick-log FAB is the primary action and belongs in the middle of
+    // the bar, which only holds if the tabs either side of it stay put. Asserted
+    // on order, not just presence, because a reordering is invisible to a
+    // presence check and very visible to a farmer.
+    it('orders the bar so the quick-log button sits at the centre', () => {
+        const { getAllByText } = renderNav();
+        // Queries return nodes in tree order, which for the tab bar is the
+        // left-to-right order a farmer sees.
+        const rendered = getAllByText(/^(Today|Farm|Team|Money|News|Settings)$/).map(
+            (n) => n.props.children,
+        );
+        expect(rendered).toEqual(['Today', 'Farm', 'Team', 'Money', 'News', 'Settings']);
     });
 
     it('hides Money from someone without VIEW_FINANCIALS', () => {

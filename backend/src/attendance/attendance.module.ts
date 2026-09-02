@@ -12,5 +12,8 @@ import { AttendanceController } from './attendance.controller';
   imports: [TypeOrmModule.forFeature([AttendanceRecord])],
   controllers: [AttendanceController],
   providers: [AttendanceService],
+  // Exported so TeamOverviewModule can batch the Team tab's reads through the
+  // SAME service — and therefore the same per-farm capability checks.
+  exports: [AttendanceService],
 })
 export class AttendanceModule {}
