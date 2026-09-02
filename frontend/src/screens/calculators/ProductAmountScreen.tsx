@@ -159,8 +159,14 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                                 <View style={styles.divider} />
                                 <Text style={styles.clientLabel}>{t('calculators.productDosage.activeIngredientBasis')}</Text>
                                 <Text style={styles.clientValue}>{result.amountKg.toFixed(2)} {t('calculators.productDosage.unitKg')}</Text>
+                                {/* Describes result.amountKg (the figure directly above it), which is
+                                    the 100%-active-basis mass the server returns - NOT the
+                                    concentration-corrected headline. Was showing the headline's
+                                    formula (÷ (10 × concentration%)) under this demoted number,
+                                    which evaluates to the headline's value, not this one (QA
+                                    remediation review finding 2). */}
                                 <Text style={styles.clientFormula}>
-                                    ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / (10 × {concentration || 100}%)
+                                    ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / 1000
                                 </Text>
                             </View>
                         )}
