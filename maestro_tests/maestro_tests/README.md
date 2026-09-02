@@ -88,8 +88,8 @@ done
 | 22 | `growth_recommended_rate` | valid / table lookup |
 | 23 | `growth_invalid_sr` | boundary |
 | 24 | `ammonia_salinity_sensitivity` | **evidence for D2** |
-| 26 | `ammonia_boundary_safe_side` | **evidence for D1** |
-| 27 | `ammonia_boundary_warning_side` | **evidence for D1** |
+| 26 | `ammonia_boundary_safe_side` | boundary — D1 fixed, inverted |
+| 27 | `ammonia_boundary_warning_side` | boundary — D1 fixed |
 | 28 | `performance_nonnumeric_area` | **evidence for D8** |
 | 29 | `dailyfeed_feedrate_over_100` | **evidence for D9** |
 | 30 | `sanitize_whitespace` | sanitization |
@@ -128,18 +128,21 @@ done
 
 ## Reading the evidence flows
 
-Three flows — 24, 26 and 27 — are written to **assert the buggy behaviour
-that is actually there**, so they pass today. They are regression tripwires:
-when a defect is fixed, its evidence flow should start failing, and the
-assertion should then be inverted to lock in the fix. Each file documents the
-expected-vs-actual split in its header comment.
+Flow 24 is written to **assert the buggy behaviour that is actually there**,
+so it passes today. It is a regression tripwire: when its defect is fixed,
+the flow should start failing, and the assertion should then be inverted to
+lock in the fix. The file documents the expected-vs-actual split in its
+header comment.
 
-Flows 09, 28, 29, 31, 34 and 36 started life as evidence flows the same way,
-but their defects (BUG-003, BUG-009, BUG-010, BUG-011, BUG-013 and BUG-017)
-are now fixed, so each has already been inverted to assert the corrected
-behaviour instead. Flow 25 no longer exists: the Pond Area field it proved
-was dead input (BUG-005) was removed rather than wired up, so there is
-nothing left for it to assert.
+Flows 09, 26, 28, 29, 31, 34 and 36 started life as evidence flows the same
+way, but their defects (BUG-003, BUG-001, BUG-009, BUG-010, BUG-011,
+BUG-013 and BUG-017) are now fixed, so each has already been inverted to
+assert the corrected behaviour instead. Flow 27 asserted WARNING for an
+input that bands WARNING under both the buggy and the fixed classifier, so
+it never needed inverting — it now simply documents the fixed rule alongside
+26, its (previously mismatched) pair. Flow 25 no longer exists: the Pond
+Area field it proved was dead input (BUG-005) was removed rather than wired
+up, so there is nothing left for it to assert.
 
 Flows 30–36 cover the cross-cutting audit pillars — input sanitization and
 boundary resilience (30, 31, 32, 36), idempotency and race conditions (33), and
