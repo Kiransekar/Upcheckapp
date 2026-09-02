@@ -88,7 +88,6 @@ done
 | 22 | `growth_recommended_rate` | valid / table lookup |
 | 23 | `growth_invalid_sr` | boundary |
 | 24 | `ammonia_salinity_sensitivity` | **evidence for D2** |
-| 25 | `dailyfeed_pond_area_inert` | **evidence for D3** |
 | 26 | `ammonia_boundary_safe_side` | **evidence for D1** |
 | 27 | `ammonia_boundary_warning_side` | **evidence for D1** |
 | 28 | `performance_nonnumeric_area` | **evidence for D8** |
@@ -104,7 +103,7 @@ done
 | 38 | `locale_hi_dailyfeed_decimal` | i18n x rounding |
 | 39 | `locale_hi_performance` | i18n x arithmetic |
 | 40 | `prefill_pond_picker` | prefill path |
-| 41 | `prefill_dailyfeed` | **evidence for BUG-018 / BUG-019** |
+| 41 | `prefill_dailyfeed` | **evidence for BUG-018 / BUG-019** (no longer asserts Pond Area — field removed, BUG-005) |
 | 42 | `smoke_settings_tools` | route smoke (9 routes) |
 | 43 | `smoke_tabs` | route smoke (6 tabs) |
 | 44 | `smoke_pond_logs` | route smoke (7 routes) |

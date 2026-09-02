@@ -33,7 +33,6 @@ appId: com.upcheck.app
 - assertNotVisible: "Filled from the pond you picked.*"
 # These two really were filled by the pond.
 - assertVisible: "500000"
-- assertVisible: "5000"
 # Survival is no longer invented: the SR field shows its placeholder, not 100.
 - assertVisible: "78"
 # MBW is still empty on an un-sampled pond: its placeholder is what renders.

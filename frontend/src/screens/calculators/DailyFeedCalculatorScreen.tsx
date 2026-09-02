@@ -57,7 +57,6 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     const [mbwG, setMbwG] = useState('');
     const [srPct, setSrPct] = useState('');
     const [initialCount, setInitialCount] = useState('');
-    const [pondAreaM2, setPondAreaM2] = useState('');
     const [feedingRatePct, setFeedingRatePct] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +82,6 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
             const sr = survivalPctFrom(ctx);
             if (sr != null) setSrPct((v) => v || String(sr));
         }
-        if (ctx.areaM2 != null) setPondAreaM2((v) => v || String(Math.round(ctx.areaM2!)));
     }, []);
 
     // Clear a stale result when any input changes — a number sitting under
@@ -91,7 +89,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     useEffect(() => {
         setResult(null);
         setBiomassKg(null);
-    }, [mbwG, srPct, initialCount, pondAreaM2, feedingRatePct]);
+    }, [mbwG, srPct, initialCount, feedingRatePct]);
 
     const handleCalculate = async () => {
         const mbw = parseFloat(mbwG);
@@ -219,15 +217,6 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 required
                             />
                             <Text style={styles.typedNote}>{t('calculators.dailyFeed.typedByYou')}</Text>
-                        </View>
-                        <View style={styles.half}>
-                            <Input
-                                label={t('calculators.dailyFeed.labelPondArea')}
-                                value={pondAreaM2}
-                                onChangeText={setPondAreaM2}
-                                keyboardType="decimal-pad"
-                                placeholder="4000"
-                            />
                         </View>
                     </View>
 
