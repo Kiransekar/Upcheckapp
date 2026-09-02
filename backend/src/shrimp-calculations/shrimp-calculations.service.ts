@@ -237,13 +237,20 @@ export class ShrimpCalculationsService {
       (0.1552 - 0.0003142 * temperature) * ionicStrength;
     const nh3 = tan * (1 / (1 + Math.pow(10, pKa - ph)));
 
+    // Classify the value we are going to SHOW, not the one we computed.
+    // Banding the raw double and rounding afterwards let two inputs print the
+    // identical figure under opposite verdicts (QA BUG-001).
+    const reported = Number(nh3.toFixed(4));
+
+    // Inclusive-low boundaries, matching the on-screen legend
+    // ("< 0.1" safe / "0.1 - 0.5" warning / "> 0.5" critical) and the client
+    // fallback in FreeAmmoniaScreen.tsx, which already uses >= 0.1.
     let toxicityLevel = 'safe';
-    if (nh3 > 0.5)
-      toxicityLevel = 'critical'; // Changed from 'high' to be more standard, but PRD says high. Let's follow PRD logic roughly or better standards. PRD: >0.5 high, >0.1 medium.
-    else if (nh3 > 0.1) toxicityLevel = 'warning';
+    if (reported > 0.5) toxicityLevel = 'critical';
+    else if (reported >= 0.1) toxicityLevel = 'warning';
 
     return {
-      unionizedAmmonia: Number(nh3.toFixed(4)),
+      unionizedAmmonia: reported,
       toxicityLevel,
     };
   }
