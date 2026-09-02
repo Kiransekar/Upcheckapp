@@ -190,7 +190,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={mbwG}
                                 onChangeText={setMbwG}
                                 keyboardType="decimal-pad"
-                                placeholder="18.4"
+                                placeholder={t('calculators.dailyFeed.phMbw')}
                                 required
                             />
                         </View>
@@ -200,7 +200,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={srPct}
                                 onChangeText={setSrPct}
                                 keyboardType="decimal-pad"
-                                placeholder="78"
+                                placeholder={t('calculators.dailyFeed.phSr')}
                                 required
                             />
                         </View>
@@ -210,7 +210,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={initialCount}
                                 onChangeText={setInitialCount}
                                 keyboardType="number-pad"
-                                placeholder="28700"
+                                placeholder={t('calculators.dailyFeed.phCount')}
                                 required
                             />
                         </View>
@@ -226,7 +226,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
                                 value={feedingRatePct}
                                 onChangeText={setFeedingRatePct}
                                 keyboardType="decimal-pad"
-                                placeholder="3.2"
+                                placeholder={t('calculators.dailyFeed.phFeedingRate')}
                                 required
                             />
                             <Text style={styles.typedNote}>{t('calculators.dailyFeed.typedByYou')}</Text>

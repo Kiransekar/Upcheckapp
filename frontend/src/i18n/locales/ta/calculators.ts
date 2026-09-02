@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'குளப் பரப்பளவு ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'எ.கா. 500000',
+    phDecimal: '0.0',
+    phDaysOfCulture: 'எ.கா. 120',
+    phFinalMbw: 'எ.கா. 25.0',
+    phFinalSr: 'எ.கா. 85',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "ஒரு வேளைக்கு கிகி",
     meals: "வேளைகள்",
     logThisAmount: "{{kg}} கிகி பதிவு செய்",
+
+    // placeholders (QA BUG-013)
+    phMbw: '18.4',
+    phSr: '78',
+    phCount: '28700',
+    phFeedingRate: '3.2',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -118,6 +131,14 @@ const calculators = {
     errorConc: 'செறிவு 0 முதல் 100 க்கு இடையே இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'எ.கா. 5000',
+    phWaterDepth: 'எ.கா. 1.2',
+    phTargetConc: 'எ.கா. 5.0',
+    phProductConc: 'எ.கா. 100 (இயல்பு)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -147,6 +168,16 @@ const calculators = {
     errorTemp: 'வெப்பநிலை ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'சுதந்திர அம்மோனியாவை கணக்கிட முடியவில்லை',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'எ.கா. 1.5',
+    phPh: 'எ.கா. 8.2',
+    phTemp: 'எ.கா. 29',
+    phSalinity: 'எ.கா. 15',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -191,6 +222,19 @@ const calculators = {
     errorAverageWeight: 'சராசரி எடை ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'எ.கா. 500000',
+    phSurvivalRate: 'எ.கா. 80',
+    phTargetWeight: 'எ.கா. 20',
+    phCurrentWeight: 'எ.கா. 5.0',
+    phAdg: 'எ.கா. 0.2',
+    phDaysToProject: 'எ.கா. 30',
+    phStockCount: 'எ.கா. 400000',
+    phAverageWeight: 'எ.கா. 12.5',
+    phAverageWeightRfr: 'எ.கா. 8.0',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

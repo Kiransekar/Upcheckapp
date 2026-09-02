@@ -10,7 +10,6 @@
 #
 # NOW, after the fix:
 #     Count      = 500000   <- genuinely prefilled from crop.stockingCount
-#     Pond Area  = 5000     <- genuinely prefilled from areaM2 (and inert, BUG-005)
 #     SR (%)     = EMPTY    <- no longer fabricated as 100%. survivalPctFrom
 #                              returns null with no sampling (abwG == null), so
 #                              its placeholder "78" is what renders (BUG-019 fixed).
@@ -18,6 +17,12 @@
 #                              field is NOT filled, and the banner correctly says
 #                              so instead of claiming the form was filled
 #                              (BUG-018 fixed).
+#
+# NOTE: this flow no longer prefills or asserts a "Pond Area (m²)" field.
+# BUG-005 found that field editable, but it discarded the calculation result
+# when typed into and influenced no output - Daily Feed's biomass formula
+# never read it. The field (and the store's now-dead pondAreaM2) has since
+# been removed rather than wired up, so there is nothing left to assert here.
 #
 # See: QA_ENGINEERING_HANDOVER_REPORT.md -> BUG-018, BUG-019
 appId: com.upcheck.app
@@ -31,7 +36,7 @@ appId: com.upcheck.app
 # The banner must NOT claim the form was filled when the required MBW field
 # was not (BUG-018 fixed).
 - assertNotVisible: "Filled from the pond you picked.*"
-# These two really were filled by the pond.
+# This one really was filled by the pond.
 - assertVisible: "500000"
 # Survival is no longer invented: the SR field shows its placeholder, not 100.
 - assertVisible: "78"

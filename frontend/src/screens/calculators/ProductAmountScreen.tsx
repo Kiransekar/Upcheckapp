@@ -99,7 +99,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                                 value={pondArea}
                                 onChangeText={setPondArea}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 5000"
+                                placeholder={t('calculators.productDosage.phPondArea')}
                                 required
                             />
                         </View>
@@ -109,7 +109,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                                 value={waterDepth}
                                 onChangeText={setWaterDepth}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 1.2"
+                                placeholder={t('calculators.productDosage.phWaterDepth')}
                                 required
                             />
                         </View>
@@ -119,7 +119,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         value={targetPpm}
                         onChangeText={setTargetPpm}
                         keyboardType="decimal-pad"
-                        placeholder="e.g. 5.0"
+                        placeholder={t('calculators.productDosage.phTargetConc')}
                         required
                     />
                     <Input
@@ -127,7 +127,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         value={concentration}
                         onChangeText={setConcentration}
                         keyboardType="decimal-pad"
-                        placeholder="e.g. 100 (default)"
+                        placeholder={t('calculators.productDosage.phProductConc')}
                         hint={t('calculators.productDosage.hintProductConc')}
                     />
 
@@ -137,7 +137,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                 {pondVolume !== null && pondVolume > 0 && (
                     <Card variant="flat" style={styles.volumeCard}>
                         <Text style={styles.volumeLabel}>{t('calculators.productDosage.pondVolume')}</Text>
-                        <Text style={styles.volumeValue}>{pondVolume.toFixed(0)} m³</Text>
+                        <Text style={styles.volumeValue}>{pondVolume.toFixed(0)} {t('calculators.productDosage.unitM3')}</Text>
                     </Card>
                 )}
 
@@ -152,13 +152,13 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>
                             {(clientResult ?? result.amountKg).toFixed(clientResult !== null ? 3 : 2)}
                         </Text>
-                        <Text style={styles.resultUnit}>kg</Text>
+                        <Text style={styles.resultUnit}>{t('calculators.productDosage.unitKg')}</Text>
 
                         {clientResult !== null && (
                             <View style={styles.clientResultSection}>
                                 <View style={styles.divider} />
                                 <Text style={styles.clientLabel}>{t('calculators.productDosage.activeIngredientBasis')}</Text>
-                                <Text style={styles.clientValue}>{result.amountKg.toFixed(2)} kg</Text>
+                                <Text style={styles.clientValue}>{result.amountKg.toFixed(2)} {t('calculators.productDosage.unitKg')}</Text>
                                 <Text style={styles.clientFormula}>
                                     ({pondVolume?.toFixed(0)} m³ × {targetPpm} ppm) / (10 × {concentration || 100}%)
                                 </Text>

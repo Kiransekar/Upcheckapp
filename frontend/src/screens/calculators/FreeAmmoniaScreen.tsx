@@ -135,7 +135,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={tan}
                                 onChangeText={setTan}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 1.5"
+                                placeholder={t('calculators.freeAmmonia.phTan')}
                                 required
                             />
                         </View>
@@ -145,7 +145,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={ph}
                                 onChangeText={setPh}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 8.2"
+                                placeholder={t('calculators.freeAmmonia.phPh')}
                                 required
                             />
                         </View>
@@ -157,7 +157,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={temperature}
                                 onChangeText={setTemperature}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 29"
+                                placeholder={t('calculators.freeAmmonia.phTemp')}
                                 required
                             />
                         </View>
@@ -167,7 +167,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={salinity}
                                 onChangeText={setSalinity}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 15"
+                                placeholder={t('calculators.freeAmmonia.phSalinity')}
                                 hint={t('calculators.freeAmmonia.hintSalinity')}
                             />
                         </View>
@@ -193,7 +193,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                             {t('calculators.freeAmmonia.resultLabel')}
                         </Text>
                         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.unionizedAmmonia.toFixed(4)}</Text>
-                        <Text style={styles.resultUnit}>ppm / mg/L</Text>
+                        <Text style={styles.resultUnit}>{t('calculators.freeAmmonia.unitPpmMgL')}</Text>
 
                         <Text style={[styles.messageText, { color: config.textColor }]}>
                             {config.message}
@@ -206,15 +206,15 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                     <View style={styles.scaleRow}>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.successBg, borderColor: theme.roles.light.successBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.successText }]}>{t('calculators.freeAmmonia.scaleSafe')}</Text>
-                            <Text style={styles.scaleRange}>{'< 0.1 ppm'}</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeSafe')}</Text>
                         </View>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.warningBg, borderColor: theme.roles.light.warningBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.warningText }]}>{t('calculators.freeAmmonia.scaleWarning')}</Text>
-                            <Text style={styles.scaleRange}>0.1 – 0.5 ppm</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeWarning')}</Text>
                         </View>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.dangerBg, borderColor: theme.roles.light.dangerBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.dangerText }]}>{t('calculators.freeAmmonia.scaleCritical')}</Text>
-                            <Text style={styles.scaleRange}>{'> 0.5 ppm'}</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeCritical')}</Text>
                         </View>
                     </View>
                 </Card>

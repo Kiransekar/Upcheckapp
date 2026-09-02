@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'পুকুরের ক্ষেত্রফল অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'যেমন ৫০০০০০',
+    phDecimal: '০.০',
+    phDaysOfCulture: 'যেমন ১২০',
+    phFinalMbw: 'যেমন ২৫.০',
+    phFinalSr: 'যেমন ৮৫',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "প্রতি বেলা কেজি",
     meals: "বেলা",
     logThisAmount: "{{kg}} কেজি নথিভুক্ত করুন",
+
+    // placeholders (QA BUG-013)
+    phMbw: '১৮.৪',
+    phSr: '৭৮',
+    phCount: '২৮৭০০',
+    phFeedingRate: '৩.২',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -118,6 +131,14 @@ const calculators = {
     errorConc: 'ঘনত্ব অবশ্যই ০ থেকে ১০০-এর মধ্যে হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'যেমন ৫০০০',
+    phWaterDepth: 'যেমন ১.২',
+    phTargetConc: 'যেমন ৫.০',
+    phProductConc: 'যেমন ১০০ (ডিফল্ট)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -147,6 +168,16 @@ const calculators = {
     errorTemp: 'তাপমাত্রা অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorCalc: 'মুক্ত অ্যামোনিয়া গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'যেমন ১.৫',
+    phPh: 'যেমন ৮.২',
+    phTemp: 'যেমন ২৯',
+    phSalinity: 'যেমন ১৫',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -191,6 +222,19 @@ const calculators = {
     errorAverageWeight: 'গড় ওজন অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'যেমন ৫০০০০০',
+    phSurvivalRate: 'যেমন ৮০',
+    phTargetWeight: 'যেমন ২০',
+    phCurrentWeight: 'যেমন ৫.০',
+    phAdg: 'যেমন ০.২',
+    phDaysToProject: 'যেমন ৩০',
+    phStockCount: 'যেমন ৪০০০০০',
+    phAverageWeight: 'যেমন ১২.৫',
+    phAverageWeightRfr: 'যেমন ৮.০',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

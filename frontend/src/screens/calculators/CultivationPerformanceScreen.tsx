@@ -157,7 +157,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                         value={totalSeed}
                         onChangeText={setTotalSeed}
                         keyboardType="number-pad"
-                        placeholder="e.g. 500000"
+                        placeholder={t('calculators.performance.phTotalSeed')}
                         required
                     />
                     <View style={styles.row}>
@@ -167,7 +167,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={totalHarvestKg}
                                 onChangeText={setTotalHarvestKg}
                                 keyboardType="decimal-pad"
-                                placeholder="0.0"
+                                placeholder={t('calculators.performance.phDecimal')}
                                 required
                             />
                         </View>
@@ -177,7 +177,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={totalFeedKg}
                                 onChangeText={setTotalFeedKg}
                                 keyboardType="decimal-pad"
-                                placeholder="0.0"
+                                placeholder={t('calculators.performance.phDecimal')}
                                 required
                             />
                         </View>
@@ -189,7 +189,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={daysOfCulture}
                                 onChangeText={setDaysOfCulture}
                                 keyboardType="number-pad"
-                                placeholder="e.g. 120"
+                                placeholder={t('calculators.performance.phDaysOfCulture')}
                                 required
                             />
                         </View>
@@ -199,7 +199,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={finalMbwG}
                                 onChangeText={setFinalMbwG}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 25.0"
+                                placeholder={t('calculators.performance.phFinalMbw')}
                                 required
                             />
                         </View>
@@ -211,7 +211,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                                 value={finalSrPct}
                                 onChangeText={setFinalSrPct}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 85"
+                                placeholder={t('calculators.performance.phFinalSr')}
                                 required
                             />
                         </View>

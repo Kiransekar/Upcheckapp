@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'ପୋଖରୀ କ୍ଷେତ୍ରଫଳ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'ଉଦା. ୫୦୦୦୦୦',
+    phDecimal: '୦.୦',
+    phDaysOfCulture: 'ଉଦା. ୧୨୦',
+    phFinalMbw: 'ଉଦା. ୨୫.୦',
+    phFinalSr: 'ଉଦା. ୮୫',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "ପ୍ରତି ଭୋଜନ କିଗ୍ରା",
     meals: "ଭୋଜନ",
     logThisAmount: "{{kg}} କିଗ୍ରା ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+
+    // placeholders (QA BUG-013)
+    phMbw: '୧୮.୪',
+    phSr: '୭୮',
+    phCount: '୨୮୭୦୦',
+    phFeedingRate: '୩.୨',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -118,6 +131,14 @@ const calculators = {
     errorConc: 'ଗାଢ଼ତ୍ୱ ୦ ଓ ୧୦୦ ମଧ୍ୟରେ ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'ଉଦା. ୫୦୦୦',
+    phWaterDepth: 'ଉଦା. ୧.୨',
+    phTargetConc: 'ଉଦା. ୫.୦',
+    phProductConc: 'ଉଦା. ୧୦୦ (ଡିଫଲ୍ଟ)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -147,6 +168,16 @@ const calculators = {
     errorTemp: 'ତାପମାତ୍ରା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'ଉଦା. ୧.୫',
+    phPh: 'ଉଦା. ୮.୨',
+    phTemp: 'ଉଦା. ୨୯',
+    phSalinity: 'ଉଦା. ୧୫',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -191,6 +222,19 @@ const calculators = {
     errorAverageWeight: 'ହାରାହାରି ଓଜନ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'ଉଦା. ୫୦୦୦୦୦',
+    phSurvivalRate: 'ଉଦା. ୮୦',
+    phTargetWeight: 'ଉଦା. ୨୦',
+    phCurrentWeight: 'ଉଦା. ୫.୦',
+    phAdg: 'ଉଦା. ୦.୨',
+    phDaysToProject: 'ଉଦା. ୩୦',
+    phStockCount: 'ଉଦା. ୪୦୦୦୦୦',
+    phAverageWeight: 'ଉଦା. ୧୨.୫',
+    phAverageWeightRfr: 'ଉଦା. ୮.୦',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

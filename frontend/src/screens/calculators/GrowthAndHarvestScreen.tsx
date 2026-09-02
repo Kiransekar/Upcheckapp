@@ -179,7 +179,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={ehStockingCount}
                                 onChangeText={setEhStockingCount}
                                 keyboardType="number-pad"
-                                placeholder="e.g. 500000"
+                                placeholder={t('calculators.growthHarvest.phStockingCount')}
                                 required
                             />
                         </View>
@@ -189,7 +189,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={ehSurvivalRate}
                                 onChangeText={setEhSurvivalRate}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 80"
+                                placeholder={t('calculators.growthHarvest.phSurvivalRate')}
                                 required
                             />
                         </View>
@@ -199,7 +199,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                         value={ehTargetWeight}
                         onChangeText={setEhTargetWeight}
                         keyboardType="decimal-pad"
-                        placeholder="e.g. 20"
+                        placeholder={t('calculators.growthHarvest.phTargetWeight')}
                         required
                     />
                     <Button title={t('calculators.growthHarvest.calculate')} onPress={handleExpectedHarvest} loading={ehLoading} style={styles.calcBtn} />
@@ -216,7 +216,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 <View style={styles.resultItem}>
                                     <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultExpectedWeight')}</Text>
                                     <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{ehResult.expectedWeightKg.toFixed(2)}</Text>
-                                    <Text style={styles.resultUnit}>kg</Text>
+                                    <Text style={styles.resultUnit}>{t('calculators.growthHarvest.unitKg')}</Text>
                                 </View>
                             </View>
                         </View>
@@ -236,7 +236,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={gpCurrentWeight}
                                 onChangeText={setGpCurrentWeight}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 5.0"
+                                placeholder={t('calculators.growthHarvest.phCurrentWeight')}
                                 required
                             />
                         </View>
@@ -246,7 +246,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={gpAdg}
                                 onChangeText={setGpAdg}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 0.2"
+                                placeholder={t('calculators.growthHarvest.phAdg')}
                                 required
                             />
                         </View>
@@ -256,7 +256,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                         value={gpDays}
                         onChangeText={setGpDays}
                         keyboardType="number-pad"
-                        placeholder="e.g. 30"
+                        placeholder={t('calculators.growthHarvest.phDaysToProject')}
                         required
                     />
                     <Button title={t('calculators.growthHarvest.calculate')} onPress={handleGrowthProjection} loading={gpLoading} style={styles.calcBtn} />
@@ -265,14 +265,14 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                         <View style={styles.resultBox}>
                             <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultProjectedWeight')}</Text>
                             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{gpResult.projectedWeightG.toFixed(2)}</Text>
-                            <Text style={styles.resultUnit}>g</Text>
+                            <Text style={styles.resultUnit}>{t('calculators.growthHarvest.unitG')}</Text>
                             {gpResult.projectedWeightByWeek.length > 0 && (
                                 <View style={styles.weekTable}>
                                     <Text style={styles.weekTableTitle}>{t('calculators.growthHarvest.weeklyBreakdown')}</Text>
                                     {gpResult.projectedWeightByWeek.map((w, i) => (
                                         <View key={i} style={[styles.weekRow, i % 2 === 0 && styles.weekRowEven]}>
                                             <Text style={styles.weekCell}>{t('calculators.growthHarvest.weekLabel', { num: i + 1 })}</Text>
-                                            <Text style={styles.weekCellRight}>{w.toFixed(2)} g</Text>
+                                            <Text style={styles.weekCellRight}>{w.toFixed(2)} {t('calculators.growthHarvest.unitG')}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -294,7 +294,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={bmStockCount}
                                 onChangeText={setBmStockCount}
                                 keyboardType="number-pad"
-                                placeholder="e.g. 400000"
+                                placeholder={t('calculators.growthHarvest.phStockCount')}
                                 required
                             />
                         </View>
@@ -304,7 +304,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                                 value={bmAvgWeight}
                                 onChangeText={setBmAvgWeight}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 12.5"
+                                placeholder={t('calculators.growthHarvest.phAverageWeight')}
                                 required
                             />
                         </View>
@@ -315,7 +315,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                         <View style={styles.resultBox}>
                             <Text style={styles.resultLabel}>{t('calculators.growthHarvest.resultTotalBiomass')}</Text>
                             <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{bmResult.biomassKg.toFixed(2)}</Text>
-                            <Text style={styles.resultUnit}>kg</Text>
+                            <Text style={styles.resultUnit}>{t('calculators.growthHarvest.unitKg')}</Text>
                         </View>
                     )}
                 </Card>
@@ -331,7 +331,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
                         value={rfrAvgWeight}
                         onChangeText={setRfrAvgWeight}
                         keyboardType="decimal-pad"
-                        placeholder="e.g. 8.0"
+                        placeholder={t('calculators.growthHarvest.phAverageWeightRfr')}
                         required
                     />
                     <Button title={t('calculators.growthHarvest.getRate')} onPress={handleRecommendedFeedingRate} loading={rfrLoading} style={styles.calcBtn} />
