@@ -14,7 +14,7 @@ import {
     AdgResponse,
     SurvivalRateResponse,
 } from '../../api/calculators';
-import { parseNumericInput } from '../../features/parseNumericInput';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
 
 interface PerformanceResults {
     fcr: number | null;
@@ -46,7 +46,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
         const sr = parseNumericInput(finalSrPct);
         const area = areaM2 ? parseNumericInput(areaM2) : 0;
 
-        if (seed === null || seed <= 0) {
+        if (seed === null || seed <= 0 || seed > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.performance.validationTitle'), t('calculators.performance.errorSeed'));
             return;
         }

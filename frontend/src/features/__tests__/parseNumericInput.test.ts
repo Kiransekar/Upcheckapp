@@ -1,4 +1,4 @@
-import { parseNumericInput } from '../parseNumericInput';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../parseNumericInput';
 
 /**
  * QA BUG-017. parseFloat is a PREFIX parser: parseFloat('20abc') is 20, so a
@@ -36,5 +36,21 @@ describe('parseNumericInput', () => {
         expect(parseNumericInput('18.4')).toBe(18.4);
         expect(parseNumericInput('0')).toBe(0);
         expect(parseNumericInput('-5')).toBe(-5);
+    });
+});
+
+/**
+ * QA BUG-011. A pond holding more than 100 million post-larvae does not
+ * exist; the count/seed guards on the stocking screens reject anything past
+ * this ceiling instead of rendering an astronomic "answer".
+ */
+describe('MAX_STOCKING_COUNT', () => {
+    it('is 100 million post-larvae', () => {
+        expect(MAX_STOCKING_COUNT).toBe(100_000_000);
+    });
+
+    it('a count guard (count > MAX_STOCKING_COUNT) accepts the ceiling itself and rejects one past it', () => {
+        expect(parseNumericInput('100000000')! > MAX_STOCKING_COUNT).toBe(false);
+        expect(parseNumericInput('100000001')! > MAX_STOCKING_COUNT).toBe(true);
     });
 });

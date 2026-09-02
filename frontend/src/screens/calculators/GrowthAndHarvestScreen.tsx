@@ -14,7 +14,7 @@ import {
     BiomassResponse,
     RecommendedFeedingRateResponse,
 } from '../../api/calculators';
-import { parseNumericInput } from '../../features/parseNumericInput';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
 
 export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -50,7 +50,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
         const survivalRatePercent = parseNumericInput(ehSurvivalRate);
         const targetWeightG = parseNumericInput(ehTargetWeight);
 
-        if (stockingCount === null || stockingCount <= 0) {
+        if (stockingCount === null || stockingCount <= 0 || stockingCount > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorStockingCount'));
             return;
         }
@@ -115,7 +115,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
         const stockCount = parseNumericInput(bmStockCount);
         const averageWeightG = parseNumericInput(bmAvgWeight);
 
-        if (stockCount === null || stockCount <= 0) {
+        if (stockCount === null || stockCount <= 0 || stockCount > MAX_STOCKING_COUNT) {
             Alert.alert(t('calculators.growthHarvest.validationTitle'), t('calculators.growthHarvest.errorStockCount'));
             return;
         }

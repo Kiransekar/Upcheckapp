@@ -17,3 +17,10 @@ export const parseNumericInput = (raw: string): number | null => {
     const n = Number(trimmed);
     return Number.isFinite(n) ? n : null;
 };
+
+/**
+ * A pond holding more than 100 million post-larvae does not exist. Without a
+ * ceiling, a stocking-count/seed-count field renders an astronomic figure
+ * with the confidence of a real answer (QA BUG-011).
+ */
+export const MAX_STOCKING_COUNT = 100_000_000;

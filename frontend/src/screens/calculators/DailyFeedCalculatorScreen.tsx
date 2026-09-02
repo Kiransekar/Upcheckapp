@@ -30,7 +30,7 @@ import { theme } from '../../theme';
 import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
 import type { PondContext } from '../../api/pondContext';
 import { survivalPctFrom, didPrefillAnything } from './prefill';
-import { parseNumericInput } from '../../features/parseNumericInput';
+import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
 
 const c = theme.roles.light;
 
@@ -45,14 +45,6 @@ const FEEDING_RATE_TABLE = [
     { sizeRange: '15–20 g', rate: '2.5–3%' },
     { sizeRange: '> 20 g', rate: '2–2.5%' },
 ];
-
-/**
- * A pond holding more than 100 million post-larvae does not exist. Without a
- * ceiling the screen rendered 4.8e16 kg of feed per day with the confidence of
- * a real answer, and the biomass stat clipped silently past
- * Number.MAX_SAFE_INTEGER (QA BUG-011).
- */
-const MAX_STOCKING_COUNT = 100_000_000;
 
 export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
