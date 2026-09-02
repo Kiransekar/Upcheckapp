@@ -1,4 +1,9 @@
+import { BadRequestException } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
 import { ShrimpCalculationsService } from './shrimp-calculations.service';
+import { ShrimpCalculationsController } from './shrimp-calculations.controller';
+import { FreeAmmoniaDto } from './dto/advanced-calculations.dto';
 
 /**
  * QA BUG-001. The service used to band the RAW double and round afterwards, so
@@ -59,5 +64,76 @@ describe('calculateSurvivalRate — clamp', () => {
 
   it('still returns 0 for an unstocked pond', () => {
     expect(svc.calculateSurvivalRate(0, 500)).toBe(0);
+  });
+});
+
+/**
+ * QA BUG-004. recommended-feeding-rate typed its query param as `number`, but
+ * Nest passes query strings through as strings, so the type was decorative.
+ * Number('abc') is NaN, every `<` rung of the step table was false, and
+ * control fell to the unconditional tail `return 1.8`. Empty string became 0
+ * and matched the post-larvae bucket, returning 10. Both came back HTTP 200
+ * as confident advice.
+ */
+describe('recommended-feeding-rate — rejects junk instead of answering it', () => {
+  let controller: ShrimpCalculationsController;
+  let calculationsService: any;
+
+  beforeEach(() => {
+    calculationsService = {
+      getRecommendedFeedingRate: jest.fn().mockReturnValue(3.2),
+    };
+    controller = new ShrimpCalculationsController(calculationsService);
+  });
+
+  it('rejects a non-numeric averageWeightG instead of falling through to 1.8', () => {
+    expect(() => controller.getRecommendedFeedingRate('abc')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects an empty averageWeightG instead of matching the post-larvae bucket', () => {
+    expect(() => controller.getRecommendedFeedingRate('')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects a negative averageWeightG', () => {
+    expect(() => controller.getRecommendedFeedingRate('-5')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('passes a valid averageWeightG through to the service', () => {
+    const result = controller.getRecommendedFeedingRate('15');
+    expect(result).toEqual({ recommendedFeedingRatePercent: 3.2 });
+  });
+});
+
+/**
+ * QA BUG-007. FreeAmmoniaDto.ph had @Min(0) but no @Max, so pH 20 validated
+ * and computed happily. pH is defined on [0, 14].
+ */
+describe('FreeAmmoniaDto.ph — bounded to the pH scale', () => {
+  it('rejects a pH above 14', async () => {
+    const dto = plainToInstance(FreeAmmoniaDto, {
+      tan: 1,
+      ph: 20,
+      temperature: 28,
+    });
+    const errors = await validate(dto);
+    const phError = errors.find((e) => e.property === 'ph');
+    expect(phError?.constraints).toHaveProperty('max');
+  });
+
+  it('accepts a normal pH within range', async () => {
+    const dto = plainToInstance(FreeAmmoniaDto, {
+      tan: 1,
+      ph: 8.2,
+      temperature: 28,
+    });
+    const errors = await validate(dto);
+    const phError = errors.find((e) => e.property === 'ph');
+    expect(phError).toBeUndefined();
   });
 });
