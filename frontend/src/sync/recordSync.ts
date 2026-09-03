@@ -16,12 +16,12 @@ import { syncReminders } from '../utils/notifications';
  * Offline → queue immediately and return optimistically ("saved, will sync").
  * A server rejection (4xx/5xx with a response) is a real error and is thrown.
  *
- * This is also where FRESHNESS-AFTER-YOUR-OWN-WRITE is enforced. All sixteen
- * log screens save through here and every one already passes `entity`, so a
- * single `invalidateForEntity()` call on the success path (and on a landed
- * drain) refreshes every cached read that write could have moved — without any
- * screen having to know about it. The farmer complained once about having to
- * refresh manually after logging; do not trade that back for a smaller diff.
+ * FRESHNESS-AFTER-YOUR-OWN-WRITE is enforced by the axios response
+ * interceptor now (src/api/client.ts), which invalidates on every successful
+ * write by matching the request URL — this function no longer calls
+ * `invalidateForEntity()` itself on the success path; the interceptor already
+ * saw the same POST and owns it. Do not add it back here — that would
+ * invalidate the same keys twice for one save.
  *
  * NOTE for whoever adds the seventeenth endpoint: the backend's ValidationPipe
  * runs with `whitelist: true` (backend/src/main.ts), so a DTO that forgets to
@@ -64,8 +64,9 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
 
     try {
         const { data } = await apiClient.post(endpoint, body);
-        // The server now has it — every cached read this record moves is stale.
-        invalidateForEntity(entity);
+        // The server now has it. The response interceptor (api/client.ts) has
+        // already invalidated every cached read this record moves — do not
+        // call invalidateForEntity() here too, see the comment above.
         // Re-arm reminders from the contexts already sitting in the Today
         // screen's cache — best-effort, not awaited (a slow read must never
         // delay the save the farmer is waiting on) and never allowed to turn
@@ -78,9 +79,9 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
         // repeatedly (see query/client.ts). Firing it on every save
         // reintroduced a full round trip of real server work per save on a
         // rural connection, just to hand fresh contexts to syncReminders.
-        // If nothing is cached yet, invalidateForEntity() above already
-        // marked it stale, so the Today screen refetches on its own and the
-        // next app-foreground re-arms from fresh data instead.
+        // If nothing is cached yet, the interceptor's invalidation above
+        // already marked it stale, so the Today screen refetches on its own
+        // and the next app-foreground re-arms from fresh data instead.
         try {
             const cached = queryClient.getQueryData<TodaySnapshot>([...qk.briefing(), 'home']);
             if (cached?.contexts?.length) {
