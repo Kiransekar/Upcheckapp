@@ -160,6 +160,8 @@ const settings = {
   reminderAfternoon: "మధ్యాహ్నం తనిఖీ",
   reminderEvening: "సాయంత్రం తనిఖీ",
   reminderChemistry: "వారపు రసాయన తనిఖీ",
+  reminderHourLabel: "గంట",
+  reminderMinuteLabel: "నిమిషం",
 };
 
 export default settings;

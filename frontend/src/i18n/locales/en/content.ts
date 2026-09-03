@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: "Couldn't Load Article",
     emptyTitle: 'No News Articles',
     emptySubtitle: 'Check back later for the latest updates.',
+    noRecentNews: 'No recent news',
+    noRecentNewsSubtitle: "We haven't found anything new to show you. Pull down to check again.",
+    ago: '{{ago}} ago',
     categories: {
       market: 'Market & prices',
       regulation: 'Rules & regulations',
@@ -149,6 +152,21 @@ const content = {
     offlineTitle: 'Showing saved news',
     offlineMessage: 'No connection — last updated {{date}}.',
     offlineLink: 'This article needs a connection.',
+    translate: {
+      action: 'Translate & explain',
+      copied: 'Prompt copied to clipboard',
+      modalTitle: 'Translate & explain',
+      modalBody: "Couldn't open the share sheet. Copy the prompt below and paste it into your translation app.",
+      copyButton: 'Copy prompt',
+      close: 'Close',
+      prompt: {
+        instruction: 'Translate this news article into English and explain it simply for a shrimp farmer. Give a one-line translation first, then a short explanation.',
+        headline: 'Headline',
+        summary: 'Summary',
+        source: 'Source',
+        shared: 'Shared from the Upcheck app.',
+      },
+    },
   },
 };
 

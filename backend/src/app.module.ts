@@ -59,6 +59,7 @@ import { AlertCenterModule } from './alert-center/alert-center.module';
 import { BannedSubstancesModule } from './banned-substances/banned-substances.module';
 import { PondContextModule } from './pond-context/pond-context.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 @Module({
   imports: [
@@ -231,6 +232,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     PondContextModule,
     BannedSubstancesModule,
     FeedbackModule,
+    AnnouncementsModule,
   ],
   controllers: [AppController],
   providers: [

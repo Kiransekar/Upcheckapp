@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'ఆ కోడ్‌తో చేరలేకపోయాము. తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "దశ {{current}} / {{total}}",
   languageTitle: "మీ భాషను ఎంచుకోండి",
   welcomeTitle: "అప్‌చెక్‌కు స్వాగతం",
   welcomeSubtitle: "మీ రొయ్యల ఫారమ్‌కు రోజువారీ సహాయకుడు",

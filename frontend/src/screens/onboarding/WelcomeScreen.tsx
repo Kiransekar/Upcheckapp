@@ -21,6 +21,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { BrandLockup } from '../../components/ui/ShrimpLogo';
 import { Button } from '../../components/ui/Button';
 import { Icon, IconName } from '../../components/ui/Icon';
+import { OnboardingProgress } from '../../components/ui/OnboardingProgress';
 import { theme } from '../../theme';
 
 const PROPS: { icon: IconName; key: string }[] = [
@@ -34,6 +35,19 @@ export const WelcomeScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false}>
+            {/* Language is reachable again from here — see the header comment
+                for why this screen used to have nowhere to go back to. */}
+            <TouchableOpacity
+                onPress={() => navigation.goBack()}
+                style={styles.back}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.back')}
+            >
+                <Icon name="arrow_back" size={24} color={theme.roles.light.textPrimary} />
+            </TouchableOpacity>
+
+            <OnboardingProgress step={2} />
+
             <View style={styles.brandRow}>
                 <BrandLockup size={24} />
             </View>
@@ -74,7 +88,14 @@ export const WelcomeScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    brandRow: { paddingTop: theme.spacing[4], paddingBottom: theme.spacing[10] },
+    back: {
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        marginLeft: -theme.spacing[2],
+        marginTop: theme.spacing[2],
+    },
+    brandRow: { paddingTop: theme.spacing[2], paddingBottom: theme.spacing[8] },
     title: { ...theme.typeScale.displaySmall, color: theme.roles.light.textPrimary },
     subtitle: {
         ...theme.typeScale.bodyLarge,

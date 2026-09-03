@@ -14,7 +14,7 @@
  * as the rest of the page rather than as the old card grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, Modal, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useTranslation } from 'react-i18next';
@@ -25,6 +25,7 @@ import { LANGUAGES } from '../../i18n/languages';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
+import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import {
@@ -44,6 +45,9 @@ import { useMembershipStore } from '../../store/membershipStore';
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
 type ReminderSlot = keyof ReminderTimes;
+
+/** "06:30" — 24-hour, matching formatTime's "how a shift is written on a farm". */
+const formatHM = (v: HM) => `${String(v.hour).padStart(2, '0')}:${String(v.minute).padStart(2, '0')}`;
 
 const c = theme.roles.light;
 
@@ -75,6 +79,10 @@ export const SettingsScreen = ({ navigation }: any) => {
     // round trip per tap.
     const [reminderTimes, setReminderTimes] = useState<ReminderTimes>(DEFAULT_REMINDER_TIMES);
     const pondContextsRef = useRef<PondContext[]>([]);
+    // Which slot's picker sheet is open — null means closed. One shared modal
+    // rather than one per row: the four rows already show their current value
+    // at a glance, the modal is only needed while actually changing it.
+    const [openSlot, setOpenSlot] = useState<ReminderSlot | null>(null);
 
     useEffect(() => {
         AsyncStorage.getItem('pushNotifications')
@@ -166,33 +174,34 @@ export const SettingsScreen = ({ navigation }: any) => {
         { key: 'shop', icon: 'workspace_premium', label: t('home.moreShop'), route: 'Shop' },
     ];
 
+    // The four reminder slots, paired with their translated labels — a single
+    // list so the row and the sheet title always agree on what "morning"
+    // etc. means.
+    const REMINDER_SLOTS: { slot: ReminderSlot; label: string }[] = [
+        { slot: 'morning', label: t('settings.reminderMorning') },
+        { slot: 'afternoon', label: t('settings.reminderAfternoon') },
+        { slot: 'evening', label: t('settings.reminderEvening') },
+        { slot: 'chemistry', label: t('settings.reminderChemistry') },
+    ];
+    const openSlotLabel = REMINDER_SLOTS.find((s) => s.slot === openSlot)?.label ?? '';
+    const openValue = openSlot ? reminderTimes[openSlot] : null;
+
+    // Whole row is the tap target and the value is shown in big tabular-figure
+    // type — legible at a glance and obviously editable, without opening
+    // anything, on a screen read outdoors.
     const TimeRow: React.FC<{ label: string; slot: ReminderSlot; value: HM }> = ({ label, slot, value }) => (
-        <View style={styles.timeRow}>
+        <TouchableOpacity
+            style={styles.timeRow}
+            onPress={() => setOpenSlot(slot)}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}, ${formatHM(value)}`}
+        >
             <Text style={styles.rowLabel} numberOfLines={1}>{label}</Text>
-            <View style={styles.timePickers}>
-                <View style={styles.timePickerWrap}>
-                    <Picker
-                        selectedValue={value.hour}
-                        onValueChange={(v) => updateReminderTime(slot, 'hour', Number(v))}
-                    >
-                        {HOURS.map((h) => (
-                            <Picker.Item key={h} label={String(h).padStart(2, '0')} value={h} />
-                        ))}
-                    </Picker>
-                </View>
-                <Text style={styles.timeSep}>:</Text>
-                <View style={styles.timePickerWrap}>
-                    <Picker
-                        selectedValue={value.minute}
-                        onValueChange={(v) => updateReminderTime(slot, 'minute', Number(v))}
-                    >
-                        {MINUTES.map((m) => (
-                            <Picker.Item key={m} label={String(m).padStart(2, '0')} value={m} />
-                        ))}
-                    </Picker>
-                </View>
+            <View style={styles.timeValueWrap}>
+                <Text style={styles.timeValue}>{formatHM(value)}</Text>
+                <Icon name="expand_more" size={20} color={c.textSecondary} />
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     const Row: React.FC<{ row: LinkRow }> = ({ row }) => (
@@ -293,10 +302,9 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 <SectionHeader label={t('settings.reminderTimes')} />
                 <Text style={styles.note}>{t('settings.reminderTimesDesc')}</Text>
-                <TimeRow label={t('settings.reminderMorning')} slot="morning" value={reminderTimes.morning} />
-                <TimeRow label={t('settings.reminderAfternoon')} slot="afternoon" value={reminderTimes.afternoon} />
-                <TimeRow label={t('settings.reminderEvening')} slot="evening" value={reminderTimes.evening} />
-                <TimeRow label={t('settings.reminderChemistry')} slot="chemistry" value={reminderTimes.chemistry} />
+                {REMINDER_SLOTS.map(({ slot, label }) => (
+                    <TimeRow key={slot} label={label} slot={slot} value={reminderTimes[slot]} />
+                ))}
 
                 <SectionHeader label={t('settings.security')} />
                 <Row row={{ key: '2fa', icon: 'key', label: t('settings.twoFactor'), route: 'TwoFactor' }} />
@@ -363,6 +371,63 @@ export const SettingsScreen = ({ navigation }: any) => {
                     </TouchableOpacity>
                 </View>
             </ScrollView>
+
+            {/* One shared sheet for all four slots, in the same tap-a-field/
+                bottom-sheet shape as SelectField and CalendarPicker — the
+                Picker inside is still @react-native-picker/picker (no new
+                dependency; already in the OTA binary), just no longer sitting
+                bare on the settings page as two tiny always-open wheels. */}
+            <Modal
+                visible={openSlot !== null}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setOpenSlot(null)}
+            >
+                <Pressable style={styles.backdrop} onPress={() => setOpenSlot(null)}>
+                    <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+                        <View style={styles.sheetHeader}>
+                            <Text style={styles.sheetTitle}>{openSlotLabel}</Text>
+                            <TouchableOpacity onPress={() => setOpenSlot(null)} hitSlop={8} accessibilityRole="button">
+                                <Icon name="close" size={22} color={c.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {openSlot && openValue && (
+                            <View style={styles.pickerRow}>
+                                <View style={styles.pickerCol}>
+                                    <Text style={styles.pickerLabel}>{t('settings.reminderHourLabel')}</Text>
+                                    <View style={styles.pickerBox}>
+                                        <Picker
+                                            selectedValue={openValue.hour}
+                                            onValueChange={(v) => updateReminderTime(openSlot, 'hour', Number(v))}
+                                        >
+                                            {HOURS.map((h) => (
+                                                <Picker.Item key={h} label={String(h).padStart(2, '0')} value={h} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                </View>
+                                <Text style={styles.timeSep}>:</Text>
+                                <View style={styles.pickerCol}>
+                                    <Text style={styles.pickerLabel}>{t('settings.reminderMinuteLabel')}</Text>
+                                    <View style={styles.pickerBox}>
+                                        <Picker
+                                            selectedValue={openValue.minute}
+                                            onValueChange={(v) => updateReminderTime(openSlot, 'minute', Number(v))}
+                                        >
+                                            {MINUTES.map((m) => (
+                                                <Picker.Item key={m} label={String(m).padStart(2, '0')} value={m} />
+                                            ))}
+                                        </Picker>
+                                    </View>
+                                </View>
+                            </View>
+                        )}
+
+                        <Button title={t('common.done')} onPress={() => setOpenSlot(null)} style={styles.sheetDone} />
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </ScreenWrapper>
     );
 };
@@ -439,15 +504,42 @@ const styles = StyleSheet.create({
         borderTopColor: c.surfaceVariant,
         minHeight: 48,
     },
-    timePickers: { flexDirection: 'row', alignItems: 'center' },
-    timePickerWrap: {
-        width: 84,
+    timeValueWrap: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1] },
+    timeValue: { ...theme.typeScale.numericMedium, color: c.textPrimary },
+    timeSep: { ...theme.typeScale.h2, color: c.textSecondary, marginHorizontal: theme.spacing[1] },
+
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+    sheet: {
+        backgroundColor: c.surface,
+        borderTopLeftRadius: theme.radius.xl,
+        borderTopRightRadius: theme.radius.xl,
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[4],
+        paddingBottom: theme.spacing[8],
+    },
+    sheetHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: theme.spacing[5],
+    },
+    sheetTitle: { ...theme.typeScale.h3, color: c.textPrimary },
+    pickerRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center' },
+    pickerCol: { flex: 1, maxWidth: 140 },
+    pickerLabel: {
+        ...theme.typeScale.labelMedium,
+        color: c.textSecondary,
+        textAlign: 'center',
+        marginBottom: theme.spacing[2],
+    },
+    pickerBox: {
         borderWidth: 1,
         borderColor: c.borderDefault,
         borderRadius: theme.radius.sm,
         overflow: 'hidden',
+        backgroundColor: c.surface,
     },
-    timeSep: { ...theme.typeScale.labelLarge, color: c.textSecondary, marginHorizontal: theme.spacing[1] },
+    sheetDone: { alignSelf: 'stretch', marginTop: theme.spacing[6] },
     rowLabel: { ...theme.typeScale.labelLarge, flex: 1, minWidth: 0, color: c.textPrimary },
     rowSub: { ...theme.typeScale.bodySmall, color: c.textTertiary },
     version: { fontFamily: 'DMMono-Regular', fontSize: 13, color: c.textTertiary },

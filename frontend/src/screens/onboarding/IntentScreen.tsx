@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Button } from '../../components/ui/Button';
 import { Icon, IconName } from '../../components/ui/Icon';
+import { OnboardingProgress } from '../../components/ui/OnboardingProgress';
 import { theme } from '../../theme';
 import type { SignupIntent } from '../../store/authStore';
 
@@ -55,6 +56,8 @@ export const IntentScreen = ({ navigation }: any) => {
             >
                 <Icon name="arrow_back" size={24} color={theme.roles.light.textPrimary} />
             </TouchableOpacity>
+
+            <OnboardingProgress step={3} />
 
             <Text style={styles.title}>{t('onboarding.intentTitle')}</Text>
 

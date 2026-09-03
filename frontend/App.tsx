@@ -12,6 +12,7 @@ import RootNavigator, { type RootStackParamList } from './src/navigation/RootNav
 import { routeForNotification } from './src/features/notificationRouting';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { ToastHost } from './src/components/ui/ToastHost';
+import { WhatsNewCard } from './src/components/ui/WhatsNewCard';
 import { registerForPushNotificationsAsync, syncReminders } from './src/utils/notifications';
 import { alertCenterApi } from './src/api/alertCenter';
 import { useAuthStore } from './src/store/authStore';
@@ -71,6 +72,11 @@ export default function App() {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  // Flips true once the navigator is mounted AND the cold-start notification
+  // (if any) has been resolved — see onReady below. Gates WhatsNewCard so it
+  // never appears over the login flow, before the navigator exists, or on
+  // top of a tap that's about to route the farmer to their support reply.
+  const [navReady, setNavReady] = useState(false);
 
   // Once we have a real Expo token and an authenticated session, register the
   // token with the backend so server-side alerts can be delivered as push.
@@ -194,6 +200,12 @@ export default function App() {
                 })
                 .catch(() => {
                   /* best-effort; a failed read must never block app start */
+                })
+                .finally(() => {
+                  // Only now is it safe to consider showing WhatsNewCard: the
+                  // cold-start notification route (if any) has already been
+                  // dispatched, so the card never fights it for the screen.
+                  setNavReady(true);
                 });
             }}
           >
@@ -201,6 +213,14 @@ export default function App() {
           </NavigationContainer>
           {/* App-wide transient confirmations (e.g. "Saved" after a log). */}
           <ToastHost />
+          {/*
+            * "What's new" — undismissed announcements. Gated on auth (never
+            * shown over the login flow) and navReady (never shown before the
+            * navigator exists or ahead of a cold-start notification route).
+            * Self-contained: fetches its own data and renders nothing on an
+            * empty response or a failed fetch.
+            */}
+          {isAuthenticated && navReady && <WhatsNewCard />}
         </SafeAreaProvider>
       </PersistQueryClientProvider>
     </ErrorBoundary>

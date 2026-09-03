@@ -32,6 +32,7 @@ import team from './team';
 import feedback from './feedback';
 import sync from './sync';
 import notifications from './notifications';
+import whatsNew from './whatsNew';
 
 export default {
   common,
@@ -62,4 +63,5 @@ export default {
   feedback,
   sync,
   notifications,
+  whatsNew,
 };

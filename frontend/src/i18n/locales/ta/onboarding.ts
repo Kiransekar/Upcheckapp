@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'அந்த குறியீட்டுடன் இணைக்க முடியவில்லை. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "படி {{current}} / {{total}}",
   languageTitle: "உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்",
   welcomeTitle: "அப்செக்கிற்கு வரவேற்கிறோம்",
   welcomeSubtitle: "உங்கள் இறால் பண்ணையின் தினசரி உதவியாளர்",

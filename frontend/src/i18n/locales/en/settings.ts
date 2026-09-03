@@ -163,6 +163,8 @@ const settings = {
   reminderAfternoon: "Afternoon check",
   reminderEvening: "Evening check",
   reminderChemistry: "Weekly chemistry check",
+  reminderHourLabel: "Hour",
+  reminderMinuteLabel: "Minute",
 };
 
 export default settings;
