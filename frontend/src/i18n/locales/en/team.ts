@@ -2,7 +2,8 @@ const team = {
     title: 'Team',
     // The tab spans every farm by default; the chips narrow it.
     allFarms: "All farms",
-    addWorker: 'Add worker',
+    // The header button goes to the roster, so it says what it opens.
+    manageTeam: 'Manage team',
     noFarmTitle: "No farms yet",
     noFarmSub: "Create or join a farm to see its team.",
     checkedInAt: 'You checked in at {{time}}',

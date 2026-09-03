@@ -127,5 +127,21 @@ const ponds = {
 
   sessionHintLogged: "నమోదైంది",
   sessionHintFed: "మేత ఇచ్చారు",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ఈ రోజు ఈ చెరువులో",
+  todayEmpty: "ఈ రోజు ఇంకా ఏమీ నమోదు కాలేదు.",
+  modeHintLog: "కొత్త నమోదు చేయడానికి కార్డును నొక్కండి",
+  modeHintHistory: "పాత నమోదులు చూడటానికి కార్డును నొక్కండి",
+  tileDone: "ఈ సెషన్‌లో పూర్తయింది",
+  tilePending: "ఇంకా పూర్తి కాలేదు",
+  tileNeedsCycle: "సైకిల్ కావాలి",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "డబ్బు — ముగిసిన సైకిల్",
+  metricRevenue: "ఆదాయం",
+  metricProfit: "లాభం",
+  metricLoss: "నష్టం",
+  metricMargin: "మార్జిన్",
 };
 export default ponds;

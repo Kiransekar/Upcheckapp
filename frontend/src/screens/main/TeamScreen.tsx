@@ -29,9 +29,13 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { CacheNotice } from '../../components/ui/CacheNotice';
+import { ChipGroup } from '../../components/ui/ChipGroup';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { StatusBadge, type StatusType } from '../../components/ui/StatusBadge';
+import { SummaryRow } from '../../components/ui/SummaryRow';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
@@ -73,12 +77,16 @@ const hhmm = (iso: string) =>
 
 const memberName = (m?: FarmMember) => personName(m?.user, "");
 
-/** Status pill colour — the design uses colour AND the word, never colour alone. */
-const STATUS_COLOR: Record<string, string> = {
-    open: theme.roles.light.textTertiary,
-    in_progress: theme.roles.light.primary,
-    done: theme.roles.light.warningText,
-    verified: theme.roles.light.successText,
+/**
+ * Task status → StatusBadge tone. A bordered pill reads at arm's length in
+ * sun far better than the coloured uppercase text this used to be, and the
+ * word is still there — colour is never the only signal.
+ */
+const STATUS_TONE: Record<string, StatusType> = {
+    open: 'idle',
+    in_progress: 'info',
+    done: 'warning',
+    verified: 'safe',
 };
 
 export const TeamScreen = ({ navigation }: any) => {
@@ -216,46 +224,45 @@ export const TeamScreen = ({ navigation }: any) => {
                     </Text>
                     <Text style={styles.title}>{t('team.title')}</Text>
                 </View>
+                {/* The roster is the thing this opens, so it says so — and it
+                    is a real 48dp button, not a text link that nobody on a
+                    low-end screen in sun reads as tappable. */}
                 {perms.canInviteMember && (
-                    <TouchableOpacity
+                    <Button
+                        title={t('team.manageTeam')}
+                        variant="outlined"
                         onPress={() => navigation.navigate('FarmMembers', { farmId, farmName: primaryFarm?.name })}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    >
-                        <Text style={styles.headerAction}>{t('team.addWorker')}</Text>
-                    </TouchableOpacity>
+                        style={styles.manageBtn}
+                    />
                 )}
             </View>
 
             <CacheNotice updatedAt={query.dataUpdatedAt} stale={query.isError} />
 
-            {/* Scope chips, like Money. The header's one text-link slot is
-                already "Add worker", and with a single farm "All farms" and
-                its name are the same view under two labels. */}
+            {/* Scope chips, like Money. With a single farm "All farms" and its
+                name are the same view under two labels, so they only appear
+                from two. ChipGroup wraps rather than scrolling: a chip a
+                farmer cannot see is a filter they will not find. */}
             {farms.length > 1 && (
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.chips}
-                >
-                    <Chip
-                        label={t('team.allFarms')}
-                        active={activeScope === ALL}
-                        onPress={() => setScope(ALL)}
+                <View style={styles.chips}>
+                    <ChipGroup
+                        options={[
+                            { value: ALL, label: t('team.allFarms') },
+                            ...farms.map((f) => ({ value: f.id, label: f.name })),
+                        ]}
+                        value={activeScope}
+                        // ChipGroup deselects on a second tap of the active
+                        // chip; "no scope" means every farm here.
+                        onChange={(next: string | null) => {
+                            const value = next ?? ALL;
+                            setScope(value);
+                            // Keep the app-wide active farm in step, so the
+                            // roster and leave screens open on the same one.
+                            const farm = farms.find((f) => f.id === value);
+                            if (farm) setSelectedFarm({ id: farm.id, name: farm.name });
+                        }}
                     />
-                    {farms.map((f) => (
-                        <Chip
-                            key={f.id}
-                            label={f.name}
-                            active={activeScope === f.id}
-                            onPress={() => {
-                                setScope(f.id);
-                                // Keep the app-wide active farm in step, so the
-                                // roster and leave screens open on the same one.
-                                setSelectedFarm({ id: f.id, name: f.name });
-                            }}
-                        />
-                    ))}
-                </ScrollView>
+                </View>
             )}
 
             <ScrollView
@@ -282,65 +289,46 @@ export const TeamScreen = ({ navigation }: any) => {
 
                 {perms.canManageMembers && (
                     <>
-                        <TouchableOpacity
-                            style={styles.summaryRow}
+                        <SummaryRow
+                            icon="groups"
+                            title={t('team.attendance')}
+                            subtitle={t('team.checkedInCount', {
+                                count: checkedInToday,
+                                total: activeMembers.length,
+                            })}
+                            value={String(checkedInToday)}
+                            unit={`/${activeMembers.length}`}
                             onPress={() => navigation.navigate('Attendance', { farmId })}
-                        >
-                            <Icon name="groups" size={24} color={theme.roles.light.textSecondary} />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.summaryTitle}>{t('team.attendance')}</Text>
-                                <Text style={styles.summarySub}>
-                                    {t('team.checkedInCount', { count: checkedInToday, total: activeMembers.length })}
-                                </Text>
-                            </View>
-                            <Text style={styles.summaryCount}>
-                                {checkedInToday}
-                                <Text style={styles.summaryCountTotal}>/{activeMembers.length}</Text>
-                            </Text>
-                            <Icon name="chevron_right" size={22} color={theme.roles.light.textTertiary} />
-                        </TouchableOpacity>
+                        />
 
-                        <TouchableOpacity
-                            style={[styles.summaryRow, pendingLeave.length > 0 && styles.summaryRowAlert]}
+                        <SummaryRow
+                            icon="event_busy"
+                            title={t('team.leave')}
+                            subtitle={
+                                pendingLeave.length > 0
+                                    ? t('team.leaveWaiting', { count: pendingLeave.length })
+                                    : t('team.leaveNone')
+                            }
+                            value={pendingLeave.length > 0 ? String(pendingLeave.length) : null}
+                            tone={pendingLeave.length > 0 ? 'warning' : 'default'}
+                            divider="strong"
                             onPress={() =>
                                 navigation.navigate('LeaveRequests', {
                                     farmId: activeScope === ALL ? undefined : farmId,
                                     farmName: activeScope === ALL ? undefined : primaryFarm?.name,
                                 })
                             }
-                        >
-                            <Icon
-                                name="event_busy"
-                                size={24}
-                                color={pendingLeave.length > 0 ? theme.roles.light.warningText : theme.roles.light.textSecondary}
-                            />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.summaryTitle}>{t('team.leave')}</Text>
-                                <Text style={styles.summarySub}>
-                                    {pendingLeave.length > 0
-                                        ? t('team.leaveWaiting', { count: pendingLeave.length })
-                                        : t('team.leaveNone')}
-                                </Text>
-                            </View>
-                            {pendingLeave.length > 0 && (
-                                <Text style={[styles.summaryCount, { color: theme.roles.light.warningText }]}>
-                                    {pendingLeave.length}
-                                </Text>
-                            )}
-                            <Icon name="chevron_right" size={22} color={theme.roles.light.textTertiary} />
-                        </TouchableOpacity>
+                        />
                     </>
                 )}
 
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionLabel}>{t('team.tasksToday')}</Text>
-                    <View style={styles.sectionRule} />
-                    {perms.canManageMembers && (
-                        <TouchableOpacity onPress={() => navigation.navigate('TaskList', { farmId, farmName: primaryFarm?.name })}>
-                            <Text style={styles.headerAction}>{t('team.assign')}</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
+                <SectionHeader
+                    label={t('team.tasksToday')}
+                    actionLabel={perms.canManageMembers ? t('team.assign') : undefined}
+                    onAction={() =>
+                        navigation.navigate('TaskList', { farmId, farmName: primaryFarm?.name })
+                    }
+                />
 
                 {tallies.length > 0 && (
                     <View style={styles.tallyRow}>
@@ -373,6 +361,8 @@ export const TeamScreen = ({ navigation }: any) => {
                             <TouchableOpacity
                                 key={tk.id}
                                 style={styles.taskRow}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${tk.title} · ${t(`team.status_${tk.status}`, tk.status)}`}
                                 onPress={() => navigation.navigate('TaskList', { farmId: tk.farmId, farmName: farmName(tk.farmId) })}
                             >
                                 <View
@@ -397,64 +387,37 @@ export const TeamScreen = ({ navigation }: any) => {
                                             .join(' · ')}
                                     </Text>
                                 </View>
-                                <Text style={[styles.taskStatus, { color: STATUS_COLOR[tk.status] ?? theme.roles.light.textTertiary }]}>
-                                    {t(`team.status_${tk.status}`, tk.status)}
-                                </Text>
+                                <StatusBadge
+                                    status={STATUS_TONE[tk.status] ?? 'idle'}
+                                    label={t(`team.status_${tk.status}`, tk.status)}
+                                />
                             </TouchableOpacity>
                         );
                     })
                 )}
 
                 {!showAllTasks && tasks.length > 5 && (
-                    <TouchableOpacity onPress={() => setShowAllTasks(true)} style={styles.showMore}>
-                        <Text style={styles.headerAction}>
-                            {t('team.showMoreTasks', { count: tasks.length - 5 })}
-                        </Text>
-                    </TouchableOpacity>
+                    <Button
+                        title={t('team.showMoreTasks', { count: tasks.length - 5 })}
+                        variant="text"
+                        onPress={() => setShowAllTasks(true)}
+                        style={styles.showMore}
+                    />
                 )}
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
-const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({
-    label,
-    active,
-    onPress,
-}) => (
-    <TouchableOpacity
-        style={[styles.chip, active && styles.chipActive]}
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityState={{ selected: active }}
-    >
-        <Text style={[styles.chipLabel, active && styles.chipLabelActive]} numberOfLines={1}>
-            {label}
-        </Text>
-    </TouchableOpacity>
-);
-
 const styles = StyleSheet.create({
     loadingBlock: { gap: theme.spacing[3], padding: theme.spacing[4] },
     chips: {
-        gap: theme.spacing[2],
         paddingHorizontal: theme.spacing[5],
-        paddingVertical: theme.spacing[2],
+        paddingTop: theme.spacing[2],
         backgroundColor: theme.roles.light.surface,
         borderBottomWidth: 1,
         borderBottomColor: theme.roles.light.borderDefault,
     },
-    chip: {
-        borderWidth: 1.5,
-        borderColor: theme.roles.light.borderDefault,
-        borderRadius: theme.radius.xs,
-        paddingHorizontal: theme.spacing[3],
-        justifyContent: 'center',
-        minHeight: 36,
-    },
-    chipActive: { borderColor: theme.roles.light.borderStrong, backgroundColor: theme.roles.light.surfaceVariant },
-    chipLabel: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary },
-    chipLabelActive: { color: theme.roles.light.textPrimary },
     header: {
         flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing[3],
         paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[2], paddingBottom: theme.spacing[3],
@@ -465,7 +428,9 @@ const styles = StyleSheet.create({
         letterSpacing: 1.2, fontWeight: '600',
     },
     title: { ...theme.typeScale.h1, color: theme.roles.light.textPrimary },
-    headerAction: { ...theme.typeScale.bodyMedium, color: theme.roles.light.primary, fontWeight: '600' },
+    // Sized to its label rather than to the header, so a long translation
+    // shrinks the button instead of squeezing the screen title off the row.
+    manageBtn: { flexShrink: 1, maxWidth: '52%', paddingHorizontal: theme.spacing[4] },
     body: { paddingBottom: theme.spacing[8] },
 
     checkInCard: {
@@ -477,30 +442,9 @@ const styles = StyleSheet.create({
     checkInSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     checkOutBtn: { paddingHorizontal: theme.spacing[4] },
 
-    summaryRow: {
-        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3],
-        paddingVertical: theme.spacing[4], paddingHorizontal: theme.spacing[4],
-        borderTopWidth: 1, borderTopColor: theme.roles.light.borderDefault,
-    },
-    summaryRowAlert: { backgroundColor: theme.roles.light.warningBg },
-    summaryTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
-    summarySub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
-    summaryCount: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
-    summaryCountTotal: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textTertiary },
-
-    sectionHeader: {
-        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2],
-        paddingHorizontal: theme.spacing[4], paddingTop: theme.spacing[5], paddingBottom: theme.spacing[2],
-    },
-    sectionLabel: {
-        ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary,
-        letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: '600',
-    },
-    sectionRule: { flex: 1, height: 1, backgroundColor: theme.roles.light.borderDefault },
-
     tallyRow: {
         flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4],
-        paddingHorizontal: theme.spacing[4], paddingBottom: theme.spacing[2], flexWrap: 'wrap',
+        paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[2], flexWrap: 'wrap',
     },
     tally: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     tallyNum: { fontWeight: '700', color: theme.roles.light.textPrimary },
@@ -508,14 +452,14 @@ const styles = StyleSheet.create({
 
     taskRow: {
         flexDirection: 'row', alignItems: 'center', gap: theme.spacing[3],
-        paddingVertical: theme.spacing[3], paddingRight: theme.spacing[4],
-        borderTopWidth: 1, borderTopColor: theme.roles.light.borderDefault,
+        paddingVertical: theme.spacing[3], paddingRight: theme.spacing[5],
+        borderTopWidth: 1, borderTopColor: theme.roles.light.surfaceVariant,
+        minHeight: 56,
     },
-    taskBar: { width: 3, height: 34, borderRadius: 2 },
+    taskBar: { width: 4, height: 40, borderRadius: 2 },
     taskTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     taskMeta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
-    taskStatus: { ...theme.typeScale.bodySmall, fontWeight: '700', textTransform: 'uppercase' },
-    showMore: { padding: theme.spacing[4] },
+    showMore: { alignSelf: 'flex-start', marginHorizontal: theme.spacing[4], marginTop: theme.spacing[2] },
 });
 
 export default TeamScreen;

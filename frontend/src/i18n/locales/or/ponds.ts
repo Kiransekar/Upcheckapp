@@ -127,5 +127,21 @@ const ponds = {
 
   sessionHintLogged: "ଲଗ୍ ହେଲା",
   sessionHintFed: "ଖୁଆଯାଇଛି",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ଆଜି ଏହି ପୋଖରୀରେ",
+  todayEmpty: "ଆଜି ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲଗ୍ ହୋଇନାହିଁ।",
+  modeHintLog: "ନୂଆ ଏଣ୍ଟ୍ରି ଲେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  modeHintHistory: "ପୁରୁଣା ଏଣ୍ଟ୍ରି ଦେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  tileDone: "ଏହି ସେସନ୍‌ରେ ହୋଇଛି",
+  tilePending: "ଏବେ ବି ହୋଇନାହିଁ",
+  tileNeedsCycle: "ଏକ ଚକ୍ର ଦରକାର",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "ଟଙ୍କା — ସମାପ୍ତ ଚକ୍ର",
+  metricRevenue: "ଆୟ",
+  metricProfit: "ଲାଭ",
+  metricLoss: "କ୍ଷତି",
+  metricMargin: "ମାର୍ଜିନ୍",
 };
 export default ponds;

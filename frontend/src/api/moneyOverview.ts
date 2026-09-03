@@ -19,10 +19,30 @@ import { creditApi, type CreditLedger } from './credit';
  * financial report stays VIEW_FINANCIALS-gated. A farm the caller may not view
  * financials on simply contributes no report, exactly as before.
  */
+/**
+ * A row in the Money tab's entry list.
+ *
+ * `source: 'harvest'` marks a READ-ONLY projection of a harvest sale rather
+ * than a real transaction. A harvest already moves the headline (the financial
+ * report sums every harvest's sale price into revenue) but wrote no row the
+ * farmer could point at — so "the profit is not shown in the money tab". The
+ * backend merges them in at read time; writing a real transaction on harvest
+ * create would double-count the revenue instead.
+ *
+ * These rows have no transaction behind them, so `id` is prefixed `harvest:`
+ * and nothing may offer edit or delete on them.
+ */
+export type MoneyEntry = Omit<Transaction, 'createdAt'> & {
+    createdAt?: string;
+    source?: 'harvest';
+    buyerName?: string;
+    weightKg?: number;
+};
+
 export interface MoneyOverview {
     farms: any[];
     reports: Record<string, FinancialReport>;
-    allEntries: Transaction[];
+    allEntries: MoneyEntry[];
     credit: CreditLedger[];
 }
 

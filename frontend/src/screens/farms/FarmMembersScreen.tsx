@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Button } from '../../components/ui/Button';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -259,24 +260,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
 
                         <View style={styles.codeActions}>
                             {!!activeInvite && (
-                                <TouchableOpacity
-                                    style={styles.shareBtn}
+                                <Button
+                                    title={t('members.shareCode')}
                                     onPress={() => shareInvite(activeInvite.code)}
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={styles.shareLabel}>{t('members.shareCode')}</Text>
-                                </TouchableOpacity>
+                                    style={styles.codeBtn}
+                                />
                             )}
-                            <TouchableOpacity
-                                style={[styles.newBtn, inviteBusy && styles.busy]}
+                            <Button
+                                title={activeInvite ? t('members.newCode') : t('members.createInvite')}
+                                variant="outlined"
+                                loading={inviteBusy}
                                 onPress={rotate}
-                                disabled={inviteBusy}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.newLabel}>
-                                    {activeInvite ? t('members.newCode') : t('members.createInvite')}
-                                </Text>
-                            </TouchableOpacity>
+                                style={styles.codeBtn}
+                            />
                         </View>
                     </View>
                 )}
@@ -314,6 +310,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                     navigation.navigate('MemberDetail', { farmId, farmName, member: m })
                                 }
                                 accessibilityRole="button"
+                                accessibilityLabel={[fullName(m), t(`members.role_${m.role}`), scope]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             >
                                 <Icon name={meta.icon} size={24} color={meta.color} />
                                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -351,10 +350,15 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                 <Text style={styles.memberName}>{fullName(m)}</Text>
                                 <Text style={styles.pendingSub}>{t('members.usedYourCode')}</Text>
                                 <View style={styles.pendingActions}>
+                                    {/* Kept hand-styled: these two carry the
+                                        approve/refuse semantics in colour, which
+                                        Button's primary/outlined pair does not
+                                        offer. */}
                                     <TouchableOpacity
                                         style={styles.letInBtn}
                                         onPress={() => approve(m)}
                                         accessibilityRole="button"
+                                        accessibilityLabel={`${t('members.letIn')} — ${fullName(m)}`}
                                     >
                                         <Text style={styles.letInLabel}>{t('members.letIn')}</Text>
                                     </TouchableOpacity>
@@ -362,6 +366,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                         style={styles.declineBtn}
                                         onPress={() => decline(m)}
                                         accessibilityRole="button"
+                                        accessibilityLabel={`${t('members.decline')} — ${fullName(m)}`}
                                     >
                                         <Text style={styles.declineLabel}>{t('members.decline')}</Text>
                                     </TouchableOpacity>
@@ -376,15 +381,15 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 )}
             </ScrollView>
 
+            {/* One label for one job: this button says exactly what the screen
+                it opens is titled ("Add worker"), rather than describing one of
+                the two ways that screen lets you find someone. */}
             {perms.canInviteMember && (
                 <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={styles.inviteByBtn}
+                    <Button
+                        title={t('members.addWorker')}
                         onPress={() => navigation.navigate('AddWorker', { farmId, farmName })}
-                        accessibilityRole="button"
-                    >
-                        <Text style={styles.inviteByLabel}>{t('members.inviteByIdentifier')}</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             )}
         </ScreenWrapper>
@@ -421,26 +426,7 @@ const styles = StyleSheet.create({
     codeMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary, marginTop: 2 },
     qr: { backgroundColor: c.surface, padding: theme.spacing[2], borderRadius: theme.radius.xs },
     codeActions: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[3] },
-    shareBtn: {
-        flex: 1,
-        backgroundColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    shareLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textInverse },
-    newBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    newLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.primaryHover },
-    busy: { opacity: 0.6 },
+    codeBtn: { flex: 1, paddingHorizontal: theme.spacing[3] },
 
     farmCodeBlock: {
         paddingHorizontal: theme.spacing[5],
@@ -515,14 +501,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[3],
     },
-    inviteByBtn: {
-        backgroundColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
-    inviteByLabel: { ...theme.typeScale.labelLarge, fontSize: 16, color: c.textInverse },
 });
 
 export default FarmMembersScreen;

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PondsService } from '../ponds/ponds.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { FeedRecordsService } from '../feed-records/feed-records.service';
@@ -18,6 +18,8 @@ const ALL_PONDS_PAGE = { skip: 0, take: 10000 } as PageOptionsDto;
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     private readonly pondsService: PondsService,
     private readonly inventoryService: InventoryService,
@@ -151,12 +153,39 @@ export class ReportsService {
     // Per-pond and per-crop fan-out is parallelized (was a sequential N+1);
     // Promise.all preserves array order, so the summation order below —
     // and therefore the arithmetic result — is unchanged.
+    //
+    // Resilience is load-bearing, not defensive padding. Every one of these
+    // calls used to reject straight out of `Promise.all`, and the Money tab's
+    // batching layer catches a failed report by DROPPING THE FARM — so one bad
+    // pond or one bad cycle made a whole farm silently vanish from the tab.
+    // Degrade the crop, never the farm, and never silently.
+    //
+    // `findAllAccessible`, not `findByPond`: the latter goes through
+    // `verifyOwner`, which is OWNER-ONLY, so a manager holding VIEW_FINANCIALS
+    // 403'd here and lost the farm. This is not a loosening — the farm-level
+    // VIEW_FINANCIALS assert above already gated this whole method, and
+    // `getCycleFinancials` re-asserts VIEW_FINANCIALS per crop below. Only the
+    // listing of which cycles exist moved to the member-aware read.
     const perPondCropFinancials = await Promise.all(
       pondsPage.data.map(async (pond) => {
-        const crops = await this.cropsService.findByPond(pond.id, userId);
+        const crops = await this.cropsService
+          .findAllAccessible(pond.id, userId)
+          .catch((err) => {
+            this.logger.warn(
+              `Financial report ${farmId}: skipping pond ${pond.id} — ${err?.message ?? err}`,
+            );
+            return [] as { id: string }[];
+          });
         return Promise.all(
           crops.map((crop) =>
-            this.expensesService.getCycleFinancials(crop.id, userId),
+            this.expensesService
+              .getCycleFinancials(crop.id, userId)
+              .catch((err) => {
+                this.logger.warn(
+                  `Financial report ${farmId}: skipping cycle ${crop.id} — ${err?.message ?? err}`,
+                );
+                return null;
+              }),
           ),
         );
       }),
@@ -164,6 +193,7 @@ export class ReportsService {
 
     for (const cropFinancials of perPondCropFinancials) {
       for (const financials of cropFinancials) {
+        if (!financials) continue; // skipped above, already logged
         totalRevenue += financials.totalRevenue;
         totalExpenses += financials.totalExpenses;
         for (const [category, amount] of Object.entries(

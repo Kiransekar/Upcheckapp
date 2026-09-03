@@ -97,6 +97,13 @@ const finance = {
   recentEntries: "Recent entries",
   seeAll: "All ›",
   noEntries: "Nothing recorded for this farm yet.",
+  // A harvest sale is a read-only line — it comes from the harvest, not from a
+  // transaction anyone can edit here.
+  harvestSale: "Harvest sale",
+  harvestSoldTo: "Sold to {{buyer}}",
+  // The list is the SIX most recent entries, and cycle costs are summarised
+  // rather than listed — so it will not add up to the net above. Say so.
+  entriesNote: "Recent entries only. The net above also counts costs recorded against a cycle — those are summarised in \"Where it went\".",
   noFarmTitle: "No farms yet",
   noFarmSub: "Add a farm to start tracking money.",
 };

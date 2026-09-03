@@ -3,6 +3,7 @@ import { FarmsService } from '../farms/farms.service';
 import { ReportsService } from '../reports/reports.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreditService } from '../credit/credit.service';
+import { HarvestsService } from '../harvests/harvests.service';
 
 /**
  * Everything the Money tab renders, in ONE request.
@@ -28,12 +29,14 @@ export class MoneyOverviewService {
     private readonly reports: ReportsService,
     private readonly transactions: TransactionsService,
     private readonly credit: CreditService,
+    private readonly harvests: HarvestsService,
   ) {}
 
   async forUser(userId: string) {
     const farms = await this.farms.findAll(userId);
 
-    const [reportPairs, allEntries, creditRows] = await Promise.all([
+    // prettier-ignore
+    const [reportPairs, transactionRows, creditRows, harvestRows] = await Promise.all([
       Promise.all(
         farms.map((farm: { id: string }) =>
           this.reports
@@ -52,10 +55,28 @@ export class MoneyOverviewService {
       // A separate ledger that simply may not exist for a farmer who buys
       // nothing on account.
       this.credit.list(userId).catch(() => []),
+      // Harvest sales, projected read-only into entry shape. See
+      // HarvestsService.findMoneyEntries: a harvest already moves the headline
+      // (the report sums salePriceTotal) but wrote no row the farmer could
+      // point at. Merging here rather than writing a Transaction on harvest
+      // create is what keeps revenue from being counted twice.
+      this.harvests.findMoneyEntries(userId).catch(() => []),
     ]);
 
     const reports: Record<string, unknown> = {};
     for (const pair of reportPairs) if (pair) reports[pair[0]] = pair[1];
+
+    // One list, newest first, so a harvest sits among the entries the farmer
+    // typed on the same day instead of in a section of its own.
+    // `transactionDate` is a `YYYY-MM-DD` string on both sides; normalise a
+    // Date defensively so a driver that hydrates one doesn't scramble the order.
+    const sortKey = (e: { transactionDate: unknown }) =>
+      e.transactionDate instanceof Date
+        ? e.transactionDate.toISOString()
+        : String(e.transactionDate ?? '');
+    const allEntries = [...transactionRows, ...harvestRows].sort((a, b) =>
+      sortKey(b).localeCompare(sortKey(a)),
+    );
 
     return { farms, reports, allEntries, credit: creditRows };
   }

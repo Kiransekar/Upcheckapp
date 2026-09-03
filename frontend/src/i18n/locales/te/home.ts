@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'రోజువారీ రీడింగ్‌లను నమోదు చేయడానికి ఫారం మరియు చెరువును సృష్టించండి.',
   quickLogCreateFarm: 'ఫారం సృష్టించు',
   quickLogOpenPond: 'చెరువును తెరువు',
+  quickLogNoCycle: 'ఈ చెరువులో ఏ సైకిల్ నడవడం లేదు',
+  quickLogNoCycleSub:
+    'మేత, శాంప్లింగ్, కొలతలు అన్నీ ఒక సైకిల్ కింద లెక్కిస్తారు. సైకిల్ మొదలుపెడితేనే ఈ చెరువు FCR, పెరుగుదల, లాభం సరిగ్గా కలుస్తాయి.',
+  quickLogStartCycle: 'సైకిల్ మొదలుపెట్టు',
+  quickLogNeedsCycle: 'సైకిల్ కావాలి',
   farmerFallback: 'రైతు',
   onboarding_languagePrompt: 'మీ భాషను ఎంచుకోండి',
   onboarding_title: 'Upcheck కు స్వాగతం',

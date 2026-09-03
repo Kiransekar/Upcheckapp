@@ -56,6 +56,11 @@ const members = {
     removeConfirm: '{{name}} को इस फ़ार्म से हटाएँ?',
     removeError: 'इस सदस्य को हटाया नहीं जा सका।',
 
+    transferCta: 'मालिकाना सौंपें',
+    transferTitle: 'मालिकाना सौंपें?',
+    transferConfirm: 'यह वापस नहीं लिया जा सकता। {{name}} इस फ़ार्म के मालिक बन जाएँगे और आप प्रबंधक रह जाएँगे।',
+    transferError: 'मालिकाना नहीं सौंपा जा सका। कृपया फिर कोशिश करें।',
+
     scanTab: 'QR स्कैन',
     manualTab: 'ID दर्ज करें',
     scanHint: 'कैमरे को वर्कर के प्रोफ़ाइल QR कोड पर रखें।',
@@ -87,9 +92,9 @@ const members = {
   newCode: "नया कोड",
   onThisFarm: "इस फ़ार्म पर",
   tapToEdit: "किसी भी सदस्य पर टैप करके उसकी भूमिका या तालाब बदलें।",
-  inviteByIdentifier: "ईमेल/यूज़रनेम से बुलाएँ",
   roleSection: "भूमिका",
   roleNote: "वे पूरे फ़ार्म पर क्या कर सकते हैं।",
+  roleChangeError: "उनकी भूमिका नहीं बदली जा सकी।",
   pondsSection: "वे जिन तालाबों में लॉग कर सकते हैं",
   allPondsAction: "सभी तालाब",
   scopeAllNote: "इस फ़ार्म का हर तालाब। सीमित करने के लिए कुछ चुनें।",

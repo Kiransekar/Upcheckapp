@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'ଦୈନିକ ରିଡିଂ ଲିପିବଦ୍ଧ କରିବାକୁ ଏକ ଫାର୍ମ ଓ ପୋଖରୀ ସୃଷ୍ଟି କରନ୍ତୁ।',
   quickLogCreateFarm: 'ଫାର୍ମ ସୃଷ୍ଟି କରନ୍ତୁ',
   quickLogOpenPond: 'ପୋଖରୀ ଖୋଲନ୍ତୁ',
+  quickLogNoCycle: 'ଏହି ପୋଖରୀରେ କୌଣସି ସାଇକଲ ଚାଲୁନାହିଁ',
+  quickLogNoCycleSub:
+    'ଖାଦ୍ୟ, ସାମ୍ପଲିଂ ଓ ମାପ ସବୁ ଗୋଟିଏ ସାଇକଲ ହିସାବରେ ଗଣାଯାଏ। ସାଇକଲ ଆରମ୍ଭ କରନ୍ତୁ, ତେବେ ଏହି ପୋଖରୀର FCR, ବୃଦ୍ଧି ଏବଂ ଲାଭ ଠିକ୍ ଭାବେ ଯୋଡ଼ିହେବ।',
+  quickLogStartCycle: 'ସାଇକଲ ଆରମ୍ଭ କରନ୍ତୁ',
+  quickLogNeedsCycle: 'ସାଇକଲ ଦରକାର',
   farmerFallback: 'କୃଷକ',
   onboarding_languagePrompt: 'ଆପଣଙ୍କ ଭାଷା ବାଛନ୍ତୁ',
   onboarding_title: 'Upcheck କୁ ସ୍ୱାଗତ',

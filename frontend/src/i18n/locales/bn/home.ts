@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'দৈনিক রিডিং লিপিবদ্ধ করতে একটি খামার ও পুকুর তৈরি করুন।',
   quickLogCreateFarm: 'খামার তৈরি করুন',
   quickLogOpenPond: 'পুকুর খুলুন',
+  quickLogNoCycle: 'এই পুকুরে কোনো সাইকেল চলছে না',
+  quickLogNoCycleSub:
+    'খাবার, স্যাম্পলিং ও মাপ সাইকেলের হিসাবে গোনা হয়। একটি সাইকেল শুরু করুন, যাতে এই পুকুরের FCR, বৃদ্ধি আর লাভ ঠিকমতো যোগ হয়।',
+  quickLogStartCycle: 'সাইকেল শুরু করুন',
+  quickLogNeedsCycle: 'সাইকেল দরকার',
   farmerFallback: 'কৃষক',
   onboarding_languagePrompt: 'আপনার ভাষা নির্বাচন করুন',
   onboarding_title: 'Upcheck-এ স্বাগতম',
