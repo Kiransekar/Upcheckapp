@@ -11,6 +11,7 @@ import { MultiParameterChart } from '../../../components/charts/MultiParameterCh
 import { theme } from '../../../theme';
 import { waterQualityApi, WaterQualityRecord } from '../../../api/waterQuality';
 import { cropsApi } from '../../../api/crops';
+import { apiErrorMessage } from '../../../api/errors';
 import { getStatusColor } from '../../../constants/ranges';
 import {
     evaluateParameter,
@@ -125,7 +126,7 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                             await waterQualityApi.remove(id);
                             fetchRecords(true);
                         } catch (err: any) {
-                            Alert.alert(t('common.error'), err.response?.data?.message || t('history.waterQualityDeleteError'));
+                            Alert.alert(t('common.error'), apiErrorMessage(err, t('history.waterQualityDeleteError')));
                         }
                     },
                 },

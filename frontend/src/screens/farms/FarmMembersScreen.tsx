@@ -30,6 +30,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
+import { apiErrorMessage } from '../../api/errors';
 import { farmMembersApi, type FarmMember, type FarmInvite, type FarmRole } from '../../api/farmMembers';
 import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
@@ -130,7 +131,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             await Clipboard.setStringAsync(data.code);
             Alert.alert(t('members.inviteCreatedTitle'), t('members.inviteCreatedSub'));
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.inviteError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.inviteError')));
         } finally {
             setInviteBusy(false);
         }
@@ -151,7 +152,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 setPending((cur) => cur.filter((p) => p.id !== m.id));
                 load();
             } catch (e: any) {
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.approveError')));
             }
         },
         [farmId, load, t],
@@ -169,7 +170,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                             await farmMembersApi.declineMember(farmId, m.userId);
                             setPending((cur) => cur.filter((p) => p.id !== m.id));
                         } catch (e: any) {
-                            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+                            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.approveError')));
                         }
                     },
                 },

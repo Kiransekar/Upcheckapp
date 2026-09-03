@@ -11,6 +11,7 @@ import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { samplingApi } from '../../api/sampling';
+import { apiErrorMessage } from '../../api/errors';
 
 export const SamplingLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -67,7 +68,7 @@ export const SamplingLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.sampling_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.sampling_errorSave')));
         } finally {
             setIsLoading(false);
         }

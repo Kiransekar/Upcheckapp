@@ -24,6 +24,7 @@ import { Stepper } from '../../components/ui/Stepper';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto } from '../../api/farms';
+import { apiErrorMessage } from '../../api/errors';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -179,8 +180,7 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
         } catch (error: any) {
             Alert.alert(
                 t('common.error'),
-                error.response?.data?.message ||
-                    t(isEdit ? 'farms.errorSaveFarm' : 'farms.errorCreateFarm'),
+                apiErrorMessage(error, t(isEdit ? 'farms.errorSaveFarm' : 'farms.errorCreateFarm')),
             );
         } finally {
             setIsLoading(false);

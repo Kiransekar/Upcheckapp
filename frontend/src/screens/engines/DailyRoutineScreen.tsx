@@ -20,6 +20,7 @@ import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { feedingTrayApi, type TrayResidue } from '../../api/feedingTray';
+import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
@@ -98,7 +99,7 @@ export const DailyRoutineScreen = ({ route, navigation }: any) => {
         await load();
       }
     } catch (e: any) {
-      Alert.alert(t('engines.common.couldNotSave'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
+      Alert.alert(t('engines.common.couldNotSave'), apiErrorMessage(e, t('engines.common.tryAgain')));
     } finally {
       setSavingTray(false);
     }

@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
+import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
@@ -104,7 +105,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('cycles.errorStartCycle'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('cycles.errorStartCycle')));
         } finally {
             setIsLoading(false);
         }

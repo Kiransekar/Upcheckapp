@@ -19,6 +19,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { tasksApi, Task } from '../../api/tasks';
+import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
 
@@ -104,7 +105,7 @@ export const TaskListScreen = ({ route, navigation }: any) => {
             setNewTitle('');
             await fetchTasks();
         } catch (err: any) {
-            Alert.alert(t('content.tasks.errorAddTitle'), err?.response?.data?.message || t('content.tasks.errorAddFallback'));
+            Alert.alert(t('content.tasks.errorAddTitle'), apiErrorMessage(err, t('content.tasks.errorAddFallback')));
         } finally {
             setIsSaving(false);
         }

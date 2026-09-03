@@ -28,6 +28,7 @@ import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
+import { apiErrorMessage } from '../../api/errors';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { useAuthStore } from '../../store/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -155,7 +156,7 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
             );
             load();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('attendance.checkInError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('attendance.checkInError')));
         } finally {
             setBusy(false);
         }
@@ -169,7 +170,7 @@ export const AttendanceScreen = ({ route, navigation }: any) => {
             Alert.alert(t('attendance.checkedOutTitle'), t('attendance.checkedOutSub'));
             load();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('attendance.checkOutError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('attendance.checkOutError')));
         } finally {
             setBusy(false);
         }

@@ -12,6 +12,7 @@ import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { mortalityApi } from '../../api/mortalities';
+import { apiErrorMessage } from '../../api/errors';
 
 export const MortalityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -65,7 +66,7 @@ export const MortalityLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.mortality_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.mortality_errorSave')));
         } finally {
             setIsLoading(false);
         }

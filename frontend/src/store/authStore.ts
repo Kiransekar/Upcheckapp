@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authApi } from '../api/auth';
+import { apiErrorMessage } from '../api/errors';
 import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
@@ -398,7 +399,7 @@ export const useAuthStore = create<AuthState>()(
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Login failed';
+                    const message = apiErrorMessage(err, err.message || 'Login failed');
                     get().setError(message);
                     throw new Error(message);
                 }
@@ -421,7 +422,7 @@ export const useAuthStore = create<AuthState>()(
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Google sign in failed';
+                    const message = apiErrorMessage(err, err.message || 'Google sign in failed');
                     get().setError(message);
                     return { requires2FA: false };
                 }
@@ -453,7 +454,7 @@ export const useAuthStore = create<AuthState>()(
                         get().setPendingVerification(email);
                     }
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Registration failed';
+                    const message = apiErrorMessage(err, err.message || 'Registration failed');
                     get().setError(message);
                     throw new Error(message);
                 }
@@ -507,7 +508,7 @@ export const useAuthStore = create<AuthState>()(
                     await authApi.forgotPassword(email);
                     set({ isLoading: false });
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Failed to send reset email';
+                    const message = apiErrorMessage(err, err.message || 'Failed to send reset email');
                     get().setError(message);
                     throw new Error(message);
                 }

@@ -11,6 +11,7 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { pondsApi } from '../../api/ponds';
+import { apiErrorMessage } from '../../api/errors';
 
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
@@ -266,8 +267,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         } catch (error: any) {
             Alert.alert(
                 t('common.error'),
-                error.response?.data?.message ||
-                    t(isEdit ? 'ponds.errorSavePond' : 'ponds.errorCreatePond'),
+                apiErrorMessage(error, t(isEdit ? 'ponds.errorSavePond' : 'ponds.errorCreatePond')),
             );
         } finally {
             setIsLoading(false);

@@ -207,6 +207,12 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     // Same story for a farm's own CRUD (CreateFarmScreen): a rename or a new
     // farm never touched the cache that FarmsList/FarmDetail read from.
     farm: [['farm'], ['farms'], ['home'], ['briefing']],
+    // A cycle IS the pond's state: starting one flips the dashboard from "idle"
+    // to stocked, closing one flips it back, and both move the money roll-up
+    // (seed cost in, harvest sale out). `/crops` was missing from the URL map
+    // below entirely, so every cycle write invalidated nothing and the pond kept
+    // reading "idle" until a manual pull-to-refresh.
+    crop: [['pond'], ['ponds'], ['farm'], ['farms'], ['home'], ['briefing'], ['money']],
 };
 
 /** Anything not in the table above still moves the pond and the dashboard. */
@@ -242,6 +248,7 @@ const URL_ENTITY_MAP: readonly (readonly [path: string, entity: string])[] = [
     ['/feeding-tray-checks', 'feeding_tray_check'],
     ['/attendance', 'attendance'],
     ['/leave-requests', 'leave_request'],
+    ['/crops', 'crop'],
     ['/ponds', 'pond'],
     ['/farms', 'farm'],
 ];

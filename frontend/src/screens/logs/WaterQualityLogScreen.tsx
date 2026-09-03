@@ -11,6 +11,7 @@ import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
 import { waterQualityApi } from '../../api/waterQuality';
+import { apiErrorMessage } from '../../api/errors';
 
 // Fields that drift slowly (pond chemistry/geometry-driven, not day-to-day),
 // so pre-filling them from the last logged reading saves a farmer re-typing
@@ -124,7 +125,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.waterQuality_errorSave')));
         } finally {
             setIsLoading(false);
         }

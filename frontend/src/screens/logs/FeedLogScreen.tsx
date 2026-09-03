@@ -12,6 +12,7 @@ import { ChipGroup } from '../../components/ui/ChipGroup';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { feedApi } from '../../api/feedRecords';
+import { apiErrorMessage } from '../../api/errors';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -95,7 +96,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.feed_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.feed_errorSave')));
         } finally {
             setIsLoading(false);
         }

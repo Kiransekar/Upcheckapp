@@ -21,6 +21,7 @@ import { Button } from '../../components/ui/Button';
 import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
+import { apiErrorMessage } from '../../api/errors';
 
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
 
@@ -60,7 +61,7 @@ export const WeeklyChemistryScreen = ({ route, navigation }: any) => {
       });
       navigation.goBack();
     } catch (e: any) {
-      Alert.alert(t('engines.common.couldNotSave'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
+      Alert.alert(t('engines.common.couldNotSave'), apiErrorMessage(e, t('engines.common.tryAgain')));
     } finally {
       setSaving(false);
     }

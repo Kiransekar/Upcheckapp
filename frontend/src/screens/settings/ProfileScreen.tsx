@@ -17,6 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
 import { authApi } from '../../api/auth';
+import { apiErrorMessage } from '../../api/errors';
 import { TruecallerAuth } from '../../native/TruecallerAuth';
 
 export const ProfileScreen = ({ navigation }: any) => {
@@ -82,7 +83,8 @@ export const ProfileScreen = ({ navigation }: any) => {
             });
         } catch (err: any) {
             const status = err?.response?.status;
-            const serverMsg = err?.response?.data?.message;
+            // '' so the `serverMsg || t(…)` fallback below still applies.
+            const serverMsg = apiErrorMessage(err, '');
             if (status === 409) {
                 showToast({
                     message:
@@ -186,7 +188,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             setIsEditing(false);
             Alert.alert(t('common.ok'), t('settings.profileUpdated'));
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('settings.profileUpdateFailed'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('settings.profileUpdateFailed')));
         } finally {
             setIsSaving(false);
         }

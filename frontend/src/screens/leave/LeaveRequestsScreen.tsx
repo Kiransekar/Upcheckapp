@@ -27,6 +27,7 @@ import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { leaveRequestsApi, type LeaveRequest, type LeaveRequestStatus } from '../../api/leaveRequests';
+import { apiErrorMessage } from '../../api/errors';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { farmsApi, type Farm } from '../../api/farms';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -157,7 +158,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
             setReason('');
             load();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('leave.submitError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('leave.submitError')));
         } finally {
             setSubmitting(false);
         }
@@ -169,7 +170,7 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
             else await leaveRequestsApi.reject(request.id);
             load();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('leave.decideError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('leave.decideError')));
         }
     };
 

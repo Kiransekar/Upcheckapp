@@ -23,6 +23,7 @@ import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/farmMembers';
+import { apiErrorMessage } from '../../api/errors';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canAssignRole, canManageMember } from '../../permissions/capabilities';
@@ -72,7 +73,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 // rather than showing a scope that no longer applies.
                 if (!SCOPABLE.includes(role)) setScope([]);
             } catch (e: any) {
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.roleChangeError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.roleChangeError')));
             } finally {
                 setSaving(false);
             }
@@ -90,7 +91,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 await farmMembersApi.setPondScope(farmId, member.userId, next);
             } catch (e: any) {
                 setScope(scope); // put it back — the server did not accept it
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.scopeError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.scopeError')));
             }
         },
         [farmId, member, scope, t],
@@ -103,7 +104,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
             await farmMembersApi.setPondScope(farmId, member.userId, []);
         } catch (e: any) {
             setScope(previous);
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.scopeError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.scopeError')));
         }
     }, [farmId, member, scope, t]);
 
@@ -115,7 +116,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 await farmMembersApi.setFinancialAccess(farmId, member.userId, value);
             } catch (e: any) {
                 setMember((m) => ({ ...m, canViewFinancials: previous }));
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.financialsError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.financialsError')));
             }
         },
         [farmId, member, t],
@@ -132,7 +133,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                         await farmMembersApi.removeMember(farmId, member.userId);
                         navigation.goBack();
                     } catch (e: any) {
-                        Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.removeError'));
+                        Alert.alert(t('common.error'), apiErrorMessage(e, t('members.removeError')));
                     }
                 },
             },
@@ -150,7 +151,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                         await farmMembersApi.transferOwnership(farmId, member.userId);
                         navigation.goBack();
                     } catch (e: any) {
-                        Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.transferError'));
+                        Alert.alert(t('common.error'), apiErrorMessage(e, t('members.transferError')));
                     }
                 },
             },

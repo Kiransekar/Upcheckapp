@@ -40,6 +40,7 @@ import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
+import { apiErrorMessage } from '../../api/errors';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useUIStore } from '../../store/uiStore';
@@ -117,7 +118,7 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
             navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] });
         } catch (e: any) {
             // The farm itself failed — nothing was created, so let them retry.
-            Alert.alert(t('common.error'), e?.response?.data?.message || t('farms.errorCreateFarm'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('farms.errorCreateFarm')));
         } finally {
             setBusy(false);
         }

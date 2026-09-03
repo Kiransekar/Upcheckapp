@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi, TwoFactorSetup } from '../../api/auth';
+import { apiErrorMessage } from '../../api/errors';
 
 /**
  * Manage TOTP two-factor authentication: shows current status, walks the user
@@ -47,7 +48,7 @@ export const TwoFactorScreen = ({ navigation }: any) => {
             const { data } = await authApi.twoFactor.setup();
             setSetup(data);
         } catch (err: any) {
-            Alert.alert(t('common.error'), err.response?.data?.message || t('settings.twoFactorSetupError'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('settings.twoFactorSetupError')));
         } finally {
             setBusy(false);
         }
@@ -67,7 +68,7 @@ export const TwoFactorScreen = ({ navigation }: any) => {
             setBackupCodes(data.backupCodes ?? null);
             Alert.alert(t('common.ok'), t('settings.twoFactorEnabledSuccess'));
         } catch (err: any) {
-            Alert.alert(t('common.error'), err.response?.data?.message || t('common.error'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('common.error')));
         } finally {
             setBusy(false);
         }
@@ -84,7 +85,7 @@ export const TwoFactorScreen = ({ navigation }: any) => {
             setCode('');
             setBackupCodes(data.backupCodes ?? null);
         } catch (err: any) {
-            Alert.alert(t('common.error'), err.response?.data?.message || t('common.error'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('common.error')));
         } finally {
             setBusy(false);
         }
@@ -108,7 +109,7 @@ export const TwoFactorScreen = ({ navigation }: any) => {
             setEnabled(false);
             Alert.alert(t('common.ok'), t('settings.twoFactorDisabledSuccess'));
         } catch (err: any) {
-            Alert.alert(t('common.error'), err.response?.data?.message || t('common.error'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('common.error')));
         } finally {
             setBusy(false);
         }

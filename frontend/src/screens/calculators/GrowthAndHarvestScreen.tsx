@@ -15,6 +15,7 @@ import {
     RecommendedFeedingRateResponse,
 } from '../../api/calculators';
 import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
+import { apiErrorMessage } from '../../api/errors';
 
 export const GrowthAndHarvestScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -72,7 +73,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
             });
             setEhResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.growthHarvest.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.growthHarvest.errorCalc')));
         } finally {
             setEhLoading(false);
         }
@@ -105,7 +106,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
             });
             setGpResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.growthHarvest.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.growthHarvest.errorCalc')));
         } finally {
             setGpLoading(false);
         }
@@ -129,7 +130,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
             const { data } = await calculatorsApi.calculateBiomass({ stockCount, averageWeightG });
             setBmResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.growthHarvest.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.growthHarvest.errorCalc')));
         } finally {
             setBmLoading(false);
         }
@@ -148,7 +149,7 @@ export const GrowthAndHarvestScreen = ({ navigation }: any) => {
             const { data } = await calculatorsApi.getRecommendedFeedingRate({ averageWeightG });
             setRfrResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.growthHarvest.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.growthHarvest.errorCalc')));
         } finally {
             setRfrLoading(false);
         }

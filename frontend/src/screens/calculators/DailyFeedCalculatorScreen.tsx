@@ -28,6 +28,7 @@ import { StatRow } from '../../components/ui/StatRow';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { calculatorsApi, type DailyFeedResponse } from '../../api/calculators';
+import { apiErrorMessage } from '../../api/errors';
 import type { PondContext } from '../../api/pondContext';
 import { survivalPctFrom, didPrefillAnything } from './prefill';
 import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
@@ -134,7 +135,7 @@ export const DailyFeedCalculatorScreen = ({ route, navigation }: any) => {
             setBiomassKg(computedBiomass);
             setResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.dailyFeed.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.dailyFeed.errorCalc')));
         } finally {
             setIsLoading(false);
         }

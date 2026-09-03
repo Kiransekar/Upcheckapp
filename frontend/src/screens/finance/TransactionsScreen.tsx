@@ -26,6 +26,7 @@ import {
     CreateTransactionDto,
     TransactionSummary,
 } from '../../api/transactions';
+import { apiErrorMessage } from '../../api/errors';
 
 type FilterKey = 'all' | 'income' | 'expense';
 
@@ -71,7 +72,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             setTransactions(txRes.data);
             setSummary(sumRes.data);
         } catch (err: any) {
-            Alert.alert(t('common.error'), err?.response?.data?.message ?? t('finance.loadError'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.loadError')));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -142,7 +143,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             setIsLoading(true);
             await fetchAll(filter);
         } catch (err: any) {
-            setFormError(err?.response?.data?.message ?? t('finance.saveTransactionError'));
+            setFormError(apiErrorMessage(err, t('finance.saveTransactionError')));
         } finally {
             setIsSubmitting(false);
         }

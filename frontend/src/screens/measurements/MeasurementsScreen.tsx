@@ -30,6 +30,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LineChart } from '../../components/charts/LineChart';
+import { apiErrorMessage } from '../../api/errors';
 import { theme } from '../../theme';
 import {
     measurementsApi,
@@ -138,9 +139,7 @@ export const MeasurementsScreen = ({ route }: any) => {
         } catch (err: any) {
             // saveRecord only throws on real rejections (validation/permission);
             // network failures are queued, not surfaced as errors.
-            const message =
-                err?.response?.data?.message ||
-                t('engines.measurements.invalidReadingSub');
+            const message = apiErrorMessage(err, t('engines.measurements.invalidReadingSub'));
             Alert.alert(t('engines.measurements.invalidReading'), String(message));
         } finally {
             setSubmitting(false);

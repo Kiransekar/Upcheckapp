@@ -12,6 +12,7 @@ import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { apiErrorMessage } from '../../api/errors';
 import { farmsApi } from '../../api/farms';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { useFocusEffect } from '@react-navigation/native';
@@ -186,7 +187,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
         } catch (err: any) {
             Alert.alert(
                 t('common.error'),
-                err?.response?.data?.message ?? t('inventory.addFailed', 'Failed to add inventory item.'),
+                apiErrorMessage(err, t('inventory.addFailed', 'Failed to add inventory item.')),
             );
         } finally {
             setAddSubmitting(false);
