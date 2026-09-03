@@ -63,5 +63,9 @@ const common = {
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "চালিয়ে যান",
+
+  // Asked before overwriting a record that already exists — see utils/confirm.ts
+  confirmEditTitle: "এই পরিবর্তনগুলি সংরক্ষণ করবেন?",
+  confirmEditMessage: "এটি আগে সংরক্ষিত তথ্য বদলে দেবে।",
 };
 export default common;

@@ -381,6 +381,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             ) : (
                 <FlatList
                     data={expenses}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item.id}
                     renderItem={renderExpenseItem}
                     contentContainerStyle={styles.listContent}

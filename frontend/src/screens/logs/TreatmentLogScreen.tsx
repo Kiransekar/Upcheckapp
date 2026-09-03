@@ -111,7 +111,7 @@ export const TreatmentLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 {flagged.length > 0 ? (

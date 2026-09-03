@@ -141,7 +141,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 {/* Quick mode: the 3 readings a farmer logs every visit, front and

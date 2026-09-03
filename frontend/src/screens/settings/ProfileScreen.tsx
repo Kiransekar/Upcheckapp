@@ -285,7 +285,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             </View>
 
             <Animated.View style={{ opacity: fadeAnim }}>
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                     {isEditing ? (
                         <Card style={styles.editCard}>
                             <Text style={styles.editTitle}>{t('settings.editProfile')}</Text>

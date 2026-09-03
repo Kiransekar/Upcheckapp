@@ -25,6 +25,7 @@ import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto } from '../../api/farms';
 import { apiErrorMessage } from '../../api/errors';
+import { confirm } from '../../utils/confirm';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -155,6 +156,18 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
             // Step 2 owns the write — see the header comment.
             navigation.navigate('PondNames', { farm: buildDraft(), pondCount: numPonds });
             return;
+        }
+
+        // Renaming or re-siting a farm changes what every member sees; ask
+        // first. Creation does not — the reassurance line below covers it.
+        if (isEdit) {
+            const ok = await confirm({
+                title: t('common.confirmEditTitle'),
+                message: t('common.confirmEditMessage'),
+                confirmLabel: t('common.save'),
+                cancelLabel: t('common.cancel'),
+            });
+            if (!ok) return;
         }
 
         setIsLoading(true);

@@ -83,9 +83,14 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 showToast({ message: t('common.savedSuccess'), type: 'success' });
             } else {
                 const res = await saveRecord({
+                    // `recordedAt` is stamped HERE, not on the server: a feed
+                    // log written with no signal sits in the offline queue and
+                    // used to be dated whenever the phone next synced, so a
+                    // Tuesday feeding landed on Thursday. Same stamp the water
+                    // quality screen sends.
                     entity: 'feed',
                     endpoint: '/feed-records',
-                    payload: { pondId, ...payload },
+                    payload: { pondId, recordedAt: new Date().toISOString(), ...payload },
                 });
                 showToast({
                     message: res.queued
@@ -112,7 +117,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>

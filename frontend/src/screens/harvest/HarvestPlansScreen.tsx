@@ -403,6 +403,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
             ) : (
                 <FlatList
                     data={plans}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item.id}
                     renderItem={renderPlan}
                     contentContainerStyle={styles.listContent}

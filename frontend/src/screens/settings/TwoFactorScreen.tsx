@@ -128,7 +128,7 @@ export const TwoFactorScreen = ({ navigation }: any) => {
             {loading ? (
                 <ActivityIndicator color={theme.roles.light.primary} style={{ marginTop: theme.spacing[8] }} />
             ) : (
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                     <Card style={styles.card}>
                         <View style={styles.statusRow}>
                             <MaterialCommunityIcons

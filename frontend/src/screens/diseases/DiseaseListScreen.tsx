@@ -250,6 +250,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
             {renderSearchBar()}
             <FlatList
                 data={filteredDiseases}
+                keyboardShouldPersistTaps="handled"
                 keyExtractor={(item) => item.id}
                 renderItem={renderDiseaseItem}
                 ListEmptyComponent={renderEmpty}

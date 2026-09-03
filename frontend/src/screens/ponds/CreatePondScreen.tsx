@@ -12,6 +12,7 @@ import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { pondsApi } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
+import { confirm } from '../../utils/confirm';
 
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
@@ -236,12 +237,17 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         // a dimension history with a reason; this is where the reason comes
         // from, and it is a confirmation rather than a block because a mis-typed
         // depth is exactly the thing a farmer needs to be able to correct.
-        if (isEdit && hasActiveCycle && dimensionsChanged) {
-            const confirmed = await new Promise<boolean>((resolve) => {
-                Alert.alert(t('ponds.resizeStockedTitle'), t('ponds.resizeStockedBody'), [
-                    { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-                    { text: t('ponds.resizeStockedConfirm'), onPress: () => resolve(true) },
-                ]);
+        //
+        // Every other edit still gets the general confirmation — a pond's
+        // shape, aeration and name are read by half the app — but creating a
+        // pond asks nothing, because there is nothing yet to overwrite.
+        if (isEdit) {
+            const strict = hasActiveCycle && dimensionsChanged;
+            const confirmed = await confirm({
+                title: strict ? t('ponds.resizeStockedTitle') : t('common.confirmEditTitle'),
+                message: strict ? t('ponds.resizeStockedBody') : t('common.confirmEditMessage'),
+                confirmLabel: strict ? t('ponds.resizeStockedConfirm') : t('common.save'),
+                cancelLabel: t('common.cancel'),
             });
             if (!confirmed) return;
         }
@@ -293,7 +299,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     <ActivityIndicator color={theme.roles.light.primary} />
                 </View>
             ) : (<>
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Input
                     label={t('ponds.fieldDisplayName')}
                     value={displayName}

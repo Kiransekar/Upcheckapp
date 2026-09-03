@@ -63,5 +63,9 @@ const common = {
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "Continue",
+
+  // Asked before overwriting a record that already exists — see utils/confirm.ts
+  confirmEditTitle: "Save these changes?",
+  confirmEditMessage: "This replaces what was saved before.",
 };
 export default common;

@@ -12,6 +12,7 @@ import { StatusBadge } from '../../components/ui/StatusBadge';
 import { MetricCard } from '../../components/ui/MetricCard';
 import { theme } from '../../theme';
 import { cropsApi, Crop } from '../../api/crops';
+import { confirm } from '../../utils/confirm';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -44,26 +45,21 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         fetchCycle();
     }, [fetchCycle]);
 
-    const handleCloseCycle = () => {
-        Alert.alert(
-            t('cycles.closeCycleTitle'),
-            t('cycles.closeCycleMessage'),
-            [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                    text: t('common.confirm'),
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await cropsApi.close(cycleId);
-                            navigation.goBack(); // returns to pond dashboard
-                        } catch (error: any) {
-                            Alert.alert(t('common.error'), t('cycles.errorCloseCycle'));
-                        }
-                    }
-                },
-            ]
-        );
+    const handleCloseCycle = async () => {
+        const ok = await confirm({
+            title: t('cycles.closeCycleTitle'),
+            message: t('cycles.closeCycleMessage'),
+            confirmLabel: t('common.confirm'),
+            cancelLabel: t('common.cancel'),
+            destructive: true,
+        });
+        if (!ok) return;
+        try {
+            await cropsApi.close(cycleId);
+            navigation.goBack(); // returns to pond dashboard
+        } catch (error: any) {
+            Alert.alert(t('common.error'), t('cycles.errorCloseCycle'));
+        }
     };
 
     if (isLoading) {
