@@ -23,6 +23,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Input } from '../../components/ui/Input';
+import { SelectField } from '../../components/ui/SelectField';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
@@ -83,6 +84,14 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
     const [endDate, setEndDate] = useState(todayLocalISODate());
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    /**
+     * Reviewing leave spans every farm; REQUESTING it needs exactly one. Opened
+     * from Team in all-farms mode there is no `route.params.farmId`, and this
+     * screen used to post it straight through — `farmId: undefined` — which the
+     * server rejects. The picker below asks when there is a real choice to make.
+     */
+    const [chosenFarmId, setChosenFarmId] = useState<string | null>(null);
+    const requestFarmId = farmId ?? chosenFarmId ?? farms[0]?.id ?? null;
 
     const load = useCallback(async () => {
         const list = farmId
@@ -144,12 +153,21 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
             Alert.alert(t('common.error'), t('leave.errorDateRange'));
             return;
         }
+        if (!requestFarmId) {
+            Alert.alert(t('common.error'), t('leave.errorNoFarm'));
+            return;
+        }
         setSubmitting(true);
         try {
             const res = await saveRecord({
                 entity: 'leave_request',
                 endpoint: '/leave-requests',
-                payload: { farmId, startDate, endDate, reason: reason.trim() || undefined },
+                payload: {
+                    farmId: requestFarmId,
+                    startDate,
+                    endDate,
+                    reason: reason.trim() || undefined,
+                },
             });
             Alert.alert(
                 t('leave.submittedTitle'),
@@ -183,7 +201,13 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
                 accessibilityBackLabel={t('common.back')}
             />
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+            {/* Without this the first tap on Submit only dismisses the
+                keyboard, and the farmer taps twice for every request. */}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.content}
+                keyboardShouldPersistTaps="handled"
+            >
                 {perms.canManageOperations && (
                     <>
                         <SectionHeader
@@ -276,6 +300,15 @@ export const LeaveRequestsScreen = ({ route, navigation }: any) => {
 
                 <SectionHeader label={t('leave.requestFormTitle')} />
                 <View style={styles.form}>
+                    {!farmId && farms.length > 1 && (
+                        <SelectField
+                            label={t('leave.farmLabel')}
+                            value={requestFarmId}
+                            options={farms.map((f) => ({ label: f.name, value: f.id }))}
+                            onSelect={setChosenFarmId}
+                            required
+                        />
+                    )}
                     <View style={styles.dateRow}>
                         <View style={{ flex: 1 }}>
                             <Input
