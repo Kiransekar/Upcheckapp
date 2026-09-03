@@ -43,4 +43,11 @@ export class Transaction {
 
   @Column({ name: 'reference_number', type: 'text', nullable: true })
   referenceNumber: string;
+
+  // Audit: who created / last updated this money row (member or owner).
+  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+  createdById: string | null;
+
+  @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
+  updatedById: string | null;
 }

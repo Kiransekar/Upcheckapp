@@ -85,9 +85,17 @@ describe('TransactionsService', () => {
         'farm-1',
         'VIEW_FINANCIALS',
       );
-      expect(mockRepository.create).toHaveBeenCalledWith(createDto);
+      // Money rows carry the actor who entered them.
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...createDto,
+        createdById: USER_ID,
+        updatedById: USER_ID,
+      });
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining(createDto));
+      expect(result).toEqual(
+        expect.objectContaining({ createdById: USER_ID }),
+      );
     });
 
     it('is idempotent: a replayed client id returns the existing row without re-inserting', async () => {
@@ -204,11 +212,30 @@ describe('TransactionsService', () => {
         USER_ID,
       );
 
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        transactionId,
-        updateDto,
-      );
+      // The editor is stamped on every money edit.
+      expect(mockRepository.update).toHaveBeenCalledWith(transactionId, {
+        ...updateDto,
+        updatedById: USER_ID,
+      });
       expect(result).toEqual(updatedTransaction);
+    });
+
+    it('never lets a client-supplied id reassign the primary key', async () => {
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'trans-1',
+        farmId: 'farm-1',
+      });
+
+      await service.update(
+        'trans-1',
+        { id: 'other-id', amount: 5 } as any,
+        USER_ID,
+      );
+
+      expect(mockRepository.update).toHaveBeenCalledWith('trans-1', {
+        amount: 5,
+        updatedById: USER_ID,
+      });
     });
   });
 

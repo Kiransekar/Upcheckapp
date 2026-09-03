@@ -2,7 +2,6 @@ import {
   Entity,
   Column,
   PrimaryGeneratedColumn,
-  CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
@@ -40,7 +39,16 @@ export class FeedRecord {
   @JoinColumn({ name: 'inventory_item_id' })
   inventoryItem: InventoryItem;
 
-  @CreateDateColumn({ name: 'recorded_at', type: 'timestamp with time zone' })
+  // Plain @Column (not @CreateDateColumn) so a client-supplied feeding time
+  // can be persisted — TypeORM unconditionally overwrites @CreateDateColumn
+  // with `new Date()` on insert, which would stamp an offline-queued feeding
+  // with sync time instead of when it happened (AUDIT id 31). DB default
+  // covers the common case where the client omits it.
+  @Column({
+    name: 'recorded_at',
+    type: 'timestamp with time zone',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   recordedAt: Date;
 
   @Column({ name: 'feed_type', type: 'text' })

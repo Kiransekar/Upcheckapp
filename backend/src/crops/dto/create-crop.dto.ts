@@ -11,6 +11,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
+import { CANONICAL_SPECIES, SEED_TYPES } from '../species';
 
 export class CreateCropDto {
   @IsUUID()
@@ -26,14 +27,16 @@ export class CreateCropDto {
   @MaxLength(100)
   cropCode?: string;
 
+  // Closed lists (see species.ts) — free text let 'VannameiVannamei' into prod
+  // and broke threshold lookup. Still optional.
   @IsString()
   @IsOptional()
-  @MaxLength(100)
+  @IsIn(CANONICAL_SPECIES)
   speciesType?: string;
 
   @IsString()
   @IsOptional()
-  @MaxLength(100)
+  @IsIn(SEED_TYPES)
   seedType?: string;
 
   @IsNumber()

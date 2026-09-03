@@ -39,7 +39,12 @@ export class TransactionsService {
       createDto.farmId,
       'VIEW_FINANCIALS',
     );
-    const transaction = this.transactionsRepository.create(createDto);
+    // Stamp the actor so money rows say who entered them.
+    const transaction = this.transactionsRepository.create({
+      ...createDto,
+      createdById: userId,
+      updatedById: userId,
+    });
     return this.transactionsRepository.save(transaction);
   }
 
@@ -98,7 +103,13 @@ export class TransactionsService {
         'VIEW_FINANCIALS',
       );
     }
-    await this.transactionsRepository.update(id, updateDto);
+    // `id` rides on the DTO for create-time idempotency only — spreading it
+    // into an UPDATE would reassign the primary key.
+    const { id: _id, ...columns } = updateDto;
+    await this.transactionsRepository.update(id, {
+      ...columns,
+      updatedById: userId,
+    });
     return this.transactionsRepository.findOneBy({ id });
   }
 
