@@ -64,12 +64,21 @@ export class FeedRecordsService {
     );
 
     // If inventory item selected, deduct stock (skip for fasting days).
+    // WRITE_OPERATIONAL, not MANAGE_INVENTORY: a worker logging a feeding is
+    // consuming stock, not managing the catalogue. `expectedFarmId` refuses an
+    // item from another farm, so a feed log on this pond can only draw down
+    // this pond's farm's stock.
     const shouldDeduct = !!createDto.inventoryItemId && !createDto.isFasting;
     if (shouldDeduct) {
       await this.inventoryService.adjustStock(
         createDto.inventoryItemId!,
         -createDto.quantityKg,
         userId,
+        {
+          capability: 'WRITE_OPERATIONAL',
+          expectedFarmId: pond.farmId,
+          reason: 'Feed log',
+        },
       );
     }
 
@@ -108,6 +117,7 @@ export class FeedRecordsService {
           createDto.inventoryItemId!,
           createDto.quantityKg,
           userId,
+          { capability: 'WRITE_OPERATIONAL', reason: 'Feed log failed' },
         );
       }
       throw err;
@@ -202,6 +212,7 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         delta,
         userId,
+        { capability: 'WRITE_OPERATIONAL', reason: 'Feed log edited' },
       );
     }
 
@@ -231,6 +242,7 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         Number(existing.quantityKg),
         userId,
+        { capability: 'WRITE_OPERATIONAL', reason: 'Feed log deleted' },
       );
     }
     return { message: 'Feed record deleted successfully' };

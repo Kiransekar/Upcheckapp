@@ -7,10 +7,22 @@ import { FarmsService } from './farms.service';
 
 describe('FarmsController', () => {
   let controller: FarmsController;
-  let farmsService: { create: jest.Mock };
+  let farmsService: {
+    create: jest.Mock;
+    findAll: jest.Mock;
+    archive: jest.Mock;
+    unarchive: jest.Mock;
+    remove: jest.Mock;
+  };
 
   beforeEach(async () => {
-    farmsService = { create: jest.fn().mockResolvedValue({ id: 'farm-new' }) };
+    farmsService = {
+      create: jest.fn().mockResolvedValue({ id: 'farm-new' }),
+      findAll: jest.fn().mockResolvedValue([]),
+      archive: jest.fn().mockResolvedValue({ message: 'ok' }),
+      unarchive: jest.fn().mockResolvedValue({ message: 'ok' }),
+      remove: jest.fn().mockResolvedValue({ message: 'ok' }),
+    };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [FarmsController],
       providers: [
@@ -74,6 +86,32 @@ describe('FarmsController', () => {
         { name: 'Leased Pond' },
         'user-2',
       );
+    });
+  });
+
+  describe('listing and lifecycle', () => {
+    it('excludes archived farms unless includeArchived=true is asked for', async () => {
+      await controller.findAll({ id: 'user-1' });
+      expect(farmsService.findAll).toHaveBeenCalledWith('user-1', false);
+
+      await controller.findAll({ id: 'user-1' }, 'true');
+      expect(farmsService.findAll).toHaveBeenCalledWith('user-1', true);
+
+      // Anything else is not the flag — a stray `?includeArchived=1` must not
+      // silently widen the listing.
+      await controller.findAll({ id: 'user-1' }, '1');
+      expect(farmsService.findAll).toHaveBeenLastCalledWith('user-1', false);
+    });
+
+    it('passes the caller through to the owner-only lifecycle actions', async () => {
+      await controller.archive('farm-1', { id: 'user-1' });
+      expect(farmsService.archive).toHaveBeenCalledWith('farm-1', 'user-1');
+
+      await controller.unarchive('farm-1', { id: 'user-1' });
+      expect(farmsService.unarchive).toHaveBeenCalledWith('farm-1', 'user-1');
+
+      await controller.remove('farm-1', { id: 'user-1' });
+      expect(farmsService.remove).toHaveBeenCalledWith('farm-1', 'user-1');
     });
   });
 });

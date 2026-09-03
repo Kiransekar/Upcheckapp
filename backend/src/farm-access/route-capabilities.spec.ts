@@ -30,6 +30,10 @@ import { PondContextController } from '../pond-context/pond-context.controller';
 import { HarvestTimingController } from '../harvest-timing/harvest-timing.controller';
 import { ReportsController } from '../reports/reports.controller';
 import { HarvestsController } from '../harvests/harvests.controller';
+import { InventoryController } from '../inventory/inventory.controller';
+import { FarmsController } from '../farms/farms.controller';
+import { CropsController } from '../crops/crops.controller';
+import { InventoryService } from '../inventory/inventory.service';
 
 type Row = [
   controller: new (...args: any[]) => any,
@@ -134,6 +138,34 @@ const ROUTES: Row[] = [
       capability: 'VIEW_FINANCIALS',
     },
   ],
+
+  // farm lifecycle — archive/unarchive/delete are the farm's existence, which
+  // is the one thing an owner can never delegate (OWNER_ONLY is in
+  // NEVER_OVERRIDABLE, so no policy or override can reach these).
+  ...(['archive', 'unarchive', 'remove'] as const).map((handler): Row => [
+    FarmsController,
+    handler,
+    {
+      entityType: 'Farm',
+      paramName: 'id',
+      ownerPath: 'userId',
+      capability: 'OWNER_ONLY',
+    },
+  ]),
+
+  // crops — closing a cycle IS recording a harvest. These rode
+  // WRITE_MANAGEMENT, which let a member the owner had explicitly blocked from
+  // harvesting complete the cycle and write the harvest weight anyway.
+  ...(['harvest', 'closeCycle'] as const).map((handler): Row => [
+    CropsController,
+    handler,
+    {
+      entityType: 'Crop',
+      paramName: 'id',
+      ownerPath: 'pond.farm.userId',
+      capability: 'RECORD_HARVEST',
+    },
+  ]),
 ];
 
 const metaFor = (
@@ -169,15 +201,91 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
     }
   });
 
-  // These two routes deliberately carry NO route guard; both are documented in
-  // the controllers. If someone adds one, the guard will 404 legitimate calls
-  // (no single resource id to resolve), so this pins the omission as intended.
-  const UNGUARDED: Array<
-    [new (...args: any[]) => any, string, string]
-  > = [
+  // These routes deliberately carry NO route guard; each is documented where it
+  // lives. If someone adds one, the guard will 404 legitimate calls (no single
+  // resource id to resolve), so this pins the omission as intended.
+  const UNGUARDED: Array<[new (...args: any[]) => any, string, string]> = [
     [MeasurementController, 'createBatch', 'a batch may span several ponds'],
     [HarvestTimingController, 'optimize', 'pondId is optional (pure preview)'],
+    // Inventory (D11): the guard resolves an owner path off a single entity,
+    // and inventory is farm-scoped with the farmId in the BODY on create and on
+    // the item (not the URL) everywhere else. It enforces in the service via
+    // farmAccess.assertCanAccessFarm instead — pinned below and exercised in
+    // inventory.service.spec.ts.
+    ...(
+      [
+        'create',
+        'findAll',
+        'getLowStock',
+        'findOne',
+        'adjustStock',
+        'update',
+        'remove',
+      ] as const
+    ).map((handler): [new (...args: any[]) => any, string, string] => [
+      InventoryController,
+      handler,
+      'farm-scoped, enforced in InventoryService',
+    ]),
   ];
+
+  // The inventory capability contract, pinned so it cannot silently slide back
+  // to OWNER_ONLY (D13). Read off the service, which is where it is asserted.
+  it.each([
+    ['create', 'MANAGE_INVENTORY'],
+    ['findAll', 'VIEW_INVENTORY'],
+    ['findOne', 'VIEW_INVENTORY'],
+    ['update', 'MANAGE_INVENTORY'],
+    ['remove', 'MANAGE_INVENTORY'],
+    ['getLowStock', 'VIEW_INVENTORY'],
+    ['adjustStock', 'MANAGE_INVENTORY'],
+  ])('InventoryService.%s asserts %s', async (method, capability) => {
+    const assertCanAccessFarm = jest
+      .fn()
+      .mockResolvedValue({ id: 'farm-1', userId: 'owner-1', rolePolicy: null });
+    const qb = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    const service = new InventoryService(
+      {
+        create: (d: any) => d,
+        save: jest.fn().mockResolvedValue({}),
+        find: jest.fn().mockResolvedValue([]),
+        findOneBy: jest
+          .fn()
+          .mockResolvedValue({ id: 'i1', farmId: 'farm-1', quantity: 10 }),
+        update: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+        createQueryBuilder: () => qb,
+      } as any,
+      { find: jest.fn().mockResolvedValue([]) } as any,
+      { createAutoAlert: jest.fn() } as any,
+      { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,
+    );
+
+    const args: Record<string, unknown[]> = {
+      create: [{ farmId: 'farm-1', name: 'x', category: 'feed' }, 'u1'],
+      findAll: ['u1', 'farm-1'],
+      findOne: ['i1', 'u1'],
+      update: ['i1', { name: 'x' }, 'u1'],
+      remove: ['i1', 'u1'],
+      getLowStock: ['farm-1', 'u1'],
+      adjustStock: ['i1', -1, 'u1'],
+    };
+    await (service as any)[method](...args[method]);
+
+    expect(assertCanAccessFarm).toHaveBeenCalledWith(
+      'u1',
+      'farm-1',
+      capability,
+    );
+  });
 
   it.each(UNGUARDED)(
     '%p.%s intentionally has no @OwnsResource (%s)',

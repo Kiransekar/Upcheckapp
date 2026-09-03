@@ -48,7 +48,10 @@ export class InventoryController {
     @Param('id') id: string,
     @Body() dto: AdjustStockDto,
   ) {
-    return this.inventoryService.adjustStock(id, dto.adjustment, user.id);
+    return this.inventoryService.adjustStock(id, dto.adjustment, user.id, {
+      reason: dto.reason,
+      capability: 'MANAGE_INVENTORY',
+    });
   }
 
   @Patch(':id')

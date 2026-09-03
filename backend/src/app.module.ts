@@ -42,6 +42,7 @@ import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { TeamOverviewModule } from './team-overview/team-overview.module';
+import { ActivityModule } from './activity/activity.module';
 import { MoneyOverviewModule } from './money-overview/money-overview.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
@@ -216,6 +217,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     TasksModule,
     LeaveRequestsModule,
     TeamOverviewModule,
+    ActivityModule,
     MoneyOverviewModule,
     AttendanceModule,
     PushModule,

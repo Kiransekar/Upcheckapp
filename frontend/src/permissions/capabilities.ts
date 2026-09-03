@@ -41,7 +41,8 @@ export const OVERRIDABLE_CAPABILITIES: readonly FarmCapability[] = [
     'VIEW_FINANCIALS',
     'MANAGE_INVENTORY',
     'VIEW_INVENTORY',
-    'MANAGE_WORKERS',
+    // MANAGE_WORKERS is not here: every member-management action re-checks the
+    // bare role, so a grant only produced confusing 403s. Mirrors the backend.
     'WRITE_MANAGEMENT',
 ];
 

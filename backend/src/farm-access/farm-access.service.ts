@@ -117,8 +117,23 @@ export class FarmAccessService {
     return { role: null, overrides: null, policy: null };
   }
 
-  /** Farm ids the user can access (owner or worker), excluding soft-deleted farms. */
-  async getAccessibleFarmIds(userId: string): Promise<string[]> {
+  /**
+   * Farm ids the user can access (owner or worker), excluding soft-deleted and
+   * archived farms.
+   *
+   * Archived is excluded here because this is the scoping root for every list
+   * and aggregate in the app (ponds, tasks, harvests, feed, sampling, alerts,
+   * reports). Filtering in each of those instead would mean an archived farm's
+   * ponds kept turning up in one screen or another forever. Pass
+   * `includeArchived` for the screens that deliberately show them.
+   *
+   * `assertCanAccessFarm` deliberately does NOT filter archived — otherwise
+   * unarchiving a farm would 403 on the farm it is unarchiving.
+   */
+  async getAccessibleFarmIds(
+    userId: string,
+    includeArchived = false,
+  ): Promise<string[]> {
     // The membership lookup and the legacy-owner lookup don't depend on each
     // other — running them sequentially (as separate awaits) was one of the
     // biggest contributors to the pond dashboard's multi-second load, since
@@ -155,7 +170,11 @@ export class FarmAccessService {
     // everyone every time anyone signed up.
     const ids = [...all];
     const live = await this.farmsRepo.find({
-      where: { id: In(ids), deletedAt: IsNull() },
+      where: {
+        id: In(ids),
+        deletedAt: IsNull(),
+        ...(includeArchived ? {} : { archivedAt: IsNull() }),
+      },
       select: { id: true },
     });
     const liveIds = new Set(live.map((f) => f.id));

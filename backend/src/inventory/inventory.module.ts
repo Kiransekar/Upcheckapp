@@ -4,13 +4,14 @@ import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryItem } from './inventory-item.entity';
 import { AlertsModule } from '../alerts/alerts.module';
-import { FarmsModule } from '../farms/farms.module';
+import { FarmMember } from '../farm-access/farm-member.entity';
 
+// FarmAccessModule is @Global, so FarmAccessService and the FarmMember
+// repository are available without importing it.
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventoryItem]),
+    TypeOrmModule.forFeature([InventoryItem, FarmMember]),
     AlertsModule,
-    FarmsModule,
   ],
   controllers: [InventoryController],
   providers: [InventoryService],

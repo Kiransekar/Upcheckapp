@@ -152,6 +152,19 @@ export class Farm {
   })
   recoveryClaimStartedAt: Date | null;
 
+  /**
+   * Put away, not deleted. An archived farm stays fully readable and its
+   * history intact; it just drops out of the default listings until the owner
+   * unarchives it. Distinct from `deletedAt`, which is the DELETE tombstone —
+   * a soft-deleted farm 404s everywhere.
+   */
+  @Column({
+    name: 'archived_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  archivedAt: Date | null;
+
   @DeleteDateColumn({
     name: 'deleted_at',
     type: 'timestamp with time zone',

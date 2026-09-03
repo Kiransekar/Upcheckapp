@@ -101,10 +101,10 @@ it('offers Default / Allowed / Blocked on every grantable permission', () => {
 
     expect(getByTestId('capability-RECORD_HARVEST')).toBeTruthy();
     expect(getByText('Record a harvest')).toBeTruthy();
-    // Six rows, so six of each chip.
-    expect(getAllByText('Default')).toHaveLength(6);
-    expect(getAllByText('Allowed')).toHaveLength(6);
-    expect(getAllByText('Blocked')).toHaveLength(6);
+    // Five rows, so five of each chip (MANAGE_WORKERS is not grantable).
+    expect(getAllByText('Default')).toHaveLength(5);
+    expect(getAllByText('Allowed')).toHaveLength(5);
+    expect(getAllByText('Blocked')).toHaveLength(5);
     // A worker's default for harvest is "no", and the caption says which way.
     expect(getAllByText('Default: not allowed').length).toBeGreaterThan(0);
 });

@@ -3,12 +3,14 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { Farm } from './farm.entity';
+import { Crop } from '../crops/crop.entity';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -140,21 +142,32 @@ export class FarmsService {
     return saved;
   }
 
-  /** Farms the user can access — owned plus any they're a member (worker) of. */
-  async findAll(userId: string) {
+  /**
+   * Farms the user can access — owned plus any they're a member (worker) of.
+   *
+   * Archived farms are excluded unless `includeArchived` is set: archiving
+   * exists so a finished farm stops cluttering every picker, list and engine,
+   * and a default that still returned them would make the action decorative.
+   */
+  async findAll(userId: string, includeArchived = false) {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     if (farmIds.length === 0) return [];
     return this.farmsRepository.find({
-      where: { id: In(farmIds) },
+      where: includeArchived
+        ? { id: In(farmIds) }
+        : { id: In(farmIds), archivedAt: IsNull() },
     });
   }
 
   /**
    * Farms the user OWNS (strict). Used by economic listings (e.g. transactions)
    * that must never surface a member-farm owner's financial data to a worker.
+   * Archived farms are excluded, same as findAll.
    */
   async findOwnedByUser(userId: string) {
-    return this.farmsRepository.find({ where: { userId } });
+    return this.farmsRepository.find({
+      where: { userId, archivedAt: IsNull() },
+    });
   }
 
   async findOne(id: string) {
@@ -189,9 +202,57 @@ export class FarmsService {
     return { farmId, rolePolicy };
   }
 
-  async remove(id: string) {
+  /**
+   * Archive a farm. Owner only — the route guard says so and this says it
+   * again, because the guard is a declaration and the service is the
+   * enforcement (same reasoning as setRolePolicy).
+   */
+  async archive(id: string, callerId: string) {
+    const farm = await this.farmAccess.assertCanAccessFarm(
+      callerId,
+      id,
+      'OWNER_ONLY',
+    );
+    if (farm.archivedAt) {
+      throw new BadRequestException('Farm is already archived');
+    }
+    await this.farmsRepository.update(id, { archivedAt: new Date() });
+    return { message: 'Farm archived successfully' };
+  }
+
+  async unarchive(id: string, callerId: string) {
+    const farm = await this.farmAccess.assertCanAccessFarm(
+      callerId,
+      id,
+      'OWNER_ONLY',
+    );
+    if (!farm.archivedAt) {
+      throw new BadRequestException('Farm is not archived');
+    }
+    await this.farmsRepository.update(id, { archivedAt: null });
+    return { message: 'Farm unarchived successfully' };
+  }
+
+  async remove(id: string, callerId: string) {
+    await this.farmAccess.assertCanAccessFarm(callerId, id, 'OWNER_ONLY');
+
+    // Mirrors the pond rule (PondsService.remove): a farm whose ponds have
+    // held crops carries production history, and deleting it takes that with
+    // it. Archive is the reversible action; delete is only for a farm that was
+    // never really used. Crops carry `farm_id`, so this is one count rather
+    // than a join through ponds.
+    const cropCount = await this.farmsRepository.manager
+      .getRepository(Crop)
+      .count({ where: { farmId: id } });
+    if (cropCount > 0) {
+      throw new ConflictException({
+        error: 'crop_history_exists',
+        message: 'Cannot delete a farm with crop history — archive it instead',
+      });
+    }
+
     // Soft delete
     await this.farmsRepository.update(id, { deletedAt: new Date() });
-    return { message: 'Farm archived successfully' };
+    return { message: 'Farm deleted successfully' };
   }
 }
