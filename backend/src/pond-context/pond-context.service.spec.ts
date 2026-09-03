@@ -291,6 +291,22 @@ describe('PondContextService', () => {
     expect(ctx.freeAmmoniaMgL).toBeGreaterThan(0); // uses carried ammonia + today's pH/temp
   });
 
+  /**
+   * The Today screen groups ponds by farm to show per-farm progress, and
+   * fetchTodaySnapshot flattens its per-farm results, losing the association.
+   * Carrying farmId on the context is what makes that grouping possible without
+   * a second request.
+   */
+  it('carries the pond farmId so callers can group by farm', () => {
+    const { svc } = makeService();
+    const pond = { id: 'p1', farmId: 'farm-9', activeCycleId: null } as any;
+    const ctx = (svc as any).buildContext(pond, {
+      crop: null, wqRecords: [], sampling: null,
+      mortalityAgg: null, feedAgg: null, tray: null,
+    });
+    expect(ctx.farmId).toBe('farm-9');
+  });
+
   it('degrades gracefully when nothing is logged yet', async () => {
     const { svc } = makeService({
       pond: { id: 'p1', calculatedAreaM2: 4000, activeCycleId: null },

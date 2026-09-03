@@ -13,9 +13,10 @@
  * are kept as plain rows under "Tools" and "Farm", in the same one-line style
  * as the rest of the page rather than as the old card grid.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -26,10 +27,23 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { theme } from '../../theme';
-import { registerForPushNotificationsAsync } from '../../utils/notifications';
+import {
+    registerForPushNotificationsAsync,
+    syncReminders,
+    DEFAULT_REMINDER_TIMES,
+    type ReminderTimes,
+    type HM,
+} from '../../utils/notifications';
+import { loadReminderTimes, saveReminderTimes } from '../../features/reminderTimes';
+import { alertCenterApi } from '../../api/alertCenter';
+import type { PondContext } from '../../api/pondContext';
 import { pushApi } from '../../api/push';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
+
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+type ReminderSlot = keyof ReminderTimes;
 
 const c = theme.roles.light;
 
@@ -55,13 +69,38 @@ export const SettingsScreen = ({ navigation }: any) => {
     // Re-render on language change; i18n.language is read, not stored in state.
     const [, setLanguageTick] = useState(0);
 
+    // The farmer's chosen reminder times (defaults to DEFAULT_REMINDER_TIMES
+    // until loadReminderTimes resolves). Pond contexts are fetched once so a
+    // picker change can re-arm syncReminders immediately without a second
+    // round trip per tap.
+    const [reminderTimes, setReminderTimes] = useState<ReminderTimes>(DEFAULT_REMINDER_TIMES);
+    const pondContextsRef = useRef<PondContext[]>([]);
+
     useEffect(() => {
         AsyncStorage.getItem('pushNotifications')
             .then((stored) => {
                 if (stored !== null) setPushNotifications(JSON.parse(stored));
             })
             .catch(() => undefined);
+        loadReminderTimes().then(setReminderTimes);
+        alertCenterApi
+            .today()
+            .then((r) => { pondContextsRef.current = r.data.contexts ?? []; })
+            .catch(() => undefined);
     }, []);
+
+    const updateReminderTime = useCallback(
+        (slot: ReminderSlot, field: keyof HM, value: number) => {
+            setReminderTimes((prev) => {
+                const next: ReminderTimes = { ...prev, [slot]: { ...prev[slot], [field]: value } };
+                saveReminderTimes(next)
+                    .then(() => syncReminders(pondContextsRef.current, next))
+                    .catch(() => undefined);
+                return next;
+            });
+        },
+        [],
+    );
 
     useFocusEffect(useCallback(() => { loadMemberships(); }, [loadMemberships]));
 
@@ -126,6 +165,35 @@ export const SettingsScreen = ({ navigation }: any) => {
         { key: 'feedProducts', icon: 'set_meal', label: t('home.moreFeedProducts'), route: 'FeedProducts' },
         { key: 'shop', icon: 'workspace_premium', label: t('home.moreShop'), route: 'Shop' },
     ];
+
+    const TimeRow: React.FC<{ label: string; slot: ReminderSlot; value: HM }> = ({ label, slot, value }) => (
+        <View style={styles.timeRow}>
+            <Text style={styles.rowLabel} numberOfLines={1}>{label}</Text>
+            <View style={styles.timePickers}>
+                <View style={styles.timePickerWrap}>
+                    <Picker
+                        selectedValue={value.hour}
+                        onValueChange={(v) => updateReminderTime(slot, 'hour', Number(v))}
+                    >
+                        {HOURS.map((h) => (
+                            <Picker.Item key={h} label={String(h).padStart(2, '0')} value={h} />
+                        ))}
+                    </Picker>
+                </View>
+                <Text style={styles.timeSep}>:</Text>
+                <View style={styles.timePickerWrap}>
+                    <Picker
+                        selectedValue={value.minute}
+                        onValueChange={(v) => updateReminderTime(slot, 'minute', Number(v))}
+                    >
+                        {MINUTES.map((m) => (
+                            <Picker.Item key={m} label={String(m).padStart(2, '0')} value={m} />
+                        ))}
+                    </Picker>
+                </View>
+            </View>
+        </View>
+    );
 
     const Row: React.FC<{ row: LinkRow }> = ({ row }) => (
         <TouchableOpacity
@@ -222,6 +290,13 @@ export const SettingsScreen = ({ navigation }: any) => {
                         route: 'Notifications',
                     }}
                 />
+
+                <SectionHeader label={t('settings.reminderTimes')} />
+                <Text style={styles.note}>{t('settings.reminderTimesDesc')}</Text>
+                <TimeRow label={t('settings.reminderMorning')} slot="morning" value={reminderTimes.morning} />
+                <TimeRow label={t('settings.reminderAfternoon')} slot="afternoon" value={reminderTimes.afternoon} />
+                <TimeRow label={t('settings.reminderEvening')} slot="evening" value={reminderTimes.evening} />
+                <TimeRow label={t('settings.reminderChemistry')} slot="chemistry" value={reminderTimes.chemistry} />
 
                 <SectionHeader label={t('settings.security')} />
                 <Row row={{ key: '2fa', icon: 'key', label: t('settings.twoFactor'), route: 'TwoFactor' }} />
@@ -353,6 +428,26 @@ const styles = StyleSheet.create({
         borderTopColor: c.surfaceVariant,
         minHeight: 48,
     },
+    timeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 48,
+    },
+    timePickers: { flexDirection: 'row', alignItems: 'center' },
+    timePickerWrap: {
+        width: 84,
+        borderWidth: 1,
+        borderColor: c.borderDefault,
+        borderRadius: theme.radius.sm,
+        overflow: 'hidden',
+    },
+    timeSep: { ...theme.typeScale.labelLarge, color: c.textSecondary, marginHorizontal: theme.spacing[1] },
     rowLabel: { ...theme.typeScale.labelLarge, flex: 1, minWidth: 0, color: c.textPrimary },
     rowSub: { ...theme.typeScale.bodySmall, color: c.textTertiary },
     version: { fontFamily: 'DMMono-Regular', fontSize: 13, color: c.textTertiary },

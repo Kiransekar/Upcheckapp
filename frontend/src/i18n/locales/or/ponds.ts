@@ -124,5 +124,8 @@ const ponds = {
   fieldSurveyedArea: "ସର୍ଭେ କରାଯାଇଥିବା କ୍ଷେତ୍ର (m²)",
   surveyedDifferent: "ସର୍ଭେ କ୍ଷେତ୍ର ଅଲଗା",
   surveyedDifferentSub: "ଗଣନା କରାଯାଇଥିବା କ୍ଷେତ୍ର ବଦଳାନ୍ତୁ",
+
+  sessionHintLogged: "ଲଗ୍ ହେଲା",
+  sessionHintFed: "ଖୁଆଯାଇଛି",
 };
 export default ponds;

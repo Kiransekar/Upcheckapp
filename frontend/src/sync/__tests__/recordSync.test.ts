@@ -1,15 +1,21 @@
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'fixed-uuid' }));
 jest.mock('../../api/client', () => ({
     __esModule: true,
-    default: { post: jest.fn(), request: jest.fn() },
+    default: { get: jest.fn(), post: jest.fn(), request: jest.fn() },
 }));
+jest.mock('../../utils/notifications', () => ({ syncReminders: jest.fn().mockResolvedValue(undefined) }));
 
 import apiClient from '../../api/client';
 import { useSyncStore, RETRY_COUNT_INTERVAL_MS } from '../../store/syncStore';
 import { saveRecord, replayQueuedOp } from '../recordSync';
+import { syncReminders } from '../../utils/notifications';
+import { queryClient, qk } from '../../query/client';
+import type { PondContext } from '../../api/pondContext';
 
+const mockedGet = apiClient.get as jest.Mock;
 const mockedPost = apiClient.post as jest.Mock;
 const mockedRequest = (apiClient as any).request as jest.Mock;
+const mockedSyncReminders = syncReminders as jest.Mock;
 
 describe('recordSync.saveRecord', () => {
     beforeEach(() => {
@@ -56,6 +62,57 @@ describe('recordSync.saveRecord', () => {
             saveRecord({ entity: 'feed', endpoint: '/feed-records', payload: { pondId: 'p1' } }),
         ).rejects.toBeDefined();
         expect(useSyncStore.getState().queue).toHaveLength(0);
+    });
+});
+
+describe('recordSync.saveRecord re-arms reminders from the cache, never the network', () => {
+    const ctx = (pondId: string): PondContext =>
+        ({
+            pondId, farmId: 'f1', cropId: 'c1', species: null, areaM2: null,
+            installedAeratorHp: null, doc: 10, waterQuality: null,
+            freeAmmoniaMgL: null, abwG: null, livePopulation: null, biomassKg: null,
+            crop: null, cumulativeFeedKg: null, runningFcr: null,
+            latestTrayResidue: null, lastFeedAt: null, lastTrayAt: null,
+            samplingAt: null,
+            confidence: { score: 0, band: 'low', missing: [], stale: [] },
+        }) as PondContext;
+
+    beforeEach(() => {
+        useSyncStore.getState().clearQueue();
+        useSyncStore.getState().setConnected(true);
+        jest.clearAllMocks();
+        queryClient.clear();
+    });
+
+    it('re-arms reminders from the cached Today contexts with no network call', async () => {
+        mockedPost.mockResolvedValue({ data: { id: 'fixed-uuid' } });
+        queryClient.setQueryData([...qk.briefing(), 'home'], { contexts: [ctx('a')], briefing: [] });
+
+        await saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: { pondId: 'a', ph: 7.8 } });
+
+        // This is the regression the fix closes: /alert-center/today builds
+        // every pond's context server-side, so a save must never call it.
+        expect(mockedGet).not.toHaveBeenCalled();
+        expect(mockedSyncReminders).toHaveBeenCalledWith([ctx('a')]);
+    });
+
+    it('skips re-arming (rather than fetching) when nothing is cached yet', async () => {
+        mockedPost.mockResolvedValue({ data: { id: 'fixed-uuid' } });
+
+        await saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: { pondId: 'a', ph: 7.8 } });
+
+        expect(mockedGet).not.toHaveBeenCalled();
+        expect(mockedSyncReminders).not.toHaveBeenCalled();
+    });
+
+    it('a reminder failure never turns the save into a failure', async () => {
+        mockedPost.mockResolvedValue({ data: { id: 'fixed-uuid' } });
+        queryClient.setQueryData([...qk.briefing(), 'home'], { contexts: [ctx('a')], briefing: [] });
+        mockedSyncReminders.mockRejectedValue(new Error('boom'));
+
+        await expect(
+            saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: { pondId: 'a', ph: 7.8 } }),
+        ).resolves.toMatchObject({ queued: false });
     });
 });
 

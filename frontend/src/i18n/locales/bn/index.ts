@@ -31,6 +31,7 @@ import attendance from './attendance';
 import team from './team';
 import feedback from './feedback';
 import sync from './sync';
+import notifications from './notifications';
 
 export default {
   common,
@@ -60,4 +61,5 @@ export default {
   team,
   feedback,
   sync,
+  notifications,
 };

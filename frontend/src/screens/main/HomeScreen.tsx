@@ -19,6 +19,7 @@ import { TodayStats } from '../../components/dashboard/TodayStats';
 import { GettingStarted } from '../../components/dashboard/GettingStarted';
 import { LunarRow } from '../../components/dashboard/LunarRow';
 import { FarmOverview } from '../../components/dashboard/FarmOverview';
+import { LogProgressCard } from '../../components/today/LogProgressCard';
 import { buildPondRows, mergeBriefings } from '../../utils/pondHealth';
 import type { PondContext } from '../../api/pondContext';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
@@ -262,6 +263,17 @@ export const HomeScreen = ({ navigation }: any) => {
         const stamps = [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt].filter(Boolean);
         return stamps.length ? Math.min(...stamps) : 0;
     }, [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt]);
+
+    /** Name lookups for the log progress card — no request of its own, the
+     * farm and pond lists are already loaded above. */
+    const farmNamesById = React.useMemo(
+        () => Object.fromEntries(farms.map((f) => [f.id, f.name])),
+        [farms],
+    );
+    const pondNamesById = React.useMemo(
+        () => Object.fromEntries(ponds.map((p) => [p.id, p.displayName || p.name])),
+        [ponds],
+    );
 
     const bandReady = !!alertsQuery.data && !alertsQuery.isError;
 
@@ -758,6 +770,17 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <>
+                    {/* Overall / per farm / per pond log progress for the
+                        current slot — reads the contexts this screen already
+                        fetched, no new request. See LogProgressCard.tsx. */}
+                    {bandReady && (
+                        <LogProgressCard
+                            contexts={contexts}
+                            farmNames={farmNamesById}
+                            pondNames={pondNamesById}
+                        />
+                    )}
+
                     {/* Worker first-run interstitial (onboarding-plan Phase 1):
                         a worker previously got zero explanation of their role or
                         which farm they had joined on their very first app-open.

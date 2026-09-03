@@ -6,11 +6,13 @@ interface CardProps {
     children: React.ReactNode;
     style?: StyleProp<ViewStyle>;
     variant?: 'elevated' | 'outlined' | 'flat';
+    testID?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated' }) => {
+export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated', testID }) => {
     return (
         <View
+            testID={testID}
             style={[
                 styles.base,
                 variant === 'elevated' && styles.elevated,

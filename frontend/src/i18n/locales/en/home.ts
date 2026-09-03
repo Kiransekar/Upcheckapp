@@ -213,6 +213,11 @@ const home = {
   hideChecklistTitle: "Hide the setup list?",
   hideChecklistBody: "It will not come back. You can still set up ponds, log readings and invite your team from the Farm and Team tabs.",
   hideChecklistConfirm: "Hide for good",
+
+  // Today progress card (overall / per farm / per pond) — see
+  // components/today/LogProgressCard.tsx
+  logProgressTitle: "Log progress",
+  logProgressOutstanding: "Still to log",
 };
 
 export default home;

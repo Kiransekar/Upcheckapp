@@ -211,6 +211,9 @@ const home = {
   hideChecklistTitle: "సెటప్ జాబితా దాచాలా?",
   hideChecklistBody: "ఇది మళ్ళీ రాదు. చెరువులు ఏర్పాటు చేయడం, రీడింగ్‌లు నమోదు చేయడం, జట్టును పిలవడం ఫారం, జట్టు ట్యాబ్‌లలో ఇంకా ఉంటాయి.",
   hideChecklistConfirm: "శాశ్వతంగా దాచు",
+
+  logProgressTitle: "లాగ్ పురోగతి",
+  logProgressOutstanding: "ఇంకా నమోదు చేయాల్సినవి",
 };
 
 export default home;

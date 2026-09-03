@@ -155,6 +155,14 @@ const settings = {
   signOutConfirm: "Sign out of Upcheck on this device?",
   toolsSection: "Tools",
   farmSection: "Farm",
+
+  // ── Reminder times (smart reminders) ──────────────────────────────────────
+  reminderTimes: "Reminder times",
+  reminderTimesDesc: "Choose when Upcheck reminds you to log water quality.",
+  reminderMorning: "Morning check",
+  reminderAfternoon: "Afternoon check",
+  reminderEvening: "Evening check",
+  reminderChemistry: "Weekly chemistry check",
 };
 
 export default settings;

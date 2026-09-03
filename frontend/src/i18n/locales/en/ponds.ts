@@ -124,5 +124,9 @@ const ponds = {
   fieldSurveyedArea: "Surveyed area (m²)",
   surveyedDifferent: "Surveyed area is different",
   surveyedDifferentSub: "Override the calculated area",
+
+  // Session hints (logged / fed this slot) — components/ui/SessionHint.tsx
+  sessionHintLogged: "Logged",
+  sessionHintFed: "Fed",
 };
 export default ponds;

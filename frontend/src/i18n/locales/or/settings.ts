@@ -152,6 +152,14 @@ const settings = {
   signOutConfirm: "ଏହି ଡିଭାଇସରେ ଅପଚେକରୁ ସାଇନ ଆଉଟ କରିବେ?",
   toolsSection: "ଉପକରଣ",
   farmSection: "ଫାର୍ମ",
+
+  // ── ରିମାଇଣ୍ଡର ସମୟ (ସ୍ମାର୍ଟ ରିମାଇଣ୍ଡର) ──────────────────────────────
+  reminderTimes: "ରିମାଇଣ୍ଡର ସମୟ",
+  reminderTimesDesc: "ପାଣିର ଗୁଣବତ୍ତା ଲଗ୍ କରିବାକୁ Upcheck ଆପଣଙ୍କୁ କେବେ ମନେ ପକାଇବ ତାହା ବାଛନ୍ତୁ।",
+  reminderMorning: "ସକାଳ ଯାଞ୍ଚ",
+  reminderAfternoon: "ଅପରାହ୍ନ ଯାଞ୍ଚ",
+  reminderEvening: "ସନ୍ଧ୍ୟା ଯାଞ୍ଚ",
+  reminderChemistry: "ସାପ୍ତାହିକ ରସାୟନ ଯାଞ୍ଚ",
 };
 
 export default settings;

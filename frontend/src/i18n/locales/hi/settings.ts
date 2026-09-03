@@ -152,6 +152,14 @@ const settings = {
   signOutConfirm: "क्या इस डिवाइस पर अपचेक से साइन आउट करें?",
   toolsSection: "उपकरण",
   farmSection: "फ़ार्म",
+
+  // ── रिमाइंडर का समय (स्मार्ट रिमाइंडर) ──────────────────────────────────
+  reminderTimes: "रिमाइंडर का समय",
+  reminderTimesDesc: "तय करें कि Upcheck आपको पानी की गुणवत्ता दर्ज करने के लिए कब याद दिलाए।",
+  reminderMorning: "सुबह की जांच",
+  reminderAfternoon: "दोपहर की जांच",
+  reminderEvening: "शाम की जांच",
+  reminderChemistry: "साप्ताहिक रसायन जांच",
 };
 
 export default settings;

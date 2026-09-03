@@ -2,7 +2,9 @@ import * as Crypto from 'expo-crypto';
 import apiClient from '../api/client';
 import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
-import { invalidateForEntity } from '../query/client';
+import { invalidateForEntity, queryClient, qk } from '../query/client';
+import type { TodaySnapshot } from '../api/todaySnapshot';
+import { syncReminders } from '../utils/notifications';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -64,6 +66,31 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
         const { data } = await apiClient.post(endpoint, body);
         // The server now has it — every cached read this record moves is stale.
         invalidateForEntity(entity);
+        // Re-arm reminders from the contexts already sitting in the Today
+        // screen's cache — best-effort, not awaited (a slow read must never
+        // delay the save the farmer is waiting on) and never allowed to turn
+        // a successful save into a queued/failed one if it throws. See
+        // syncReminders in utils/notifications.ts.
+        //
+        // Deliberately NOT a call to alertCenterApi.today(): that endpoint
+        // builds every pond's context server-side — the same expensive
+        // composite read the Today screen exists to avoid paying for
+        // repeatedly (see query/client.ts). Firing it on every save
+        // reintroduced a full round trip of real server work per save on a
+        // rural connection, just to hand fresh contexts to syncReminders.
+        // If nothing is cached yet, invalidateForEntity() above already
+        // marked it stale, so the Today screen refetches on its own and the
+        // next app-foreground re-arms from fresh data instead.
+        try {
+            const cached = queryClient.getQueryData<TodaySnapshot>([...qk.briefing(), 'home']);
+            if (cached?.contexts?.length) {
+                syncReminders(cached.contexts).catch(() => {
+                    /* best-effort; the next foreground or save will retry */
+                });
+            }
+        } catch {
+            /* best-effort; see above */
+        }
         return { id, queued: false, data };
     } catch (err) {
         if (isNetworkError(err)) {
