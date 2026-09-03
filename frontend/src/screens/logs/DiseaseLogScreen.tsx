@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { AlertBanner } from '../../components/ui/AlertBanner';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { apiErrorMessage } from '../../api/errors';
 import { findBannedSubstances } from '../../features/bannedSubstances';
 import { useBannedSubstancesStore } from '../../features/bannedSubstancesStore';
 import { useUIStore } from '../../store/uiStore';
@@ -113,7 +114,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.disease_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.disease_errorSave')));
         } finally {
             setIsLoading(false);
         }
@@ -153,7 +154,7 @@ export const DiseaseLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 {flagged.length > 0 ? (

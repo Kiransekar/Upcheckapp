@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'Temp (°C)',
   waterQualityMetricSalinity: 'Salinity',
+  waterQualityMetricNitrate: 'Nitrate',
+  waterQualityMetricHardness: 'Hardness',
+  waterQualityMetricTransparency: 'Transparency',
+  weeklyChemistryTag: 'Weekly chemistry',
   waterQualityEmptyTitle: 'No Water Quality Logs',
   waterQualityEmptyText: 'Start recording water quality to see trends.',
 };

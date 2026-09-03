@@ -17,6 +17,7 @@ import { Input } from '../../components/ui/Input';
 import { ChipGroup } from '../../components/ui/ChipGroup';
 import { theme } from '../../theme';
 import { farmMembersApi, WORKER_QR_PREFIX, type PublicUser, type AssignableRole } from '../../api/farmMembers';
+import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canAssignRole } from '../../permissions/capabilities';
 
@@ -63,7 +64,7 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
             // Same 1200ms debounce as the invalid-prefix path below, so dismissing
             // the alert doesn't immediately re-scan the same failing code.
             setTimeout(() => setScanned(false), 1200);
-            Alert.alert(t('members.notFoundTitle'), e?.response?.data?.message ?? t('members.notFoundSub'));
+            Alert.alert(t('members.notFoundTitle'), apiErrorMessage(e, t('members.notFoundSub')));
         } finally {
             setBusy(false);
         }
@@ -89,7 +90,7 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
             Alert.alert(t('members.addedTitle'), t('members.addedSub', { name: displayName(found) }));
             navigation.goBack();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.addError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.addError')));
         } finally {
             setBusy(false);
         }

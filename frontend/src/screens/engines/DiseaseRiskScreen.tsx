@@ -16,6 +16,7 @@ import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
 import { diseaseWarningApi, type DiseaseIndicators, type DiseaseRisk } from '../../api/diseaseWarning';
+import { apiErrorMessage } from '../../api/errors';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -76,7 +77,7 @@ export const DiseaseRiskScreen = ({ route }: any) => {
       const { data } = await diseaseWarningApi.compute(indicators);
       setRisks(data);
     } catch (e: any) {
-      Alert.alert(t('engines.common.couldNotCompute'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
+      Alert.alert(t('engines.common.couldNotCompute'), apiErrorMessage(e, t('engines.common.tryAgain')));
     } finally {
       setLoading(false);
     }

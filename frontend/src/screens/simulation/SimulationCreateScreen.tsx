@@ -21,6 +21,7 @@ import { PondPicker } from '../../components/ui/PondPicker';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { simulationsApi, type SimulationScenarioType } from '../../api/simulations';
+import { apiErrorMessage } from '../../api/errors';
 import type { PondContext } from '../../api/pondContext';
 
 const c = theme.roles.light;
@@ -88,7 +89,7 @@ export const SimulationCreateScreen = ({ route, navigation }: any) => {
         } catch (error: any) {
             Alert.alert(
                 t('simulations.create.simFailedTitle'),
-                error.response?.data?.message || t('simulations.create.errorSimFailed'),
+                apiErrorMessage(error, t('simulations.create.errorSimFailed')),
             );
         } finally {
             setIsLoading(false);

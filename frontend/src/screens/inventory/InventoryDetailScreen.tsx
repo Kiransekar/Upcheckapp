@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { apiErrorMessage } from '../../api/errors';
 import { useFocusEffect } from '@react-navigation/native';
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
@@ -79,7 +80,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             setAdjustMode(null);
             await fetchItem();
         } catch (err: any) {
-            Alert.alert(t('common.error'), err?.response?.data?.message ?? t('inventory.adjustFailed', 'Failed to adjust stock.'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('inventory.adjustFailed', 'Failed to adjust stock.')));
         } finally {
             setIsAdjusting(false);
         }
@@ -116,7 +117,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             setShowEdit(false);
             await fetchItem();
         } catch (err: any) {
-            Alert.alert(t('common.error'), err?.response?.data?.message ?? t('inventory.editFailed', 'Failed to update item.'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('inventory.editFailed', 'Failed to update item.')));
         } finally {
             setIsEditSaving(false);
         }

@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'வெப்பநிலை (°C)',
   waterQualityMetricSalinity: 'உப்புத்தன்மை',
+  waterQualityMetricNitrate: 'நைட்ரேட்',
+  waterQualityMetricHardness: 'கடினத்தன்மை',
+  waterQualityMetricTransparency: 'ஒளிபுகுதிறன்',
+  weeklyChemistryTag: 'வாராந்திர வேதியியல்',
   waterQualityEmptyTitle: 'நீர் தர பதிவுகள் இல்லை',
   waterQualityEmptyText: 'போக்குகளை பார்க்க நீர் தரம் பதிவு செய்யத் தொடங்குங்கள்.',
 };

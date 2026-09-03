@@ -151,6 +151,57 @@ describe('FeedRecordsService', () => {
 
       expect(inventoryServiceMock.adjustStock).not.toHaveBeenCalled();
     });
+
+    it('persists a client-supplied recordedAt instead of sync time', async () => {
+      const recordedAt = '2026-09-01T06:30:00.000Z';
+      const pondServiceMock = module.get<PondsService>(PondsService);
+      jest
+        .spyOn(pondServiceMock, 'findOneAccessible')
+        .mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
+
+      await service.create(
+        { pondId: 'pond-1', feedType: 'Pellet', quantityKg: 10, recordedAt },
+        'user-1',
+      );
+
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ recordedAt: new Date(recordedAt) }),
+      );
+    });
+
+    it('leaves recordedAt to the column default when the client omits it', async () => {
+      const pondServiceMock = module.get<PondsService>(PondsService);
+      jest
+        .spyOn(pondServiceMock, 'findOneAccessible')
+        .mockResolvedValue({ id: 'pond-1', activeCycleId: 'crop-1' } as any);
+
+      await service.create(
+        { pondId: 'pond-1', feedType: 'Pellet', quantityKg: 10 },
+        'user-1',
+      );
+
+      expect(mockRepository.create.mock.calls[0][0].recordedAt).toBeUndefined();
+    });
+
+    it('does not re-stamp recordedAt on an idempotent replay', async () => {
+      const existing = { id: 'client-uuid', pondId: 'pond-1' };
+      mockRepository.findOne = jest.fn().mockResolvedValue(existing);
+
+      const result = await service.create(
+        {
+          id: 'client-uuid',
+          pondId: 'pond-1',
+          feedType: 'Pellet',
+          quantityKg: 10,
+          recordedAt: '2026-09-01T06:30:00.000Z',
+        },
+        'user-1',
+      );
+
+      expect(result).toBe(existing);
+      expect(mockRepository.create).not.toHaveBeenCalled();
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('findAll', () => {

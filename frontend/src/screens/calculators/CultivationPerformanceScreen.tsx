@@ -15,6 +15,7 @@ import {
     SurvivalRateResponse,
 } from '../../api/calculators';
 import { parseNumericInput, MAX_STOCKING_COUNT } from '../../features/parseNumericInput';
+import { apiErrorMessage } from '../../api/errors';
 
 interface PerformanceResults {
     fcr: number | null;
@@ -108,7 +109,7 @@ export const CultivationPerformanceScreen = ({ navigation }: any) => {
                 productivity,
             });
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.performance.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.performance.errorCalc')));
         } finally {
             setIsLoading(false);
         }

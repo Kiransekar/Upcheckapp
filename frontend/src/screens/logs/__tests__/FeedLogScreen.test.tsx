@@ -68,4 +68,19 @@ describe('FeedLogScreen — tray checks collapsed by default', () => {
             ),
         );
     });
+
+    // A feed log written with no signal waits in the offline queue. Without a
+    // client stamp the server dated it whenever the phone next synced, so a
+    // Tuesday feeding was filed on Thursday.
+    it('stamps the payload with the time the farmer logged it', async () => {
+        const { getByText, getByPlaceholderText } = renderScreen();
+
+        fireEvent.changeText(getByPlaceholderText('0.0'), '8');
+        fireEvent.press(getByText('Save Record'));
+
+        await waitFor(() => expect(mockedSaveRecord).toHaveBeenCalled());
+        const { recordedAt } = mockedSaveRecord.mock.calls[0][0].payload;
+        expect(typeof recordedAt).toBe('string');
+        expect(Number.isNaN(Date.parse(recordedAt))).toBe(false);
+    });
 });

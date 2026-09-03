@@ -54,13 +54,29 @@ export class HarvestsService {
         await this.farmAccess.assertCanAccessPond(
           userId,
           existing.crop.pondId,
-          'WRITE_MANAGEMENT',
+          'RECORD_HARVEST',
         );
         return existing;
       }
     }
 
-    const harvest = this.harvestsRepository.create(createDto);
+    // A harvest closes a cycle and books revenue — it is not a pH reading, and
+    // it does not ride WRITE_OPERATIONAL. Owner/manager by default; an owner
+    // can grant it to a role or to one person (roleSatisfies resolves both).
+    const crop = await this.cropsService.findOneAccessible(
+      createDto.cropId,
+      userId,
+    );
+    await this.farmAccess.assertCanAccessPond(
+      userId,
+      crop.pondId,
+      'RECORD_HARVEST',
+    );
+
+    const harvest = this.harvestsRepository.create({
+      ...createDto,
+      createdById: userId,
+    });
     const savedHarvest = await this.harvestsRepository.save(harvest);
 
     if (createDto.harvestType === 'full') {
@@ -172,14 +188,41 @@ export class HarvestsService {
     return harvest;
   }
 
-  async update(id: string, dto: UpdateHarvestDto): Promise<Harvest> {
-    await this.findOne(id);
-    await this.harvestsRepository.update(id, dto);
+  /**
+   * Load a harvest and prove the caller may record harvests on its pond.
+   *
+   * The route guard says the same thing, but the service is where it is
+   * enforced: `update`/`remove` are also reachable from other services, and a
+   * guard on the HTTP layer proves nothing about those.
+   */
+  private async assertCanRecord(id: string, userId: string): Promise<Harvest> {
+    const harvest = await this.harvestsRepository.findOne({
+      where: { id },
+      relations: ['crop'],
+    });
+    if (!harvest) {
+      throw new NotFoundException(`Harvest with ID ${id} not found`);
+    }
+    await this.farmAccess.assertCanAccessPond(
+      userId,
+      harvest.crop.pondId,
+      'RECORD_HARVEST',
+    );
+    return harvest;
+  }
+
+  async update(
+    id: string,
+    dto: UpdateHarvestDto,
+    userId: string,
+  ): Promise<Harvest> {
+    await this.assertCanRecord(id, userId);
+    await this.harvestsRepository.update(id, { ...dto, updatedById: userId });
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    await this.findOne(id);
+  async remove(id: string, userId: string): Promise<{ message: string }> {
+    await this.assertCanRecord(id, userId);
     await this.harvestsRepository.delete(id);
     return { message: 'Harvest deleted successfully' };
   }

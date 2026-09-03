@@ -15,6 +15,7 @@ import { Input } from '../../components/ui/Input';
 import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
+import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
@@ -78,7 +79,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.chemical_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.chemical_errorSave')));
         } finally {
             setIsLoading(false);
         }
@@ -94,7 +95,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>

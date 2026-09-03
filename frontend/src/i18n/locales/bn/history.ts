@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'তাপমাত্রা (°C)',
   waterQualityMetricSalinity: 'লবণাক্ততা',
+  waterQualityMetricNitrate: 'নাইট্রেট',
+  waterQualityMetricHardness: 'কাঠিন্য',
+  waterQualityMetricTransparency: 'স্বচ্ছতা',
+  weeklyChemistryTag: 'সাপ্তাহিক রসায়ন',
   waterQualityEmptyTitle: 'কোনো পানির মানের লগ নেই',
   waterQualityEmptyText: 'প্রবণতা দেখতে পানির মান রেকর্ড করা শুরু করুন।',
 };

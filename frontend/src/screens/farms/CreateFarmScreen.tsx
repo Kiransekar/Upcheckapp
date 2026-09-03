@@ -24,6 +24,8 @@ import { Stepper } from '../../components/ui/Stepper';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto } from '../../api/farms';
+import { apiErrorMessage } from '../../api/errors';
+import { confirm } from '../../utils/confirm';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
@@ -156,6 +158,18 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
             return;
         }
 
+        // Renaming or re-siting a farm changes what every member sees; ask
+        // first. Creation does not — the reassurance line below covers it.
+        if (isEdit) {
+            const ok = await confirm({
+                title: t('common.confirmEditTitle'),
+                message: t('common.confirmEditMessage'),
+                confirmLabel: t('common.save'),
+                cancelLabel: t('common.cancel'),
+            });
+            if (!ok) return;
+        }
+
         setIsLoading(true);
         try {
             if (isEdit) {
@@ -179,8 +193,7 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
         } catch (error: any) {
             Alert.alert(
                 t('common.error'),
-                error.response?.data?.message ||
-                    t(isEdit ? 'farms.errorSaveFarm' : 'farms.errorCreateFarm'),
+                apiErrorMessage(error, t(isEdit ? 'farms.errorSaveFarm' : 'farms.errorCreateFarm')),
             );
         } finally {
             setIsLoading(false);

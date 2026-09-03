@@ -10,6 +10,7 @@ import { theme } from '../../theme';
 import { harvestsApi } from '../../api/harvests';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
+import { confirm } from '../../utils/confirm';
 import { saveRecord } from '../../sync/recordSync';
 
 export const HarvestLogScreen = ({ route, navigation }: any) => {
@@ -30,6 +31,19 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
         if (!weightKg) {
             Alert.alert(t('common.error'), t('logs.harvest_validationWeight'));
             return;
+        }
+
+        // A harvest is a money record: the weight and sale price on it feed the
+        // cycle's yield and P&L. Overwriting one is worth a question; creating
+        // the first one is not.
+        if (isEditing) {
+            const ok = await confirm({
+                title: t('common.confirmEditTitle'),
+                message: t('common.confirmEditMessage'),
+                confirmLabel: t('common.save'),
+                cancelLabel: t('common.cancel'),
+            });
+            if (!ok) return;
         }
 
         setIsSubmitting(true);
@@ -86,7 +100,7 @@ export const HarvestLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Card style={styles.card}>
                     <Text style={styles.sectionTitle}>{t('logs.harvest_sectionDetails')}</Text>
 

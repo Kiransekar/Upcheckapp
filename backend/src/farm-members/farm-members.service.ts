@@ -7,9 +7,14 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { FarmMember } from '../farm-access/farm-member.entity';
+import { FarmMember, FarmRole } from '../farm-access/farm-member.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { canAssignRole, canManageMember } from '../farm-access/farm-capability';
+import {
+  canAssignRole,
+  canManageMember,
+  CapabilityOverrides,
+  invalidOverrideKey,
+} from '../farm-access/farm-capability';
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
@@ -172,6 +177,49 @@ export class FarmMembersService {
     targetUserId: string,
     canViewFinancials: boolean | null,
   ) {
+    // The lone financial switch is now one row of the capability grid. Kept as
+    // a route for one release, because an app build already in farmers' hands
+    // still calls it.
+    await this.updateMemberOverrides(farmId, callerId, targetUserId, (cur) => {
+      const next = { ...cur };
+      if (canViewFinancials === null) delete next.VIEW_FINANCIALS;
+      else next.VIEW_FINANCIALS = canViewFinancials;
+      return next;
+    });
+    return { farmId, userId: targetUserId, canViewFinancials };
+  }
+
+  /**
+   * Replace a member's capability overrides wholesale. Owner only, same reason
+   * setFinancialAccess was: who may record a harvest or see the books is the
+   * owner's call, and a manager who could grant it to themselves would make
+   * the setting meaningless.
+   *
+   * `null` (or `{}`) clears every override, restoring the farm's role policy
+   * and then the role default.
+   */
+  async setCapabilities(
+    farmId: string,
+    callerId: string,
+    targetUserId: string,
+    overrides: CapabilityOverrides | null,
+  ) {
+    const saved = await this.updateMemberOverrides(
+      farmId,
+      callerId,
+      targetUserId,
+      () => overrides ?? {},
+    );
+    return { farmId, userId: targetUserId, capabilityOverrides: saved };
+  }
+
+  /** Shared write path so both routes authorize and normalise identically. */
+  private async updateMemberOverrides(
+    farmId: string,
+    callerId: string,
+    targetUserId: string,
+    apply: (current: CapabilityOverrides) => CapabilityOverrides,
+  ): Promise<CapabilityOverrides | null> {
     await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'OWNER_ONLY');
 
     const member = await this.membersRepo.findOne({
@@ -182,13 +230,27 @@ export class FarmMembersService {
     }
     if (member.role === 'owner') {
       throw new BadRequestException(
-        'The farm owner always has access to their own financials',
+        'The farm owner always has every permission on their own farm',
       );
     }
 
-    member.canViewFinancials = canViewFinancials;
+    const next = apply(member.capabilityOverrides ?? {});
+    // Validated AFTER authorization, and on the result rather than the input,
+    // so both routes are held to the same rule: nothing outside the grantable
+    // set reaches the column, whichever one wrote it.
+    const bad = invalidOverrideKey(next);
+    if (bad) {
+      throw new BadRequestException(
+        `"${bad}" is not a permission that can be granted per member`,
+      );
+    }
+    // An empty object and null mean the same thing (no override); store null so
+    // the column reads as "never decided" rather than "decided nothing".
+    member.capabilityOverrides = Object.keys(next).length > 0 ? next : null;
+    // One-release compatibility: the previous deploy reads this column.
+    member.canViewFinancials = next.VIEW_FINANCIALS ?? null;
     await this.membersRepo.save(member);
-    return { farmId, userId: targetUserId, canViewFinancials };
+    return member.capabilityOverrides;
   }
 
   async setPondScope(
@@ -408,17 +470,28 @@ export class FarmMembersService {
     return { message: 'Ownership transferred', farmId, newOwnerUserId };
   }
 
-  /** Farms the caller belongs to (owner or worker), with their role. */
+  /**
+   * Farms the caller belongs to, with everything the app needs to reach the
+   * same permission verdict the backend will.
+   *
+   * `status: 'active'` is load-bearing twice over: a pending row grants nothing
+   * server-side, so returning it handed the client a full worker role for a
+   * farm it was not in yet and every tap came back 403. It is also projected,
+   * so a client that gets a row knows what it is.
+   */
   async listMine(callerId: string) {
     const members = await this.membersRepo.find({
-      where: { userId: callerId },
+      where: { userId: callerId, status: 'active' },
       relations: ['farm'],
     });
     const result = members
       .filter((m) => m.farm && !m.farm.deletedAt)
       .map((m) => ({
         farmId: m.farmId,
-        role: m.role,
+        role: m.role as FarmRole,
+        status: 'active' as const,
+        capabilityOverrides: m.capabilityOverrides ?? null,
+        rolePolicy: m.farm.rolePolicy ?? null,
         farm: m.farm
           ? { id: m.farm.id, name: m.farm.name, farmCode: m.farm.farmCode }
           : null,
@@ -438,6 +511,10 @@ export class FarmMembersService {
       result.push({
         farmId: farm.id,
         role: 'owner',
+        status: 'active' as const,
+        // An owner is never reduced, so an override on them would be a lie.
+        capabilityOverrides: null,
+        rolePolicy: farm.rolePolicy ?? null,
         farm: { id: farm.id, name: farm.name, farmCode: farm.farmCode },
       });
     }

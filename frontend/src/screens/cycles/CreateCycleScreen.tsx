@@ -6,8 +6,11 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
+import { SelectField } from '../../components/ui/SelectField';
+import { CANONICAL_SPECIES, SEED_TYPES, speciesLabelKey } from '../../features/species';
 import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
+import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
@@ -45,7 +48,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     const [targetSr, setTargetSr] = useState('75');
 
     const [isLoading, setIsLoading] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string; stockingCount?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; stockingCount?: string; seedType?: string }>({});
 
     // A blank required "Cycle Name" field with nothing to go on is exactly the
     // kind of internal-sounding ask a farmer shouldn't have to think about —
@@ -69,7 +72,12 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     }, [pondId]);
 
     const handleSave = async () => {
-        const newErrors: { name?: string; stockingCount?: string } = {};
+        const newErrors: { name?: string; stockingCount?: string; seedType?: string } = {};
+        // The seed grade sets what a "normal" ABW curve looks like from day one,
+        // and it was the one stocking fact nobody was made to supply.
+        if (!seedType) {
+            newErrors.seedType = t('cycles.errorSeedTypeRequired');
+        }
         if (!name.trim()) {
             newErrors.name = t('cycles.errorCycleNameRequired');
         }
@@ -104,7 +112,7 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
             });
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('cycles.errorStartCycle'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('cycles.errorStartCycle')));
         } finally {
             setIsLoading(false);
         }
@@ -137,17 +145,25 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                     error={errors.stockingCount}
                     required
                 />
-                <Input
+                {/* Both were free text. A typo did not error — it silently
+                    picked the wrong threshold bands, so the pond was judged
+                    against the wrong species with nothing on screen to say so.
+                    The lists are the ones the API now validates against. */}
+                <SelectField
                     label={t('cycles.fieldSpeciesType')}
                     value={speciesType}
-                    onChangeText={setSpeciesType}
-                    placeholder={t('cycles.placeholderSpeciesType')}
+                    options={CANONICAL_SPECIES.map((s) => ({ value: s, label: t(speciesLabelKey(s)) }))}
+                    onSelect={setSpeciesType}
+                    required
                 />
-                <Input
+                <SelectField
                     label={t('cycles.fieldSeedType')}
-                    value={seedType}
-                    onChangeText={setSeedType}
+                    value={seedType || null}
+                    options={SEED_TYPES.map((s) => ({ value: s, label: s }))}
+                    onSelect={setSeedType}
                     placeholder={t('cycles.placeholderSeedType')}
+                    error={errors.seedType}
+                    required
                 />
 
                 <Text style={styles.sectionLabel}>{t('cycles.createTargets')}</Text>

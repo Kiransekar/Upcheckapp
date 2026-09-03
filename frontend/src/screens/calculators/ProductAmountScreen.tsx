@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, ProductDosageResponse } from '../../api/calculators';
 import { parseNumericInput } from '../../features/parseNumericInput';
+import { apiErrorMessage } from '../../api/errors';
 
 export const ProductAmountScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -67,7 +68,7 @@ export const ProductAmountScreen = ({ navigation }: any) => {
                 setClientResult(null);
             }
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.productDosage.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.productDosage.errorCalc')));
         } finally {
             setIsLoading(false);
         }

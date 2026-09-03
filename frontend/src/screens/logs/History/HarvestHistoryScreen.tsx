@@ -12,7 +12,9 @@ import { harvestsApi, HarvestRecord } from '../../../api/harvests';
 
 export const HarvestHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { pondId, cycleId, cropId } = route.params;
+    // The pond's label travels with the navigation params (PondDashboard sends
+    // it). Passing '' onward left the harvest form headed by a blank line.
+    const { pondId, cycleId, cropId, pondName } = route.params;
     const [records, setRecords] = useState<HarvestRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -79,7 +81,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                         <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: '', cropId, editRecord: item })}
+                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId, editRecord: item })}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityRole="button"
                         accessibilityLabel={t('common.edit', 'Edit')}
@@ -160,7 +162,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 </>
             )}
 
-            <FAB icon="plus" onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: '', cropId })} />
+            <FAB icon="plus" onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId })} />
         </ScreenWrapper>
     );
 };

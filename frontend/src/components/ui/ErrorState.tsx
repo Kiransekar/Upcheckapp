@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { Button } from './Button';
 import { theme } from '../../theme';
+import { apiErrorMessage } from '../../api/errors';
 
 interface ErrorStateProps {
     icon?: keyof typeof MaterialCommunityIcons.glyphMap;
@@ -25,9 +26,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
     const { t } = useTranslation();
     // Extract error message from various error formats
     const errorMessage = message ||
-        (error?.response?.data?.message) ||
-        (error?.message) ||
-        t('common.checkConnection');
+        apiErrorMessage(error, error?.message || t('common.checkConnection'));
 
     return (
         <View style={styles.container}>

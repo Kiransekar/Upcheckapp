@@ -21,6 +21,9 @@ export interface Permissions {
     canViewFinancials: boolean;    // VIEW_FINANCIALS — costs, transactions, P&L, financial reports
     canManageMembers: boolean;     // MANAGE_WORKERS — invite/remove workers
     canOwnerActions: boolean;      // OWNER_ONLY — delete farm/pond, transfer, role changes
+    canRecordHarvest: boolean;     // RECORD_HARVEST — a harvest books revenue and closes a cycle
+    canViewInventory: boolean;     // VIEW_INVENTORY — read stock levels
+    canManageInventory: boolean;   // MANAGE_INVENTORY — adjust stock
 
     // Semantic aliases for screens (kept thin so intent reads clearly at call sites)
     canCreatePond: boolean;
@@ -40,7 +43,7 @@ export interface Permissions {
  * and RLS are the real enforcement.
  */
 export function usePermissions(farmId?: string): Permissions {
-    const roleForFarm = useMembershipStore((s) => s.roleForFarm);
+    const grantForFarm = useMembershipStore((s) => s.grantForFarm);
     const memberships = useMembershipStore((s) => s.memberships);
     const activeFarmId = useActiveFarmStore((s) => s.selectedFarm?.id);
 
@@ -49,8 +52,8 @@ export function usePermissions(farmId?: string): Permissions {
     // Depend on `memberships` so flags recompute when the membership list loads
     // or the active farm changes.
     return useMemo(() => {
-        const role = roleForFarm(targetFarmId);
-        const can = (c: FarmCapability) => roleCan(role, c);
+        const { role, overrides, policy } = grantForFarm(targetFarmId);
+        const can = (c: FarmCapability) => roleCan(role, c, overrides, policy);
 
         const canManageOperations = can('WRITE_MANAGEMENT');
         const canManageMembers = can('MANAGE_WORKERS');
@@ -69,6 +72,9 @@ export function usePermissions(farmId?: string): Permissions {
             canViewFinancials: can('VIEW_FINANCIALS'),
             canManageMembers,
             canOwnerActions,
+            canRecordHarvest: can('RECORD_HARVEST'),
+            canViewInventory: can('VIEW_INVENTORY'),
+            canManageInventory: can('MANAGE_INVENTORY'),
             canCreatePond: canManageOperations,
             canDeletePond: canOwnerActions,
             canStartCycle: canManageOperations,
@@ -79,5 +85,5 @@ export function usePermissions(farmId?: string): Permissions {
             canTransferOwnership: canOwnerActions,
             canChangeRoles: canOwnerActions,
         };
-    }, [targetFarmId, memberships, roleForFarm]);
+    }, [targetFarmId, memberships, grantForFarm]);
 }

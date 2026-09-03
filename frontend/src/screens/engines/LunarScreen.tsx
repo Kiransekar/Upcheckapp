@@ -20,6 +20,7 @@ import { theme } from '../../theme';
 import { lunarApi, type MoonPhase, type MoltRisk, type LunarPlaybook, type PlaybookStep, type StepCategory, type StepPriority, type MoltVulnerabilityInput } from '../../api/lunar';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
+import { apiErrorMessage } from '../../api/errors';
 
 const bandSeverity = (b: string): Severity =>
   b === 'Critical' ? 'critical' : b === 'Watch' ? 'watch' : 'low';
@@ -87,7 +88,7 @@ export const LunarScreen = ({ route }: any) => {
       setRisk(data.risk);
       setPlaybook(data.playbook);
     } catch (e: any) {
-      Alert.alert(t('engines.common.couldNotCompute'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
+      Alert.alert(t('engines.common.couldNotCompute'), apiErrorMessage(e, t('engines.common.tryAgain')));
     } finally {
       setLoading(false);
     }

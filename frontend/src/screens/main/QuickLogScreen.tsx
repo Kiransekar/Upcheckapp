@@ -17,6 +17,8 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
+import { farmsApi } from '../../api/farms';
+import { pondLabel } from '../../utils/pondHealth';
 import { requiresActiveCycle } from '../../features/cycleRequirement';
 
 type Action = {
@@ -35,11 +37,11 @@ const ACTIONS: Action[] = [
     { route: 'PondDashboard', labelKey: 'home.quickLogOpenPond', icon: 'view-dashboard-outline', tint: '#7C4DFF' },
 ];
 
-const pondLabel = (p: Pond) => p.displayName || p.name;
-
 export const QuickLogScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const [ponds, setPonds] = useState<Pond[]>([]);
+    /** farmId → farm name, only fetched when the ponds span more than one farm. */
+    const [farmNames, setFarmNames] = useState<Record<string, string>>({});
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     // A network failure must NOT masquerade as "no ponds — create a farm"; the
@@ -52,6 +54,17 @@ export const QuickLogScreen = ({ navigation }: any) => {
             const { data } = await pondsApi.getMine();
             setPonds(data);
             setSelectedId((prev) => prev ?? data[0]?.id ?? null);
+            // "Pond 1" is a fine chip label until the farmer works two farms
+            // and has two of them. Name the farm under the chip, and only
+            // then — a single-farm farmer does not need telling which farm.
+            if (new Set(data.map((p) => p.farmId)).size > 1) {
+                try {
+                    const { data: farms } = await farmsApi.getAll();
+                    setFarmNames(Object.fromEntries(farms.map((f) => [f.id, f.name])));
+                } catch {
+                    // A missing caption is not worth failing the screen over.
+                }
+            }
         } catch (err) {
             setError(err);
         } finally {
@@ -138,9 +151,16 @@ export const QuickLogScreen = ({ navigation }: any) => {
                                                 size={16}
                                                 color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
                                             />
-                                            <Text numberOfLines={1} style={[styles.pondChipText, active && { color: theme.roles.light.primary }]}>
-                                                {pondLabel(p)}
-                                            </Text>
+                                            <View style={{ flexShrink: 1 }}>
+                                                <Text numberOfLines={1} style={[styles.pondChipText, active && { color: theme.roles.light.primary }]}>
+                                                    {pondLabel(p)}
+                                                </Text>
+                                                {farmNames[p.farmId] ? (
+                                                    <Text numberOfLines={1} style={styles.pondChipFarm}>
+                                                        {farmNames[p.farmId]}
+                                                    </Text>
+                                                ) : null}
+                                            </View>
                                         </TouchableOpacity>
                                     );
                                 })}
@@ -236,6 +256,7 @@ const styles = StyleSheet.create({
     },
     pondChipActive: { borderColor: theme.roles.light.primary, backgroundColor: theme.roles.light.surfaceOverlay },
     pondChipText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, maxWidth: 140 },
+    pondChipFarm: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary, maxWidth: 140 },
     forPond: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[3] },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[3] },
     tile: { width: '47%' },

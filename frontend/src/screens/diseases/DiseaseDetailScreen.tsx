@@ -16,6 +16,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { apiErrorMessage } from '../../api/errors';
 
 type Severity = 'low' | 'medium' | 'high';
 
@@ -40,7 +41,7 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
             const { data } = await diseaseApi.getDiseaseById(diseaseId);
             setDisease(data);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load disease details');
+            setError(apiErrorMessage(err, 'Failed to load disease details'));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);

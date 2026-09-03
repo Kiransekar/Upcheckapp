@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'ତାପ (°C)',
   waterQualityMetricSalinity: 'ଲବଣତା',
+  waterQualityMetricNitrate: 'ନାଇଟ୍ରେଟ',
+  waterQualityMetricHardness: 'କାଠିନ୍ୟ',
+  waterQualityMetricTransparency: 'ସ୍ୱଚ୍ଛତା',
+  weeklyChemistryTag: 'ସାପ୍ତାହିକ ରସାୟନ',
   waterQualityEmptyTitle: 'କୌଣସି ଜଳ ଗୁଣମାନ ଲଗ୍ ନାହିଁ',
   waterQualityEmptyText: 'ଧାରା ଦେଖିବାକୁ ଜଳ ଗୁଣମାନ ରେକର୍ଡ ଆରମ୍ଭ କରନ୍ତୁ।',
 };

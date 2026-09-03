@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { RolePolicy } from '../permissions/capabilities';
 
 export interface Farm {
     id: string;
@@ -14,6 +15,8 @@ export interface Farm {
     privacySetting: string;
     boundary?: { latitude: number; longitude: number }[];
     userId: string;
+    /** Per-role capability defaults for this farm. `null` = the built-in matrix. */
+    rolePolicy?: RolePolicy | null;
     createdAt: string;
     updatedAt: string;
     deletedAt?: string | null;
@@ -45,4 +48,11 @@ export const farmsApi = {
     update: (id: string, data: UpdateFarmDto) => apiClient.patch<Farm>(`/farms/${id}`, data),
 
     delete: (id: string) => apiClient.delete(`/farms/${id}`),
+
+    /** Set what each role may do on this farm. Owner only; `null` clears it. */
+    setRolePolicy: (id: string, policy: RolePolicy | null) =>
+        apiClient.patch<{ farmId: string; rolePolicy: RolePolicy | null }>(
+            `/farms/${id}/role-policy`,
+            { policy },
+        ),
 };

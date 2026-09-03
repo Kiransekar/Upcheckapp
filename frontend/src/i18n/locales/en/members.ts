@@ -112,6 +112,25 @@ const members = {
   financialsToggle: "Can see costs and money",
   financialsNote: "Off by default for workers and viewers.",
   financialsError: "Could not change their money access.",
+
+  // Permission grid — per role (FarmMembersScreen) and per member (MemberDetailScreen)
+  permissionsSection: "What this person can do",
+  permissionsNote: "Leave anything on Default to follow the role rules below.",
+  capabilitiesError: "Could not change their permissions.",
+  rolePolicySection: "Permissions by role",
+  rolePolicyNote: "Applies to everyone with that role on this farm, unless you change it for one person.",
+  rolePolicyError: "Could not change the role permissions.",
+  capDefault: "Default",
+  capAllowed: "Allowed",
+  capBlocked: "Blocked",
+  capDefaultAllowed: "Default: allowed",
+  capDefaultBlocked: "Default: not allowed",
+  cap_RECORD_HARVEST: "Record a harvest",
+  cap_VIEW_FINANCIALS: "See costs and money",
+  cap_MANAGE_INVENTORY: "Change stock",
+  cap_VIEW_INVENTORY: "See stock",
+  cap_MANAGE_WORKERS: "Add and remove workers",
+  cap_WRITE_MANAGEMENT: "Manage ponds and cycles",
 };
 
 export default members;

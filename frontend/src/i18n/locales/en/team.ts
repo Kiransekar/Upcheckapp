@@ -9,6 +9,17 @@ const team = {
     checkedInAt: 'You checked in at {{time}}',
     stillCheckedIn: 'Still checked in · {{elapsed}}',
     checkOut: 'Check out',
+    // The shift card used to appear only once you were already in, so the
+    // check-in itself had no control anywhere on the tab.
+    notCheckedIn: "You haven't checked in today",
+    checkInSub: 'Start your shift so your hours are recorded.',
+    checkInCta: 'Check in',
+    savedOffline: 'Saved — will sync when online',
+    // Attendance/Leave subtitles for someone who only sees their own state.
+    yourAttendanceIn: 'Checked in · {{elapsed}}',
+    leaveSelfSub: 'Request time off',
+    // Asked instead of silently picking a farm for you.
+    chooseFarmTitle: 'Which farm?',
     attendance: 'Attendance',
     checkedInCount: '{{count}} of {{total}} checked in today',
     leave: 'Leave',

@@ -77,6 +77,10 @@ export class FeedRecordsService {
       id: createDto.id,
       pondId: createDto.pondId,
       cropId: pond.activeCycleId,
+      // Client-supplied feeding time wins; omitted → column default (now).
+      recordedAt: createDto.recordedAt
+        ? new Date(createDto.recordedAt)
+        : undefined,
       feedType: createDto.feedType,
       feedBrand: createDto.feedBrand,
       quantityKg: createDto.quantityKg,
@@ -203,9 +207,15 @@ export class FeedRecordsService {
 
     // isFasting / id are not persisted columns — strip them before the update
     // (id would otherwise reassign the primary key).
-    const { isFasting: _isFasting, id: _id, ...columns } = updateDto;
+    const {
+      isFasting: _isFasting,
+      id: _id,
+      recordedAt,
+      ...columns
+    } = updateDto;
     await this.recordsRepository.update(id, {
       ...columns,
+      ...(recordedAt ? { recordedAt: new Date(recordedAt) } : {}),
       ...(userId ? { updatedById: userId } : {}),
     });
     return this.findOne(id);

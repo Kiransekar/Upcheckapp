@@ -65,6 +65,18 @@ export class Harvest {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
+  // Who logged and who last edited this harvest. A harvest closes a cycle and
+  // books revenue, so "who did this?" has to be answerable; the ten operational
+  // log tables have carried these since 1780300800000 and the money-bearing
+  // ones did not. Nullable — historical rows have no actor, and a user deletion
+  // sets them null rather than cascading the harvest away.
+  // Column DDL lives in migration 1780500300000.
+  @Column({ name: 'created_by_id', type: 'uuid', nullable: true })
+  createdById: string | null;
+
+  @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
+  updatedById: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
 

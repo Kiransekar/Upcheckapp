@@ -1,4 +1,5 @@
 import apiClient from './client';
+import type { CapabilityOverrides, RolePolicy } from '../permissions/capabilities';
 
 // Mirrors backend FarmRole (backend/src/farm-access/farm-member.entity.ts).
 export type FarmRole = 'owner' | 'manager' | 'worker' | 'viewer';
@@ -44,6 +45,12 @@ export interface FarmMember {
      * from a manager. Owner-only to set.
      */
     canViewFinancials: boolean | null;
+    /**
+     * Per-member capability grants. `true` allows, `false` blocks, an absent
+     * key falls through to the farm's role policy and then the default matrix.
+     * Supersedes `canViewFinancials`, which the backend keeps for one release.
+     */
+    capabilityOverrides: CapabilityOverrides | null;
     createdAt: string;
     user: PublicUser | null;
 }
@@ -51,6 +58,11 @@ export interface FarmMember {
 export interface MyMembership {
     farmId: string;
     role: FarmRole;
+    /** Always 'active' — `listMine` no longer returns memberships still pending. */
+    status: FarmMemberStatus;
+    capabilityOverrides: CapabilityOverrides | null;
+    /** The farm's per-role capability defaults, set by its owner. */
+    rolePolicy: RolePolicy | null;
     farm: { id: string; name: string; farmCode?: string } | null;
 }
 
@@ -160,6 +172,16 @@ export const farmMembersApi = {
      */
     setFinancialAccess: (farmId: string, userId: string, canViewFinancials: boolean | null) =>
         apiClient.patch(`/farms/${farmId}/members/${userId}/financials`, { canViewFinancials }),
+
+    /**
+     * Replace one member's capability overrides wholesale. `null` (or `{}`)
+     * clears them, putting the member back on the farm's role policy. Owner only.
+     */
+    setCapabilities: (farmId: string, userId: string, overrides: CapabilityOverrides | null) =>
+        apiClient.patch<{ farmId: string; userId: string; capabilityOverrides: CapabilityOverrides | null }>(
+            `/farms/${farmId}/members/${userId}/capabilities`,
+            { overrides },
+        ),
 
     /** Retire every active invite for the farm and mint a fresh one. */
     rotateInvite: (farmId: string, body: CreateInviteBody = {}) =>

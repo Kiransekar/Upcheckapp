@@ -9,6 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, FreeAmmoniaResponse } from '../../api/calculators';
 import { parseNumericInput, parseNumericInputOrDefault } from '../../features/parseNumericInput';
+import { apiErrorMessage } from '../../api/errors';
 
 type ToxicityLevel = 'safe' | 'warning' | 'critical';
 
@@ -107,7 +108,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
             });
             setResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.freeAmmonia.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.freeAmmonia.errorCalc')));
         } finally {
             setIsLoading(false);
         }

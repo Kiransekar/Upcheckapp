@@ -7,6 +7,7 @@ jest.mock('../../../api/farmMembers', () => ({
         changeRole: jest.fn(),
         setPondScope: jest.fn().mockResolvedValue({}),
         setFinancialAccess: jest.fn().mockResolvedValue({}),
+        setCapabilities: jest.fn().mockResolvedValue({}),
         removeMember: jest.fn(),
         transferOwnership: jest.fn(),
     },
@@ -160,24 +161,26 @@ describe('MemberDetailScreen — capability gating', () => {
         mockPerms = OWNER;
     });
 
-    it('offers the financial grant to an owner, for someone whose role lacks it', async () => {
+    it('offers the permission grid to an owner', async () => {
         const { findByText } = renderScreen(worker());
-        expect(await findByText('Can see costs and money')).toBeTruthy();
+        // The lone money switch is now one row of six.
+        expect(await findByText('See costs and money')).toBeTruthy();
+        expect(await findByText('Record a harvest')).toBeTruthy();
     });
 
-    it('hides the financial grant from a manager — it is owner-only on the server', async () => {
+    it('hides the grid from a manager — granting is owner-only on the server', async () => {
         mockPerms = MANAGER;
         const { queryByText, findByText } = renderScreen(worker());
         await findByText('Role');
 
-        expect(queryByText('Can see costs and money')).toBeNull();
+        expect(queryByText('See costs and money')).toBeNull();
     });
 
-    it('hides it for a manager target too — their role already includes it', async () => {
-        const { queryByText, findByText } = renderScreen(worker({ role: 'manager' }));
-        await findByText('Role');
+    it('hides it when the target IS the owner — an owner is never reducible', async () => {
+        const { queryByText, findByText } = renderScreen(worker({ role: 'owner' }));
+        await findByText('Ravi Kumar');
 
-        expect(queryByText('Can see costs and money')).toBeNull();
+        expect(queryByText('See costs and money')).toBeNull();
     });
 
     it('gives a manager no way to promote someone to manager', async () => {

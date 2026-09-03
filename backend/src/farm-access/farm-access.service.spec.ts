@@ -112,14 +112,19 @@ describe('FarmAccessService', () => {
   describe('getFarmIdsWithCapability (AUDIT id 142 — batched, not N+1)', () => {
     const FARM_2 = 'farm-2';
 
-    it('resolves roles from a single membership query, plus one owner-fallback query', async () => {
+    it('resolves roles from a single membership query, plus one farms query', async () => {
       membersRepo.find
         .mockResolvedValueOnce([{ farmId: FARM }, { farmId: FARM_2 }]) // getAccessibleFarmIds
         .mockResolvedValueOnce([{ farmId: FARM, role: 'worker' }]); // batched role lookup
       farmsRepo.find
         .mockResolvedValueOnce([]) // owned (getAccessibleFarmIds)
         .mockResolvedValueOnce([{ id: FARM }, { id: FARM_2 }]) // live (getAccessibleFarmIds)
-        .mockResolvedValueOnce([{ id: FARM_2 }]); // owner-fallback for the farm missing a member row
+        // One query for the role policies AND the owner fallback: FARM_2 has no
+        // membership row but the legacy owner column names the caller.
+        .mockResolvedValueOnce([
+          { id: FARM, userId: OWNER, rolePolicy: null },
+          { id: FARM_2, userId: WORKER, rolePolicy: null },
+        ]);
 
       const allowed = await service.getFarmIdsWithCapability(
         WORKER,

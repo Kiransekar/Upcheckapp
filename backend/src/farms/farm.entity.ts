@@ -10,6 +10,7 @@ import {
   DeleteDateColumn,
 } from 'typeorm';
 import { User } from '../auth/user.entity';
+import type { RolePolicy } from '../farm-access/farm-capability';
 
 // Valid values: 'tidal' | 'river' | 'borehole' | 'reservoir' | 'recycled'
 export type WaterSourceType = string;
@@ -111,6 +112,17 @@ export class Farm {
 
   @Column({ type: 'jsonb', nullable: true })
   boundary: { latitude: number; longitude: number }[];
+
+  /**
+   * Per-role capability defaults for THIS farm, e.g.
+   * `{ worker: { RECORD_HARVEST: true } }`. null = the built-in matrix.
+   *
+   * A per-member override (farm_members.capability_overrides) wins over this;
+   * this wins over the matrix. Owner-settable only, and the `owner` role is not
+   * expressible here — an owner is never reducible.
+   */
+  @Column({ name: 'role_policy', type: 'jsonb', nullable: true })
+  rolePolicy: RolePolicy | null;
 
   /**
    * Nominated recovery contact — a member who may claim ownership if the owner

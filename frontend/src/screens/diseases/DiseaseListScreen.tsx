@@ -16,6 +16,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { apiErrorMessage } from '../../api/errors';
 import { isFeatureEnabled } from '../../config/features';
 
 type Severity = 'low' | 'medium' | 'high';
@@ -42,7 +43,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
             setDiseases(data);
             setFilteredDiseases(data);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load diseases');
+            setError(apiErrorMessage(err, 'Failed to load diseases'));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -249,6 +250,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
             {renderSearchBar()}
             <FlatList
                 data={filteredDiseases}
+                keyboardShouldPersistTaps="handled"
                 keyExtractor={(item) => item.id}
                 renderItem={renderDiseaseItem}
                 ListEmptyComponent={renderEmpty}

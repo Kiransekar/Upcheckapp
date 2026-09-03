@@ -11,6 +11,7 @@ import { theme } from '../../theme';
 import { pondsApi, CreatePondResult } from '../../api/ponds';
 import { cropsApi } from '../../api/crops';
 import { referenceApi } from '../../api/reference';
+import { apiErrorMessage } from '../../api/errors';
 
 type Geometry = 'rectangular' | 'circular' | 'raceway';
 
@@ -301,7 +302,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
         } catch (err: any) {
             const message = pendingPondIdRef.current
                 ? t('pondSetup.errSaveCropRetry', 'Pond was created but saving the crop failed. Tap Save again to retry with the same pond.')
-                : err.response?.data?.message || t('pondSetup.errSave');
+                : apiErrorMessage(err, t('pondSetup.errSave'));
             Alert.alert(t('common.error'), message);
         } finally {
             setSubmitting(false);

@@ -11,7 +11,7 @@
  */
 jest.mock('../../../api/ponds', () => ({ pondsApi: { getById: jest.fn() } }));
 jest.mock('../../../api/pondContext', () => ({ pondContextApi: { get: jest.fn(), forFarm: jest.fn() } }));
-jest.mock('../../../api/crops', () => ({ cropsApi: { getById: jest.fn() } }));
+jest.mock('../../../api/crops', () => ({ cropsApi: { getById: jest.fn(), getAll: jest.fn() } }));
 jest.mock('../../../api/alertCenter', () => ({ alertCenterApi: { briefing: jest.fn(), liveBriefing: jest.fn() } }));
 jest.mock('../../../api/pnl', () => ({ pnlApi: { cropPnl: jest.fn() } }));
 jest.mock('../../../api/waterQuality', () => ({ waterQualityApi: { getAll: jest.fn() } }));
@@ -169,12 +169,28 @@ describe('a pond with no active cycle can still reach its history', () => {
         (requiresActiveCycle as jest.Mock).mockImplementation(realRequiresActiveCycle);
         useSyncStore.getState().clearQueue();
         useSyncStore.getState().setConnected(true);
-        useMembershipStore.setState({ memberships: [], loaded: true, loading: false } as any);
+        // An owner: the log grid is about cycle gating, not permissions, and
+        // the harvest tile now needs RECORD_HARVEST to appear in log mode.
+        useMembershipStore.setState({
+            memberships: [
+                {
+                    farmId: 'f1',
+                    role: 'owner',
+                    status: 'active',
+                    capabilityOverrides: null,
+                    rolePolicy: null,
+                    farm: { id: 'f1', name: 'Farm A' },
+                },
+            ],
+            loaded: true,
+            loading: false,
+        } as any);
         (pondsApi.getById as jest.Mock).mockResolvedValue({
             data: { id: 'p9', farmId: 'f1', name: 'Pond 9', status: 'fallow', activeCycleId: null },
         });
         (pondContextApi.get as jest.Mock).mockResolvedValue({ data: null });
         (cropsApi.getById as jest.Mock).mockResolvedValue({ data: null });
+        (cropsApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
         (alertCenterApi.briefing as jest.Mock).mockResolvedValue({ data: [] });
         (pnlApi.cropPnl as jest.Mock).mockResolvedValue({ data: null });
         (waterQualityApi.getAll as jest.Mock).mockResolvedValue({ data: [] });

@@ -105,6 +105,24 @@ const members = {
   financialsToggle: "খরচ ও টাকা দেখতে পারে",
   financialsNote: "কর্মী ও দর্শকের জন্য ডিফল্টভাবে বন্ধ।",
   financialsError: "টাকার অ্যাক্সেস বদলানো গেল না।",
+
+  permissionsSection: "এই ব্যক্তি কী করতে পারবেন",
+  permissionsNote: "যেটি 'ডিফল্ট'-এ রাখবেন, সেটি নিচের ভূমিকার নিয়ম অনুসরণ করবে।",
+  capabilitiesError: "তাঁর অনুমতি বদলানো গেল না।",
+  rolePolicySection: "ভূমিকা অনুযায়ী অনুমতি",
+  rolePolicyNote: "এই খামারে ওই ভূমিকার সবার জন্য প্রযোজ্য, যদি না আপনি কারও জন্য আলাদা করেন।",
+  rolePolicyError: "ভূমিকার অনুমতি বদলানো গেল না।",
+  capDefault: "ডিফল্ট",
+  capAllowed: "অনুমোদিত",
+  capBlocked: "বন্ধ",
+  capDefaultAllowed: "ডিফল্ট: অনুমোদিত",
+  capDefaultBlocked: "ডিফল্ট: অনুমোদিত নয়",
+  cap_RECORD_HARVEST: "হার্ভেস্ট নথিভুক্ত করা",
+  cap_VIEW_FINANCIALS: "খরচ ও টাকা দেখা",
+  cap_MANAGE_INVENTORY: "স্টক বদলানো",
+  cap_VIEW_INVENTORY: "স্টক দেখা",
+  cap_MANAGE_WORKERS: "কর্মী যোগ ও বাদ দেওয়া",
+  cap_WRITE_MANAGEMENT: "পুকুর ও চক্র পরিচালনা",
 };
 
 export default members;

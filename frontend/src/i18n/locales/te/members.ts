@@ -105,6 +105,24 @@ const members = {
   financialsToggle: "ఖర్చు మరియు డబ్బు చూడగలరు",
   financialsNote: "వర్కర్లు మరియు వ్యూయర్లకు డిఫాల్ట్‌గా ఆఫ్.",
   financialsError: "డబ్బు యాక్సెస్ మార్చలేకపోయాము.",
+
+  permissionsSection: "ఈ వ్యక్తి ఏమి చేయగలరు",
+  permissionsNote: "'డిఫాల్ట్'లో వదిలినవి కింది పాత్ర నియమాలనే అనుసరిస్తాయి.",
+  capabilitiesError: "వారి అనుమతులను మార్చలేకపోయాము.",
+  rolePolicySection: "పాత్ర వారీ అనుమతులు",
+  rolePolicyNote: "ఒక్కరికి విడిగా మార్చనంత వరకు, ఈ ఫారంలో ఆ పాత్ర ఉన్న అందరికీ వర్తిస్తుంది.",
+  rolePolicyError: "పాత్ర అనుమతులను మార్చలేకపోయాము.",
+  capDefault: "డిఫాల్ట్",
+  capAllowed: "అనుమతి",
+  capBlocked: "నిషేధం",
+  capDefaultAllowed: "డిఫాల్ట్: అనుమతి",
+  capDefaultBlocked: "డిఫాల్ట్: అనుమతి లేదు",
+  cap_RECORD_HARVEST: "హార్వెస్ట్ నమోదు చేయడం",
+  cap_VIEW_FINANCIALS: "ఖర్చు మరియు డబ్బు చూడటం",
+  cap_MANAGE_INVENTORY: "స్టాక్ మార్చడం",
+  cap_VIEW_INVENTORY: "స్టాక్ చూడటం",
+  cap_MANAGE_WORKERS: "వర్కర్లను చేర్చడం, తీసివేయడం",
+  cap_WRITE_MANAGEMENT: "చెరువులు మరియు సైకిల్స్ నిర్వహణ",
 };
 
 export default members;

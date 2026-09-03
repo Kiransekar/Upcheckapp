@@ -29,6 +29,7 @@ import { MeasurementController } from '../measurement/measurement.controller';
 import { PondContextController } from '../pond-context/pond-context.controller';
 import { HarvestTimingController } from '../harvest-timing/harvest-timing.controller';
 import { ReportsController } from '../reports/reports.controller';
+import { HarvestsController } from '../harvests/harvests.controller';
 
 type Row = [
   controller: new (...args: any[]) => any,
@@ -94,6 +95,33 @@ const ROUTES: Row[] = [
   // harvest-timing — the persisted-history read.
   [HarvestTimingController, 'recent', P('READ')],
 
+  // harvests — a harvest closes a cycle and books revenue. It used to ride
+  // WRITE_MANAGEMENT (and, on the client, WRITE_OPERATIONAL: the same key as a
+  // pH reading), so any worker could sell the pond. RECORD_HARVEST is its own
+  // capability, owner/manager by default, grantable per role or per member.
+  [
+    HarvestsController,
+    'create',
+    {
+      entityType: 'Crop',
+      paramName: 'cropId',
+      ownerPath: 'pond.farm.userId',
+      capability: 'RECORD_HARVEST',
+    },
+  ],
+  ...(['findOne', 'update', 'remove'] as const).map(
+    (handler): Row => [
+      HarvestsController,
+      handler,
+      {
+        entityType: 'Harvest',
+        paramName: 'id',
+        ownerPath: 'crop.pond.farm.userId',
+        capability: 'RECORD_HARVEST',
+      },
+    ],
+  ),
+
   // reports — cycle analysis is a financial report, hence VIEW_FINANCIALS and
   // NOT the member-aware crop path.
   [
@@ -132,6 +160,9 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       'VIEW_FINANCIALS',
       'MANAGE_WORKERS',
       'OWNER_ONLY',
+      'RECORD_HARVEST',
+      'VIEW_INVENTORY',
+      'MANAGE_INVENTORY',
     ];
     for (const [controller, handler] of ROUTES) {
       expect(known).toContain(metaFor(controller, handler)!.capability);
