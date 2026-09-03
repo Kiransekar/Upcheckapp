@@ -137,5 +137,12 @@ const ponds = {
   tileDone: "done this session",
   tilePending: "not done yet",
   tileNeedsCycle: "Needs a cycle",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "Money — finished cycle",
+  metricRevenue: "Revenue",
+  metricProfit: "Profit",
+  metricLoss: "Loss",
+  metricMargin: "Margin",
 };
 export default ponds;

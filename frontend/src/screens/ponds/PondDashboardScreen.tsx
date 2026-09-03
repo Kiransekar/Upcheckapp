@@ -199,6 +199,14 @@ const inr = (n: number): string => {
     return `₹${Math.round(a)}`;
 };
 
+/**
+ * `inr` takes the absolute value, so a loss and a profit of the same size print
+ * identically. Money that went the wrong way must say so in the CHARACTERS, not
+ * only in the colour — this screen is read in the sun, and red/green is the one
+ * pair a colour-blind farmer cannot separate.
+ */
+const signedInr = (n: number): string => (n < 0 ? `−${inr(n)}` : inr(n));
+
 const timeAgo = (iso?: string | null): string | null => {
     if (!iso) return null;
     const ms = Date.now() - Date.parse(iso);
@@ -214,7 +222,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
 
-    const [pnl, setPnl] = useState<CropPnl | null>(null);
+    /** The P&L on show, and WHICH cycle it belongs to — see the effect below. */
+    const [money, setMoney] = useState<
+        { pnl: CropPnl; cycleName: string | null; closed: boolean } | null
+    >(null);
     const [mode, setMode] = useState<LogMode>('log');
     const [showAll, setShowAll] = useState(false);
 
@@ -301,18 +312,55 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         }, [loadMemberships]),
     );
 
-    // Costs are a separate, permissioned call — a worker never triggers it.
+    /*
+     * The money for this pond — a separate, permissioned call a worker never
+     * triggers.
+     *
+     * It falls back to the LAST CLOSED cycle, and that is the whole bug the
+     * farmer reported. A full harvest calls `closeCycle`, which nulls
+     * `pond.activeCycleId` and sets the pond fallow — so the moment they logged
+     * the harvest that realised their profit, this fetch short-circuited and the
+     * entire money section unmounted. The pond went from showing a cost to
+     * showing nothing, triggered by the exact action that made the profit
+     * knowable.
+     *
+     * The fallback is one call, not a fan-out: `GET /crops?pondId=` already
+     * returns this pond's cycles ordered createdAt DESC, so the most recent
+     * `completed` one is the first match. It only runs when there is no active
+     * cycle, which is precisely when there is nothing else to show.
+     */
     useFocusEffect(
         useCallback(() => {
-            if (!perms.canViewFinancials || !pond?.activeCycleId) {
-                setPnl(null);
+            if (!perms.canViewFinancials || !pond?.id) {
+                setMoney(null);
                 return;
             }
-            pnlApi
-                .cropPnl(pond.activeCycleId)
-                .then(({ data }) => setPnl(data))
-                .catch(() => setPnl(null));
-        }, [perms.canViewFinancials, pond?.activeCycleId]),
+            let alive = true;
+            (async () => {
+                try {
+                    let target: { id: string; name: string | null; closed: boolean } | null =
+                        pond.activeCycleId ? { id: pond.activeCycleId, name: null, closed: false } : null;
+                    if (!target) {
+                        const { data } = await cropsApi.getAll(pond.id);
+                        const last = (Array.isArray(data) ? data : []).find(
+                            (c) => c.status === 'completed',
+                        );
+                        if (last) target = { id: last.id, name: last.name, closed: true };
+                    }
+                    if (!target) {
+                        if (alive) setMoney(null);
+                        return;
+                    }
+                    const { data } = await pnlApi.cropPnl(target.id);
+                    if (alive) setMoney({ pnl: data, cycleName: target.name, closed: target.closed });
+                } catch {
+                    if (alive) setMoney(null);
+                }
+            })();
+            return () => {
+                alive = false;
+            };
+        }, [perms.canViewFinancials, pond?.id, pond?.activeCycleId]),
     );
 
     /**
@@ -745,39 +793,6 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </>
                         )}
 
-                        {perms.canViewFinancials && (
-                            <>
-                                <SectionHeader label={t('ponds.moneyForPond')} />
-                                <SummaryRow
-                                    icon="receipt_long"
-                                    title={t('ponds.viewExpenses')}
-                                    subtitle={
-                                        pnl ? t('ponds.spentThisCycle', { amount: inr(pnl.totalCost) }) : undefined
-                                    }
-                                    onPress={() => navigation.navigate('Expenses', { cropId: cycle.id, pondName })}
-                                />
-                                <SummaryRow
-                                    icon="event_available"
-                                    title={t('ponds.harvestPlan')}
-                                    subtitle={
-                                        daysToTarget != null
-                                            ? daysToTarget > 0
-                                                ? t('ponds.windowOpensIn', { count: daysToTarget })
-                                                : t('ponds.windowOpen')
-                                            : undefined
-                                    }
-                                    onPress={() =>
-                                        navigation.navigate('HarvestPlans', {
-                                            pondId,
-                                            pondName,
-                                            cropId: cycle.id,
-                                            farmId: pond?.farmId,
-                                        })
-                                    }
-                                    divider="strong"
-                                />
-                            </>
-                        )}
                     </>
                 ) : (
                     <View style={styles.idle}>
@@ -798,6 +813,86 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
 
                 {/* Idle or stocked, the pond's past stays reachable. */}
                 {!cycle && actionsBlock}
+
+                {/*
+                  * What this pond EARNED, not only what it cost.
+                  *
+                  * The screen already fetched the full P&L and rendered one
+                  * field of it — total cost — so the one page about this pond
+                  * showed the farmer their spend and never their revenue. And
+                  * it lived inside the `cycle ?` branch, so it vanished the
+                  * instant a full harvest closed the cycle. Now it sits outside
+                  * that branch and names which cycle it is talking about.
+                  *
+                  * `perms.canViewFinancials` is unchanged: a worker who cannot
+                  * see money still sees none of this.
+                  */}
+                {perms.canViewFinancials && money && (
+                    <>
+                        <SectionHeader
+                            label={money.closed ? t('ponds.moneyLastCycle') : t('ponds.moneyForPond')}
+                            actionLabel={money.closed ? money.cycleName ?? undefined : undefined}
+                        />
+                        <StatRow
+                            divider
+                            stats={
+                                [
+                                    { value: inr(money.pnl.revenue), label: t('ponds.metricRevenue') },
+                                    {
+                                        // The WORD changes with the sign, and so
+                                        // does the figure ("−₹12.5k"). A loss
+                                        // must never be legible only as a colour.
+                                        value: signedInr(money.pnl.profit),
+                                        label:
+                                            money.pnl.profit < 0
+                                                ? t('ponds.metricLoss')
+                                                : t('ponds.metricProfit'),
+                                        tone: money.pnl.profit < 0 ? 'danger' : 'success',
+                                    },
+                                    {
+                                        value: `${Math.round(money.pnl.marginPct)}`,
+                                        unit: '%',
+                                        label: t('ponds.metricMargin'),
+                                        tone: money.pnl.profit < 0 ? 'danger' : 'default',
+                                    },
+                                ] as Stat[]
+                            }
+                        />
+                        <SummaryRow
+                            icon="receipt_long"
+                            title={t('ponds.viewExpenses')}
+                            subtitle={t('ponds.spentThisCycle', { amount: inr(money.pnl.totalCost) })}
+                            onPress={() =>
+                                navigation.navigate('Expenses', { cropId: money.pnl.cropId, pondName })
+                            }
+                            divider={cycle ? 'light' : 'strong'}
+                        />
+                        {/* A harvest plan for a cycle that is already over is
+                            not a plan, so this stays with the active one. */}
+                        {!!cycle && (
+                            <SummaryRow
+                                icon="event_available"
+                                title={t('ponds.harvestPlan')}
+                                subtitle={
+                                    daysToTarget != null
+                                        ? daysToTarget > 0
+                                            ? t('ponds.windowOpensIn', { count: daysToTarget })
+                                            : t('ponds.windowOpen')
+                                        : undefined
+                                }
+                                onPress={() =>
+                                    navigation.navigate('HarvestPlans', {
+                                        pondId,
+                                        pondName,
+                                        cropId: cycle.id,
+                                        farmId: pond?.farmId,
+                                    })
+                                }
+                                divider="strong"
+                            />
+                        )}
+                    </>
+                )}
 
                 {/*
                   * "What have we already done today" — the question asked

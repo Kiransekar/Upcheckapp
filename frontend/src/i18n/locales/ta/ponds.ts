@@ -136,5 +136,12 @@ const ponds = {
   tileDone: "இந்த அமர்வில் முடிந்தது",
   tilePending: "இன்னும் முடியவில்லை",
   tileNeedsCycle: "சுழற்சி தேவை",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "பணம் — முடிந்த சுழற்சி",
+  metricRevenue: "வருவாய்",
+  metricProfit: "லாபம்",
+  metricLoss: "நஷ்டம்",
+  metricMargin: "விளிம்பு",
 };
 export default ponds;

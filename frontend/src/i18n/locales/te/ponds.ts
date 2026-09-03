@@ -136,5 +136,12 @@ const ponds = {
   tileDone: "ఈ సెషన్‌లో పూర్తయింది",
   tilePending: "ఇంకా పూర్తి కాలేదు",
   tileNeedsCycle: "సైకిల్ కావాలి",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "డబ్బు — ముగిసిన సైకిల్",
+  metricRevenue: "ఆదాయం",
+  metricProfit: "లాభం",
+  metricLoss: "నష్టం",
+  metricMargin: "మార్జిన్",
 };
 export default ponds;
