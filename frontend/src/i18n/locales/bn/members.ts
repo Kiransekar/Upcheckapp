@@ -56,6 +56,11 @@ const members = {
     removeConfirm: '{{name}}-কে এই খামার থেকে সরাবেন?',
     removeError: 'এই সদস্যকে সরানো যায়নি।',
 
+    transferCta: 'মালিকানা হস্তান্তর করুন',
+    transferTitle: 'মালিকানা হস্তান্তর করবেন?',
+    transferConfirm: 'এটি আর ফেরানো যাবে না। {{name}} এই খামারের মালিক হবেন, আর আপনি ম্যানেজার হয়ে যাবেন।',
+    transferError: 'মালিকানা হস্তান্তর করা যায়নি। আবার চেষ্টা করুন।',
+
     scanTab: 'QR স্ক্যান',
     manualTab: 'ID লিখুন',
     scanHint: 'কর্মীর প্রোফাইল QR কোডে ক্যামেরা তাক করুন।',
@@ -87,9 +92,9 @@ const members = {
   newCode: "নতুন কোড",
   onThisFarm: "এই খামারে",
   tapToEdit: "যেকোনো সদস্যে ট্যাপ করে তার ভূমিকা বা পুকুর বদলান।",
-  inviteByIdentifier: "ইমেল/ইউজারনেম দিয়ে ডাকুন",
   roleSection: "ভূমিকা",
   roleNote: "পুরো খামারে তারা কী করতে পারে।",
+  roleChangeError: "তাঁর ভূমিকা বদলানো গেল না।",
   pondsSection: "যে পুকুরে তারা লগ করতে পারে",
   allPondsAction: "সব পুকুর",
   scopeAllNote: "এই খামারের প্রতিটি পুকুর। সীমিত করতে কয়েকটি বাছুন।",

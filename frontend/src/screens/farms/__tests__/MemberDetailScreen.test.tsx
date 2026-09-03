@@ -35,6 +35,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -193,7 +194,34 @@ describe('MemberDetailScreen — capability gating', () => {
         const { queryByText, findByText } = renderScreen(worker({ role: 'manager' }));
         await findByText('Role');
 
-        expect(queryByText('Transfer')).toBeNull();
+        expect(queryByText('Transfer ownership')).toBeNull();
         expect(queryByText('Remove')).toBeNull();
+    });
+});
+
+describe('MemberDetailScreen — transfer of ownership', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockPerms = OWNER;
+    });
+
+    // These four keys existed in the code and in NO locale file, so the button
+    // and its confirmation both rendered the raw key ("members.transferCta")
+    // for the one action on this screen you cannot undo.
+    it('labels the button and the confirmation in words, not key names', async () => {
+        const spy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        const { findByText } = renderScreen(worker());
+
+        fireEvent.press(await findByText('Transfer ownership'));
+
+        expect(spy).toHaveBeenCalledWith(
+            'Transfer ownership?',
+            expect.stringContaining('Ravi Kumar'),
+            expect.any(Array),
+        );
+        // The copy must say it is irreversible — handing over the farm is not
+        // something an owner can take back from the app.
+        expect(spy.mock.calls[0][1]).toContain('cannot be undone');
+        spy.mockRestore();
     });
 });

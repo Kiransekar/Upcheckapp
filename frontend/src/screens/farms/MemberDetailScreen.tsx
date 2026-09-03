@@ -17,6 +17,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Button } from '../../components/ui/Button';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Icon } from '../../components/ui/Icon';
@@ -265,24 +266,30 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 )}
 
                 {(canManageMember(perms.role, member.role) || perms.canTransferOwnership) && (
+                    /*
+                     * Stacked full-width, not two half-width buttons side by
+                     * side: these are the screen's two irreversible actions and
+                     * a mis-tap hands the farm away. Full width also survives
+                     * the long Odia and Tamil labels without truncating them.
+                     */
                     <View style={styles.actions}>
                         {perms.canTransferOwnership && member.role !== 'owner' && (
-                            <TouchableOpacity
-                                style={styles.transferBtn}
+                            <Button
+                                title={t('members.transferCta')}
+                                variant="outlined"
                                 onPress={transfer}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.transferLabel}>{t('members.transferCta')}</Text>
-                            </TouchableOpacity>
+                                style={styles.transferBtn}
+                                textStyle={styles.transferLabel}
+                            />
                         )}
                         {canManageMember(perms.role, member.role) && (
-                            <TouchableOpacity
-                                style={styles.removeBtn}
+                            <Button
+                                title={t('members.remove')}
+                                variant="outlined"
                                 onPress={remove}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.removeLabel}>{t('members.remove')}</Text>
-                            </TouchableOpacity>
+                                style={styles.removeBtn}
+                                textStyle={styles.removeLabel}
+                            />
                         )}
                     </View>
                 )}
@@ -333,31 +340,17 @@ const styles = StyleSheet.create({
     rowSub: { ...theme.typeScale.bodySmall, color: c.textTertiary },
 
     actions: {
-        flexDirection: 'row',
-        gap: theme.spacing[2],
+        gap: theme.spacing[3],
         paddingHorizontal: theme.spacing[5],
-        paddingTop: theme.spacing[8],
+        paddingTop: theme.spacing[6],
+        marginTop: theme.spacing[8],
+        borderTopWidth: 1,
+        borderTopColor: c.borderDefault,
     },
-    transferBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.warningBorder,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    transferLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.warningText },
-    removeBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.dangerBorder,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    removeLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.dangerText },
+    transferBtn: { borderColor: c.warningBorder },
+    transferLabel: { color: c.warningText },
+    removeBtn: { borderColor: c.dangerBorder },
+    removeLabel: { color: c.dangerText },
 });
 
 export default MemberDetailScreen;

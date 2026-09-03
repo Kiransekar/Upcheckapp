@@ -59,6 +59,12 @@ const members = {
     removeConfirm: 'Remove {{name}} from this farm?',
     removeError: 'Could not remove this member.',
 
+    // Transfer of ownership — irreversible, so the copy says so plainly.
+    transferCta: 'Transfer ownership',
+    transferTitle: 'Transfer ownership?',
+    transferConfirm: 'This cannot be undone. {{name}} becomes the owner of this farm and you become a manager.',
+    transferError: 'Could not transfer ownership. Please try again.',
+
     // Add worker
     scanTab: 'Scan QR',
     manualTab: 'Enter ID',
@@ -93,9 +99,9 @@ const members = {
   newCode: "New code",
   onThisFarm: "On this farm",
   tapToEdit: "Tap any member to change their role or the ponds they can log.",
-  inviteByIdentifier: "Invite by Email/Username",
   roleSection: "Role",
   roleNote: "What they can do across the whole farm.",
+  roleChangeError: "Could not change their role.",
   pondsSection: "Ponds they can log",
   allPondsAction: "All ponds",
   scopeAllNote: "Every pond on this farm. Tick some to narrow it.",
