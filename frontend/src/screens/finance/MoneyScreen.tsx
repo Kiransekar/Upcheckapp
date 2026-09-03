@@ -36,7 +36,7 @@ import { reportsApi, type FinancialReport } from '../../api/reports';
 import { transactionsApi, type Transaction } from '../../api/transactions';
 import { creditApi, type CreditLedger } from '../../api/credit';
 import { farmsApi, type Farm } from '../../api/farms';
-import { fetchMoneyOverview } from '../../api/moneyOverview';
+import { fetchMoneyOverview, type MoneyEntry } from '../../api/moneyOverview';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
@@ -47,7 +47,7 @@ const c = theme.roles.light;
 // Stable empty fallbacks — a fresh `[]`/`{}` on every render would defeat the
 // useMemo dependencies below.
 const EMPTY_REPORTS: Record<string, FinancialReport> = {};
-const EMPTY_ENTRIES: Transaction[] = [];
+const EMPTY_ENTRIES: MoneyEntry[] = [];
 const EMPTY_CREDIT: CreditLedger[] = [];
 
 /** Recent entries shown before "All ›" takes over. */
@@ -491,14 +491,24 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                             activeScope === ALL
                                 ? visibleFarms.find((f) => f.id === tx.farmId)?.name
                                 : undefined;
+                        // A harvest sale is a read-only projection of the
+                        // harvest, not a transaction — there is nothing to edit
+                        // or delete behind it, so it renders as a plain row and
+                        // says what it is.
+                        const isHarvest = tx.source === 'harvest';
+                        const detail = isHarvest
+                            ? tx.buyerName
+                                ? t('finance.harvestSoldTo', { buyer: tx.buyerName })
+                                : t('finance.harvestSale')
+                            : tx.paymentMethod;
                         return (
                             <View key={tx.id} style={styles.entry}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
                                     <Text style={styles.entryTitle} numberOfLines={1}>
-                                        {tx.description || tx.category}
+                                        {tx.description || (isHarvest ? t('finance.harvestSale') : tx.category)}
                                     </Text>
                                     <Text style={styles.entryMeta} numberOfLines={1}>
-                                        {[shortDate(tx.transactionDate), farm, tx.paymentMethod]
+                                        {[shortDate(tx.transactionDate), farm, detail]
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </Text>
@@ -515,6 +525,16 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                             </View>
                         );
                     })
+                )}
+                {/*
+                  * The list cannot add up to the hero and never could: it shows
+                  * six rows, and costs recorded against a CYCLE are summarised
+                  * into "Where it went" rather than itemised here. Saying so is
+                  * cheaper than leaving a farmer to check the arithmetic and
+                  * conclude the app is wrong.
+                  */}
+                {recent.length > 0 && hasFigures && (
+                    <Text style={styles.note}>{t('finance.entriesNote')}</Text>
                 )}
             </ScrollView>
         </ScreenWrapper>
@@ -708,6 +728,13 @@ const styles = StyleSheet.create({
         color: c.textTertiary,
         paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[3],
+    },
+    note: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: c.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[3],
     },
 });
 

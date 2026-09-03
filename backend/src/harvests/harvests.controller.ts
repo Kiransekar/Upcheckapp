@@ -28,8 +28,12 @@ export class HarvestsController {
   }
 
   @Get()
-  findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
-    return this.harvestsService.findAll(user.id, cropId);
+  findAll(
+    @Query('cropId') cropId: string,
+    @Query('pondId') pondId: string,
+    @CurrentUser() user,
+  ) {
+    return this.harvestsService.findAll(user.id, cropId, pondId);
   }
 
   @Get(':id')
