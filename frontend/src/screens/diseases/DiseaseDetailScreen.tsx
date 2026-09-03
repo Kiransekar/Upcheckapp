@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -46,9 +47,10 @@ export const DiseaseDetailScreen = ({ route, navigation }: any) => {
         }
     };
 
-    useEffect(() => {
-        fetchDisease();
-    }, [diseaseId]);
+    // React Navigation keeps this screen mounted, so a mount-only effect never
+    // re-ran on return — logging against this disease and coming back showed
+    // whatever was loaded the first time.
+    useFocusEffect(useCallback(() => { fetchDisease(); }, [diseaseId]));
 
     const handleRefresh = () => {
         setIsRefreshing(true);

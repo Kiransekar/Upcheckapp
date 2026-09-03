@@ -26,6 +26,13 @@ let mockPerms: any;
 jest.mock('../../../hooks/usePermissions', () => ({
     usePermissions: () => mockPerms,
 }));
+// This screen is rendered directly (no NavigationContainer) — useFocusEffect
+// needs useNavigation(), which throws without one. Same convention as
+// FarmMembersScreen's tests: treat it as a plain mount effect here.
+jest.mock('@react-navigation/native', () => ({
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: (cb: any) => require('react').useEffect(cb, [cb]),
+}));
 
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';

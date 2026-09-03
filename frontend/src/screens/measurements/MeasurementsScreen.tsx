@@ -20,6 +20,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -97,6 +98,13 @@ export const MeasurementsScreen = ({ route }: any) => {
         setValueNum('');
         setValueText('');
     }, [loadSeries]);
+
+    // React Navigation keeps this screen mounted, so the trend/recent-log data
+    // above never refetched on return — e.g. a related reading logged
+    // elsewhere and coming back here still showed the stale series. This does
+    // NOT reset the input fields (unlike the effect above), so an in-progress
+    // draft survives navigating away and back.
+    useFocusEffect(useCallback(() => { loadSeries(); }, [loadSeries]));
 
     const handleSubmit = useCallback(async () => {
         if (!entry) return;
