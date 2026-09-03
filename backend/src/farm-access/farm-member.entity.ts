@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from '../auth/user.entity';
 import { Farm } from '../farms/farm.entity';
+import type { CapabilityOverrides } from './farm-capability';
 
 // Per-farm membership role (blueprint §7). Authority order: owner > manager >
 // worker > viewer.
@@ -74,6 +75,18 @@ export class FarmMember {
    */
   @Column({ name: 'can_view_financials', type: 'boolean', nullable: true })
   canViewFinancials: boolean | null;
+
+  /**
+   * The general form of the grant above: `{ RECORD_HARVEST: true }` allows,
+   * `{ VIEW_FINANCIALS: false }` blocks, an absent key means "use the farm's
+   * role policy, else the role default". Read by roleSatisfies, which is the
+   * only place that resolves it.
+   *
+   * `can_view_financials` is backfilled into this column by migration
+   * 1780500200000 and is no longer read; it is dropped in Phase 3.
+   */
+  @Column({ name: 'capability_overrides', type: 'jsonb', nullable: true })
+  capabilityOverrides: CapabilityOverrides | null;
 
   // Who added this member (the owner who scanned/entered them). Nullable so a
   // user deletion doesn't cascade-remove the membership row.

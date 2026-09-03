@@ -21,6 +21,7 @@ import { CreateInviteDto } from './dto/create-invite.dto';
 import { JoinPolicyDto } from './dto/join-policy.dto';
 import { SetPondScopeDto } from './dto/set-pond-scope.dto';
 import { FinancialAccessDto } from './dto/financial-access.dto';
+import { CapabilityOverridesDto } from './dto/capability-overrides.dto';
 import { RecoveryContactDto } from './dto/recovery-contact.dto';
 import { FarmRecoveryService } from './farm-recovery.service';
 import { ApproveMemberDto } from './dto/approve-member.dto';
@@ -194,6 +195,27 @@ export class FarmMembersController {
       user.id,
       userId,
       dto.canViewFinancials ?? null,
+    );
+  }
+
+  /**
+   * Replace one member's capability overrides. Owner only.
+   *
+   * Supersedes the /financials route above, which is the same write with one
+   * hard-coded key and stays for one release.
+   */
+  @Patch('farms/:farmId/members/:userId/capabilities')
+  setCapabilities(
+    @Param('farmId') farmId: string,
+    @Param('userId') userId: string,
+    @Body() dto: CapabilityOverridesDto,
+    @CurrentUser() user,
+  ) {
+    return this.membersService.setCapabilities(
+      farmId,
+      user.id,
+      userId,
+      dto.overrides ?? null,
     );
   }
 

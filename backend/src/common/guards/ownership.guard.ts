@@ -123,12 +123,12 @@ export class OwnershipGuard implements CanActivate {
     const farmId = farmNode?.id ?? farmNode?.farmId;
 
     if (farmId) {
-      // Membership, not just role: roleSatisfies consults the per-farm
-      // financial grant for VIEW_FINANCIALS, and the guard must reach the same
+      // Membership, not just role: roleSatisfies consults the member's
+      // overrides and the farm's role policy, and the guard must reach the same
       // verdict as the service layer or the two disagree on the same request.
-      const { role, canViewFinancials } =
+      const { role, overrides, policy } =
         await this.farmAccessService.getMembershipOnFarm(user.id, farmId);
-      if (roleSatisfies(role, options.capability, canViewFinancials)) {
+      if (roleSatisfies(role, options.capability, overrides, policy)) {
         return true;
       }
     }

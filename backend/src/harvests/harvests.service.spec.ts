@@ -1,3 +1,4 @@
+import { ForbiddenException } from '@nestjs/common';
 import { HarvestsService } from './harvests.service';
 
 /**
@@ -159,5 +160,99 @@ describe('HarvestsService.findAll pond filter', () => {
 
     await expect(svc.findAll('u', undefined, 'p1')).resolves.toEqual([]);
     expect(qb.getMany).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A harvest closes a cycle and books revenue. It used to ride WRITE_MANAGEMENT
+ * on the route and WRITE_OPERATIONAL on the client — the same key as a pH
+ * reading — so any worker could sell the pond. RECORD_HARVEST is its own
+ * capability, and the service asserts it rather than trusting the route guard.
+ */
+function makeGateService(allowed: boolean) {
+  const repo = {
+    create: jest.fn((v: any) => v),
+    save: jest.fn(async (v: any) => ({ id: 'h1', ...v })),
+    findOne: jest.fn(async () => ({ id: 'h1', crop: { pondId: 'p1' } })),
+    findOneBy: jest.fn(async () => ({ id: 'h1' })),
+    update: jest.fn(),
+    delete: jest.fn(),
+  };
+  const cropsService = {
+    findOneAccessible: jest.fn(async () => ({ id: 'c1', pondId: 'p1' })),
+    closeCycle: jest.fn(),
+  };
+  const farmAccess = {
+    assertCanAccessPond: jest.fn(async () => {
+      if (!allowed) throw new ForbiddenException();
+      return { id: 'p1' };
+    }),
+  };
+  const svc = new HarvestsService(
+    repo as any,
+    cropsService as any,
+    farmAccess as any,
+  );
+  return { svc, repo, farmAccess, cropsService };
+}
+
+describe('RECORD_HARVEST gate', () => {
+  const dto = {
+    cropId: 'c1',
+    harvestDate: '2026-02-01',
+    weightKg: 100,
+    harvestType: 'partial',
+  } as any;
+
+  it('refuses a worker with no grant, and asks for RECORD_HARVEST by name', async () => {
+    const { svc, repo, farmAccess } = makeGateService(false);
+
+    await expect(svc.create(dto, 'worker-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith(
+      'worker-1',
+      'p1',
+      'RECORD_HARVEST',
+    );
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('allows the same worker once the capability resolves true', async () => {
+    const { svc, repo } = makeGateService(true);
+
+    await expect(svc.create(dto, 'worker-1')).resolves.toEqual(
+      expect.objectContaining({ id: 'h1' }),
+    );
+    // ...and records who did it: a harvest is money, and the money tables
+    // carried no actor at all before this.
+    expect(repo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ createdById: 'worker-1' }),
+    );
+  });
+
+  it('gates an edit and stamps the editor', async () => {
+    const { svc, repo, farmAccess } = makeGateService(true);
+
+    await svc.update('h1', { weightKg: 120 } as any, 'manager-1');
+
+    expect(farmAccess.assertCanAccessPond).toHaveBeenCalledWith(
+      'manager-1',
+      'p1',
+      'RECORD_HARVEST',
+    );
+    expect(repo.update).toHaveBeenCalledWith('h1', {
+      weightKg: 120,
+      updatedById: 'manager-1',
+    });
+  });
+
+  it('gates a delete', async () => {
+    const { svc, repo } = makeGateService(false);
+
+    await expect(svc.remove('h1', 'worker-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(repo.delete).not.toHaveBeenCalled();
   });
 });

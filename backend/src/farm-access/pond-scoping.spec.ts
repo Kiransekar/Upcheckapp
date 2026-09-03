@@ -25,10 +25,10 @@ function makeService(role: FarmRole, scopedPondIds: string[]) {
   const membersRepo = {
     findOne: jest.fn(async ({ where }: any) =>
       where.status === undefined || where.status === 'active'
-        ? { id: 'm1', farmId: FARM, userId: ACTOR, role, status: 'active', canViewFinancials: null }
+        ? { id: 'm1', farmId: FARM, userId: ACTOR, role, status: 'active', capabilityOverrides: null }
         : null,
     ),
-    find: jest.fn(async () => [{ farmId: FARM, role, canViewFinancials: null }]),
+    find: jest.fn(async () => [{ farmId: FARM, role, capabilityOverrides: null }]),
   };
   const farmsRepo = {
     findOne: jest.fn(async () => ({ id: FARM, userId: OWNER, deletedAt: null })),

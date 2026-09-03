@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,7 +13,11 @@ import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmMember } from '../farm-access/farm-member.entity';
-import { FarmCapability } from '../farm-access/farm-capability';
+import {
+  FarmCapability,
+  RolePolicy,
+  invalidPolicyKey,
+} from '../farm-access/farm-capability';
 
 @Injectable()
 export class FarmsService {
@@ -162,6 +167,26 @@ export class FarmsService {
   async update(id: string, updateFarmDto: UpdateFarmDto) {
     await this.farmsRepository.update(id, updateFarmDto);
     return this.findOne(id);
+  }
+
+  /**
+   * Set this farm's per-role capability defaults. Owner only — a manager who
+   * could widen their own role would make the policy decorative.
+   *
+   * Stored whole (null clears it), because a partial merge would give an owner
+   * no way to take a grant back.
+   */
+  async setRolePolicy(farmId: string, callerId: string, policy: RolePolicy | null) {
+    await this.farmAccess.assertCanAccessFarm(callerId, farmId, 'OWNER_ONLY');
+    const bad = invalidPolicyKey(policy);
+    if (bad) {
+      throw new BadRequestException(
+        `"${bad}" is not a role/permission that can be set by policy`,
+      );
+    }
+    const rolePolicy = policy && Object.keys(policy).length > 0 ? policy : null;
+    await this.farmsRepository.update(farmId, { rolePolicy });
+    return { farmId, rolePolicy };
   }
 
   async remove(id: string) {

@@ -9,6 +9,8 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import {
   NotFoundException,
   InternalServerErrorException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 describe('FarmsService', () => {
@@ -229,6 +231,59 @@ describe('FarmsService', () => {
         }),
       );
       expect(result.message).toContain('archived');
+    });
+  });
+
+  // Per-role capability defaults for one farm — "my workers may record
+  // harvests". Owner only: a manager who could widen their own role would
+  // make the policy decorative.
+  describe('setRolePolicy', () => {
+    it('persists a valid policy and reports it back', async () => {
+      repository.update.mockResolvedValue(undefined);
+      const policy = { worker: { RECORD_HARVEST: true } };
+
+      await expect(
+        service.setRolePolicy('farm-1', 'user-1', policy),
+      ).resolves.toEqual({ farmId: 'farm-1', rolePolicy: policy });
+      expect(repository.update).toHaveBeenCalledWith('farm-1', {
+        rolePolicy: policy,
+      });
+    });
+
+    it('asserts OWNER_ONLY before writing anything', async () => {
+      const access = module.get(FarmAccessService) as any;
+      access.assertCanAccessFarm.mockRejectedValueOnce(
+        new ForbiddenException(),
+      );
+
+      await expect(
+        service.setRolePolicy('farm-1', 'manager-1', {
+          worker: { RECORD_HARVEST: true },
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown role or capability', async () => {
+      await expect(
+        service.setRolePolicy('farm-1', 'user-1', {
+          owner: { RECORD_HARVEST: true },
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.setRolePolicy('farm-1', 'user-1', {
+          worker: { OWNER_ONLY: true },
+        } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(repository.update).not.toHaveBeenCalled();
+    });
+
+    it('stores null for an empty policy, so "cleared" reads as never set', async () => {
+      repository.update.mockResolvedValue(undefined);
+
+      await expect(
+        service.setRolePolicy('farm-1', 'user-1', {}),
+      ).resolves.toEqual({ farmId: 'farm-1', rolePolicy: null });
     });
   });
 });
