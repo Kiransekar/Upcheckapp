@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: 'নিবন্ধ লোড করা যায়নি',
     emptyTitle: 'কোনো সংবাদ নিবন্ধ নেই',
     emptySubtitle: 'সর্বশেষ আপডেটের জন্য পরে আবার দেখুন।',
+    noRecentNews: 'কোনো সাম্প্রতিক সংবাদ নেই',
+    noRecentNewsSubtitle: 'দেখানোর মতো নতুন কিছু পাওয়া যায়নি। আবার দেখতে নিচে টানুন।',
+    ago: '{{ago}} আগে',
     categories: {
       market: 'বাজার ও দাম',
       regulation: 'নিয়ম ও বিধি',

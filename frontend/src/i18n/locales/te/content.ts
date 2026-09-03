@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: 'వ్యాసం లోడ్ కాలేదు',
     emptyTitle: 'వార్తా వ్యాసాలు లేవు',
     emptySubtitle: 'తాజా నవీనతల కోసం తర్వాత తనిఖీ చేయండి.',
+    noRecentNews: 'ఇటీవలి వార్తలు లేవు',
+    noRecentNewsSubtitle: 'చూపించడానికి కొత్తదేమీ కనిపించలేదు. మళ్ళీ తనిఖీ చేయడానికి కిందికి లాగండి.',
+    ago: '{{ago}} క్రితం',
     categories: {
       market: 'మార్కెట్ & ధరలు',
       regulation: 'నియమాలు & నిబంధనలు',

@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: 'लेख लोड नहीं हो सका',
     emptyTitle: 'कोई समाचार लेख नहीं',
     emptySubtitle: 'नवीनतम अपडेट के लिए बाद में देखें।',
+    noRecentNews: 'कोई ताज़ा समाचार नहीं',
+    noRecentNewsSubtitle: 'हमें दिखाने के लिए कोई नई खबर नहीं मिली। फिर से जांचने के लिए नीचे खींचें।',
+    ago: '{{ago}} पहले',
     categories: {
       market: 'बाज़ार और भाव',
       regulation: 'नियम और कानून',

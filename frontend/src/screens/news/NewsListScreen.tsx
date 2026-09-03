@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Ani
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Card } from '../../components/ui/Card';
 import { AlertBanner } from '../../components/ui/AlertBanner';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -16,6 +17,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import i18n from '../../i18n';
 
 const ALL_KEY = 'all';
+
+/** "3d" / "2h" / "5m" — same short, locale-independent shape as the "ago"
+ *  helper duplicated in FarmDetailScreen / PondDashboardScreen. `null` for an
+ *  unparseable date, so the caller can fall back to the absolute date. */
+const timeAgo = (iso?: string | null): string | null => {
+    if (!iso) return null;
+    const ms = Date.now() - Date.parse(iso);
+    if (Number.isNaN(ms) || ms < 0) return null;
+    const h = Math.floor(ms / 3_600_000);
+    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
+    if (h < 24) return `${h}h`;
+    return `${Math.floor(h / 24)}d`;
+};
 
 /**
  * The fixed category set from the spec, not whatever happens to be in the
@@ -43,6 +57,11 @@ export const NewsListScreen = ({ navigation }: any) => {
     // Set only when we are rendering the cache instead of a live response.
     const [cachedAt, setCachedAt] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string>(ALL_KEY);
+    // The backend's freshness signal: false means the feed genuinely has
+    // nothing in the freshness window, not just "this category is empty" —
+    // see NewsService.findAll. Defaults true so a category-only empty list
+    // never flashes the stale copy before the first response lands.
+    const [isFresh, setIsFresh] = useState(true);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.95)).current;
@@ -62,8 +81,12 @@ export const NewsListScreen = ({ navigation }: any) => {
                 take: NEWS_CACHE_LIMIT,
                 locale: i18n.language,
             });
-            const items = unwrapNews(response.data);
+            // `fresh` isn't on the NewsPage type yet (api/news.ts is another
+            // agent's file this task); read it defensively off the raw body.
+            const body: any = response.data;
+            const items = unwrapNews(body);
             setArticles(items);
+            setIsFresh(Array.isArray(body) ? true : (body?.fresh ?? true));
             setCachedAt(null);
             // Cache on every success so the next no-signal open has something.
             writeNewsCache(items);
@@ -109,17 +132,23 @@ export const NewsListScreen = ({ navigation }: any) => {
     const categoryLabel = (cat: string) =>
         cat === ALL_KEY ? t('content.news.categoryAll') : t(`content.news.categories.${cat}`);
 
-    const renderCategoryChip = (cat: string) => (
-        <TouchableOpacity
-            key={cat}
-            style={[styles.categoryTab, selectedCategory === cat && styles.categoryTabActive]}
-            onPress={() => setSelectedCategory(cat)}
-        >
-            <Text style={[styles.categoryLabel, selectedCategory === cat && styles.categoryLabelActive]}>
-                {categoryLabel(cat)}
-            </Text>
-        </TouchableOpacity>
-    );
+    const renderCategoryChip = (cat: string) => {
+        const active = selectedCategory === cat;
+        return (
+            <TouchableOpacity
+                key={cat}
+                style={[styles.categoryTab, active && styles.categoryTabActive]}
+                onPress={() => setSelectedCategory(cat)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={categoryLabel(cat)}
+            >
+                <Text style={[styles.categoryLabel, active && styles.categoryLabelActive]}>
+                    {categoryLabel(cat)}
+                </Text>
+            </TouchableOpacity>
+        );
+    };
 
     const renderArticleItem = useCallback(({ item }: { item: NewsArticle }) => (
         <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}>
@@ -144,7 +173,12 @@ export const NewsListScreen = ({ navigation }: any) => {
                                 </View>
                             ) : null}
                             <Text style={styles.dateText}>
-                                {formatDate(item.publishedAt, { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {(() => {
+                                    const ago = timeAgo(item.publishedAt);
+                                    return ago
+                                        ? t('content.news.ago', { ago })
+                                        : formatDate(item.publishedAt, { day: 'numeric', month: 'short', year: 'numeric' });
+                                })()}
                             </Text>
                         </View>
                     </View>
@@ -174,15 +208,11 @@ export const NewsListScreen = ({ navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                {navigation.canGoBack?.() ? (
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                    </TouchableOpacity>
-                ) : null}
-                <Text style={styles.headerTitle}>{t('content.news.title')}</Text>
-                <View style={styles.headerSpacer} />
-            </View>
+            <ScreenHeader
+                title={t('content.news.title')}
+                onBack={navigation.canGoBack?.() ? () => navigation.goBack() : undefined}
+                accessibilityBackLabel={t('common.back')}
+            />
 
             <ScrollView
                 horizontal
@@ -230,11 +260,23 @@ export const NewsListScreen = ({ navigation }: any) => {
                         />
                     }
                     ListEmptyComponent={
-                        <EmptyState
-                            icon="newspaper-variant-outline"
-                            title={t('content.news.emptyTitle')}
-                            subtitle={t('content.news.emptySubtitle')}
-                        />
+                        !isFresh ? (
+                            // Genuinely nothing in the freshness window — say so
+                            // honestly rather than leave a blank list or fall
+                            // back to a stale backlog (that's what used to lead
+                            // with a 2020 recipe).
+                            <EmptyState
+                                icon="newspaper-variant-outline"
+                                title={t('content.news.noRecentNews')}
+                                subtitle={t('content.news.noRecentNewsSubtitle')}
+                            />
+                        ) : (
+                            <EmptyState
+                                icon="filter-variant"
+                                title={t('content.news.emptyTitle')}
+                                subtitle={t('content.news.emptySubtitle')}
+                            />
+                        )
                     }
                 />
             )}
@@ -243,26 +285,6 @@ export const NewsListScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.spacing[4],
-        paddingHorizontal: theme.spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
-    },
-    backButton: {
-        marginRight: theme.spacing[3],
-    },
-    headerTitle: {
-        ...theme.typeScale.h2,
-        color: theme.roles.light.textPrimary,
-        flex: 1,
-    },
-    headerSpacer: {
-        width: 24,
-    },
     categoryBar: {
         flexGrow: 0,
         backgroundColor: theme.roles.light.surface,
@@ -277,20 +299,22 @@ const styles = StyleSheet.create({
     categoryTab: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: theme.spacing[3],
+        justifyContent: 'center',
+        minHeight: 48,
+        paddingHorizontal: theme.spacing[4],
         paddingVertical: theme.spacing[2],
         borderRadius: theme.radius.md,
         backgroundColor: theme.roles.light.surfaceVariant,
     },
     categoryTabActive: {
-        backgroundColor: theme.roles.light.primary + '20',
+        backgroundColor: theme.roles.light.infoBg,
     },
     categoryLabel: {
         ...theme.typeScale.labelMedium,
         color: theme.roles.light.textSecondary,
     },
     categoryLabelActive: {
-        color: theme.roles.light.primary,
+        color: theme.roles.light.infoText,
     },
     offlineBanner: {
         marginHorizontal: theme.spacing[4],

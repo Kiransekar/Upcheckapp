@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: "Couldn't Load Article",
     emptyTitle: 'No News Articles',
     emptySubtitle: 'Check back later for the latest updates.',
+    noRecentNews: 'No recent news',
+    noRecentNewsSubtitle: "We haven't found anything new to show you. Pull down to check again.",
+    ago: '{{ago}} ago',
     categories: {
       market: 'Market & prices',
       regulation: 'Rules & regulations',

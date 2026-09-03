@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { theme } from '../../theme';
@@ -78,15 +79,11 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {article?.title ?? t('content.news.fallbackTitle')}
-                </Text>
-                <View style={styles.headerSpacer} />
-            </View>
+            <ScreenHeader
+                title={article?.title ?? t('content.news.fallbackTitle')}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
             {isLoading && !article ? (
                 <View style={styles.loadingContainer}>
@@ -174,26 +171,6 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.spacing[4],
-        paddingHorizontal: theme.spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
-    },
-    backButton: {
-        marginRight: theme.spacing[3],
-    },
-    headerTitle: {
-        ...theme.typeScale.h2,
-        color: theme.roles.light.textPrimary,
-        flex: 1,
-    },
-    headerSpacer: {
-        width: 24,
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',

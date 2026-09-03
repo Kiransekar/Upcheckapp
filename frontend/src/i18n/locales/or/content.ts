@@ -135,6 +135,9 @@ const content = {
     errorLoadArticle: 'ଆର୍ଟିକ୍ଲ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
     emptyTitle: 'କୌଣସି ସମ୍ବାଦ ଆର୍ଟିକ୍ଲ ନାହିଁ',
     emptySubtitle: 'ସର୍ବଶେଷ ଅଦ୍ୟତନ ପାଇଁ ପରେ ଦେଖନ୍ତୁ।',
+    noRecentNews: 'କୌଣସି ସାମ୍ପ୍ରତିକ ସମ୍ବାଦ ନାହିଁ',
+    noRecentNewsSubtitle: 'ଦେଖାଇବାକୁ ନୂଆ କିଛି ମିଳିଲା ନାହିଁ। ପୁଣି ଯାଞ୍ଚ କରିବାକୁ ତଳକୁ ଟାଣନ୍ତୁ।',
+    ago: '{{ago}} ପୂର୍ବେ',
     categories: {
       market: 'ବଜାର ଓ ଦର',
       regulation: 'ନିୟମ ଓ ବିଧି',
