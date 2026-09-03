@@ -152,6 +152,21 @@ const content = {
     offlineTitle: 'Showing saved news',
     offlineMessage: 'No connection — last updated {{date}}.',
     offlineLink: 'This article needs a connection.',
+    translate: {
+      action: 'Translate & explain',
+      copied: 'Prompt copied to clipboard',
+      modalTitle: 'Translate & explain',
+      modalBody: "Couldn't open the share sheet. Copy the prompt below and paste it into your translation app.",
+      copyButton: 'Copy prompt',
+      close: 'Close',
+      prompt: {
+        instruction: 'Translate this news article into English and explain it simply for a shrimp farmer. Give a one-line translation first, then a short explanation.',
+        headline: 'Headline',
+        summary: 'Summary',
+        source: 'Source',
+        shared: 'Shared from the Upcheck app.',
+      },
+    },
   },
 };
 
