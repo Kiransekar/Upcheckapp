@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'தினசரி அளவீடுகளைப் பதிவு செய்ய பண்ணை மற்றும் குளத்தை உருவாக்கவும்.',
   quickLogCreateFarm: 'பண்ணை உருவாக்கு',
   quickLogOpenPond: 'குளத்தைத் திற',
+  quickLogNoCycle: 'இந்தக் குளத்தில் எந்தச் சுழற்சியும் இயங்கவில்லை',
+  quickLogNoCycleSub:
+    'தீவனம், மாதிரி எடுப்பு, அளவீடுகள் அனைத்தும் ஒரு சுழற்சியின் கணக்கில் சேர்க்கப்படும். சுழற்சியைத் தொடங்கினால்தான் இந்தக் குளத்தின் FCR, வளர்ச்சி, லாபம் சரியாகக் கூடும்.',
+  quickLogStartCycle: 'சுழற்சியைத் தொடங்கு',
+  quickLogNeedsCycle: 'சுழற்சி தேவை',
   farmerFallback: 'விவசாயி',
   onboarding_languagePrompt: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்',
   onboarding_title: 'Upcheck-க்கு வரவேற்கிறோம்',

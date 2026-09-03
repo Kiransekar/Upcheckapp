@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'Create a farm and pond to start recording your daily readings.',
   quickLogCreateFarm: 'Create a farm',
   quickLogOpenPond: 'Open pond',
+  quickLogNoCycle: 'No cycle running in this pond',
+  quickLogNoCycleSub:
+    'Feed, sampling and measurements are counted against a cycle. Start one so this pond\'s FCR, growth and profit add up.',
+  quickLogStartCycle: 'Start a cycle',
+  quickLogNeedsCycle: 'Needs a cycle',
   farmerFallback: 'Farmer',
   onboarding_languagePrompt: 'Choose your language',
   onboarding_title: 'Welcome to Upcheck',

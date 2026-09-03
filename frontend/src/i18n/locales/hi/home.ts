@@ -114,6 +114,11 @@ const home = {
   quickLogNoPondsSub: 'दैनिक रीडिंग दर्ज करने के लिए फ़ार्म और तालाब बनाएँ।',
   quickLogCreateFarm: 'फ़ार्म बनाएँ',
   quickLogOpenPond: 'तालाब खोलें',
+  quickLogNoCycle: 'इस तालाब में कोई साइकिल नहीं चल रही',
+  quickLogNoCycleSub:
+    'फ़ीड, सैंपलिंग और माप साइकिल के हिसाब से गिने जाते हैं। साइकिल शुरू करें ताकि इस तालाब का FCR, बढ़ोतरी और मुनाफ़ा सही जुड़े।',
+  quickLogStartCycle: 'साइकिल शुरू करें',
+  quickLogNeedsCycle: 'साइकिल चाहिए',
   farmerFallback: 'किसान',
   onboarding_languagePrompt: 'अपनी भाषा चुनें',
   onboarding_title: 'Upcheck में आपका स्वागत है',
