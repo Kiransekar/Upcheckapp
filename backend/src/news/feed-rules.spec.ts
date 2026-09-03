@@ -38,6 +38,28 @@ describe('scoreRelevance', () => {
     expect(scoreRelevance(loud, 100)).toBeLessThanOrEqual(100);
     expect(scoreRelevance('salmon salmon salmon trout')).toBe(0);
   });
+
+  // Live titles pulled straight off MPEDA's feed (weight 90, our only active
+  // source) — this is the exact mix that put a recipe above a disease alert.
+  describe('the MPEDA feed, verbatim (recipes must lose, notices must not)', () => {
+    it.each([
+      'Shrimp Ghee Pepper Roast',
+      'Shrimps Newburg',
+      'Sweet Chilli Shrimp Skewers',
+    ])('filters out %s', (title) => {
+      expect(scoreRelevance(title, 90)).toBeLessThan(RELEVANCE_THRESHOLD);
+    });
+
+    it.each([
+      'MPEDA Quality Control lab Develops protocol to test free formaldehyde',
+      'MPEDA extends microbiology lab testing facility to aqua farmers',
+      'Cabinet approves Pradhan Mantri Matsya Sampada Yojana',
+    ])('keeps %s', (title) => {
+      expect(scoreRelevance(title, 90)).toBeGreaterThanOrEqual(
+        RELEVANCE_THRESHOLD,
+      );
+    });
+  });
 });
 
 describe('classify', () => {
