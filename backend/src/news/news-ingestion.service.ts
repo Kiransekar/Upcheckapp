@@ -18,7 +18,9 @@ import {
 
 /** §2.6 — identify honestly, with a contact address, and poll gently. */
 const USER_AGENT = 'UpcheckBot/1.0 (+https://upcheck.in/bot; bot@upcheck.in)';
-const FETCH_TIMEOUT_MS = 10_000;
+// mpeda.gov.in is slow to answer even when it is up — 10s was timing out a
+// reachable feed, not just a dead one. 30s is generous but still bounded.
+const FETCH_TIMEOUT_MS = 30_000;
 const FETCH_ATTEMPTS = 3;
 
 /**
@@ -65,7 +67,18 @@ export interface IngestionStats {
   deduped: number;
   persisted: number;
   failed: number;
+  /** This source's failure message for the run, or null if it succeeded. */
+  error: string | null;
 }
+
+/** One source's stats plus which source they belong to — what the on-demand
+ *  trigger endpoint reports so an external scheduler's logs are useful. */
+export type SourceIngestionResult = IngestionStats & { name: string };
+
+export type RunResult = IngestionStats & { sources: SourceIngestionResult[] };
+
+/** Numeric fields only — `error` is a message, not something to sum. */
+const STAT_KEYS = ['fetched', 'filtered', 'deduped', 'persisted', 'failed'] as const;
 
 const emptyStats = (): IngestionStats => ({
   fetched: 0,
@@ -73,6 +86,7 @@ const emptyStats = (): IngestionStats => ({
   deduped: 0,
   persisted: 0,
   failed: 0,
+  error: null,
 });
 
 @Injectable()
@@ -117,8 +131,15 @@ export class NewsIngestionService implements OnApplicationBootstrap {
   /**
    * Poll every active source. One dead feed must never fail the run — a source
    * that throws records `last_error` and the next source is still polled.
+   *
+   * `ingestSource` already catches its own fetch errors, but that is not the
+   * only way a source can fail (e.g. `persist` rethrowing a non-duplicate DB
+   * error, or `assertPersistable` catching a legal-boundary leak) — those are
+   * not caught inside `ingestSource`, so this loop wraps the call itself too.
+   * Without that, one bad item from one source would throw out of the `for`
+   * loop and silently skip polling every source after it.
    */
-  async run(): Promise<IngestionStats> {
+  async run(): Promise<RunResult> {
     let sources: NewsSource[];
     try {
       sources = await this.sources.find({
@@ -128,13 +149,23 @@ export class NewsIngestionService implements OnApplicationBootstrap {
       const code = (err as any)?.code ?? (err as any)?.driverError?.code;
       if (code !== '42P01') throw err;
       this.logger.warn('news_sources missing — run migrations; skipping run');
-      return emptyStats();
+      return { ...emptyStats(), sources: [] };
     }
 
     const total = emptyStats();
+    const perSource: SourceIngestionResult[] = [];
     for (const source of sources) {
-      const stats = await this.ingestSource(source);
-      for (const k of Object.keys(total) as (keyof IngestionStats)[]) {
+      let stats: IngestionStats;
+      try {
+        stats = await this.ingestSource(source);
+      } catch (err) {
+        const message = (err as Error).message;
+        this.logger.error(`Unexpected failure ingesting ${source.name}: ${message}`);
+        await this.recordError(source, message);
+        stats = { ...emptyStats(), failed: 1, error: message };
+      }
+      perSource.push({ name: source.name, ...stats });
+      for (const k of STAT_KEYS) {
         total[k] += stats[k];
       }
       if (total.fetched >= MAX_ITEMS_PER_RUN) break;
@@ -145,7 +176,7 @@ export class NewsIngestionService implements OnApplicationBootstrap {
         `filtered=${total.filtered} deduped=${total.deduped} ` +
         `persisted=${total.persisted} failed=${total.failed}`,
     );
-    return total;
+    return { ...total, sources: perSource };
   }
 
   async ingestSource(source: NewsSource): Promise<IngestionStats> {
@@ -175,7 +206,8 @@ export class NewsIngestionService implements OnApplicationBootstrap {
       items = await this.fetchFeed(source);
     } catch (err) {
       stats.failed += 1;
-      await this.recordError(source, (err as Error).message);
+      stats.error = (err as Error).message;
+      await this.recordError(source, stats.error);
       return stats;
     }
 
