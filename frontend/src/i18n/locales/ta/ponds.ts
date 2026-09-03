@@ -127,5 +127,14 @@ const ponds = {
 
   sessionHintLogged: "பதிவானது",
   sessionHintFed: "உணவளிக்கப்பட்டது",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "இன்று இந்தக் குளத்தில்",
+  todayEmpty: "இன்று இதுவரை எதுவும் பதிவாகவில்லை.",
+  modeHintLog: "புதிய பதிவு செய்ய அட்டையை அழுத்தவும்",
+  modeHintHistory: "பழைய பதிவுகளைப் பார்க்க அட்டையை அழுத்தவும்",
+  tileDone: "இந்த அமர்வில் முடிந்தது",
+  tilePending: "இன்னும் முடியவில்லை",
+  tileNeedsCycle: "சுழற்சி தேவை",
 };
 export default ponds;

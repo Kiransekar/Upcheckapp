@@ -127,5 +127,14 @@ const ponds = {
 
   sessionHintLogged: "ଲଗ୍ ହେଲା",
   sessionHintFed: "ଖୁଆଯାଇଛି",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ଆଜି ଏହି ପୋଖରୀରେ",
+  todayEmpty: "ଆଜି ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲଗ୍ ହୋଇନାହିଁ।",
+  modeHintLog: "ନୂଆ ଏଣ୍ଟ୍ରି ଲେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  modeHintHistory: "ପୁରୁଣା ଏଣ୍ଟ୍ରି ଦେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  tileDone: "ଏହି ସେସନ୍‌ରେ ହୋଇଛି",
+  tilePending: "ଏବେ ବି ହୋଇନାହିଁ",
+  tileNeedsCycle: "ଏକ ଚକ୍ର ଦରକାର",
 };
 export default ponds;

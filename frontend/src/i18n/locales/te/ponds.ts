@@ -127,5 +127,14 @@ const ponds = {
 
   sessionHintLogged: "నమోదైంది",
   sessionHintFed: "మేత ఇచ్చారు",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ఈ రోజు ఈ చెరువులో",
+  todayEmpty: "ఈ రోజు ఇంకా ఏమీ నమోదు కాలేదు.",
+  modeHintLog: "కొత్త నమోదు చేయడానికి కార్డును నొక్కండి",
+  modeHintHistory: "పాత నమోదులు చూడటానికి కార్డును నొక్కండి",
+  tileDone: "ఈ సెషన్‌లో పూర్తయింది",
+  tilePending: "ఇంకా పూర్తి కాలేదు",
+  tileNeedsCycle: "సైకిల్ కావాలి",
 };
 export default ponds;

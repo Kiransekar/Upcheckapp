@@ -128,5 +128,14 @@ const ponds = {
   // Session hints (logged / fed this slot) — components/ui/SessionHint.tsx
   sessionHintLogged: "Logged",
   sessionHintFed: "Fed",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "Today on this pond",
+  todayEmpty: "Nothing logged today yet.",
+  modeHintLog: "Tap a card to record a new entry",
+  modeHintHistory: "Tap a card to see past entries",
+  tileDone: "done this session",
+  tilePending: "not done yet",
+  tileNeedsCycle: "Needs a cycle",
 };
 export default ponds;

@@ -23,10 +23,25 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
         setError(null);
 
         try {
-            const { data } = cropId
-                ? await harvestsApi.getByCrop(cropId)
-                : await harvestsApi.getAll();
-            const result: HarvestRecord[] = Array.isArray(data) ? data : [];
+            /*
+             * A pond, when we have one, beats a single crop: harvests run
+             * across successive cycles on the same pond and the farmer is
+             * asking for THAT pond's run, not one cycle of it.
+             *
+             * There is deliberately no `getAll()` fallback any more. With
+             * neither id it returned every harvest on every farm the user can
+             * reach and drew them under this pond's title — other ponds'
+             * tonnage, summed into "total harvested", on a screen a farmer
+             * reads as one pond's record. No scope, no list.
+             */
+            if (!pondId && !cropId) {
+                setRecords([]);
+                return;
+            }
+            const { data } = pondId
+                ? await harvestsApi.getByPond(pondId)
+                : await harvestsApi.getByCrop(cropId);
+            const result: HarvestRecord[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
             result.sort((a, b) => new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime());
             setRecords(result);
         } catch (err) {
@@ -35,7 +50,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [cropId]);
+    }, [pondId, cropId]);
 
     // Refetch on focus, not just mount — this screen stays mounted in the
     // stack, so logging a new reading and navigating back never showed it.
