@@ -173,13 +173,19 @@ export const TeamScreen = ({ navigation }: any) => {
     //
     // usePermissions resolves ONE farm and cannot be called in a loop, so this
     // goes to the same `roleCan` it calls.
-    const roleForFarm = useMembershipStore((s) => s.roleForFarm);
+    const grantForFarm = useMembershipStore((s) => s.grantForFarm);
     const memberships = useMembershipStore((s) => s.memberships);
     const farmsWith = useCallback(
-        // `memberships` is in the deps because `roleForFarm` closes over the
+        // `memberships` is in the deps because `grantForFarm` closes over the
         // store lazily — its identity does not change when the list loads.
-        (cap: FarmCapability) => scopeFarms.filter((f) => roleCan(roleForFarm(f.id), cap)),
-        [scopeFarms, roleForFarm, memberships],
+        // Resolve through the full grant so a per-member override or a farm
+        // role policy counts here exactly as it does in usePermissions.
+        (cap: FarmCapability) =>
+            scopeFarms.filter((f) => {
+                const g = grantForFarm(f.id);
+                return roleCan(g.role, cap, g.overrides, g.policy);
+            }),
+        [scopeFarms, grantForFarm, memberships],
     );
 
     const canManage = farmsWith('MANAGE_WORKERS').length > 0;
