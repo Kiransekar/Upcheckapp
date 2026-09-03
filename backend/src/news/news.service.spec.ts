@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { NewsService } from './news.service';
 import { NewsArticle } from './news-article.entity';
 import { NewsArticleTranslation } from './news-article-translation.entity';
+import { NEWS_FRESH_WINDOW_DAYS } from './feed-rules';
 
 const article = (over: Partial<NewsArticle> = {}): NewsArticle =>
   ({
@@ -13,6 +14,16 @@ const article = (over: Partial<NewsArticle> = {}): NewsArticle =>
     isActive: true,
     ...over,
   }) as NewsArticle;
+
+/** The `publishedAt` value findAndCount was actually called with is a
+ *  TypeORM FindOperator built from `new Date(Date.now() - ...)`, so it can't
+ *  be asserted by exact equality — only that it is a "more than or equal to"
+ *  bound roughly NEWS_FRESH_WINDOW_DAYS ago. */
+const assertFreshCutoff = (op: any) => {
+  expect(op.type).toBe('moreThanOrEqual');
+  const daysAgo = (Date.now() - op.value.getTime()) / (24 * 60 * 60 * 1000);
+  expect(daysAgo).toBeCloseTo(NEWS_FRESH_WINDOW_DAYS, 1);
+};
 
 const createArticlesRepo = () => ({
   create: jest.fn().mockImplementation((dto) => dto),
@@ -64,12 +75,10 @@ describe('NewsService', () => {
     it('lists published items only, newest first', async () => {
       await service.findAll({});
 
-      expect(articles.findAndCount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { isActive: true, status: 'published' },
-          order: { publishedAt: 'DESC' },
-        }),
-      );
+      const call = articles.findAndCount.mock.calls[0][0];
+      expect(call.where).toMatchObject({ isActive: true, status: 'published' });
+      expect(call.order).toEqual({ publishedAt: 'DESC' });
+      assertFreshCutoff(call.where.publishedAt);
     });
 
     it('filters by category', async () => {
@@ -94,9 +103,31 @@ describe('NewsService', () => {
       const page = await service.findAll({});
 
       expect(page.data).toHaveLength(1);
-      expect(articles.findAndCount).toHaveBeenLastCalledWith(
-        expect.objectContaining({ where: { isActive: true } }),
-      );
+      const call = articles.findAndCount.mock.calls[1][0];
+      expect(call.where).toMatchObject({ isActive: true });
+      expect(call.where.status).toBeUndefined();
+      assertFreshCutoff(call.where.publishedAt);
+    });
+
+    it('flags a healthy page as fresh, and a genuinely empty one too — no items just means no items', async () => {
+      articles.findAndCount.mockResolvedValue([[article()], 1]);
+      expect((await service.findAll({})).fresh).toBe(true);
+
+      articles.findAndCount.mockResolvedValue([[], 0]);
+      // ...but this is the empty case: no row cleared the freshness cutoff.
+      expect((await service.findAll({})).fresh).toBe(false);
+    });
+
+    it('filters the query itself to the freshness window rather than trusting the caller', async () => {
+      // The whole point: a table whose newest row is years old must not be
+      // served as "news" just because nothing is left to filter it out.
+      articles.findAndCount.mockResolvedValue([[], 0]);
+
+      await service.findAll({});
+
+      const cutoff = articles.findAndCount.mock.calls[0][0].where.publishedAt.value;
+      const daysAgo = (Date.now() - cutoff.getTime()) / (24 * 60 * 60 * 1000);
+      expect(daysAgo).toBeCloseTo(NEWS_FRESH_WINDOW_DAYS, 1);
     });
 
     it('serves English when the requested locale has no translation row', async () => {

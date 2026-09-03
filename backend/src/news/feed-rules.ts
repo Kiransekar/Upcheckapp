@@ -43,6 +43,20 @@ export type NewsStatus = (typeof NEWS_STATUSES)[number];
 export const MAX_SUMMARY_CHARS = 300;
 
 /**
+ * How recent "current" means for the default News listing. Shrimp market
+ * and regulatory news moves on a weeks-to-months cadence, not a daily one —
+ * Global Seafood Alliance's own feed regularly runs six weeks between
+ * shrimp-relevant posts — so a farmer's "current" window has to be generous
+ * enough to hold that, not just yesterday's items. What it must never hold
+ * is the years-old backlog: nine rows with a newest `published_at` of
+ * 2020-12-15 is what put a six-year-old recipe on the News page to begin
+ * with. `news.service.ts` filters the default listing to this window and
+ * reports whether it found anything, rather than quietly serving whatever
+ * is oldest in the table.
+ */
+export const NEWS_FRESH_WINDOW_DAYS = 45;
+
+/**
  * Below this an item is dropped. Most aquaculture feeds are majority salmon
  * and whitefish; without a threshold an Indian shrimp farmer's feed fills
  * with Norwegian salmon news and the feature dies of irrelevance.
