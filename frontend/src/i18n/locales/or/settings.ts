@@ -160,6 +160,8 @@ const settings = {
   reminderAfternoon: "ଅପରାହ୍ନ ଯାଞ୍ଚ",
   reminderEvening: "ସନ୍ଧ୍ୟା ଯାଞ୍ଚ",
   reminderChemistry: "ସାପ୍ତାହିକ ରସାୟନ ଯାଞ୍ଚ",
+  reminderHourLabel: "ଘଣ୍ଟା",
+  reminderMinuteLabel: "ମିନିଟ୍",
 };
 
 export default settings;

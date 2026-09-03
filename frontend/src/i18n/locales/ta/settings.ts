@@ -160,6 +160,8 @@ const settings = {
   reminderAfternoon: "மதிய சோதனை",
   reminderEvening: "மாலை சோதனை",
   reminderChemistry: "வாராந்திர வேதியியல் சோதனை",
+  reminderHourLabel: "மணி",
+  reminderMinuteLabel: "நிமிடம்",
 };
 
 export default settings;

@@ -160,6 +160,8 @@ const settings = {
   reminderAfternoon: "দুপুরের চেক",
   reminderEvening: "সন্ধ্যার চেক",
   reminderChemistry: "সাপ্তাহিক রসায়ন পরীক্ষা",
+  reminderHourLabel: "ঘণ্টা",
+  reminderMinuteLabel: "মিনিট",
 };
 
 export default settings;
