@@ -9,10 +9,17 @@ const cycles = {
   placeholderStockingCount: 'e.g. 500000',
   fieldSpeciesType: 'Species Type',
   placeholderSpeciesType: 'e.g. Vannamei',
-  fieldSeedType: 'Seed Type (Optional)',
-  placeholderSeedType: 'e.g. PL-10',
+  fieldSeedType: 'Seed Type',
+  placeholderSeedType: 'Pick the seed grade',
+  // Species labels pair the trade name with the Latin one, which is what the
+  // hatchery invoice says.
+  species_Vannamei: 'Vannamei (L. vannamei)',
+  species_Monodon: 'Tiger prawn (P. monodon)',
+  species_Indicus: 'Indian white prawn (P. indicus)',
+  species_Scampi: 'Scampi (M. rosenbergii)',
   startCycle: 'Start Production Cycle',
   errorCycleNameRequired: 'Cycle name is required',
+  errorSeedTypeRequired: 'Choose the seed type',
   errorStockingCountRequired: 'Valid stocking count is required',
   errorStartCycle: 'Failed to start cycle',
 

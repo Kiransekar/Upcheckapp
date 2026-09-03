@@ -105,6 +105,24 @@ const members = {
   financialsToggle: "ଖର୍ଚ୍ଚ ଏବଂ ଟଙ୍କା ଦେଖିପାରିବେ",
   financialsNote: "ୱର୍କର ଏବଂ ଭ୍ୟୁଅର ପାଇଁ ଡିଫଲ୍ଟ ଭାବରେ ବନ୍ଦ।",
   financialsError: "ଟଙ୍କା ପ୍ରବେଶ ବଦଳାଇ ପାରିଲୁ ନାହିଁ।",
+
+  permissionsSection: "ଏହି ବ୍ୟକ୍ତି କ'ଣ କରିପାରିବେ",
+  permissionsNote: "ଯାହା 'ଡିଫଲ୍ଟ'ରେ ରଖିବେ, ତାହା ତଳର ଭୂମିକା ନିୟମ ଅନୁସରଣ କରିବ।",
+  capabilitiesError: "ତାଙ୍କ ଅନୁମତି ବଦଳାଇ ପାରିଲୁ ନାହିଁ।",
+  rolePolicySection: "ଭୂମିକା ଅନୁସାରେ ଅନୁମତି",
+  rolePolicyNote: "ଜଣଙ୍କ ପାଇଁ ଅଲଗା ନ କଲେ, ଏହି ଫାର୍ମରେ ସେହି ଭୂମିକାର ସମସ୍ତଙ୍କ ପାଇଁ ଲାଗୁ ହେବ।",
+  rolePolicyError: "ଭୂମିକା ଅନୁମତି ବଦଳାଇ ପାରିଲୁ ନାହିଁ।",
+  capDefault: "ଡିଫଲ୍ଟ",
+  capAllowed: "ଅନୁମତି ଅଛି",
+  capBlocked: "ବନ୍ଦ",
+  capDefaultAllowed: "ଡିଫଲ୍ଟ: ଅନୁମତି ଅଛି",
+  capDefaultBlocked: "ଡିଫଲ୍ଟ: ଅନୁମତି ନାହିଁ",
+  cap_RECORD_HARVEST: "ହାର୍ଭେଷ୍ଟ ଲିପିବଦ୍ଧ କରିବା",
+  cap_VIEW_FINANCIALS: "ଖର୍ଚ୍ଚ ଏବଂ ଟଙ୍କା ଦେଖିବା",
+  cap_MANAGE_INVENTORY: "ଷ୍ଟକ ବଦଳାଇବା",
+  cap_VIEW_INVENTORY: "ଷ୍ଟକ ଦେଖିବା",
+  cap_MANAGE_WORKERS: "ୱର୍କର ଯୋଡ଼ିବା ଓ ହଟାଇବା",
+  cap_WRITE_MANAGEMENT: "ପୋଖରୀ ଓ ସାଇକଲ ପରିଚାଳନା",
 };
 
 export default members;

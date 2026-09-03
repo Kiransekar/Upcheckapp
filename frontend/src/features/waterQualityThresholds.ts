@@ -94,15 +94,28 @@ export const THRESHOLDS: Record<
   }),
 }
 
-/** Coerce a free-text species string to a supported ThresholdSpecies. */
-export function toThresholdSpecies(raw: string | null | undefined): ThresholdSpecies {
+/**
+ * Coerce a free-text species string to a supported ThresholdSpecies, or `null`
+ * when it matches nothing.
+ *
+ * It used to answer 'vannamei' for anything it did not recognise, so a typo
+ * ('VannameiVannamei' is in production) silently evaluated a tiger-prawn pond
+ * against vannamei bands and raised the wrong alerts with nothing to say why.
+ * Null makes the caller choose its fallback out loud. Cycles created from now
+ * on pick from CANONICAL_SPECIES (features/species.ts), so this only has to
+ * cope with the free-text backlog.
+ */
+export function toThresholdSpecies(
+  raw: string | null | undefined,
+): ThresholdSpecies | null {
   const s = (raw ?? '').toLowerCase()
   if (s.includes('monodon') || s.includes('tiger') || s.includes('black')) return 'monodon'
   if (s.includes('indicus')) return 'indicus'
   if (s.includes('scampi') || s.includes('macrobrachium') || s.includes('rosenbergii')) {
     return 'scampi'
   }
-  return 'vannamei'
+  if (s.includes('vannamei')) return 'vannamei'
+  return null
 }
 
 /** Get the threshold record for a (species, parameter), defaulting to vannamei. */

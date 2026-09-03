@@ -105,6 +105,24 @@ const members = {
   financialsToggle: "लागत और पैसा देख सकते हैं",
   financialsNote: "वर्कर और व्यूअर के लिए डिफ़ॉल्ट रूप से बंद।",
   financialsError: "पैसे की पहुँच नहीं बदल सके।",
+
+  permissionsSection: "यह व्यक्ति क्या कर सकता है",
+  permissionsNote: "जिसे 'डिफ़ॉल्ट' पर छोड़ेंगे, वह नीचे दिए भूमिका नियमों के अनुसार चलेगा।",
+  capabilitiesError: "उनकी अनुमतियाँ नहीं बदल सकीं।",
+  rolePolicySection: "भूमिका के अनुसार अनुमतियाँ",
+  rolePolicyNote: "इस फ़ार्म पर उस भूमिका वाले हर व्यक्ति पर लागू, जब तक आप किसी एक के लिए न बदलें।",
+  rolePolicyError: "भूमिका की अनुमतियाँ नहीं बदल सकीं।",
+  capDefault: "डिफ़ॉल्ट",
+  capAllowed: "अनुमति है",
+  capBlocked: "रोक है",
+  capDefaultAllowed: "डिफ़ॉल्ट: अनुमति है",
+  capDefaultBlocked: "डिफ़ॉल्ट: अनुमति नहीं",
+  cap_RECORD_HARVEST: "हार्वेस्ट दर्ज करना",
+  cap_VIEW_FINANCIALS: "लागत और पैसा देखना",
+  cap_MANAGE_INVENTORY: "स्टॉक बदलना",
+  cap_VIEW_INVENTORY: "स्टॉक देखना",
+  cap_MANAGE_WORKERS: "वर्कर जोड़ना और हटाना",
+  cap_WRITE_MANAGEMENT: "तालाब और साइकिल प्रबंधित करना",
 };
 
 export default members;

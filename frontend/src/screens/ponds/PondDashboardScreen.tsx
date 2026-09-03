@@ -48,6 +48,7 @@ import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
 import { formatTime } from '../../utils/formatDate';
+import { pondLabel } from '../../utils/pondHealth';
 
 /** The create form already names these; the detail view must not re-word them. */
 const SHAPE_KEY: Record<string, string> = {
@@ -95,10 +96,12 @@ const LOG_ACTIONS: LogAction[] = [
     { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
     { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
     { key: 'actionMicrobiology', icon: 'science', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
+    // History goes to the water-quality history, NOT back to the blank entry
+    // form: weekly-chem readings land in `water_quality_records`, so that
+    // screen is where they are. "History" that reopened the form it came from
+    // was the whole of report #9.
+    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WaterQualityHistory' },
 ];
-
-const CORE_COUNT = LOG_ACTIONS.filter((a) => a.core).length;
 
 /**
  * Whether this action is done for the CURRENT session, or `undefined` when
@@ -439,7 +442,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const header = (
         <ScreenHeader
             eyebrow={pond ? t(`ponds.status_${pond.status}`, { defaultValue: pond.status }) : null}
-            title={pondName ?? t('ponds.title')}
+            // The pond's own label once it has loaded — the route param is
+            // whatever the previous screen happened to pass, and one of them
+            // passed ''. `pondLabel` is the single definition of that name.
+            title={pond ? pondLabel(pond) : (pondName ?? t('ponds.title'))}
             onBack={() => navigation.goBack()}
             accessibilityBackLabel={t('common.back')}
             actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
@@ -482,8 +488,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         );
     }
 
-    const visibleActions = showAll ? LOG_ACTIONS : LOG_ACTIONS.filter((a) => a.core);
-    const hiddenCount = LOG_ACTIONS.length - CORE_COUNT;
+    // Recording a harvest needs RECORD_HARVEST; READING the history does not,
+    // so the tile only disappears in log mode.
+    const allowedActions =
+        mode === 'log' && !perms.canRecordHarvest
+            ? LOG_ACTIONS.filter((a) => a.key !== 'actionHarvest')
+            : LOG_ACTIONS;
+    const visibleActions = showAll ? allowedActions : allowedActions.filter((a) => a.core);
+    const hiddenCount = allowedActions.length - allowedActions.filter((a) => a.core).length;
     const now = new Date();
 
     /*
@@ -722,7 +734,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                     </View>
                                 )}
                             </View>
-                            {perms.canRecordData && (
+                            {/* RECORD_HARVEST, not WRITE_OPERATIONAL: a harvest
+                                books revenue and can close the cycle, so it is
+                                not the same permission as a pH reading. */}
+                            {perms.canRecordHarvest && (
                                 <TouchableOpacity
                                     style={styles.harvestBtn}
                                     onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: cycle.id })}

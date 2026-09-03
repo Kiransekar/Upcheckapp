@@ -29,6 +29,14 @@ import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Icon, type IconName } from '../../components/ui/Icon';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { CapabilityGrid } from '../../components/members/CapabilityGrid';
+import {
+    roleCan,
+    type CapabilityOverrides,
+    type FarmCapability,
+    type RolePolicy,
+} from '../../permissions/capabilities';
 import { theme } from '../../theme';
 import { apiErrorMessage } from '../../api/errors';
 import { farmMembersApi, type FarmMember, type FarmInvite, type FarmRole } from '../../api/farmMembers';
@@ -49,6 +57,10 @@ const ROLE_META: Record<FarmRole, { icon: IconName; color: string }> = {
 
 export const fullName = (m: FarmMember) => personName(m.user, m.userId.slice(0, 8));
 
+/** The roles a policy can speak about — an owner is never reducible. */
+type PolicyRole = 'manager' | 'worker' | 'viewer';
+const POLICY_ROLES: PolicyRole[] = ['manager', 'worker', 'viewer'];
+
 export const FarmMembersScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params ?? {};
@@ -57,6 +69,8 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [pending, setPending] = useState<FarmMember[]>([]);
     const [invites, setInvites] = useState<FarmInvite[]>([]);
     const [farmCode, setFarmCode] = useState<string | null>(null);
+    const [rolePolicy, setRolePolicy] = useState<RolePolicy | null>(null);
+    const [policyRole, setPolicyRole] = useState<PolicyRole>('worker');
     const [ponds, setPonds] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -103,7 +117,10 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             if (!perms.canInviteMember) return;
             farmsApi
                 .getById(farmId)
-                .then(({ data }) => setFarmCode(data.farmCode ?? null))
+                .then(({ data }) => {
+                    setFarmCode(data.farmCode ?? null);
+                    setRolePolicy(data.rolePolicy ?? null);
+                })
                 .catch(() => setFarmCode(null));
             farmMembersApi
                 .listInvites(farmId)
@@ -136,6 +153,29 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             setInviteBusy(false);
         }
     }, [farmId, t]);
+
+    /**
+     * "My workers may record harvests." Written optimistically so the chips
+     * answer the tap, and put back exactly as it was if the server refuses —
+     * a permission that looks granted but is not is worse than a slow one.
+     */
+    const savePolicy = useCallback(
+        async (next: CapabilityOverrides | null) => {
+            const previous = rolePolicy;
+            const merged: RolePolicy = { ...(rolePolicy ?? {}) };
+            if (next) merged[policyRole] = next;
+            else delete merged[policyRole];
+            const value = Object.keys(merged).length > 0 ? merged : null;
+            setRolePolicy(value);
+            try {
+                await farmsApi.setRolePolicy(farmId, value);
+            } catch (e: any) {
+                setRolePolicy(previous);
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.rolePolicyError')));
+            }
+        },
+        [farmId, policyRole, rolePolicy, t],
+    );
 
     const shareInvite = async (code: string) => {
         try {
@@ -377,6 +417,34 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/*
+                  * Permissions by ROLE, not by person: an owner setting
+                  * "workers may record harvests" once should not have to repeat
+                  * it for every worker they ever add. A single member who needs
+                  * to differ is overridden on their own screen, which wins.
+                  */}
+                {perms.canOwnerActions && (
+                    <>
+                        <SectionHeader label={t('members.rolePolicySection')} />
+                        <Text style={styles.policyNote}>{t('members.rolePolicyNote')}</Text>
+                        <View style={styles.policyRoles}>
+                            <ChipGroup
+                                options={POLICY_ROLES.map((r) => ({
+                                    value: r,
+                                    label: t(`members.role_${r}`),
+                                }))}
+                                value={policyRole}
+                                onChange={(r) => setPolicyRole((current) => (r as PolicyRole) ?? current)}
+                            />
+                        </View>
+                        <CapabilityGrid
+                            value={rolePolicy?.[policyRole] ?? null}
+                            defaults={(capability: FarmCapability) => roleCan(policyRole, capability)}
+                            onChange={savePolicy}
+                        />
+                    </>
+                )}
+
                 {perms.canInviteMember && members.length > 0 && (
                     <Text style={styles.footnote}>{t('members.tapToEdit')}</Text>
                 )}
@@ -487,6 +555,14 @@ const styles = StyleSheet.create({
         minHeight: 44,
     },
     declineLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.dangerText },
+
+    policyNote: {
+        ...theme.typeScale.bodySmall,
+        color: c.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[2],
+    },
+    policyRoles: { paddingHorizontal: theme.spacing[5] },
 
     footnote: {
         ...theme.typeScale.bodyMedium,

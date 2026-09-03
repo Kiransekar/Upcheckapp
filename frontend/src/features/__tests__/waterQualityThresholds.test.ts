@@ -9,14 +9,21 @@ import {
 } from '../waterQualityThresholds'
 
 describe('toThresholdSpecies', () => {
-  it('maps common species names and defaults to vannamei', () => {
+  it('maps common species names', () => {
     expect(toThresholdSpecies('Penaeus monodon')).toBe('monodon')
     expect(toThresholdSpecies('Black Tiger')).toBe('monodon')
     expect(toThresholdSpecies('P. indicus')).toBe('indicus')
     expect(toThresholdSpecies('Macrobrachium rosenbergii (scampi)')).toBe('scampi')
     expect(toThresholdSpecies('Litopenaeus vannamei')).toBe('vannamei')
-    expect(toThresholdSpecies('')).toBe('vannamei')
-    expect(toThresholdSpecies(undefined)).toBe('vannamei')
+    // The typo that is actually in production still resolves — it contains
+    // the name — which is why "unknown" has to mean something else.
+    expect(toThresholdSpecies('VannameiVannamei')).toBe('vannamei')
+  })
+
+  it('answers null for a species it does not know, instead of guessing vannamei', () => {
+    expect(toThresholdSpecies('banana')).toBeNull()
+    expect(toThresholdSpecies('')).toBeNull()
+    expect(toThresholdSpecies(undefined)).toBeNull()
   })
 })
 

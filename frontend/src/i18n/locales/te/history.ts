@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'ఉష్ణో. (°C)',
   waterQualityMetricSalinity: 'లవణీయత',
+  waterQualityMetricNitrate: 'నైట్రేట్',
+  waterQualityMetricHardness: 'కాఠిన్యం',
+  waterQualityMetricTransparency: 'పారదర్శకత',
+  weeklyChemistryTag: 'వారపు రసాయన పరీక్ష',
   waterQualityEmptyTitle: 'నీటి నాణ్యత లాగ్లు లేవు',
   waterQualityEmptyText: 'ధోరణులు చూడటానికి నీటి నాణ్యత నమోదు ప్రారంభించండి.',
 };

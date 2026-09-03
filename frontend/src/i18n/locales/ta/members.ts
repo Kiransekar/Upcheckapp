@@ -105,6 +105,24 @@ const members = {
   financialsToggle: "செலவும் பணமும் பார்க்கலாம்",
   financialsNote: "பணியாளர் மற்றும் பார்வையாளருக்கு இயல்பாக அணைக்கப்பட்டுள்ளது.",
   financialsError: "பண அணுகலை மாற்ற முடியவில்லை.",
+
+  permissionsSection: "இவர் என்ன செய்யலாம்",
+  permissionsNote: "'இயல்பு' என விட்டால், கீழே உள்ள பங்கு விதிகளையே பின்பற்றும்.",
+  capabilitiesError: "அவரது அனுமதிகளை மாற்ற முடியவில்லை.",
+  rolePolicySection: "பங்கு வாரியான அனுமதிகள்",
+  rolePolicyNote: "ஒருவருக்கு தனியாக மாற்றாத வரை, இந்தப் பண்ணையில் அந்தப் பங்கு உள்ள அனைவருக்கும் பொருந்தும்.",
+  rolePolicyError: "பங்கு அனுமதிகளை மாற்ற முடியவில்லை.",
+  capDefault: "இயல்பு",
+  capAllowed: "அனுமதி",
+  capBlocked: "தடை",
+  capDefaultAllowed: "இயல்பு: அனுமதி",
+  capDefaultBlocked: "இயல்பு: அனுமதி இல்லை",
+  cap_RECORD_HARVEST: "அறுவடையைப் பதிவு செய்தல்",
+  cap_VIEW_FINANCIALS: "செலவும் பணமும் பார்த்தல்",
+  cap_MANAGE_INVENTORY: "இருப்பை மாற்றுதல்",
+  cap_VIEW_INVENTORY: "இருப்பைப் பார்த்தல்",
+  cap_MANAGE_WORKERS: "பணியாளர்களைச் சேர்த்தல், நீக்குதல்",
+  cap_WRITE_MANAGEMENT: "குளங்களையும் சுழற்சிகளையும் நிர்வகித்தல்",
 };
 
 export default members;

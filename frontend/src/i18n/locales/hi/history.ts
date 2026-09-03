@@ -108,6 +108,10 @@ const history = {
   waterQualityMetricDo: 'DO (mg/L)',
   waterQualityMetricTemp: 'तापमान (°C)',
   waterQualityMetricSalinity: 'लवणता',
+  waterQualityMetricNitrate: 'नाइट्रेट',
+  waterQualityMetricHardness: 'कठोरता',
+  waterQualityMetricTransparency: 'पारदर्शिता',
+  weeklyChemistryTag: 'साप्ताहिक रसायन',
   waterQualityEmptyTitle: 'कोई जल गुणवत्ता लॉग नहीं',
   waterQualityEmptyText: 'रुझान देखने के लिए जल गुणवत्ता दर्ज करना शुरू करें।',
 };

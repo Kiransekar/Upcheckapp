@@ -12,7 +12,7 @@
  * role picker. The backend enforces all of it regardless.
  */
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
@@ -26,7 +26,15 @@ import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/
 import { apiErrorMessage } from '../../api/errors';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
-import { canAssignRole, canManageMember } from '../../permissions/capabilities';
+import {
+    canAssignRole,
+    canManageMember,
+    roleCan,
+    type CapabilityOverrides,
+    type FarmCapability,
+} from '../../permissions/capabilities';
+import { CapabilityGrid } from '../../components/members/CapabilityGrid';
+import { useMembershipStore } from '../../store/membershipStore';
 import { pondLabel } from '../../utils/pondHealth';
 import { fullName } from './FarmMembersScreen';
 
@@ -41,6 +49,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName, member: initial } = route.params ?? {};
     const perms = usePermissions(farmId);
+    const farmPolicy = useMembershipStore((s) => s.grantForFarm(farmId).policy);
 
     const [member, setMember] = useState<FarmMember>(initial);
     const [ponds, setPonds] = useState<Pond[]>([]);
@@ -108,15 +117,15 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
         }
     }, [farmId, member, scope, t]);
 
-    const setFinancials = useCallback(
-        async (value: boolean) => {
-            const previous = member.canViewFinancials ?? null;
-            setMember((m) => ({ ...m, canViewFinancials: value }));
+    const setCapabilities = useCallback(
+        async (next: CapabilityOverrides | null) => {
+            const previous = member.capabilityOverrides ?? null;
+            setMember((m) => ({ ...m, capabilityOverrides: next }));
             try {
-                await farmMembersApi.setFinancialAccess(farmId, member.userId, value);
+                await farmMembersApi.setCapabilities(farmId, member.userId, next);
             } catch (e: any) {
-                setMember((m) => ({ ...m, canViewFinancials: previous }));
-                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.financialsError')));
+                setMember((m) => ({ ...m, capabilityOverrides: previous }));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.capabilitiesError')));
             }
         },
         [farmId, member, t],
@@ -168,9 +177,13 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
 
     const roleOptions = ASSIGNABLE.filter((r) => canAssignRole(perms.role, r));
     const canScope = SCOPABLE.includes(member.role) && canManageMember(perms.role, member.role);
-    // The financial grant is the owner's call alone (OWNER_ONLY on the server),
-    // and only means anything for someone whose role does not already include it.
-    const canGrantFinancials = perms.canOwnerActions && member.role !== 'owner' && member.role !== 'manager';
+    // Handing out capabilities is the owner's call alone (OWNER_ONLY on the
+    // server), and an owner is never reducible, so their own row has no grid.
+    const canGrantCapabilities = perms.canOwnerActions && member.role !== 'owner';
+    // What this member gets with NO override — their role under this farm's
+    // policy. The policy travels on the caller's own membership for this farm.
+    const memberDefault = (capability: FarmCapability) =>
+        roleCan(member.role, capability, null, farmPolicy);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -249,20 +262,15 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
-                {canGrantFinancials && (
+                {canGrantCapabilities && (
                     <>
-                        <SectionHeader label={t('members.financialsSection')} />
-                        <View style={styles.row}>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text style={styles.rowLabel}>{t('members.financialsToggle')}</Text>
-                                <Text style={styles.rowSub}>{t('members.financialsNote')}</Text>
-                            </View>
-                            <Switch
-                                value={member.canViewFinancials === true}
-                                onValueChange={setFinancials}
-                                trackColor={{ false: c.borderDefault, true: c.primaryHover }}
-                            />
-                        </View>
+                        <SectionHeader label={t('members.permissionsSection')} />
+                        <Text style={styles.note}>{t('members.permissionsNote')}</Text>
+                        <CapabilityGrid
+                            value={member.capabilityOverrides ?? null}
+                            defaults={memberDefault}
+                            onChange={setCapabilities}
+                        />
                     </>
                 )}
 

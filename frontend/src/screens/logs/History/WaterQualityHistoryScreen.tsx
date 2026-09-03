@@ -17,9 +17,43 @@ import {
     evaluateParameter,
     toThresholdSpecies,
     ThresholdSpecies,
+    ThresholdParam,
 } from '../../../features/waterQualityThresholds';
 
 const MAX_OVERLAY_POINTS = 14;
+
+/**
+ * Every column a water-quality record can carry, in reading order.
+ *
+ * The card used to render exactly four of them, so a WEEKLY CHEMISTRY entry —
+ * which fills ammonia, nitrite, nitrate, alkalinity, hardness, transparency and
+ * none of the daily four — displayed as `-- -- -- --`. The farmer's own reading
+ * was on screen as four dashes.
+ *
+ * Only what the record actually holds is rendered, so a daily reading is still
+ * four tiles and a chemistry entry is its six. `hardness` has no threshold band
+ * yet, so it shows a value with no status dot rather than a wrong one.
+ */
+const METRICS: {
+    key: string;
+    labelKey: string;
+    get: (r: WaterQualityRecord) => number | undefined;
+    param?: ThresholdParam;
+}[] = [
+    { key: 'ph', labelKey: 'history.waterQualityMetricPh', get: (r) => r.ph, param: 'ph' },
+    { key: 'do', labelKey: 'history.waterQualityMetricDo', get: (r) => r.dissolvedOxygen, param: 'do' },
+    { key: 'temperature', labelKey: 'history.waterQualityMetricTemp', get: (r) => r.temperature, param: 'temperature' },
+    { key: 'salinity', labelKey: 'history.waterQualityMetricSalinity', get: (r) => r.salinity, param: 'salinity' },
+    { key: 'ammonia', labelKey: 'history.waterQualityMetricAmmonia', get: (r) => r.ammonia, param: 'ammonia' },
+    { key: 'nitrite', labelKey: 'history.waterQualityMetricNitrite', get: (r) => r.nitrite, param: 'nitrite' },
+    { key: 'nitrate', labelKey: 'history.waterQualityMetricNitrate', get: (r) => r.nitrate, param: 'nitrate' },
+    { key: 'alkalinity', labelKey: 'history.waterQualityMetricAlkalinity', get: (r) => r.alkalinity, param: 'alkalinity' },
+    { key: 'hardness', labelKey: 'history.waterQualityMetricHardness', get: (r) => r.hardness },
+    { key: 'transparency', labelKey: 'history.waterQualityMetricTransparency', get: (r) => r.transparency, param: 'transparency' },
+];
+
+/** The four a farmer takes daily; the rest are the weekly chemistry panel. */
+const DAILY_KEYS = new Set(['ph', 'do', 'temperature', 'salinity']);
 
 const shortDate = (iso?: string): string => {
     const d = new Date(iso || '');
@@ -92,7 +126,11 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
         cropsApi
             .getById(cropId)
             .then(({ data }) => {
-                if (active) setSpecies(toThresholdSpecies(data?.speciesType));
+                // Explicit fallback: toThresholdSpecies answers null for a
+                // species it does not recognise rather than pretending it is
+                // vannamei, so the choice to evaluate against vannamei bands
+                // anyway is made here, visibly.
+                if (active) setSpecies(toThresholdSpecies(data?.speciesType) ?? 'vannamei');
             })
             .catch(() => {
                 /* keep default species on failure */
@@ -185,7 +223,10 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
             </View>
         ) : null;
 
-    const renderItem = ({ item }: { item: WaterQualityRecord }) => (
+    const renderItem = ({ item }: { item: WaterQualityRecord }) => {
+        const present = METRICS.filter((m) => m.get(item) != null);
+        const chemistryOnly = present.length > 0 && !present.some((m) => DAILY_KEYS.has(m.key));
+        return (
         <Card style={styles.card}>
             <View style={styles.cardHeader}>
                 <Text style={styles.dateText}>
@@ -205,38 +246,29 @@ export const WaterQualityHistoryScreen = ({ route, navigation }: any) => {
                     </TouchableOpacity>
                 </View>
             </View>
+            {chemistryOnly && (
+                <Text style={styles.chemistryTag}>{t('history.weeklyChemistryTag')}</Text>
+            )}
             <View style={styles.metricsGrid}>
-                <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>{t('history.waterQualityMetricPh')}</Text>
-                    <View style={styles.valRow}>
-                        <Text style={styles.metricVal}>{item.ph ?? '--'}</Text>
-                        {item.ph != null && <View style={[styles.dot, { backgroundColor: getStatusColor(evaluateParameter(species, 'ph', item.ph).status) }]} />}
-                    </View>
-                </View>
-                <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>{t('history.waterQualityMetricDo')}</Text>
-                    <View style={styles.valRow}>
-                        <Text style={styles.metricVal}>{item.dissolvedOxygen ?? '--'}</Text>
-                        {item.dissolvedOxygen != null && <View style={[styles.dot, { backgroundColor: getStatusColor(evaluateParameter(species, 'do', item.dissolvedOxygen).status) }]} />}
-                    </View>
-                </View>
-                <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>{t('history.waterQualityMetricTemp')}</Text>
-                    <View style={styles.valRow}>
-                        <Text style={styles.metricVal}>{item.temperature ?? '--'}</Text>
-                        {item.temperature != null && <View style={[styles.dot, { backgroundColor: getStatusColor(evaluateParameter(species, 'temperature', item.temperature).status) }]} />}
-                    </View>
-                </View>
-                <View style={styles.metricItem}>
-                    <Text style={styles.metricLabel}>{t('history.waterQualityMetricSalinity')}</Text>
-                    <View style={styles.valRow}>
-                        <Text style={styles.metricVal}>{item.salinity ?? '--'}</Text>
-                        {item.salinity != null && <View style={[styles.dot, { backgroundColor: getStatusColor(evaluateParameter(species, 'salinity', item.salinity).status) }]} />}
-                    </View>
-                </View>
+                {present.map((m) => {
+                    const value = m.get(item) as number;
+                    const status = m.param ? evaluateParameter(species, m.param, value).status : null;
+                    return (
+                        <View key={m.key} style={styles.metricItem}>
+                            <Text style={styles.metricLabel}>{t(m.labelKey)}</Text>
+                            <View style={styles.valRow}>
+                                <Text style={styles.metricVal}>{value}</Text>
+                                {status && (
+                                    <View style={[styles.dot, { backgroundColor: getStatusColor(status) }]} />
+                                )}
+                            </View>
+                        </View>
+                    );
+                })}
             </View>
         </Card>
-    );
+        );
+    };
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -293,6 +325,7 @@ const styles = StyleSheet.create({
     cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: theme.spacing[3], borderBottomWidth: 1, borderBottomColor: theme.roles.light.borderDefault, paddingBottom: theme.spacing[2] },
     cardActions: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
     dateText: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
+    chemistryTag: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
     metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     metricItem: { width: '48%', marginBottom: theme.spacing[3] },
     metricLabel: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
