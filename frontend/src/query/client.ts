@@ -172,9 +172,12 @@ export const startFocusTracking = (): (() => void) => {
  * Which cached reads a freshly-saved record of each entity can change.
  *
  * This table is the whole reason freshness-after-your-own-write is guaranteed
- * without touching any of the sixteen log screens: they all save through
- * `saveRecord()`, which already knows the `entity`, so the invalidation happens
- * once at that choke point. Add a row when a new offline-queued entity appears.
+ * without every write site having to remember to ask for it: the axios
+ * response interceptor (src/api/client.ts) resolves an `entity` from the
+ * request URL via URL_ENTITY_MAP below and invalidates here on every
+ * successful non-GET response — one choke point for all 106 screens, not just
+ * the sixteen that happen to save through `saveRecord()`. Add a row here (and
+ * a matching URL_ENTITY_MAP entry) when a new endpoint needs it.
  *
  * Keys are matched by PREFIX, so `['pond']` invalidates every pond dashboard.
  * That is intentionally blunt: a log against one pond moves that farm's
@@ -196,10 +199,56 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     feeding_tray_check: [['pond'], ['briefing'], ['home']],
     attendance: [['team'], ['home']],
     leave_request: [['team'], ['home']],
+    // A pond's own CRUD (create/edit/archive/delete) used to invalidate
+    // NOTHING — it bypassed saveRecord entirely (CreatePondScreen), so a farm's
+    // pond list and the farms roll-up stayed stale until a manual
+    // pull-to-refresh. Same blast radius as a log against that pond.
+    pond: [['pond'], ['ponds'], ['farm'], ['farms'], ['home'], ['briefing']],
+    // Same story for a farm's own CRUD (CreateFarmScreen): a rename or a new
+    // farm never touched the cache that FarmsList/FarmDetail read from.
+    farm: [['farm'], ['farms'], ['home'], ['briefing']],
 };
 
 /** Anything not in the table above still moves the pond and the dashboard. */
 const DEFAULT_QUERY_KEYS: readonly (readonly string[])[] = [['pond'], ['briefing'], ['home']];
+
+/**
+ * Endpoint path (leading '/', no query string) → entity name, so the axios
+ * response interceptor (src/api/client.ts) can invalidate on every successful
+ * WRITE without every screen having to remember to call `invalidateForEntity`
+ * by hand — that hand-rolled approach is how 12 direct edit/delete call sites
+ * ended up invalidating nothing at all.
+ *
+ * Matched by prefix against the request path. Deliberately NOT exhaustive:
+ * `/inventory`, `/simulations` and `/profiles` are intentionally absent —
+ * nothing in ENTITY_QUERY_KEYS covers a cached read those writes would move
+ * (see Task 2's focus-refetch fix for how those screens stay fresh instead).
+ * A path with no entry here resolves to `undefined` and invalidates nothing —
+ * that silence is correct, not a bug: invalidating every screen on every
+ * write would recreate the refetch-treadmill `staleTime` exists to prevent.
+ */
+const URL_ENTITY_MAP: readonly (readonly [path: string, entity: string])[] = [
+    ['/water-quality', 'water_quality'],
+    ['/feed-records', 'feed'],
+    ['/sampling', 'sampling'],
+    ['/mortality', 'mortality'],
+    ['/harvests', 'harvest'],
+    ['/treatments', 'treatment'],
+    ['/chemical-data', 'chemical'],
+    ['/disease', 'disease'],
+    ['/plankton-data', 'plankton'],
+    ['/microbiology-data', 'microbiology'],
+    ['/measurements', 'measurement'],
+    ['/feeding-tray-checks', 'feeding_tray_check'],
+    ['/attendance', 'attendance'],
+    ['/leave-requests', 'leave_request'],
+    ['/ponds', 'pond'],
+    ['/farms', 'farm'],
+];
+
+/** The entity a write to `path` could have changed, or `undefined` for "none". */
+export const resolveEntityForUrl = (path: string): string | undefined =>
+    URL_ENTITY_MAP.find(([prefix]) => path.startsWith(prefix))?.[1];
 
 /**
  * Mark everything a save of `entity` could have changed as stale.

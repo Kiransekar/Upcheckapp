@@ -2,6 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import Constants from 'expo-constants';
 import i18n from '../i18n';
 import { readCached, writeCached } from './offlineCache';
+import { invalidateForEntity, resolveEntityForUrl } from '../query/client';
 
 const API_URL = Constants.expoConfig?.extra?.apiBaseUrl
     || process.env.EXPO_PUBLIC_API_URL
@@ -59,14 +60,41 @@ const cacheKeyFor = (config?: InternalAxiosRequestConfig): string | null => {
     return `${url}${params}`;
 };
 
+/** The request path, no query string — what URL_ENTITY_MAP matches against. */
+const pathFor = (config?: InternalAxiosRequestConfig): string => {
+    const url = config?.url ?? '';
+    const i = url.indexOf('?');
+    return i === -1 ? url : url.slice(0, i);
+};
+
 // Response interceptor — handle 401 with refresh
 apiClient.interceptors.response.use(
     (response) => {
-        // Remember successful GETs so the same read survives losing signal.
-        // Fire-and-forget: a cache write must never delay a response that has
-        // already arrived.
-        const key = cacheKeyFor(response.config as InternalAxiosRequestConfig);
-        if (key) void writeCached(key, response.data);
+        const config = response.config as InternalAxiosRequestConfig;
+        const key = cacheKeyFor(config);
+        if (key) {
+            // Remember successful GETs so the same read survives losing signal.
+            // Fire-and-forget: a cache write must never delay a response that
+            // has already arrived.
+            void writeCached(key, response.data);
+        } else {
+            /**
+             * A WRITE landed. This is the single choke point for
+             * freshness-after-your-own-write: every non-GET request — not just
+             * the ones that remembered to call `invalidateForEntity` by hand —
+             * passes through here, so a screen the farmer navigates back to
+             * shows what they just saved without a manual pull-to-refresh.
+             *
+             * Never on `/auth/*`: a token refresh is a POST too, and must not
+             * trigger a cache sweep. Fire-and-forget, same as the GET branch —
+             * this must never add latency to a response already handed back.
+             */
+            const path = pathFor(config);
+            if (!path.startsWith('/auth/')) {
+                const entity = resolveEntityForUrl(path);
+                if (entity) invalidateForEntity(entity);
+            }
+        }
         return response;
     },
     async (error: AxiosError) => {

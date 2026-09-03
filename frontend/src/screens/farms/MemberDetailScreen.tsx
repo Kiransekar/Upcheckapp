@@ -11,8 +11,9 @@
  * cannot promote someone does not see a role picker greyed out, they see no
  * role picker. The backend enforces all of it regardless.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -46,12 +47,15 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
     const [scope, setScope] = useState<string[]>(initial?.pondIds ?? []);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
+    // React Navigation keeps this screen mounted — a mount-only fetch never
+    // saw a pond created/renamed elsewhere (e.g. CreatePondScreen) on return,
+    // same gap FarmMembersScreen already closes for its own pond list.
+    useFocusEffect(useCallback(() => {
         pondsApi
             .getAll(farmId)
             .then(({ data }) => setPonds((data as any).data ?? data ?? []))
             .catch(() => setPonds([]));
-    }, [farmId]);
+    }, [farmId]));
 
     const name = member ? fullName(member) : '';
 

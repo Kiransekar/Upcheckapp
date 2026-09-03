@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Animated } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
@@ -76,9 +77,11 @@ export const NotificationsScreen = ({ navigation }: any) => {
         }
     }, [fadeIn]);
 
-    useEffect(() => {
-        fetchAlerts();
-    }, [fetchAlerts]);
+    // React Navigation keeps this screen mounted, so a mount-only fetch never
+    // re-ran on return — marking read/deleting elsewhere and coming back
+    // showed the stale list. fetchAlerts' own CACHE_TTL still caps how often
+    // this actually hits the network.
+    useFocusEffect(useCallback(() => { fetchAlerts(); }, [fetchAlerts]));
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);

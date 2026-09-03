@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Share, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -159,9 +160,12 @@ export const ProfileScreen = ({ navigation }: any) => {
         }
     }, [fadeIn]);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    // React Navigation keeps this screen mounted, so a mount-only fetch never
+    // re-ran on return — this is the direct write path CreateFarmScreen's
+    // sibling, ProfileScreen's own `handleSave` (line ~180 below), used to
+    // bypass entirely: the interceptor now invalidates nothing for /profiles
+    // (see query/client.ts), so this screen must ask again itself on focus.
+    useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
     const handleRetry = useCallback(() => {
         setIsLoading(true);

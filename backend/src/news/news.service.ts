@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, In, Repository } from 'typeorm';
+import { FindOptionsWhere, In, MoreThanOrEqual, Repository } from 'typeorm';
 import { NewsArticle } from './news-article.entity';
 import { NewsArticleTranslation } from './news-article-translation.entity';
 import { CreateNewsArticleDto } from './dto/create-news-article.dto';
 import { UpdateNewsArticleDto } from './dto/update-news-article.dto';
 import { ListNewsDto } from './dto/list-news.dto';
 import { PageDto, PageMetaDto } from '../common/dto/page.dto';
+import { NEWS_FRESH_WINDOW_DAYS } from './feed-rules';
 
 /** 42P01 undefined_table / 42703 undefined_column — this migration not run yet. */
 function isMissingSchema(err: any): boolean {
@@ -16,6 +17,9 @@ function isMissingSchema(err: any): boolean {
 
 /** Locales the translation sidecar can hold. English is the article row. */
 const TRANSLATABLE_LOCALES = ['hi', 'ta', 'te', 'bn', 'or'];
+
+/** A page of news plus whether it actually reflects current events. */
+export type NewsPageDto<T> = PageDto<T> & { fresh: boolean };
 
 @Injectable()
 export class NewsService {
@@ -34,25 +38,42 @@ export class NewsService {
   }
 
   /**
-   * Published articles, newest first, one page at a time.
+   * Published articles from the last `NEWS_FRESH_WINDOW_DAYS`, newest first,
+   * one page at a time.
    *
    * Only `published` rows are listed: `pending_review` exists precisely
    * because a human has not yet read a regulatory item, and `needs_summary`
    * has nothing to show. Pre-existing hand-written rows were backfilled to
    * `published` by the migration.
+   *
+   * The freshness cutoff is what stops a dead source from quietly serving
+   * its years-old backlog as "news" once nothing new is coming in — see
+   * NEWS_FRESH_WINDOW_DAYS in feed-rules.ts. `fresh: false` on an empty page
+   * tells the client this is exactly that case (stale, not merely "nothing
+   * in this category"), so it can show "no recent news" instead of either
+   * an empty screen with no explanation or, worse, silently widening the
+   * query and rendering a six-year-old recipe.
    */
-  async findAll(query: Partial<ListNewsDto> = {}): Promise<PageDto<NewsArticle>> {
+  async findAll(query: Partial<ListNewsDto> = {}): Promise<NewsPageDto<NewsArticle>> {
     const take = query.take ?? 10;
     const page = query.page ?? 1;
 
     const where: FindOptionsWhere<NewsArticle> = { isActive: true };
     if (query.category) where.category = query.category;
 
+    const freshCutoff = new Date(
+      Date.now() - NEWS_FRESH_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+    );
+
     let items: NewsArticle[];
     let itemCount: number;
     try {
       [items, itemCount] = await this.articlesRepository.findAndCount({
-        where: { ...where, status: 'published' },
+        where: {
+          ...where,
+          status: 'published',
+          publishedAt: MoreThanOrEqual(freshCutoff),
+        },
         order: { publishedAt: 'DESC' },
         take,
         skip: (page - 1) * take,
@@ -65,7 +86,7 @@ export class NewsService {
         'news_articles.status missing — run migrations; serving unfiltered news',
       );
       [items, itemCount] = await this.articlesRepository.findAndCount({
-        where,
+        where: { ...where, publishedAt: MoreThanOrEqual(freshCutoff) },
         order: { publishedAt: 'DESC' },
         take,
         skip: (page - 1) * take,
@@ -73,10 +94,11 @@ export class NewsService {
     }
 
     const data = await this.applyLocale(items, query.locale);
-    return new PageDto(
+    const pageDto = new PageDto(
       data,
       new PageMetaDto({ pageOptionsDto: { page, take }, itemCount }),
     );
+    return { ...pageDto, fresh: itemCount > 0 };
   }
 
   async findOne(id: string, locale?: string) {
