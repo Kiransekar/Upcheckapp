@@ -22,6 +22,7 @@ import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { BrandLockup } from '../../components/ui/ShrimpLogo';
 import { Button } from '../../components/ui/Button';
 import { Icon } from '../../components/ui/Icon';
+import { OnboardingProgress } from '../../components/ui/OnboardingProgress';
 import { theme } from '../../theme';
 import i18n from '../../i18n';
 import { LANGUAGES } from '../../i18n/languages';
@@ -41,7 +42,9 @@ export const LanguageScreen = ({ navigation }: any) => {
         // Re-assert so the preference is definitely persisted even if the
         // farmer accepted the pre-selected language without tapping a row.
         await i18n.changeLanguage(selected);
-        navigation.replace('Welcome');
+        // navigate, not replace: Welcome needs Language on the back stack so
+        // its back arrow has somewhere to go (see WelcomeScreen).
+        navigation.navigate('Welcome');
     };
 
     return (
@@ -49,6 +52,8 @@ export const LanguageScreen = ({ navigation }: any) => {
             <View style={styles.brandRow}>
                 <BrandLockup size={30} />
             </View>
+
+            <OnboardingProgress step={1} />
 
             <View style={styles.titleRow}>
                 <Icon name="translate" size={22} color={theme.roles.light.textSecondary} />

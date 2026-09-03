@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'ସେହି କୋଡ୍ ସହିତ ଯୋଗ ଦେଇହେଲା ନାହିଁ। ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "ପଦକ୍ଷେପ {{current}} / {{total}}",
   languageTitle: "ଆପଣଙ୍କ ଭାଷା ବାଛନ୍ତୁ",
   welcomeTitle: "ଅପ୍‌ଚେକ୍‌କୁ ସ୍ୱାଗତ",
   welcomeSubtitle: "ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଫାର୍ମର ଦୈନିକ ସହାୟକ",

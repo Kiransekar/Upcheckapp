@@ -327,6 +327,23 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
             {/* Progress header */}
             <View style={styles.header}>
                 <View style={styles.headerRow}>
+                    {/* Only before Pond 1 is saved. Once index > 0 the previous
+                        pond(s) in this batch already exist server-side — an
+                        arrow here would read as "undo", and it can't. "Finish
+                        Later" is the exit at every step instead. */}
+                    {index === 0 ? (
+                        <TouchableOpacity
+                            onPress={() => navigation.goBack()}
+                            hitSlop={8}
+                            style={styles.backBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.back')}
+                        >
+                            <MaterialCommunityIcons name="arrow-left" size={22} color={theme.roles.light.textPrimary} />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={styles.backBtn} />
+                    )}
                     <Text style={styles.stepText}>
                         {t('pondSetup.stepCounter', { current: index + 1, total: totalPonds })}
                     </Text>
@@ -583,6 +600,7 @@ const styles = StyleSheet.create({
         borderBottomColor: theme.roles.light.borderDefault,
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    backBtn: { width: 32, height: 32, justifyContent: 'center' },
     stepText: { ...theme.typeScale.h3, color: theme.roles.light.textPrimary },
     skipText: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary },
     dotsRow: { flexDirection: 'row', gap: theme.spacing[1], marginTop: theme.spacing[3] },
