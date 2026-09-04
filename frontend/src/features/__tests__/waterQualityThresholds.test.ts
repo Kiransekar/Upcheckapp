@@ -100,6 +100,18 @@ describe('evaluateParameter', () => {
   })
 })
 
+describe('the deleted constants/ranges.ts no longer disagrees', () => {
+  it('has exactly one opinion about transparency', () => {
+    // constants/ranges.ts capped transparency at 40 while waterQualityThresholds
+    // put cautionHigh at 45. Two live status functions disagreeing meant the
+    // same reading rendered green on one screen and amber on another.
+    // ranges.ts is deleted; evaluateParameter(species, parameter, value) — not
+    // the brief's guessed (parameter, value, species) — is the only opinion now.
+    expect(evaluateParameter('vannamei', 'transparency', 42).zone).toBe('optimal')
+    expect(evaluateParameter('vannamei', 'transparency', 42).status).toBe('safe')
+  })
+})
+
 describe('nighttimeDoAlarm', () => {
   it('fires when a night reading is below the caution-low DO floor', () => {
     expect(nighttimeDoAlarm({ dissolvedOxygen: 3.5, hour: 3 })).toBe(true)

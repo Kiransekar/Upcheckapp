@@ -212,7 +212,7 @@ export type RootStackParamList = {
     Measurements: { pondId: string; pondName?: string; cropId?: string };
 
     // Decision engines (PRD P2)
-    WeeklyChemistry: { pondId: string; pondName?: string; cropId?: string };
+    WeeklyChemistry: { pondId: string; pondName?: string };
     WeeklyChemistryHistory: { pondId: string; pondName?: string; cropId?: string };
     DailyRoutine: { pondId: string; pondName?: string; cropId?: string };
     EnginesHub: { pondId?: string; pondName?: string; cropId?: string };

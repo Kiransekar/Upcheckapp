@@ -104,7 +104,7 @@ const LOG_ACTIONS: LogAction[] = [
     // reading them — but that list is dominated by daily probe rows, so the six
     // chemistry values were buried. WeeklyChemistryHistory reads the same table
     // through `chemistryOnly=true`, which drops the probe-only rows.
-    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
+    { key: 'actionWeeklyChem', icon: 'calendar_month', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
 ];
 
 /**
