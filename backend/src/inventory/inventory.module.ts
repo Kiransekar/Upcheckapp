@@ -4,6 +4,7 @@ import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
 import { InventoryItem } from './inventory-item.entity';
 import { InventoryMovement } from './inventory-movement.entity';
+import { InventoryFarm } from './inventory-farm.entity';
 import { AlertsModule } from '../alerts/alerts.module';
 import { FarmMember } from '../farm-access/farm-member.entity';
 
@@ -11,7 +12,12 @@ import { FarmMember } from '../farm-access/farm-member.entity';
 // repository are available without importing it.
 @Module({
   imports: [
-    TypeOrmModule.forFeature([InventoryItem, InventoryMovement, FarmMember]),
+    TypeOrmModule.forFeature([
+      InventoryItem,
+      InventoryMovement,
+      InventoryFarm,
+      FarmMember,
+    ]),
     AlertsModule,
   ],
   controllers: [InventoryController],

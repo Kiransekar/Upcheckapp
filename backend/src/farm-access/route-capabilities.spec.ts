@@ -237,6 +237,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         'update',
         'remove',
         'listMovements',
+        'setPairing',
       ] as const
     ).map((handler): [new (...args: any[]) => any, string, string] => [
       InventoryController,
@@ -256,6 +257,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
     ['getLowStock', 'VIEW_INVENTORY'],
     ['adjustStock', 'MANAGE_INVENTORY'],
     ['listMovements', 'VIEW_INVENTORY'],
+    ['setPairing', 'MANAGE_INVENTORY'],
   ])('InventoryService.%s asserts %s', async (method, capability) => {
     const assertCanAccessFarm = jest
       .fn()
@@ -289,6 +291,16 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       { find: jest.fn().mockResolvedValue([]) } as any,
       { createAutoAlert: jest.fn() } as any,
       { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,
+      {
+        find: jest.fn().mockResolvedValue([]),
+        save: jest.fn().mockResolvedValue({}),
+        create: (d: any) => d,
+        manager: {
+          transaction: jest.fn((cb: any) =>
+            cb({ delete: jest.fn(), insert: jest.fn() }),
+          ),
+        },
+      } as any,
     );
 
     const args: Record<string, unknown[]> = {
@@ -300,6 +312,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       getLowStock: ['farm-1', 'u1'],
       adjustStock: ['i1', -1, 'u1'],
       listMovements: ['i1', 'u1'],
+      setPairing: ['i1', ['farm-1'], 'u1'],
     };
     await (service as any)[method](...args[method]);
 

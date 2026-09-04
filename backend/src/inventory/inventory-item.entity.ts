@@ -15,13 +15,19 @@ export class InventoryItem {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  /**
+   * The single-farm fast path. Nullable since Task 8: an item may now be
+   * paired to zero, one or many farms via `inventory_farms`, which is
+   * authoritative. This column holds the first/primary farm for quick reads
+   * and legacy rows written before the backfill.
+   */
   @Index()
-  @Column({ name: 'farm_id', type: 'uuid' })
-  farmId: string;
+  @Column({ name: 'farm_id', type: 'uuid', nullable: true })
+  farmId: string | null;
 
-  @ManyToOne(() => Farm, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Farm, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'farm_id' })
-  farm: Farm;
+  farm: Farm | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;

@@ -2,12 +2,14 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { InventoryItem } from './inventory-item.entity';
 import { InventoryMovement } from './inventory-movement.entity';
+import { InventoryFarm } from './inventory-farm.entity';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { LOW_STOCK_SQL, isLowStock } from './inventory.constants';
@@ -47,16 +49,41 @@ export class InventoryService {
     private membersRepository: Repository<FarmMember>,
     private alertsService: AlertsService,
     private readonly farmAccess: FarmAccessService,
+    @InjectRepository(InventoryFarm)
+    private pairingRepo: Repository<InventoryFarm>,
   ) {}
 
   async create(createDto: CreateInventoryItemDto, userId: string) {
-    await this.farmAccess.assertCanAccessFarm(
-      userId,
-      createDto.farmId,
-      'MANAGE_INVENTORY',
+    const farmIds = createDto.farmIds?.length
+      ? createDto.farmIds
+      : createDto.farmId
+        ? [createDto.farmId]
+        : [];
+
+    // Pairing onto a farm requires managing it — every farm in the set, not
+    // just one, since this establishes the pairing from scratch.
+    await Promise.all(
+      farmIds.map((f) =>
+        this.farmAccess.assertCanAccessFarm(userId, f, 'MANAGE_INVENTORY'),
+      ),
     );
-    const item = this.itemsRepository.create(createDto);
-    return this.itemsRepository.save(item);
+
+    const { farmIds: _drop, ...rest } = createDto;
+    const item = this.itemsRepository.create({
+      ...rest,
+      farmId: farmIds[0] ?? null,
+    });
+    const saved = await this.itemsRepository.save(item);
+
+    if (farmIds.length) {
+      await this.pairingRepo.save(
+        farmIds.map((farmId) =>
+          this.pairingRepo.create({ inventoryId: saved.id, farmId }),
+        ),
+      );
+    }
+
+    return saved;
   }
 
   async findAll(
@@ -67,26 +94,87 @@ export class InventoryService {
     const where: any = {};
     if (category) where.category = category;
 
+    let scopeFarmIds: string[];
     if (farmId) {
       await this.farmAccess.assertCanAccessFarm(
         userId,
         farmId,
         'VIEW_INVENTORY',
       );
-      where.farmId = farmId;
+      scopeFarmIds = [farmId];
     } else {
       // D7: this used to list OWNED farms only, so every non-owner member got
       // an empty inventory list. Scope it to the farms whose inventory the
       // caller may actually read.
-      const farmIds = await this.farmAccess.getFarmIdsWithCapability(
+      scopeFarmIds = await this.farmAccess.getFarmIdsWithCapability(
         userId,
         'VIEW_INVENTORY',
       );
-      if (farmIds.length === 0) return [];
-      where.farmId = In(farmIds);
+      if (scopeFarmIds.length === 0) return [];
     }
 
+    const pairs = await this.pairingRepo.find({
+      where: { farmId: In(scopeFarmIds) },
+    });
+    const itemIds = [...new Set(pairs.map((p) => p.inventoryId))];
+    if (!itemIds.length) return [];
+    where.id = In(itemIds);
+
     return this.itemsRepository.find({ where, order: { name: 'ASC' } });
+  }
+
+  /**
+   * The farms an item is stocked for. Prefers `inventory_farms`; falls back
+   * to the single `farmId` column for rows written before the backfill (or
+   * before a caller starts using the join table at all). Empty means
+   * deliberately unpaired.
+   */
+  private async farmsFor(
+    itemId: string,
+    item?: InventoryItem,
+  ): Promise<string[]> {
+    const rows = await this.pairingRepo.find({ where: { inventoryId: itemId } });
+    if (rows.length) return rows.map((r) => r.farmId);
+    return item?.farmId ? [item.farmId] : [];
+  }
+
+  /**
+   * READ needs the capability on ANY paired farm; WRITE needs it on EVERY
+   * one. An item stocked for two farms is a shared resource — a user with
+   * rights on only one of them must not be able to edit stock the other
+   * depends on.
+   *
+   * An unpaired item (zero rows — see the inversion comment on InventoryFarm)
+   * has nothing to check against, so it is not gated here at all; it is only
+   * reachable by callers who already have its id, since it appears in no
+   * farm-scoped listing.
+   */
+  private async assertPaired(
+    itemId: string,
+    item: InventoryItem,
+    userId: string,
+    capability: FarmCapability,
+    mode: 'any' | 'all',
+  ): Promise<Farm | null> {
+    const farmIds = await this.farmsFor(itemId, item);
+    if (!farmIds.length) return null; // unpaired: nothing to check against
+
+    const results = await Promise.allSettled(
+      farmIds.map((f) =>
+        this.farmAccess.assertCanAccessFarm(userId, f, capability),
+      ),
+    );
+    const fulfilled = results.filter(
+      (r): r is PromiseFulfilledResult<Farm> => r.status === 'fulfilled',
+    );
+    const ok =
+      mode === 'any'
+        ? fulfilled.length > 0
+        : fulfilled.length === results.length;
+    if (!ok) {
+      throw new ForbiddenException('You cannot access this inventory item');
+    }
+    return fulfilled[0]?.value ?? null;
   }
 
   /** Load an item and assert the caller's access at the given capability. */
@@ -94,22 +182,62 @@ export class InventoryService {
     id: string,
     userId: string,
     capability: FarmCapability,
-  ): Promise<{ item: InventoryItem; farm: Farm }> {
+  ): Promise<{ item: InventoryItem; farm: Farm | null }> {
     const item = await this.itemsRepository.findOneBy({ id });
     if (!item) {
       throw new NotFoundException(`Inventory item with ID ${id} not found`);
     }
-    const farm = await this.farmAccess.assertCanAccessFarm(
-      userId,
-      item.farmId,
-      capability,
-    );
+    const mode = capability === 'VIEW_INVENTORY' ? 'any' : 'all';
+    const farm = await this.assertPaired(id, item, userId, capability, mode);
     return { item, farm };
   }
 
   async findOne(id: string, userId: string) {
     const { item } = await this.loadItem(id, userId, 'VIEW_INVENTORY');
-    return item;
+    const farmIds = await this.farmsFor(id, item);
+    return { ...item, farmIds };
+  }
+
+  /**
+   * Replace the farms an item is paired to. A user must not be able to pair
+   * an item AWAY from a farm they cannot manage, nor ONTO one they cannot —
+   * so MANAGE_INVENTORY is asserted on the union of the old and new sets
+   * before anything is written.
+   */
+  async setPairing(
+    itemId: string,
+    farmIds: string[],
+    userId: string,
+  ): Promise<void> {
+    const item = await this.itemsRepository.findOneBy({ id: itemId });
+    if (!item) {
+      throw new NotFoundException(
+        `Inventory item with ID ${itemId} not found`,
+      );
+    }
+
+    const oldFarmIds = await this.farmsFor(itemId, item);
+    const union = [...new Set([...oldFarmIds, ...farmIds])];
+    await Promise.all(
+      union.map((f) =>
+        this.farmAccess.assertCanAccessFarm(userId, f, 'MANAGE_INVENTORY'),
+      ),
+    );
+
+    await this.pairingRepo.manager.transaction(async (trx) => {
+      await trx.delete(InventoryFarm, { inventoryId: itemId });
+      if (farmIds.length) {
+        await trx.insert(
+          InventoryFarm,
+          farmIds.map((farmId) => ({ inventoryId: itemId, farmId })),
+        );
+      }
+    });
+
+    // Keep the fast-path column in sync with the new primary farm.
+    await this.itemsRepository.update(itemId, {
+      farmId: farmIds[0] ?? null,
+    });
   }
 
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
@@ -223,7 +351,8 @@ export class InventoryService {
       id,
     })) as InventoryItem;
 
-    if (isLowStock(savedItem)) {
+    // `farm` is null only for a deliberately unpaired item — nobody to alert.
+    if (isLowStock(savedItem) && farm) {
       await this.raiseLowStockAlert(savedItem, farm);
     }
 

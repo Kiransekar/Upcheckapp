@@ -77,7 +77,10 @@ export const unitStep = (unit?: string | null): number => {
 
 export interface InventoryItem {
     id: string;
-    farmId: string;
+    /** The single-farm fast path; null when the item is paired to several farms or none. */
+    farmId: string | null;
+    /** Every farm the item is paired to. Only populated on `getById` (D-Task8). Empty = unpaired. */
+    farmIds?: string[];
     name: string;
     category: string;
     /** MCI glyph name chosen in the icon picker; null = derive from category. */
@@ -96,7 +99,10 @@ export interface InventoryItem {
 }
 
 export interface CreateInventoryItemDto {
-    farmId: string;
+    /** Kept for backward compatibility; the multi-farm client sends `farmIds` instead. */
+    farmId?: string;
+    /** The farms to pair this item to. Empty/absent means deliberately unpaired. */
+    farmIds?: string[];
     name: string;
     category: string;
     icon?: string;
@@ -141,6 +147,10 @@ export const inventoryApi = {
 
     update: (id: string, data: UpdateInventoryItemDto) =>
         apiClient.patch<InventoryItem>(`/inventory/${id}`, data),
+
+    /** Replaces the item's farm pairing. Empty array is legal — it unpairs the item. */
+    setPairing: (id: string, farmIds: string[]) =>
+        apiClient.patch(`/inventory/${id}/farms`, { farmIds }),
 
     delete: (id: string) =>
         apiClient.delete(`/inventory/${id}`),

@@ -4,6 +4,7 @@ import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { InventoryItem } from './inventory-item.entity';
 import { InventoryMovement } from './inventory-movement.entity';
+import { InventoryFarm } from './inventory-farm.entity';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -20,6 +21,7 @@ describe('InventoryService', () => {
   let updateBuilder: any;
   let updateResult: any;
   let movementRepo: any;
+  let pairingRepo: any;
 
   beforeEach(async () => {
     updateResult = { affected: 1 };
@@ -37,6 +39,18 @@ describe('InventoryService', () => {
       create: jest.fn((dto) => dto),
       save: jest.fn().mockResolvedValue({}),
       find: jest.fn().mockResolvedValue([]),
+    };
+    // Empty by default: farmsFor() then falls back to item.farmId, matching
+    // every pre-existing test's single-farm expectations.
+    pairingRepo = {
+      create: jest.fn((dto) => dto),
+      save: jest.fn().mockResolvedValue({}),
+      find: jest.fn().mockResolvedValue([]),
+      manager: {
+        transaction: jest.fn((cb: any) =>
+          cb({ delete: jest.fn(), insert: jest.fn() }),
+        ),
+      },
     };
     items = {
       create: jest.fn((dto) => dto),
@@ -67,6 +81,7 @@ describe('InventoryService', () => {
         { provide: getRepositoryToken(FarmMember), useValue: members },
         { provide: AlertsService, useValue: alerts },
         { provide: FarmAccessService, useValue: farmAccess },
+        { provide: getRepositoryToken(InventoryFarm), useValue: pairingRepo },
       ],
     }).compile();
 
@@ -127,13 +142,20 @@ describe('InventoryService', () => {
   describe('findAll without a farmId', () => {
     it('spans every farm the caller may view, not just owned ones (D7)', async () => {
       farmAccess.getFarmIdsWithCapability.mockResolvedValue(['f1', 'f2']);
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'item-a', farmId: 'f1' },
+        { inventoryId: 'item-b', farmId: 'f2' },
+      ]);
       await service.findAll('member-1');
       expect(farmAccess.getFarmIdsWithCapability).toHaveBeenCalledWith(
         'member-1',
         'VIEW_INVENTORY',
       );
+      expect(pairingRepo.find).toHaveBeenCalledWith({
+        where: { farmId: expect.objectContaining({ _value: ['f1', 'f2'] }) },
+      });
       const { where } = items.find.mock.calls[0][0];
-      expect(where.farmId._value).toEqual(['f1', 'f2']);
+      expect(where.id._value.sort()).toEqual(['item-a', 'item-b']);
     });
 
     it('returns [] when the caller may view no farm', async () => {
@@ -265,6 +287,52 @@ describe('InventoryService', () => {
       expect(movementRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ feedRecordId: 'feed-9' }),
       );
+    });
+  });
+
+  describe('inventory pairing', () => {
+    it('lists an item for every farm it is paired to', async () => {
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'i1', farmId: 'f1' },
+        { inventoryId: 'i1', farmId: 'f2' },
+      ]);
+      items.find.mockResolvedValue([{ id: 'i1', farmId: 'f1' }]);
+      const result = await service.findAll('user-1', 'f2');
+      expect(result.map((i: any) => i.id)).toContain('i1');
+    });
+
+    it('reads an item when the caller has VIEW_INVENTORY on any paired farm', async () => {
+      // One farm is enough to look; see the write rule below for the contrast.
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'i1', farmId: 'f1' },
+        { inventoryId: 'i1', farmId: 'f2' },
+      ]);
+      items.findOneBy.mockResolvedValue({ id: 'i1', farmId: 'f1', quantity: 10 });
+      farmAccess.assertCanAccessFarm
+        .mockRejectedValueOnce(new ForbiddenException())
+        .mockResolvedValueOnce(FARM);
+      await expect(service.findOne('i1', 'user-1')).resolves.toBeDefined();
+    });
+
+    it('refuses a write unless the caller can manage EVERY paired farm', async () => {
+      // Otherwise rights on one farm let a user edit stock another farm depends on.
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'i1', farmId: 'f1' },
+        { inventoryId: 'i1', farmId: 'f2' },
+      ]);
+      items.findOneBy.mockResolvedValue({ id: 'i1', farmId: 'f1' });
+      farmAccess.assertCanAccessFarm
+        .mockResolvedValueOnce(FARM)
+        .mockRejectedValueOnce(new ForbiddenException());
+      await expect(
+        service.update('i1', { name: 'x' } as any, 'user-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows an unpaired item and does not surface it under any farm', async () => {
+      pairingRepo.find.mockResolvedValue([]);
+      const result = await service.findAll('user-1', 'f1');
+      expect(result).toEqual([]);
     });
   });
 });

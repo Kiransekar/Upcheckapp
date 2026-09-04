@@ -115,8 +115,16 @@ export const InventoryListScreen = ({ navigation }: any) => {
         fetchInventory(true);
     }, [fetchInventory]);
 
-    /** Which farm a new item goes to: the active one, else the only one on screen. */
-    const farmIds = useMemo(() => [...new Set(inventory.map((i) => i.farmId))], [inventory]);
+    /**
+     * Which farm a new item goes to: the active one, else the only one on
+     * screen. `farmId` is now nullable (Task 8: an item may be paired to
+     * several farms or none via `inventory_farms`) — this fast-path grouping
+     * only covers items still resolvable to one farm.
+     */
+    const farmIds = useMemo(
+        () => [...new Set(inventory.map((i) => i.farmId).filter((id): id is string => id != null))],
+        [inventory],
+    );
     const addFarmId = selectedFarm?.id ?? (farmIds.length === 1 ? farmIds[0] : undefined);
     const { canManageInventory } = usePermissions(addFarmId);
 

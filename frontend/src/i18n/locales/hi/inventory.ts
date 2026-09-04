@@ -48,6 +48,9 @@ const inventory = {
   negativeNotAllowed: '{{field}} ऋणात्मक नहीं हो सकता।',
   saveFailed: 'आइटम सहेजने में विफल।',
   noPermission: 'इस फार्म की इन्वेंटरी बदलने की अनुमति आपके पास नहीं है।',
+  pairedFarms: "किन खेतों के लिए",
+  unpairedTitle: "किसी खेत से नहीं जुड़ा",
+  unpairedWarning: "जब तक आप इसे किसी खेत से नहीं जोड़ेंगे, यह किसी भी खेत की सूची में नहीं दिखेगा। सुझाव नहीं दिया जाता।",
 
   // Icon picker
   pickIcon: 'एक चिह्न चुनें',

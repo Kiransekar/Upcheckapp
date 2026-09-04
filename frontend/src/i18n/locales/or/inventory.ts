@@ -48,6 +48,9 @@ const inventory = {
   negativeNotAllowed: '{{field}} ଋଣାତ୍ମକ ହୋଇପାରିବ ନାହିଁ।',
   saveFailed: 'ଆଇଟମ ସେଭ କରିବା ବିଫଳ।',
   noPermission: 'ଏହି ଫାର୍ମର ଇନ୍‌ଭେଣ୍ଟୋରି ବଦଳାଇବାର ଅନୁମତି ଆପଣଙ୍କର ନାହିଁ।',
+  pairedFarms: "କେଉଁ ଫାର୍ମ ପାଇଁ",
+  unpairedTitle: "କୌଣସି ଫାର୍ମ ସହ ଯୋଡ଼ା ନାହିଁ",
+  unpairedWarning: "ଆପଣ ଯୋଡ଼ିବା ପର୍ଯ୍ୟନ୍ତ ଏହା କୌଣସି ଫାର୍ମର ତାଲିକାରେ ଦେଖାଯିବ ନାହିଁ। ସୁପାରିଶ କରାଯାଉ ନାହିଁ।",
 
   // Icon picker
   pickIcon: 'ଏକ ଚିହ୍ନ ବାଛନ୍ତୁ',

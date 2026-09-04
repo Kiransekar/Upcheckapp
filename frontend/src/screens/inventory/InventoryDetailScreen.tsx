@@ -27,7 +27,9 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
 
     // Editing lives on InventoryForm now — the same screen that creates an item,
     // so the two can never drift into offering different fields again (D4).
-    const { canManageInventory } = usePermissions(item?.farmId);
+    // item.farmId is now nullable (Task 8: an item may be paired to several
+    // farms or none) — usePermissions still wants a single farm or undefined.
+    const { canManageInventory } = usePermissions(item?.farmId ?? undefined);
 
     // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
     // once opened, so a mount-only effect never ran again — the page kept

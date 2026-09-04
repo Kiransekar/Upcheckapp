@@ -6,8 +6,10 @@
  * a trailing space on edit lost the item from every filter tab and had no way
  * to see why. Two forms drift; one cannot.
  *
- * `farmId` is fixed on edit — an item belongs to the farm it was created on
- * (D14, and the server no longer accepts it on a PATCH at all).
+ * `farmId` (single) is fixed on edit — the server no longer accepts it on a
+ * PATCH (D14). Task 8 adds `farmIds`: an item may be paired to several farms,
+ * or deliberately none. That pairing changes through `setPairing`, a separate
+ * call from the rest of the form's fields.
  */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
@@ -19,6 +21,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { ChipGroup } from '../../components/ui/ChipGroup';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { AlertBanner } from '../../components/ui/AlertBanner';
 import { SelectField } from '../../components/ui/SelectField';
 import { Stepper } from '../../components/ui/Stepper';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
@@ -33,10 +37,16 @@ import {
     unitStep,
 } from '../../api/inventory';
 import { apiErrorMessage } from '../../api/errors';
-import { farmsApi } from '../../api/farms';
+import { farmsApi, type Farm } from '../../api/farms';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
+import { useMembershipStore } from '../../store/membershipStore';
+import { roleCan } from '../../permissions/capabilities';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useUIStore } from '../../store/uiStore';
+
+/** Two farm-id arrays are the same pairing, regardless of order. */
+const sameFarmSet = (a: string[], b: string[]): boolean =>
+    a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
 const CATEGORY_LABEL_KEY: Record<string, string> = {
     feed: 'inventory.catFeed',
@@ -60,8 +70,30 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
     const isEditing = !!itemId;
 
     const selectedFarm = useActiveFarmStore((s) => s.selectedFarm);
-    const [farmId, setFarmId] = useState<string | undefined>(route.params?.farmId ?? selectedFarm?.id);
-    const { canManageInventory } = usePermissions(farmId);
+    const activeFarmId = selectedFarm?.id;
+    // Gates access to this screen — the farm context the user arrived from
+    // (or the item's primary farm once loaded on edit), separate from the
+    // (possibly empty, possibly multi-farm) pairing below.
+    const [contextFarmId, setContextFarmId] = useState<string | undefined>(route.params?.farmId ?? activeFarmId);
+    const { canManageInventory } = usePermissions(contextFarmId);
+
+    const memberships = useMembershipStore((s) => s.memberships);
+    const grantForFarm = useMembershipStore((s) => s.grantForFarm);
+    const [allFarms, setAllFarms] = useState<Farm[]>([]);
+    // Farms this user may pair the item onto/away from — MANAGE_INVENTORY is
+    // exactly the capability setPairing asserts server-side.
+    const manageableFarms = useMemo(
+        () => allFarms.filter((f) => {
+            const { role, overrides, policy } = grantForFarm(f.id);
+            return roleCan(role, 'MANAGE_INVENTORY', overrides, policy);
+        }),
+        [allFarms, memberships, grantForFarm],
+    );
+
+    // Was a single farmId. An item can now be stocked for several farms, or
+    // deliberately for none.
+    const [farmIds, setFarmIds] = useState<string[]>([]);
+    const [originalFarmIds, setOriginalFarmIds] = useState<string[]>([]);
 
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<any>(null);
@@ -82,9 +114,15 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
     const load = useCallback(async () => {
         setLoadError(null);
         try {
+            const { data: farms } = await farmsApi.getAll();
+            if (Array.isArray(farms)) setAllFarms(farms);
+
             if (itemId) {
                 const { data } = await inventoryApi.getById(itemId);
-                setFarmId(data.farmId);
+                const pairing = data.farmIds ?? (data.farmId ? [data.farmId] : []);
+                setFarmIds(pairing);
+                setOriginalFarmIds(pairing);
+                setContextFarmId(data.farmId ?? pairing[0]);
                 setName(data.name);
                 setCategory(data.category);
                 setIcon(data.icon ?? null);
@@ -95,24 +133,31 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                 setSupplier(data.supplier ?? '');
                 setExpiry(parseDate(data.expiryDate));
                 setNotes(data.notes ?? '');
-            } else if (!farmId) {
+            } else if (!contextFarmId && Array.isArray(farms) && farms[0]) {
                 // No farm in the params and none active — pick the first one
                 // rather than dead-ending the farmer on a form that cannot save.
-                const { data: farms } = await farmsApi.getAll();
-                if (Array.isArray(farms) && farms[0]) setFarmId(farms[0].id);
+                setContextFarmId(farms[0].id);
             }
         } catch (err) {
             setLoadError(err);
         } finally {
             setLoading(false);
         }
-        // farmId is deliberately not a dependency: this sets it.
+        // contextFarmId is deliberately not a dependency: this sets it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [itemId]);
 
     useEffect(() => {
         load();
     }, [load]);
+
+    // Default to the farm the user arrived from, then the active farm, then
+    // the first they can manage — same precedence the single-farm version used.
+    useEffect(() => {
+        if (isEditing || farmIds.length || !manageableFarms.length) return;
+        const preferred = route?.params?.farmId ?? activeFarmId ?? manageableFarms[0].id;
+        setFarmIds(manageableFarms.some((f) => f.id === preferred) ? [preferred] : []);
+    }, [isEditing, manageableFarms, activeFarmId, route?.params?.farmId]);
 
     const step = useMemo(() => unitStep(unit), [unit]);
 
@@ -121,10 +166,9 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
             Alert.alert(t('common.error'), t('inventory.nameRequired'));
             return;
         }
-        if (!farmId) {
-            Alert.alert(t('common.error'), t('inventory.noFarmSelected'));
-            return;
-        }
+        // An empty selection is legal (D-Task8): it saves, with the warning
+        // banner shown below, and the item appears in no farm's list until
+        // it is paired. Unlike before, there is no hard block here.
         // The server @Min(0)s all three; catch it here so the farmer gets a
         // sentence in their own language instead of a 400.
         const numbers: [string, string][] = [
@@ -155,8 +199,11 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
         try {
             if (isEditing) {
                 await inventoryApi.update(itemId!, payload);
+                if (!sameFarmSet(farmIds, originalFarmIds)) {
+                    await inventoryApi.setPairing(itemId!, farmIds);
+                }
             } else {
-                await inventoryApi.create({ farmId, ...payload });
+                await inventoryApi.create({ farmIds, ...payload });
             }
             showToast({ message: t('common.savedSuccess'), type: 'success' });
             navigation.goBack();
@@ -262,6 +309,19 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                             <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textSecondary} />
                         )}
                     </TouchableOpacity>
+                </Card>
+
+                <Card style={styles.card}>
+                    <SectionHeader label={t('inventory.pairedFarms')} />
+                    <ChipGroup
+                        multiple
+                        options={manageableFarms.map((f) => ({ value: f.id, label: f.name }))}
+                        value={farmIds}
+                        onChange={setFarmIds}
+                    />
+                    {farmIds.length === 0 && (
+                        <AlertBanner type="warning" title={t('inventory.unpairedTitle')} message={t('inventory.unpairedWarning')} />
+                    )}
                 </Card>
 
                 <Card style={styles.card}>

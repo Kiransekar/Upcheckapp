@@ -12,6 +12,7 @@ import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { SetInventoryPairingDto } from './dto/set-inventory-pairing.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('inventory')
@@ -66,6 +67,17 @@ export class InventoryController {
     @Body() updateDto: UpdateInventoryItemDto,
   ) {
     return this.inventoryService.update(id, updateDto, user.id);
+  }
+
+  // farm-scoped, enforced in InventoryService.setPairing (asserts
+  // MANAGE_INVENTORY on both the old and new farm sets).
+  @Patch(':id/farms')
+  setPairing(
+    @CurrentUser() user,
+    @Param('id') id: string,
+    @Body() dto: SetInventoryPairingDto,
+  ) {
+    return this.inventoryService.setPairing(id, dto.farmIds, user.id);
   }
 
   @Delete(':id')

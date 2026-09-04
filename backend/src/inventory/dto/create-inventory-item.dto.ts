@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsString,
   IsOptional,
   IsNumber,
@@ -10,8 +11,20 @@ import {
 import { INVENTORY_CATEGORIES, INVENTORY_UNITS } from '../inventory.constants';
 
 export class CreateInventoryItemDto {
+  /**
+   * Kept for backward compatibility with the shipped client, which still
+   * sends a single farm. Now optional: the multi-farm client sends `farmIds`
+   * instead, and an item may be created deliberately unpaired (neither field).
+   */
   @IsUUID()
-  farmId: string;
+  @IsOptional()
+  farmId?: string;
+
+  /** The farms to pair this item to. Empty/absent means unpaired. */
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  farmIds?: string[];
 
   @IsString()
   name: string;
