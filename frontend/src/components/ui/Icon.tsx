@@ -40,7 +40,9 @@ export type IconName =
     | 'translate' | 'home_work' | 'engineering' | 'visibility' | 'location_on'
     | 'qr_code_scanner'
     // farmer feedback / issue reports
-    | 'feedback' | 'add_a_photo' | 'send' | 'mark_chat_unread';
+    | 'feedback' | 'add_a_photo' | 'send' | 'mark_chat_unread'
+    // Phase 2 — the activity timeline, cycle history and archive lifecycle
+    | 'history' | 'search' | 'archive' | 'unarchive';
 
 export interface IconProps {
     name: IconName;

@@ -143,5 +143,27 @@ const ponds = {
   metricProfit: "లాభం",
   metricLoss: "నష్టం",
   metricMargin: "మార్జిన్",
+
+  // Archive and delete — spec §4.1
+  managePond: "చెరువు నిర్వహణ",
+  archivePond: "చెరువును ఆర్కైవ్ చేయి",
+  deletePond: "చెరువును తొలగించు",
+  archiveConfirmTitle: "ఈ చెరువును ఆర్కైవ్ చేయాలా?",
+  archiveConfirmBody: "ఇది చెరువుల జాబితా నుండి, అన్ని మొత్తాల నుండి తొలగిపోతుంది; ఆర్కైవ్‌లో ఉన్నంత వరకు దీనిలో స్టాకింగ్ చేయలేరు. దీని రికార్డులన్నీ అలాగే ఉంటాయి.",
+  archiveConfirmCta: "ఆర్కైవ్ చేయి",
+  deleteConfirmTitle: "ఈ చెరువును తొలగించాలా?",
+  deleteConfirmBody: "చెరువు శాశ్వతంగా పోతుంది. దీన్ని వెనక్కి తీసుకోలేరు.",
+  deleteConfirmCta: "తొలగించు",
+  deleteBlockedTitle: "ఈ చెరువులో సైకిల్ రికార్డులు ఉన్నాయి",
+  deleteBlockedBody: "అందుకే దీన్ని తొలగించలేరు — అదే మీ రికార్డులను కాపాడుతుంది. బదులుగా ఆర్కైవ్ చేయండి: ఇది జాబితా నుండి తొలగుతుంది, కానీ ప్రతి రికార్డు ఉంటుంది.",
+  manageNeedsCycleEnd: "సైకిల్ నడుస్తున్న చెరువును ఆర్కైవ్ చేయలేరు, తొలగించలేరు. ముందు సైకిల్‌ను ముగించండి.",
+  errorArchivePond: "చెరువును ఆర్కైవ్ చేయలేకపోయాం.",
+  unarchivePond: "తిరిగి తీసుకురా",
+  unarchiveConfirmTitle: "ఈ చెరువును తిరిగి తీసుకురావాలా?",
+  unarchiveConfirmBody: "ఇది మీ చెరువుల జాబితాలోకి తిరిగి వచ్చి, ఫారం మొత్తాల్లో మళ్ళీ లెక్కలోకి వస్తుంది.",
+  unarchiveConfirmCta: "తిరిగి తీసుకురా",
+  errorUnarchivePond: "చెరువును తిరిగి తీసుకురాలేకపోయాం.",
+  errorArchiveActiveCycle: "ఈ చెరువులో సైకిల్ నడుస్తోంది, కాబట్టి ఆర్కైవ్ చేయలేరు. ముందు సైకిల్‌ను ముగించండి.",
+  errorDeletePond: "చెరువును తొలగించలేకపోయాం.",
 };
 export default ponds;

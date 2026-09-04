@@ -3,11 +3,12 @@ const inventory = {
   title: 'इन्वेंटरी',
   errorTitle: 'इन्वेंटरी लोड नहीं हो सकी',
 
-  // Category filter tabs
+  // Category filter tabs — the same five the backend validates
   catAll: 'सभी',
   catFeed: 'आहार',
   catChemicals: 'रसायन',
   catEquipment: 'उपकरण',
+  catMedicine: 'दवा',
   catOther: 'अन्य',
 
   // Stock status badges
@@ -17,14 +18,51 @@ const inventory = {
 
   // Item footer
   minLabel: 'न्यूनतम:',
+  lowStockCount: '{{count}} वस्तुओं का स्टॉक कम है',
+  farmFallback: 'फार्म',
 
   // Empty state
   emptyTitle: 'कोई इन्वेंटरी आइटम नहीं',
   emptySubtitle: 'अपने आहार, रसायन और उपकरण स्टॉक ट्रैक करना शुरू करें।',
 
-  // Add-item alert (coming soon)
+  // ── InventoryFormScreen (create AND edit) ───────────────────────────────────
   addItem: 'आइटम जोड़ें',
-  addItemComingSoon: 'इन्वेंटरी आइटम बनाने की सुविधा जल्द आ रही है!',
+  editItem: 'आइटम संपादित करें',
+  fieldName: 'आइटम का नाम',
+  namePlaceholder: 'जैसे स्टार्टर फ़ीड',
+  fieldCategory: 'श्रेणी',
+  fieldIcon: 'चिह्न',
+  fieldQuantity: 'मात्रा',
+  fieldUnit: 'इकाई',
+  unitPlaceholder: 'इकाई चुनें',
+  fieldReorderLevel: 'पुनःऑर्डर स्तर',
+  reorderHint: 'स्टॉक इस स्तर तक आने पर मुझे चेतावनी दें',
+  fieldUnitPrice: 'प्रति इकाई मूल्य (₹)',
+  fieldSupplier: 'आपूर्तिकर्ता',
+  supplierPlaceholder: 'वैकल्पिक',
+  notesPlaceholder: 'इस आइटम के बारे में याद रखने योग्य बात',
+  addExpiry: 'समाप्ति तिथि जोड़ें',
+  clearExpiry: 'समाप्ति तिथि हटाएं',
+  nameRequired: 'आइटम का नाम आवश्यक है।',
+  noFarmSelected: 'इन्वेंटरी जोड़ने से पहले एक फार्म चुनें।',
+  negativeNotAllowed: '{{field}} ऋणात्मक नहीं हो सकता।',
+  saveFailed: 'आइटम सहेजने में विफल।',
+  noPermission: 'इस फार्म की इन्वेंटरी बदलने की अनुमति आपके पास नहीं है।',
+
+  // Icon picker
+  pickIcon: 'एक चिह्न चुनें',
+  searchIcons: 'चिह्न खोजें',
+  noIconsMatch: 'इस खोज से कोई चिह्न मेल नहीं खाता।',
+  iconFromCategory: 'श्रेणी के अनुसार',
+  clearIcon: 'चिह्न हटाएं',
+  iconGroupFeed: 'आहार',
+  iconGroupChemicals: 'रसायन',
+  iconGroupMedicine: 'दवा',
+  iconGroupEquipment: 'उपकरण',
+  iconGroupTools: 'औज़ार',
+  iconGroupPackaging: 'पैकिंग',
+  iconGroupSafety: 'सुरक्षा',
+  iconGroupMisc: 'अन्य',
 
   // ── InventoryDetailScreen ───────────────────────────────────────────────────
   // Header fallback
@@ -41,7 +79,8 @@ const inventory = {
   // Info card labels
   labelCategory: 'श्रेणी',
   labelUnit: 'इकाई',
-  labelLastPurchase: 'अंतिम खरीद',
+  labelExpiryDate: 'समाप्ति तिथि',
+  labelLastAdjustment: 'अंतिम समायोजन',
   labelNotes: 'नोट्स',
 
   // Adjust stock
@@ -49,13 +88,19 @@ const inventory = {
   adjustStockChoose: 'एक क्रिया चुनें',
   addStock: 'स्टॉक जोड़ें',
   reduceStock: 'स्टॉक घटाएं',
-  comingSoon: 'जल्द आ रहा है',
-  stockAdjustComingSoon: 'स्टॉक समायोजन सुविधा जल्द आ रही है!',
-  editComingSoon: 'इन्वेंटरी आइटम संपादन सुविधा जल्द आ रही है!',
+  reasonPlaceholder: 'कारण (वैकल्पिक)',
+  validAmountRequired: '0 से अधिक वैध मात्रा दर्ज करें।',
+  adjustFailed: 'स्टॉक समायोजित करने में विफल।',
 
-  // Stock history section
-  stockHistory: 'स्टॉक इतिहास',
-  stockHistoryComingSoon: 'स्टॉक समायोजन इतिहास जल्द आ रहा है',
+  // Delete
+  deleteItem: 'आइटम हटाएं',
+  deleteConfirm: '"{{name}}" हटाएं? यह वापस नहीं किया जा सकता।',
+  deleteFailed: 'आइटम हटाने में विफल।',
+
+  // ── Feed log → stock link ───────────────────────────────────────────────────
+  feedFromStock: 'स्टॉक से लें',
+  remainingStock: '{{quantity}} {{unit}} शेष',
+  selectStockPlaceholder: 'स्टॉक से न घटाएं',
 
   // ── ShopScreen ──────────────────────────────────────────────────────────────
   shopTitle: 'दुकान',

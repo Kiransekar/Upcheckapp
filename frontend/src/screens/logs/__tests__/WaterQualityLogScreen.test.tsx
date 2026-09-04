@@ -4,8 +4,14 @@
 // "Add more readings" toggle, and slow-changing fields (salinity/alkalinity/
 // hardness/transparency) are pre-filled from the farmer's last reading so
 // they don't have to re-type the same number every visit.
+//
+// Since §4.6 the prefill reads `GET /water-quality/latest` (per COLUMN, with a
+// `<field>AsOf` each) and applies the 12-hour rule per field: only a reading
+// younger than 12 h is written in silently. `prefillCandidates` is the real
+// implementation — mocking the rule out would leave this test asserting nothing.
 jest.mock('../../../api/waterQuality', () => ({
-    waterQualityApi: { getLatest: jest.fn() },
+    ...jest.requireActual('../../../api/waterQuality'),
+    waterQualityApi: { getLatest: jest.fn(), getLatestPerColumn: jest.fn() },
 }));
 jest.mock('../../../sync/recordSync', () => ({
     saveRecord: jest.fn(),
@@ -21,7 +27,8 @@ import { WaterQualityLogScreen } from '../WaterQualityLogScreen';
 import { waterQualityApi } from '../../../api/waterQuality';
 import { saveRecord } from '../../../sync/recordSync';
 
-const mockedGetLatest = waterQualityApi.getLatest as jest.Mock;
+const mockedGetLatest = waterQualityApi.getLatestPerColumn as jest.Mock;
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 const mockedSaveRecord = saveRecord as jest.Mock;
 
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
@@ -68,9 +75,14 @@ describe('WaterQualityLogScreen — quick mode', () => {
         expect(getByText('Show fewer readings')).toBeTruthy();
     });
 
-    it('pre-fills slow-changing fields from the last reading and submits them even while collapsed', async () => {
+    it('pre-fills slow-changing fields measured in the last 12 h and submits them even while collapsed', async () => {
         mockedGetLatest.mockResolvedValue({
-            data: { salinity: 18, alkalinity: 120, hardness: 300, transparency: 35 },
+            data: {
+                salinity: 18, salinityAsOf: hoursAgo(2),
+                alkalinity: 120, alkalinityAsOf: hoursAgo(3),
+                hardness: 300, hardnessAsOf: hoursAgo(4),
+                transparency: 35, transparencyAsOf: hoursAgo(5),
+            },
         });
 
         const { getByText } = renderScreen();
@@ -92,6 +104,47 @@ describe('WaterQualityLogScreen — quick mode', () => {
                 }),
             ),
         );
+    });
+
+    it('offers a reading 12 h or older instead of filling it in, and warns about the ones it did fill in', async () => {
+        mockedGetLatest.mockResolvedValue({
+            data: {
+                salinity: 18, salinityAsOf: hoursAgo(18),
+                alkalinity: 120, alkalinityAsOf: hoursAgo(2),
+            },
+        });
+
+        const { getByText } = renderScreen();
+        await waitFor(() => expect(mockedGetLatest).toHaveBeenCalledWith('pond-1'));
+
+        // Both must be reachable without expanding "Add more readings": an offer
+        // or a warning the farmer never scrolls to is not an offer or a warning.
+        expect(getByText('From your last reading')).toBeTruthy();
+        expect(getByText('18 · 18 h ago')).toBeTruthy();
+        expect(getByText('Check the carried-over values')).toBeTruthy();
+
+        fireEvent.press(getByText('Save Log'));
+
+        await waitFor(() =>
+            expect(mockedSaveRecord).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    payload: expect.objectContaining({ salinity: undefined, alkalinity: 120 }),
+                }),
+            ),
+        );
+    });
+
+    it('drops the warning once the carried-over values are confirmed', async () => {
+        mockedGetLatest.mockResolvedValue({
+            data: { alkalinity: 120, alkalinityAsOf: hoursAgo(2) },
+        });
+
+        const { getByText, queryByText } = renderScreen();
+        await waitFor(() => expect(getByText('Check the carried-over values')).toBeTruthy());
+
+        fireEvent.press(getByText('These values are still right'));
+
+        expect(queryByText('Check the carried-over values')).toBeNull();
     });
 
     it('does not prefill and does not error when there is no prior reading (new pond, offline)', async () => {

@@ -143,5 +143,27 @@ const ponds = {
   metricProfit: "লাভ",
   metricLoss: "ক্ষতি",
   metricMargin: "মার্জিন",
+
+  // Archive and delete — spec §4.1
+  managePond: "পুকুর পরিচালনা",
+  archivePond: "পুকুর সংরক্ষণ করুন",
+  deletePond: "পুকুর মুছুন",
+  archiveConfirmTitle: "এই পুকুরটি সংরক্ষণ করবেন?",
+  archiveConfirmBody: "এটি পুকুরের তালিকা ও সব হিসাব থেকে সরে যাবে, আর সংরক্ষিত থাকা অবস্থায় এতে মজুত করা যাবে না। এর সব রেকর্ড থেকে যাবে।",
+  archiveConfirmCta: "সংরক্ষণ করুন",
+  deleteConfirmTitle: "এই পুকুরটি মুছবেন?",
+  deleteConfirmBody: "পুকুরটি চিরতরে চলে যাবে। এটি আর ফেরানো যাবে না।",
+  deleteConfirmCta: "মুছুন",
+  deleteBlockedTitle: "এই পুকুরে চক্রের রেকর্ড আছে",
+  deleteBlockedBody: "তাই এটি মোছা যাবে না — এতেই আপনার হিসাব নিরাপদ থাকে। বদলে সংরক্ষণ করুন: এটি তালিকা থেকে সরবে, কিন্তু সব রেকর্ড থাকবে।",
+  manageNeedsCycleEnd: "যে পুকুরে চক্র চলছে তা সংরক্ষণও করা যায় না, মোছাও যায় না। আগে চক্রটি শেষ করুন।",
+  errorArchivePond: "পুকুরটি সংরক্ষণ করা গেল না।",
+  unarchivePond: "ফিরিয়ে আনুন",
+  unarchiveConfirmTitle: "এই পুকুরটি ফিরিয়ে আনবেন?",
+  unarchiveConfirmBody: "এটি আপনার পুকুরের তালিকায় ফিরে আসবে এবং খামারের মোট হিসাবে আবার গণনা হবে।",
+  unarchiveConfirmCta: "ফিরিয়ে আনুন",
+  errorUnarchivePond: "পুকুরটি ফিরিয়ে আনা গেল না।",
+  errorArchiveActiveCycle: "এই পুকুরে চক্র চলছে, তাই সংরক্ষণ করা যাবে না। আগে চক্রটি শেষ করুন।",
+  errorDeletePond: "পুকুরটি মোছা গেল না।",
 };
 export default ponds;

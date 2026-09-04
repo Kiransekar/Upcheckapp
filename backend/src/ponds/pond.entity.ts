@@ -130,7 +130,10 @@ export class Pond {
     type: 'timestamp with time zone',
     nullable: true,
   })
-  archivedAt: Date;
+  // Nullable in the column and NULL for every pond that is not archived, so
+  // the type says so. It was `Date`, which made `archivedAt: null` — the only
+  // way to unarchive — a type error.
+  archivedAt: Date | null;
 
   @Index()
   @Column({ name: 'active_cycle_id', type: 'uuid', nullable: true })

@@ -31,6 +31,25 @@ const team = {
     status_in_progress: 'চলছে',
     status_done: 'যাচাই',
     status_verified: 'সম্পন্ন',
+
+    rosterTitle: 'দলের তালিকা',
+    rosterSub: 'হাজিরা, ছুটি ও যোগ দেওয়ার অনুরোধ',
+    rosterPeople: '{{count}} জন',
+    unknownPerson: 'অজানা',
+    youAreIn: 'আপনি হাজির আছেন',
+    youSuffix: '{{name}} (আপনি)',
+    sinceTime: '{{time}} থেকে',
+    att_in: 'হাজির',
+    att_out: 'বেরিয়ে গেছেন',
+    att_absent: 'আসেননি',
+    pendingJoinBadge: 'অপেক্ষায়',
+    leaveRange: 'ছুটি {{from}} – {{to}}',
+    approve: 'মঞ্জুর করুন',
+    reject: 'নামঞ্জুর করুন',
+    joins: 'যোগ দেওয়ার অনুরোধ',
+    joinsWaiting: '{{count}} জন ঢোকার অপেক্ষায়',
+    leaveMineWaiting: 'আপনার {{count}}টি অনুরোধ অপেক্ষায়',
+    actionError: 'বদলানো গেল না। আবার চেষ্টা করুন।',
 };
 
 export default team;

@@ -14,8 +14,10 @@ jest.mock('../../../api/pondContext', () => ({ pondContextApi: { get: jest.fn(),
 jest.mock('../../../api/crops', () => ({ cropsApi: { getById: jest.fn(), getAll: jest.fn() } }));
 jest.mock('../../../api/alertCenter', () => ({ alertCenterApi: { briefing: jest.fn(), liveBriefing: jest.fn() } }));
 jest.mock('../../../api/pnl', () => ({ pnlApi: { cropPnl: jest.fn() } }));
-jest.mock('../../../api/waterQuality', () => ({ waterQualityApi: { getAll: jest.fn() } }));
-jest.mock('../../../api/feedRecords', () => ({ feedApi: { getAll: jest.fn() } }));
+jest.mock('../../../api/activity', () => {
+    const actual = jest.requireActual('../../../api/activity');
+    return { ...actual, activityApi: { list: jest.fn() } };
+});
 // Spied, not replaced: the tests below assert the screen ASKS this module
 // rather than keeping its own copy of the rule.
 jest.mock('../../../features/cycleRequirement', () => ({
@@ -38,14 +40,13 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { PondDashboardScreen, tileDone, todayEntries } from '../PondDashboardScreen';
+import { PondDashboardScreen, tileDone, todayRange } from '../PondDashboardScreen';
 import { pondsApi } from '../../../api/ponds';
 import { pondContextApi } from '../../../api/pondContext';
 import { cropsApi } from '../../../api/crops';
 import { alertCenterApi } from '../../../api/alertCenter';
 import { pnlApi } from '../../../api/pnl';
-import { waterQualityApi } from '../../../api/waterQuality';
-import { feedApi } from '../../../api/feedRecords';
+import { activityApi } from '../../../api/activity';
 import { useSyncStore } from '../../../store/syncStore';
 import { useMembershipStore } from '../../../store/membershipStore';
 import { pondSlotDone, pondFedThisSession, chemistryDone, slotAt } from '../../../features/logProgress';
@@ -124,35 +125,23 @@ describe('tileDone answers with logProgress, never its own rule', () => {
     });
 });
 
-describe("today's entries are today's, newest first", () => {
-    const now = new Date(2026, 8, 3, 16, 0);
-
-    const water = [
-        { id: 'w1', pondId: 'p9', recordedAt: at(3, 6), dissolvedOxygen: 5.2, ph: 7.8 },
-        { id: 'w2', pondId: 'p9', recordedAt: at(2, 6), dissolvedOxygen: 4.1 }, // yesterday
-        { id: 'w3', pondId: 'p9', recordedAt: at(3, 14), temperature: 29 },
-    ] as any;
-    const feed = [
-        { id: 'f1', pondId: 'p9', feedType: 'starter', quantityKg: '12.5', recordedAt: at(3, 9) },
-        { id: 'f2', pondId: 'p9', feedType: 'starter', quantityKg: 8, recordedAt: at(1, 9) }, // two days back
-        { id: 'f3', pondId: 'p9', feedType: 'starter', quantityKg: 10, recordedAt: null },
-    ] as any;
-
-    it('keeps only the current calendar day and orders newest first', () => {
-        const out = todayEntries(water, feed, now);
-        expect(out.map((e) => e.id)).toEqual(['wq-w3', 'fd-f1', 'wq-w1']);
+/**
+ * "Today" is now ONE `/activity` read scoped to the day, not two log reads
+ * filtered on the phone — so what is left to check here is the range the screen
+ * asks the server for. It must be the farmer's calendar day in their own
+ * timezone: a UTC day boundary files a 06:00 IST feed under yesterday.
+ */
+describe("today's range is the farmer's calendar day", () => {
+    it('runs from local midnight to the last millisecond of the day', () => {
+        const { from, to } = todayRange(new Date(2026, 8, 3, 16, 0));
+        expect(new Date(from).getTime()).toBe(new Date(2026, 8, 3, 0, 0, 0, 0).getTime());
+        expect(new Date(to).getTime()).toBe(new Date(2026, 8, 3, 23, 59, 59, 999).getTime());
     });
 
-    it('says what was recorded, not just that something was', () => {
-        const out = todayEntries(water, feed, now);
-        expect(out.find((e) => e.id === 'wq-w1')!.value).toBe('DO 5.2 · pH 7.8');
-        // Postgres numerics arrive as strings — a "12.5 kg" that reads "NaN kg"
-        // is the whole reason this is coerced.
-        expect(out.find((e) => e.id === 'fd-f1')!.value).toBe('12.5 kg');
-    });
-
-    it('is empty rather than wrong when nothing was logged today', () => {
-        expect(todayEntries(water, feed, new Date(2026, 8, 5, 10, 0))).toEqual([]);
+    it('includes an early-morning log that UTC would file under yesterday', () => {
+        const { from, to } = todayRange(new Date(2026, 8, 3, 16, 0));
+        const earlyLog = new Date(2026, 8, 3, 0, 30).toISOString();
+        expect(earlyLog >= from && earlyLog <= to).toBe(true);
     });
 });
 
@@ -193,8 +182,7 @@ describe('a pond with no active cycle can still reach its history', () => {
         (cropsApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
         (alertCenterApi.briefing as jest.Mock).mockResolvedValue({ data: [] });
         (pnlApi.cropPnl as jest.Mock).mockResolvedValue({ data: null });
-        (waterQualityApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
-        (feedApi.getAll as jest.Mock).mockResolvedValue({ data: [] });
+        (activityApi.list as jest.Mock).mockResolvedValue({ data: { items: [], nextCursor: null } });
     });
 
     const renderIdle = () =>

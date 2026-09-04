@@ -15,9 +15,9 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { PondPicker } from '../../components/ui/PondPicker';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
-import { farmsApi } from '../../api/farms';
 import { pondLabel } from '../../utils/pondHealth';
 import { requiresActiveCycle } from '../../features/cycleRequirement';
 
@@ -40,8 +40,6 @@ const ACTIONS: Action[] = [
 export const QuickLogScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const [ponds, setPonds] = useState<Pond[]>([]);
-    /** farmId → farm name, only fetched when the ponds span more than one farm. */
-    const [farmNames, setFarmNames] = useState<Record<string, string>>({});
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     // A network failure must NOT masquerade as "no ponds — create a farm"; the
@@ -54,17 +52,6 @@ export const QuickLogScreen = ({ navigation }: any) => {
             const { data } = await pondsApi.getMine();
             setPonds(data);
             setSelectedId((prev) => prev ?? data[0]?.id ?? null);
-            // "Pond 1" is a fine chip label until the farmer works two farms
-            // and has two of them. Name the farm under the chip, and only
-            // then — a single-farm farmer does not need telling which farm.
-            if (new Set(data.map((p) => p.farmId)).size > 1) {
-                try {
-                    const { data: farms } = await farmsApi.getAll();
-                    setFarmNames(Object.fromEntries(farms.map((f) => [f.id, f.name])));
-                } catch {
-                    // A missing caption is not worth failing the screen over.
-                }
-            }
         } catch (err) {
             setError(err);
         } finally {
@@ -132,40 +119,19 @@ export const QuickLogScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <ScrollView showsVerticalScrollIndicator={false}>
-                    {/* Pond picker — only when there's a choice to make. */}
+                    {/*
+                        Pond picker — only when there's a choice to make. The
+                        shared PondPicker carries the farm grouping and the
+                        search field, so a farmer with three farms and thirty
+                        ponds gets the same picker here as everywhere else
+                        (spec §4.8). No context fetch: this screen only routes.
+                    */}
                     {ponds.length > 1 && (
-                        <>
-                            <Text style={styles.pickLabel}>{t('home.quickLogPickPond')}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pondRow}>
-                                {ponds.map((p) => {
-                                    const active = p.id === selected?.id;
-                                    return (
-                                        <TouchableOpacity
-                                            key={p.id}
-                                            style={[styles.pondChip, active && styles.pondChipActive]}
-                                            onPress={() => setSelectedId(p.id)}
-                                            activeOpacity={0.8}
-                                        >
-                                            <MaterialCommunityIcons
-                                                name="water"
-                                                size={16}
-                                                color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
-                                            />
-                                            <View style={{ flexShrink: 1 }}>
-                                                <Text numberOfLines={1} style={[styles.pondChipText, active && { color: theme.roles.light.primary }]}>
-                                                    {pondLabel(p)}
-                                                </Text>
-                                                {farmNames[p.farmId] ? (
-                                                    <Text numberOfLines={1} style={styles.pondChipFarm}>
-                                                        {farmNames[p.farmId]}
-                                                    </Text>
-                                                ) : null}
-                                            </View>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-                        </>
+                        <PondPicker
+                            pondId={selected?.id ?? null}
+                            onChange={(id) => setSelectedId(id)}
+                            fetchContext={false}
+                        />
                     )}
 
                     {selected && (
@@ -247,16 +213,6 @@ const styles = StyleSheet.create({
     subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     createBtn: { alignSelf: 'stretch', marginTop: theme.spacing[4] },
-    pickLabel: { ...theme.typeScale.overline, color: theme.roles.light.textTertiary, marginBottom: theme.spacing[2] },
-    pondRow: { gap: theme.spacing[2], paddingBottom: theme.spacing[3] },
-    pondChip: {
-        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1],
-        paddingVertical: theme.spacing[2], paddingHorizontal: theme.spacing[3],
-        borderRadius: theme.radius.full, borderWidth: 1, borderColor: theme.roles.light.borderDefault,
-    },
-    pondChipActive: { borderColor: theme.roles.light.primary, backgroundColor: theme.roles.light.surfaceOverlay },
-    pondChipText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, maxWidth: 140 },
-    pondChipFarm: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary, maxWidth: 140 },
     forPond: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[3] },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[3] },
     tile: { width: '47%' },

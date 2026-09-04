@@ -35,8 +35,8 @@ import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
-import { waterQualityApi, type WaterQualityRecord } from '../../api/waterQuality';
-import { feedApi, type FeedRecord } from '../../api/feedRecords';
+import { activityApi, type ActivityItem } from '../../api/activity';
+import { ACTIVITY_ICON, activityKindKey } from '../activity/activityKinds';
 import { slotAt, pondSlotDone, pondFedThisSession, chemistryDone } from '../../features/logProgress';
 import { requiresActiveCycle } from '../../features/cycleRequirement';
 import { survivalPctFrom } from '../calculators/prefill';
@@ -96,11 +96,14 @@ const LOG_ACTIONS: LogAction[] = [
     { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
     { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
     { key: 'actionMicrobiology', icon: 'science', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-    // History goes to the water-quality history, NOT back to the blank entry
-    // form: weekly-chem readings land in `water_quality_records`, so that
-    // screen is where they are. "History" that reopened the form it came from
-    // was the whole of report #9.
-    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WaterQualityHistory' },
+    // History goes to the dedicated chemistry history, NOT back to the blank
+    // entry form ("History" that reopened the form it came from was the whole
+    // of report #9). It was pointed at WaterQualityHistory because weekly-chem
+    // readings land in `water_quality_records` and that was the only screen
+    // reading them — but that list is dominated by daily probe rows, so the six
+    // chemistry values were buried. WeeklyChemistryHistory reads the same table
+    // through `chemistryOnly=true`, which drops the probe-only rows.
+    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
 ];
 
 /**
@@ -134,62 +137,17 @@ export const tileDone = (
     }
 };
 
-export interface TodayEntry {
-    id: string;
-    kind: 'water' | 'feed';
-    /** ISO timestamp the record was taken at. */
-    at: string;
-    /** What was recorded, in one line — "DO 5.2 · pH 7.8", "12 kg". */
-    value: string;
-}
-
-const onDay = (iso: string | null | undefined, now: Date): boolean => {
-    if (!iso) return false;
-    const d = new Date(iso);
-    return !Number.isNaN(d.getTime()) && d.toDateString() === now.toDateString();
-};
-
 /**
- * What was logged on this pond TODAY, newest first.
+ * The calendar day the farmer is standing in, as an instant range.
  *
- * The history screens are undated full lists, so "what have we already done
- * today" — the question a farmer asks before feeding again — had no answer
- * anywhere in the app. Calendar day in the phone's own timezone, which is the
- * day the farmer is standing in.
+ * Local midnight to the last millisecond of the day, in the phone's own
+ * timezone — "today" is a calendar question, not a 24-hour window.
  */
-export const todayEntries = (
-    water: WaterQualityRecord[],
-    feed: FeedRecord[],
-    now: Date,
-): TodayEntry[] =>
-    [
-        ...water
-            .filter((r) => onDay(r.recordedAt, now))
-            .map((r) => ({
-                id: `wq-${r.id}`,
-                kind: 'water' as const,
-                at: r.recordedAt as string,
-                value:
-                    [
-                        r.dissolvedOxygen != null ? `DO ${r.dissolvedOxygen}` : null,
-                        r.ph != null ? `pH ${r.ph}` : null,
-                        r.temperature != null ? `${r.temperature}°C` : null,
-                    ]
-                        .filter(Boolean)
-                        .join(' · ') || '—',
-            })),
-        ...feed
-            .filter((r) => onDay(r.recordedAt, now))
-            .map((r) => ({
-                id: `fd-${r.id}`,
-                kind: 'feed' as const,
-                at: r.recordedAt as string,
-                value: `${Number(r.quantityKg) || 0} kg`,
-            })),
-    ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-
-/** Backend list endpoints return either a bare array or a PageDto. */
-const rows = <T,>(data: any): T[] => (Array.isArray(data) ? data : (data?.data ?? []));
+export const todayRange = (now: Date): { from: string; to: string } => {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return { from: start.toISOString(), to: end.toISOString() };
+};
 
 const num = (v: number | null | undefined, digits = 1): string =>
     v == null ? '—' : v.toFixed(digits);
@@ -263,28 +221,28 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     /**
      * Today's entries for this pond.
      *
-     * Two bounded reads, in parallel, under a key that PREFIXES `['pond']` —
-     * so it persists to disk with the rest of the pond and the axios
-     * invalidation table already refetches it after the farmer's own water or
-     * feed write, with no new plumbing. `take` is capped because nobody logs
-     * thirty readings in a day and this phone is on rural mobile data.
+     * ONE read of `/activity`, which unions all fourteen log tables server-side.
+     * This used to be two calls — water quality and feed — filtered to today on
+     * the phone, which meant a sampling, a treatment or a mortality recorded
+     * this morning simply did not appear in "what have we already done today".
+     *
+     * The key still PREFIXES `['pond']`, so it persists to disk with the rest of
+     * the pond and the axios invalidation table refetches it after the farmer's
+     * own write with no new plumbing.
      */
     const todayQuery = useAppQuery({
         queryKey: [...qk.pond(pondId), 'today'] as const,
         enabled: !!pondId,
         queryFn: async () => {
-            const [wqRes, feedRes] = await Promise.all([
-                waterQualityApi.getAll(pondId, { take: 20 }).catch(() => ({ data: [] })),
-                feedApi.getAll(pondId, { take: 20 }).catch(() => ({ data: [] })),
-            ]);
-            return todayEntries(
-                rows<WaterQualityRecord>(wqRes.data),
-                rows<FeedRecord>(feedRes.data),
-                new Date(),
-            );
+            const { data } = await activityApi.list({
+                pondId,
+                ...todayRange(new Date()),
+                limit: 50,
+            });
+            return data.items;
         },
     });
-    const today = todayQuery.data ?? [];
+    const today: ActivityItem[] = todayQuery.data ?? [];
 
     const pond = query.data?.pond ?? null;
     const cycle = query.data?.cycle ?? null;
@@ -909,6 +867,22 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/* Every cycle this pond has ever run. The dashboard only ever
+                    showed the CURRENT one, so a farmer comparing this crop with
+                    the last had nowhere to look. */}
+                <SummaryRow
+                    icon="history"
+                    title={t('cycles.listTitle')}
+                    onPress={() =>
+                        navigation.navigate('CycleList', {
+                            pondId,
+                            pondName,
+                            farmId: pond?.farmId,
+                        })
+                    }
+                    divider="strong"
+                />
+
                 {/*
                   * "What have we already done today" — the question asked
                   * standing at the pond, before feeding again. Nothing in the
@@ -919,6 +893,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 <SectionHeader
                     label={t('ponds.todayTitle')}
                     trailing={today.length || undefined}
+                    actionLabel={t('activity.seeAll')}
+                    onAction={() =>
+                        navigation.navigate('Activity', {
+                            pondId,
+                            pondName,
+                            farmId: pond?.farmId,
+                        })
+                    }
                 />
                 {today.length === 0 ? (
                     <Text style={styles.todayEmpty}>
@@ -927,17 +909,14 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 ) : (
                     today.map((entry, i) => (
                         <SummaryRow
-                            key={entry.id}
-                            icon={entry.kind === 'water' ? 'water_drop' : 'grain'}
-                            title={t(entry.kind === 'water' ? 'ponds.actionWaterQuality' : 'ponds.actionFeed')}
-                            subtitle={entry.value}
-                            value={formatTime(entry.at)}
-                            onPress={() =>
-                                navigation.navigate(
-                                    entry.kind === 'water' ? 'WaterQualityHistory' : 'FeedHistory',
-                                    { pondId, pondName, farmId: pond?.farmId },
-                                )
+                            key={`${entry.kind}-${entry.recordId}`}
+                            icon={ACTIVITY_ICON[entry.kind] ?? 'checklist'}
+                            title={t(activityKindKey(entry.kind))}
+                            subtitle={
+                                [entry.summary, entry.actorName].filter(Boolean).join(' · ') ||
+                                t('activity.noDetail')
                             }
+                            value={formatTime(entry.at)}
                             divider={i === today.length - 1 ? 'strong' : 'light'}
                         />
                     ))

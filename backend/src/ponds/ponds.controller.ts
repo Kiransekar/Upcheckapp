@@ -89,6 +89,13 @@ export class PondsController {
     return this.pondsService.archive(id, user.id);
   }
 
+  @Patch(':id/unarchive')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'id', 'farm.userId', 'WRITE_MANAGEMENT')
+  unarchive(@Param('id') id: string, @CurrentUser() user) {
+    return this.pondsService.unarchive(id, user.id);
+  }
+
   @Delete(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Pond', 'id', 'farm.userId', 'OWNER_ONLY')

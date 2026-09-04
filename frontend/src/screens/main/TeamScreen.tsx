@@ -149,6 +149,10 @@ export const TeamScreen = ({ navigation }: any) => {
     const pendingLeave = query.data?.pendingLeave ?? EMPTY_LEAVE;
     const tasks = query.data?.tasks ?? EMPTY_TASKS;
     const members = query.data?.members ?? EMPTY_MEMBERS;
+    // The two numbers behind the tab badge, shown here as rows so the badge
+    // always resolves to something the farmer can see and act on.
+    const pendingJoins = query.data?.pendingJoins ?? 0;
+    const myPendingLeave = query.data?.myPendingLeave ?? 0;
     const hasData = query.data != null;
 
     const activeScope = scope !== ALL && farms.some((f) => f.id === scope) ? scope : ALL;
@@ -410,6 +414,20 @@ export const TeamScreen = ({ navigation }: any) => {
                     </Card>
                 ))}
 
+                {/* The badge's other half. It only appears when there IS a
+                    queue, and it lands on the roster where the approve and
+                    decline buttons live — not on a screen that just counts. */}
+                {canManage && pendingJoins > 0 && (
+                    <SummaryRow
+                        icon="person_add"
+                        title={t('team.joins')}
+                        subtitle={t('team.joinsWaiting', { count: pendingJoins })}
+                        value={String(pendingJoins)}
+                        tone="warning"
+                        onPress={() => navigation.navigate('AllWorkers')}
+                    />
+                )}
+
                 {/* Visible to everyone who can record data, not just managers.
                     Behind `canManageMembers` these two rows were a worker's
                     ONLY route to attendance and leave, and it was closed. */}
@@ -440,13 +458,29 @@ export const TeamScreen = ({ navigation }: any) => {
                             title={t('team.leave')}
                             subtitle={
                                 !canManage
-                                    ? t('team.leaveSelfSub')
+                                    ? myPendingLeave > 0
+                                      ? t('team.leaveMineWaiting', { count: myPendingLeave })
+                                      : t('team.leaveSelfSub')
                                     : pendingLeave.length > 0
                                       ? t('team.leaveWaiting', { count: pendingLeave.length })
                                       : t('team.leaveNone')
                             }
-                            value={canManage && pendingLeave.length > 0 ? String(pendingLeave.length) : null}
-                            tone={canManage && pendingLeave.length > 0 ? 'warning' : 'default'}
+                            // Whichever number the tab badge is showing this
+                            // person is the number that appears here.
+                            value={
+                                canManage
+                                    ? pendingLeave.length > 0
+                                        ? String(pendingLeave.length)
+                                        : null
+                                    : myPendingLeave > 0
+                                      ? String(myPendingLeave)
+                                      : null
+                            }
+                            tone={
+                                (canManage ? pendingLeave.length : myPendingLeave) > 0
+                                    ? 'warning'
+                                    : 'default'
+                            }
                             divider="strong"
                             // Leave legitimately spans farms — reviewing does
                             // not need one, and the screen picks a farm for the
@@ -460,6 +494,31 @@ export const TeamScreen = ({ navigation }: any) => {
                             }
                         />
                     </>
+                )}
+
+                {/* The roster. Everyone gets it — a worker who cannot open
+                    Manage Members can still see who else is on shift today,
+                    which is the whole point of a team hub. */}
+                <SummaryRow
+                    icon="groups"
+                    title={t('team.rosterTitle')}
+                    subtitle={t('team.rosterSub')}
+                    value={activeMembers.length > 0 ? String(activeMembers.length) : null}
+                    divider="strong"
+                    onPress={() => navigation.navigate('AllWorkers')}
+                />
+
+                {/* The audit trail. Owner/manager only — it names who logged
+                    what across every pond, which is a supervision view, not
+                    something a worker needs to browse about their colleagues. */}
+                {canManage && (
+                    <SummaryRow
+                        icon="history"
+                        title={t('activity.title')}
+                        subtitle={t('activity.teamRowSub')}
+                        divider="strong"
+                        onPress={() => navigation.navigate('Activity')}
+                    />
                 )}
 
                 <SectionHeader

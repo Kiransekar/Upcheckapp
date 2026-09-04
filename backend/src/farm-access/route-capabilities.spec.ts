@@ -33,6 +33,7 @@ import { HarvestsController } from '../harvests/harvests.controller';
 import { InventoryController } from '../inventory/inventory.controller';
 import { FarmsController } from '../farms/farms.controller';
 import { CropsController } from '../crops/crops.controller';
+import { PondsController } from '../ponds/ponds.controller';
 import { InventoryService } from '../inventory/inventory.service';
 
 type Row = [
@@ -150,6 +151,20 @@ const ROUTES: Row[] = [
       paramName: 'id',
       ownerPath: 'userId',
       capability: 'OWNER_ONLY',
+    },
+  ]),
+
+  // pond lifecycle — archive and its undo are WRITE_MANAGEMENT, NOT
+  // OWNER_ONLY: a manager runs the ponds. Deletion stays OWNER_ONLY (below,
+  // unchanged) because it destroys history rather than hiding it.
+  ...(['archive', 'unarchive'] as const).map((handler): Row => [
+    PondsController,
+    handler,
+    {
+      entityType: 'Pond',
+      paramName: 'id',
+      ownerPath: 'farm.userId',
+      capability: 'WRITE_MANAGEMENT',
     },
   ]),
 

@@ -36,6 +36,27 @@ const team = {
     status_in_progress: 'Doing',
     status_done: 'Verify',
     status_verified: 'Done',
+
+    // Team roster (AllWorkersScreen) — everyone, across every farm.
+    rosterTitle: 'Team roster',
+    rosterSub: 'Attendance, leave and join requests',
+    rosterPeople: '{{count}} people',
+    unknownPerson: 'Unknown',
+    youAreIn: "You're checked in",
+    youSuffix: '{{name}} (you)',
+    sinceTime: 'Since {{time}}',
+    att_in: 'In',
+    att_out: 'Out',
+    att_absent: 'Not in',
+    pendingJoinBadge: 'Waiting',
+    leaveRange: 'Leave {{from}} – {{to}}',
+    approve: 'Approve',
+    reject: 'Reject',
+    // Join queue, mirrored by the Team tab badge.
+    joins: 'Join requests',
+    joinsWaiting: '{{count}} waiting to be let in',
+    leaveMineWaiting: '{{count}} of your requests waiting',
+    actionError: 'Could not update. Please try again.',
 };
 
 export default team;

@@ -33,6 +33,7 @@ import feedback from './feedback';
 import sync from './sync';
 import notifications from './notifications';
 import whatsNew from './whatsNew';
+import activity from './activity';
 
 export default {
   common,
@@ -64,4 +65,5 @@ export default {
   sync,
   notifications,
   whatsNew,
+  activity,
 };

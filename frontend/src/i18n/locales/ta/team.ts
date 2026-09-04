@@ -31,6 +31,25 @@ const team = {
     status_in_progress: 'நடக்கிறது',
     status_done: 'சரிபார்',
     status_verified: 'முடிந்தது',
+
+    rosterTitle: 'குழு பட்டியல்',
+    rosterSub: 'வருகை, விடுப்பு, சேர கோரிக்கை',
+    rosterPeople: '{{count}} பேர்',
+    unknownPerson: 'தெரியவில்லை',
+    youAreIn: 'நீங்கள் வேலையில் இருக்கிறீர்கள்',
+    youSuffix: '{{name}} (நீங்கள்)',
+    sinceTime: '{{time}} முதல்',
+    att_in: 'உள்ளே',
+    att_out: 'வெளியே',
+    att_absent: 'வரவில்லை',
+    pendingJoinBadge: 'காத்திருக்கிறார்',
+    leaveRange: 'விடுப்பு {{from}} – {{to}}',
+    approve: 'ஒப்புக',
+    reject: 'மறுக்க',
+    joins: 'சேர கோரிக்கைகள்',
+    joinsWaiting: '{{count}} பேர் சேர காத்திருக்கிறார்கள்',
+    leaveMineWaiting: 'உங்கள் {{count}} கோரிக்கை காத்திருக்கிறது',
+    actionError: 'மாற்ற முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
 };
 
 export default team;

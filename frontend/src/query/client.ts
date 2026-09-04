@@ -206,7 +206,11 @@ const ENTITY_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
     pond: [['pond'], ['ponds'], ['farm'], ['farms'], ['home'], ['briefing']],
     // Same story for a farm's own CRUD (CreateFarmScreen): a rename or a new
     // farm never touched the cache that FarmsList/FarmDetail read from.
-    farm: [['farm'], ['farms'], ['home'], ['briefing']],
+    // ['team'] is here for the join queue: approving or declining a pending
+    // membership POSTs to /farms/:id/pending/..., which resolves to `farm`, and
+    // the Team tab's roster and badge are read from ['team']. Without this a
+    // decision made on one screen left the badge counting it on another.
+    farm: [['farm'], ['farms'], ['home'], ['briefing'], ['team']],
     // A cycle IS the pond's state: starting one flips the dashboard from "idle"
     // to stocked, closing one flips it back, and both move the money roll-up
     // (seed cost in, harvest sale out). `/crops` was missing from the URL map

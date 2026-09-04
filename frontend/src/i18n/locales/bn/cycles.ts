@@ -53,5 +53,36 @@ const cycles = {
   fieldTargetDays: 'লক্ষ্য দিন',
   fieldTargetSize: 'লক্ষ্য আকার (কাউন্ট)',
   fieldTargetSr: 'লক্ষ্য বেঁচে থাকা (%)',
+
+  // CycleListScreen
+  listTitle: 'সাইকেলের ইতিহাস',
+  listStocked: 'স্টকিং',
+  listHarvested: 'হার্ভেস্ট',
+  listRevenue: 'আয়',
+  listKg: '{{amount}} কেজি',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'এখনো কোনো সাইকেল নেই',
+  listEmptyText: 'এখানে শুরু করা সাইকেলগুলি তাদের স্টকিং, হার্ভেস্ট ও ফলাফল সহ দেখা যাবে।',
+  listErrorTitle: 'সাইকেলের ইতিহাস লোড করা যায়নি',
+  status_active: 'চালু',
+  status_completed: 'সম্পন্ন',
+  status_cancelled: 'বাতিল',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: 'এই সাইকেলটি লোড করা যায়নি',
+  sectionPnl: 'লাভ ও ক্ষতি',
+  pnlRevenue: 'আয়',
+  pnlCost: 'খরচ',
+  pnlProfit: 'লাভ',
+  pnlBiomass: 'হার্ভেস্ট',
+  pnlProvisional: 'অস্থায়ী — এই সাইকেলের হার্ভেস্ট এখনো সম্পূর্ণ হয়নি।',
+  editTitle: 'সাইকেল সম্পাদনা',
+  editConfirmTitle: 'এই পরিবর্তনগুলি সংরক্ষণ করবেন?',
+  editConfirmMessage: 'আপনি {{fields}} বদলাচ্ছেন। এতে সাইকেলের তারিখ বদলাবে এবং সতর্কতাগুলি যে লক্ষ্যের বিপরীতে বিচার করা হয় তাও বদলাবে।',
+  editField_stockingDate: 'স্টকিং তারিখ',
+  editField_stockingCount: 'স্টকিং সংখ্যা',
+  editField_speciesType: 'প্রজাতি',
+  editField_seedType: 'বীজের ধরন',
+  errorEditCycle: 'সাইকেল সংরক্ষণ করা যায়নি',
 };
 export default cycles;

@@ -2,7 +2,14 @@
 // this task; the question is now the shared confirm helper, so a cancel (and a
 // dismiss) must still stop the close.
 jest.mock('../../../api/crops', () => ({
-    cropsApi: { getById: jest.fn(), close: jest.fn() },
+    cropsApi: { getById: jest.fn(), close: jest.fn(), update: jest.fn() },
+    computeDoc: () => 1,
+}));
+jest.mock('../../../api/pnl', () => ({ pnlApi: { cropPnl: jest.fn(() => Promise.reject(new Error('no financials'))) } }));
+// Closing is RECORD_HARVEST since Phase 2 — grant it here; the gate itself is
+// covered by CycleDetailScreen.harvestGate.test.tsx.
+jest.mock('../../../hooks/usePermissions', () => ({
+    usePermissions: () => ({ canRecordHarvest: true, canManageOperations: true, canViewFinancials: false }),
 }));
 jest.mock('@react-navigation/native', () => ({
     // Mirror focus with a plain effect. `[effect]` — not `[]` — or the callback
