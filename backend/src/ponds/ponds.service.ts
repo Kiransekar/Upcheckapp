@@ -399,6 +399,31 @@ export class PondsService {
   }
 
   /**
+   * Undo an archive. Without this, archiving was a ONE-WAY door: the client
+   * could list archived ponds but had no way back, and `UpdatePondDto` carries
+   * no `status`, so `ValidationPipe`'s whitelist stripped any attempt to patch
+   * it directly.
+   *
+   * Returns to `fallow`, the entity default, NOT to whatever the pond was
+   * before — a pond cannot be archived while it holds an active cycle, so
+   * `fallow` is the only state it could have been in.
+   */
+  async unarchive(id: string, userId: string) {
+    const pond = await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
+
+    if (pond.status !== 'archived') {
+      throw new BadRequestException('Pond is not archived');
+    }
+
+    await this.pondsRepository.update(id, {
+      status: 'fallow',
+      archivedAt: null,
+    });
+
+    return { message: 'Pond unarchived successfully' };
+  }
+
+  /**
    * Hard delete a pond. Only allowed for ponds with no cycles ever.
    */
   async remove(id: string, userId: string) {

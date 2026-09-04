@@ -11,6 +11,7 @@ import { UpdateCropDto } from './dto/update-crop.dto';
 import { HarvestCropDto } from './dto/harvest-crop.dto';
 import { Pond } from '../ponds/pond.entity';
 import { PondsService } from '../ponds/ponds.service';
+import type { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
 export class CropsService {
@@ -157,13 +158,24 @@ export class CropsService {
     return this.enrichWithDOC(crop);
   }
 
-  /** Member-aware crop read (owner or worker). Does NOT feed economics. */
-  async findOneAccessible(id: string, userId: string) {
+  /**
+   * Member-aware crop read (owner or worker). Does NOT feed economics.
+   *
+   * `capability` exists for the harvest paths: closing a cycle must be gated on
+   * RECORD_HARVEST, not on VIEW_FINANCIALS (`findOne`). Using `findOne` there
+   * 403'd exactly the member the RECORD_HARVEST grant was built for — a worker
+   * or a books-blind manager — AFTER the harvest row had already been saved.
+   */
+  async findOneAccessible(
+    id: string,
+    userId: string,
+    capability: FarmCapability = 'READ',
+  ) {
     const crop = await this.cropsRepository.findOneBy({ id });
     if (!crop) {
       throw new NotFoundException(`Crop with ID ${id} not found`);
     }
-    await this.pondsService.verifyAccess(crop.pondId, userId, 'READ');
+    await this.pondsService.verifyAccess(crop.pondId, userId, capability);
     return this.enrichWithDOC(crop);
   }
 
@@ -227,9 +239,11 @@ export class CropsService {
   }
 
   async update(id: string, updateCropDto: UpdateCropDto, userId: string) {
-    await this.findOne(id, userId); // Verify ownership
+    // Matches the route's WRITE_MANAGEMENT gate. `findOne` would demand
+    // VIEW_FINANCIALS and 403 a member the owner granted WRITE_MANAGEMENT.
+    await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
     await this.cropsRepository.update(id, updateCropDto);
-    return this.findOne(id, userId);
+    return this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
   }
 
   async remove(id: string, userId: string) {
@@ -256,7 +270,11 @@ export class CropsService {
   }
 
   async harvest(id: string, harvestData: HarvestCropDto, userId: string) {
-    const crop = await this.findOne(id, userId); // Verify ownership
+    // Completing a cycle IS recording a harvest — gate it on the capability
+    // that says so, not on VIEW_FINANCIALS (which 403s a granted worker) and
+    // not on the general WRITE_MANAGEMENT key (which would let a member the
+    // owner explicitly blocked from harvesting close the cycle anyway).
+    const crop = await this.findOneAccessible(id, userId, 'RECORD_HARVEST');
 
     // Assign only the two whitelisted fields — never spread the raw body, which
     // would let a caller overwrite arbitrary crop columns. Terminal status is
@@ -268,11 +286,11 @@ export class CropsService {
       status: 'completed',
     });
 
-    // Unlink from ponds activeCycleId. Harvesting is WRITE_MANAGEMENT.
+    // Unlink from ponds activeCycleId. Harvesting is RECORD_HARVEST.
     const pond = await this.pondsService.findOneAccessible(
       crop.pondId,
       userId,
-      'WRITE_MANAGEMENT',
+      'RECORD_HARVEST',
     );
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
@@ -282,11 +300,15 @@ export class CropsService {
       );
     }
 
-    return this.findOne(id, userId);
+    return this.findOneAccessible(id, userId, 'RECORD_HARVEST');
   }
 
   async closeCycle(id: string, actualHarvestDate: string, userId: string) {
-    const crop = await this.findOne(id, userId); // Verify ownership
+    // RECORD_HARVEST, not VIEW_FINANCIALS: this runs inside `harvests.create`
+    // for a full harvest, and gating it on the books 403'd the granted worker
+    // AFTER the harvest row was already committed — leaving an orphan harvest
+    // on a cycle that never closed.
+    const crop = await this.findOneAccessible(id, userId, 'RECORD_HARVEST');
 
     // Idempotent close: the guard `status <> 'completed'` means a
     // double-submitted or concurrently-replayed full harvest closes the cycle
@@ -306,11 +328,11 @@ export class CropsService {
     // Let's get the pond first to be safe?
     // findOne already calls pondService.findOne(crop.pondId), but doesn't return pond.
 
-    // Closing a cycle is WRITE_MANAGEMENT.
+    // Closing a cycle is RECORD_HARVEST.
     const pond = await this.pondsService.findOneAccessible(
       crop.pondId,
       userId,
-      'WRITE_MANAGEMENT',
+      'RECORD_HARVEST',
     );
     if (pond.activeCycleId === id) {
       await this.pondsService.update(
@@ -320,6 +342,6 @@ export class CropsService {
       );
     }
 
-    return this.findOne(id, userId);
+    return this.findOneAccessible(id, userId, 'RECORD_HARVEST');
   }
 }

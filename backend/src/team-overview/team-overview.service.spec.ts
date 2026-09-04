@@ -21,6 +21,10 @@ function makeService(over: any = {}) {
   };
   const leaveRequests = {
     findAllForFarm: jest.fn().mockResolvedValue(over.leave ?? []),
+    findMine: jest.fn().mockResolvedValue(over.myLeave ?? []),
+  };
+  const invites = {
+    listPending: jest.fn().mockResolvedValue(over.pending ?? []),
   };
   const tasks = { findMine: jest.fn().mockResolvedValue(over.tasks ?? []) };
   const members = { listMembers: jest.fn().mockResolvedValue(over.members ?? []) };
@@ -33,9 +37,10 @@ function makeService(over: any = {}) {
     leaveRequests as any,
     tasks as any,
     members as any,
+    invites as any,
     farmAccess as any,
   );
-  return { svc, farms, attendance, leaveRequests, tasks, members };
+  return { svc, farms, attendance, leaveRequests, tasks, members, invites };
 }
 
 describe('TeamOverviewService', () => {
@@ -122,6 +127,30 @@ describe('TeamOverviewService', () => {
     const out = await svc.forUser('u');
 
     expect(out.myAttendance?.checkInAt).toBe('2026-08-28T07:00:00Z');
+  });
+
+  it('counts pending joins across farms for the badge', async () => {
+    const { svc } = makeService({ pending: [{ userId: 'a' }, { userId: 'b' }] });
+
+    expect((await svc.forUser('owner')).pendingJoins).toBe(4); // 2 farms × 2
+  });
+
+  /** A worker is refused the pending queue (MANAGE_WORKERS) — badge is 0. */
+  it('reports zero pending joins when the caller may not see the queue', async () => {
+    const { svc, invites } = makeService();
+    invites.listPending.mockRejectedValue(new Error('Forbidden'));
+
+    expect((await svc.forUser('worker')).pendingJoins).toBe(0);
+  });
+
+  /** Own open requests only — decided ones are not "waiting on someone". */
+  it("counts only the caller's still-pending leave requests", async () => {
+    const { svc } = makeService({
+      farms: [farm('f1')],
+      myLeave: [{ status: 'pending' }, { status: 'approved' }],
+    });
+
+    expect((await svc.forUser('worker')).myPendingLeave).toBe(1);
   });
 
   it('reports no open record when every shift is closed', async () => {

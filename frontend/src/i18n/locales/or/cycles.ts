@@ -53,5 +53,36 @@ const cycles = {
   fieldTargetDays: 'ଲକ୍ଷ୍ୟ ଦିନ',
   fieldTargetSize: 'ଲକ୍ଷ୍ୟ ଆକାର (କାଉଣ୍ଟ)',
   fieldTargetSr: 'ଲକ୍ଷ୍ୟ ବଞ୍ଚିବା (%)',
+
+  // CycleListScreen
+  listTitle: 'ସାଇକଲ ଇତିହାସ',
+  listStocked: 'ଷ୍ଟକିଂ',
+  listHarvested: 'ହାର୍ଭେଷ୍ଟ',
+  listRevenue: 'ଆୟ',
+  listKg: '{{amount}} କିଗ୍ରା',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ସାଇକଲ ନାହିଁ',
+  listEmptyText: 'ଏଠାରେ ଆରମ୍ଭ ହେଉଥିବା ସାଇକଲଗୁଡ଼ିକ ସେମାନଙ୍କ ଷ୍ଟକିଂ, ହାର୍ଭେଷ୍ଟ ଓ ଫଳାଫଳ ସହିତ ଦେଖାଯିବ।',
+  listErrorTitle: 'ସାଇକଲ ଇତିହାସ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
+  status_active: 'ଚାଲୁ',
+  status_completed: 'ସମାପ୍ତ',
+  status_cancelled: 'ବାତିଲ',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: 'ଏହି ସାଇକଲ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ',
+  sectionPnl: 'ଲାଭ ଓ କ୍ଷତି',
+  pnlRevenue: 'ଆୟ',
+  pnlCost: 'ଖର୍ଚ୍ଚ',
+  pnlProfit: 'ଲାଭ',
+  pnlBiomass: 'ହାର୍ଭେଷ୍ଟ',
+  pnlProvisional: 'ଅସ୍ଥାୟୀ — ଏହି ସାଇକଲର ହାର୍ଭେଷ୍ଟ ଏପର୍ଯ୍ୟନ୍ତ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇନାହିଁ।',
+  editTitle: 'ସାଇକଲ ସମ୍ପାଦନ',
+  editConfirmTitle: 'ଏହି ପରିବର୍ତ୍ତନ ସେଭ୍ କରିବେ କି?',
+  editConfirmMessage: 'ଆପଣ {{fields}} ବଦଳାଉଛନ୍ତି। ଏଥିରେ ସାଇକଲର ତାରିଖ ବଦଳିବ ଏବଂ ଆଲର୍ଟଗୁଡ଼ିକ ଯେଉଁ ଲକ୍ଷ୍ୟ ସହ ତୁଳନା ହୁଏ ତାହା ମଧ୍ୟ ବଦଳିବ।',
+  editField_stockingDate: 'ଷ୍ଟକିଂ ତାରିଖ',
+  editField_stockingCount: 'ଷ୍ଟକିଂ ସଂଖ୍ୟା',
+  editField_speciesType: 'ପ୍ରଜାତି',
+  editField_seedType: 'ବିହନ ପ୍ରକାର',
+  errorEditCycle: 'ସାଇକଲ ସେଭ୍ ହୋଇପାରିଲା ନାହିଁ',
 };
 export default cycles;

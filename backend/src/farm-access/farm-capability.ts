@@ -55,9 +55,18 @@ export const OVERRIDABLE_CAPABILITIES: readonly FarmCapability[] = [
   'VIEW_FINANCIALS',
   'MANAGE_INVENTORY',
   'VIEW_INVENTORY',
-  'MANAGE_WORKERS',
   'WRITE_MANAGEMENT',
 ];
+
+/**
+ * MANAGE_WORKERS is deliberately NOT overridable. Every action behind it
+ * (`addMember`, `removeMember`, `setPondScope`, invite `create`) re-checks
+ * `canAssignRole`/`canManageMember`, which answer by bare role and only ever
+ * say yes to owner/manager. Granting it therefore bought a worker nothing but
+ * confusing 403s — and on `invites/rotate` it bought them a destructive half
+ * call: the revoke-all landed, the mint failed. Make the grid honest instead
+ * of teaching two halves of member management to disagree.
+ */
 
 /**
  * READ is what membership MEANS — a member who cannot read is not a member,

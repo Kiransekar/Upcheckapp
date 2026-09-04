@@ -3,11 +3,12 @@ const inventory = {
   title: 'ଇନ୍‌ଭେଣ୍ଟୋରି',
   errorTitle: 'ଇନ୍‌ଭେଣ୍ଟୋରି ଲୋଡ ହୋଇ ପାରିଲା ନାହିଁ',
 
-  // Category filter tabs
+  // Category filter tabs — the same five the backend validates
   catAll: 'ସବୁ',
   catFeed: 'ଖାଦ୍ୟ',
   catChemicals: 'ରାସାୟନିକ',
   catEquipment: 'ଯନ୍ତ୍ରପାତି',
+  catMedicine: 'ଔଷଧ',
   catOther: 'ଅନ୍ୟ',
 
   // Stock status badges
@@ -17,14 +18,51 @@ const inventory = {
 
   // Item footer
   minLabel: 'ସର୍ବନିମ୍ନ:',
+  lowStockCount: '{{count}}ଟି ଆଇଟମର ଷ୍ଟକ କମ',
+  farmFallback: 'ଫାର୍ମ',
 
   // Empty state
   emptyTitle: 'ଇନ୍‌ଭେଣ୍ଟୋରି ଆଇଟମ ନାହିଁ',
   emptySubtitle: 'ଆପଣଙ୍କ ଖାଦ୍ୟ, ରାସାୟନିକ ଓ ଯନ୍ତ୍ରପାତି ଷ୍ଟକ ଟ୍ରାକ ଆରମ୍ଭ କରନ୍ତୁ।',
 
-  // Add-item alert (coming soon)
+  // ── InventoryFormScreen (create AND edit) ───────────────────────────────────
   addItem: 'ଆଇଟମ ଯୋଡ଼ନ୍ତୁ',
-  addItemComingSoon: 'ଇନ୍‌ଭେଣ୍ଟୋରି ଆଇଟମ ତୈରି ସୁବିଧା ଶୀଘ୍ର ଆସୁଛି!',
+  editItem: 'ଆଇଟମ ସଂପାଦନ କରନ୍ତୁ',
+  fieldName: 'ଆଇଟମର ନାମ',
+  namePlaceholder: 'ଯେପରି ଷ୍ଟାର୍ଟର ଖାଦ୍ୟ',
+  fieldCategory: 'ବର୍ଗ',
+  fieldIcon: 'ଚିହ୍ନ',
+  fieldQuantity: 'ପରିମାଣ',
+  fieldUnit: 'ୟୁନିଟ',
+  unitPlaceholder: 'ୟୁନିଟ ବାଛନ୍ତୁ',
+  fieldReorderLevel: 'ପୁନଃ ଅର୍ଡର ସ୍ତର',
+  reorderHint: 'ଷ୍ଟକ ଏହି ସ୍ତରକୁ ଆସିଲେ ମୋତେ ସତର୍କ କରନ୍ତୁ',
+  fieldUnitPrice: 'ୟୁନିଟ ମୂଲ୍ୟ (₹)',
+  fieldSupplier: 'ଯୋଗାଣକାରୀ',
+  supplierPlaceholder: 'ଐଚ୍ଛିକ',
+  notesPlaceholder: 'ଏହି ଆଇଟମ ବିଷୟରେ ମନେ ରଖିବା ଯୋଗ୍ୟ କିଛି',
+  addExpiry: 'ମିଆଦ ଶେଷ ତାରିଖ ଯୋଡ଼ନ୍ତୁ',
+  clearExpiry: 'ମିଆଦ ଶେଷ ତାରିଖ ହଟାନ୍ତୁ',
+  nameRequired: 'ଆଇଟମର ନାମ ଆବଶ୍ୟକ।',
+  noFarmSelected: 'ଇନ୍‌ଭେଣ୍ଟୋରି ଯୋଡ଼ିବା ପୂର୍ବରୁ ଏକ ଫାର୍ମ ବାଛନ୍ତୁ।',
+  negativeNotAllowed: '{{field}} ଋଣାତ୍ମକ ହୋଇପାରିବ ନାହିଁ।',
+  saveFailed: 'ଆଇଟମ ସେଭ କରିବା ବିଫଳ।',
+  noPermission: 'ଏହି ଫାର୍ମର ଇନ୍‌ଭେଣ୍ଟୋରି ବଦଳାଇବାର ଅନୁମତି ଆପଣଙ୍କର ନାହିଁ।',
+
+  // Icon picker
+  pickIcon: 'ଏକ ଚିହ୍ନ ବାଛନ୍ତୁ',
+  searchIcons: 'ଚିହ୍ନ ଖୋଜନ୍ତୁ',
+  noIconsMatch: 'ଏହି ଖୋଜ ସହ କୌଣସି ଚିହ୍ନ ମେଳ ଖାଏ ନାହିଁ।',
+  iconFromCategory: 'ବର୍ଗ ଅନୁଯାୟୀ',
+  clearIcon: 'ଚିହ୍ନ ହଟାନ୍ତୁ',
+  iconGroupFeed: 'ଖାଦ୍ୟ',
+  iconGroupChemicals: 'ରାସାୟନିକ',
+  iconGroupMedicine: 'ଔଷଧ',
+  iconGroupEquipment: 'ଯନ୍ତ୍ରପାତି',
+  iconGroupTools: 'ଉପକରଣ',
+  iconGroupPackaging: 'ପ୍ୟାକିଂ',
+  iconGroupSafety: 'ସୁରକ୍ଷା',
+  iconGroupMisc: 'ଅନ୍ୟ',
 
   // ── InventoryDetailScreen ───────────────────────────────────────────────────
   // Header fallback
@@ -41,7 +79,8 @@ const inventory = {
   // Info card labels
   labelCategory: 'ବର୍ଗ',
   labelUnit: 'ୟୁନିଟ',
-  labelLastPurchase: 'ଶେଷ କ୍ରୟ',
+  labelExpiryDate: 'ମିଆଦ ଶେଷ ତାରିଖ',
+  labelLastAdjustment: 'ଶେଷ ସଂଶୋଧନ',
   labelNotes: 'ଟୀକା',
 
   // Adjust stock
@@ -49,13 +88,19 @@ const inventory = {
   adjustStockChoose: 'ଏକ ବିକଳ୍ପ ବାଛନ୍ତୁ',
   addStock: 'ଷ୍ଟକ ଯୋଡ଼ନ୍ତୁ',
   reduceStock: 'ଷ୍ଟକ କମ',
-  comingSoon: 'ଶୀଘ୍ର ଆସୁଛି',
-  stockAdjustComingSoon: 'ଷ୍ଟକ ସଂଶୋଧନ ସୁବିଧା ଶୀଘ୍ର ଆସୁଛି!',
-  editComingSoon: 'ଇନ୍‌ଭେଣ୍ଟୋରି ଆଇଟମ ସଂପାଦନ ସୁବିଧା ଶୀଘ୍ର ଆସୁଛି!',
+  reasonPlaceholder: 'କାରଣ (ଐଚ୍ଛିକ)',
+  validAmountRequired: '0 ଠାରୁ ଅଧିକ ଏକ ବୈଧ ପରିମାଣ ଦିଅନ୍ତୁ।',
+  adjustFailed: 'ଷ୍ଟକ ସଂଶୋଧନ ବିଫଳ।',
 
-  // Stock history section
-  stockHistory: 'ଷ୍ଟକ ଇତିହାସ',
-  stockHistoryComingSoon: 'ଷ୍ଟକ ସଂଶୋଧନ ଇତିହାସ ଶୀଘ୍ର ଆସୁଛି',
+  // Delete
+  deleteItem: 'ଆଇଟମ ଡିଲିଟ କରନ୍ତୁ',
+  deleteConfirm: '"{{name}}" ଡିଲିଟ କରିବେ? ଏହା ଫେରାଇ ହେବ ନାହିଁ।',
+  deleteFailed: 'ଆଇଟମ ଡିଲିଟ ବିଫଳ।',
+
+  // ── Feed log → stock link ───────────────────────────────────────────────────
+  feedFromStock: 'ଷ୍ଟକରୁ ନିଅନ୍ତୁ',
+  remainingStock: '{{quantity}} {{unit}} ବଳକା',
+  selectStockPlaceholder: 'ଷ୍ଟକରୁ କାଟନ୍ତୁ ନାହିଁ',
 
   // ── ShopScreen ──────────────────────────────────────────────────────────────
   shopTitle: 'ଦୋକାନ',

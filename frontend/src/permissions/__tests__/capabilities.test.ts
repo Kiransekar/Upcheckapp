@@ -54,7 +54,7 @@ describe('roleCan', () => {
     it('exposes exactly the capabilities the grid may hand out', () => {
         expect([...OVERRIDABLE_CAPABILITIES].sort()).toEqual([
             'MANAGE_INVENTORY',
-            'MANAGE_WORKERS',
+
             'RECORD_HARVEST',
             'VIEW_FINANCIALS',
             'VIEW_INVENTORY',

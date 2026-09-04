@@ -7,7 +7,9 @@ import { farmMembersApi } from './farmMembers';
 import type { AttendanceRecord } from './attendance';
 import type { LeaveRequest } from './leaveRequests';
 import type { Task } from './tasks';
-import type { FarmMember } from './farmMembers';
+import type { FarmMember, FarmRole } from './farmMembers';
+import { ROLE_RANK } from '../permissions/capabilities';
+import { personName } from '../utils/personName';
 
 /**
  * The Team tab in ONE request.
@@ -33,6 +35,15 @@ export interface TeamOverview {
     pendingLeave: LeaveRequest[];
     tasks: Task[];
     members: FarmMember[];
+    /**
+     * Memberships waiting to be let in, summed over the farms in scope.
+     * Owner/manager-only by construction — the backend's per-farm call needs
+     * MANAGE_WORKERS and settles to 0 for a worker rather than erroring.
+     * Optional: an older backend does not send it (see the fallback below).
+     */
+    pendingJoins?: number;
+    /** The CALLER's own still-pending leave requests. A count, not rows. */
+    myPendingLeave?: number;
 }
 
 /**
@@ -103,5 +114,143 @@ async function legacyFanOut(scope: string): Promise<TeamOverview> {
         pendingLeave: per.flatMap((p) => p.leave),
         tasks: per.flatMap((p) => p.tasks),
         members: per.flatMap((p) => p.members),
+        // Deliberately absent: the badge counts need the server's own scoping,
+        // and a backend this old has no way to give it. No badge beats a wrong
+        // one, and this path only exists for the deploy window.
     };
+}
+
+/**
+ * The number on the Team tab.
+ *
+ * Owner/manager: the queue they are expected to clear — joins waiting to be let
+ * in plus leave waiting on a decision. Everyone else: their OWN leave still
+ * waiting on someone. Two different questions, one number, because they are
+ * never both true for the same person.
+ */
+/**
+ * Who may approve or decline a join request or a leave request.
+ *
+ * The BARE role, deliberately — not `roleCan('MANAGE_WORKERS')`. Phase 1 took
+ * MANAGE_WORKERS out of the grantable set precisely because every
+ * member-management endpoint re-checks owner/manager on its own, so an
+ * override could only ever produce a button that 403s.
+ */
+export const canDecideOnTeam = (role: FarmRole | null | undefined): boolean =>
+    role === 'owner' || role === 'manager';
+
+export const teamBadgeCount = (
+    overview: TeamOverview | undefined,
+    canApprove: boolean,
+): number => {
+    if (!overview) return 0;
+    return canApprove
+        ? (overview.pendingJoins ?? 0) + (overview.pendingLeave?.length ?? 0)
+        : (overview.myPendingLeave ?? 0);
+};
+
+// ── Roster ────────────────────────────────────────────────────────
+// The cross-farm team list, derived from the SAME overview read the tab
+// already has. Pure so the grouping is testable without a renderer.
+
+/** Where someone is on their shift today. */
+export type AttendanceState = 'in' | 'out' | 'absent';
+
+export interface RosterEntry {
+    /** Membership id — unique across farms, so it keys the list directly. */
+    key: string;
+    farmId: string;
+    userId: string;
+    name: string;
+    role: FarmRole;
+    /** Membership is waiting to be approved; they hold nothing yet. */
+    pendingJoin: boolean;
+    attendance: AttendanceState;
+    /** Their open leave request on this farm, when the caller may see it. */
+    leave: LeaveRequest | null;
+    isSelf: boolean;
+}
+
+export interface RosterSection {
+    farmId: string;
+    farmName: string;
+    data: RosterEntry[];
+}
+
+const sameLocalDay = (iso: string, ref: Date): boolean => {
+    const d = new Date(iso);
+    return (
+        d.getFullYear() === ref.getFullYear() &&
+        d.getMonth() === ref.getMonth() &&
+        d.getDate() === ref.getDate()
+    );
+};
+
+/**
+ * `allAttendance` is the farm's whole history (the endpoint takes no date when
+ * called from the overview), so today has to be picked out here. An open record
+ * beats a closed one: someone who checked out for lunch and back in is IN.
+ */
+export const attendanceStateFor = (
+    records: AttendanceRecord[],
+    userId: string,
+    farmId: string,
+    now: Date = new Date(),
+): AttendanceState => {
+    const today = records.filter(
+        (r) => r.userId === userId && r.farmId === farmId && sameLocalDay(r.checkInAt, now),
+    );
+    if (today.length === 0) return 'absent';
+    return today.some((r) => !r.checkOutAt) ? 'in' : 'out';
+};
+
+/** Pending joins first — they are the only rows with an action on them. */
+const compareEntries = (a: RosterEntry, b: RosterEntry): number =>
+    Number(b.pendingJoin) - Number(a.pendingJoin) ||
+    ROLE_RANK[b.role] - ROLE_RANK[a.role] ||
+    a.name.localeCompare(b.name);
+
+export function buildRoster(
+    overview: TeamOverview | undefined,
+    opts: { selfUserId?: string; unknownLabel?: string; now?: Date } = {},
+): RosterSection[] {
+    if (!overview) return [];
+    const { selfUserId, unknownLabel = 'Unknown', now = new Date() } = opts;
+    const attendance = overview.allAttendance ?? [];
+    const leave = overview.pendingLeave ?? [];
+
+    const byFarm = new Map<string, RosterEntry[]>();
+    for (const m of overview.members ?? []) {
+        const isSelf = !!selfUserId && m.userId === selfUserId;
+        let state = attendanceStateFor(attendance, m.userId, m.farmId, now);
+        // A worker cannot read the farm-wide attendance list (WRITE_MANAGEMENT),
+        // so their own row would say "not in" while they are standing on the
+        // farm. `myAttendance` is the one record they CAN always see.
+        if (isSelf && state === 'absent' && overview.myAttendance?.farmId === m.farmId) {
+            state = 'in';
+        }
+        const entry: RosterEntry = {
+            key: m.id,
+            farmId: m.farmId,
+            userId: m.userId,
+            name: personName(m.user, unknownLabel),
+            role: m.role,
+            pendingJoin: m.status === 'pending',
+            attendance: state,
+            leave: leave.find((l) => l.userId === m.userId && l.farmId === m.farmId) ?? null,
+            isSelf,
+        };
+        const list = byFarm.get(m.farmId);
+        if (list) list.push(entry);
+        else byFarm.set(m.farmId, [entry]);
+    }
+
+    const farmName = (id: string) =>
+        overview.farms?.find((f: any) => f.id === id)?.name ?? '';
+
+    return Array.from(byFarm, ([farmId, data]) => ({
+        farmId,
+        farmName: farmName(farmId),
+        data: data.sort(compareEntries),
+    })).sort((a, b) => a.farmName.localeCompare(b.farmName));
 }

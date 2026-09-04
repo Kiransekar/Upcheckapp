@@ -11,7 +11,7 @@
  * now labelled tiles. They were the most-missed controls on this screen.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -25,9 +25,17 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
 import { SessionHint } from '../../components/ui/SessionHint';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { Button } from '../../components/ui/Button';
+import { FirstUseHint } from '../../components/ui/FirstUseHint';
+import { confirm } from '../../utils/confirm';
+import { apiErrorMessage } from '../../api/errors';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
-import { farmsApi, type Farm } from '../../api/farms';
+import { farmsApi, isHistoryConflict, type Farm } from '../../api/farms';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -70,6 +78,11 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const perms = usePermissions(farmId);
 
     const [expanded, setExpanded] = useState(false);
+    /** Archived ponds are a separate, opt-in read — off by default. */
+    const [showArchivedPonds, setShowArchivedPonds] = useState(false);
+    const [busy, setBusy] = useState(false);
+    /** Set when the server refused a delete because the farm holds records. */
+    const [deleteBlocked, setDeleteBlocked] = useState(false);
 
     // #37: Home's summary reads the active farm, so opening a specific farm has
     // to sync it — otherwise a multi-farm owner returns to Home still seeing the
@@ -110,6 +123,21 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
             };
         },
         enabled: !!farmId,
+    });
+
+    /**
+     * The archived ponds of this farm. A second, opt-in request rather than a
+     * flag on the main one: the main read is disk-persisted and feeds every
+     * roll-up on the screen, and archived ponds must never reach those numbers.
+     */
+    const archivedQuery = useAppQuery({
+        queryKey: [...qk.farm(farmId), 'archived-ponds'],
+        enabled: !!farmId && showArchivedPonds,
+        queryFn: async () => {
+            const result: any = (await pondsApi.getAll(farmId, { take: 100, includeArchived: true })).data;
+            const list = (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[];
+            return list.filter((p) => p.status === 'archived');
+        },
     });
 
     const farm = query.data?.farm ?? null;
@@ -170,6 +198,103 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const visible = expanded ? rows : rows.slice(0, VISIBLE_PONDS);
     const hidden = rows.length - visible.length;
 
+    /**
+     * Does this farm hold cycle records? Read off the snapshot this screen has
+     * already fetched, so it costs no request.
+     *
+     * ponytail: deliberate simplification. The spec's "first save locks
+     * deletion" wanted the hint on the farmer's FIRST write, but `saveRecord`
+     * (src/sync/recordSync.ts) carries no farmId and is shared by every log
+     * screen, so hooking it is a wide, high-risk change for a one-time hint.
+     * This sees only a CURRENT cycle — a farm whose only cycles are closed
+     * reads as history-free here and the farmer learns the rule from the delete
+     * refusal instead. Upgrade path: give `saveRecord` the farmId and set the
+     * flag on the first write.
+     */
+    const hasCycleHistory = useMemo(
+        () => contexts.some((c) => c.cropId != null) || ponds.some((p) => !!p.activeCycleId),
+        [contexts, ponds],
+    );
+
+    const archived = !!farm?.archivedAt;
+
+    const runLifecycle = async (action: () => Promise<unknown>, fallbackKey: string) => {
+        setBusy(true);
+        try {
+            await action();
+            await query.refetch();
+        } catch (e) {
+            Alert.alert(t('common.error'), apiErrorMessage(e, t(fallbackKey)));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const onArchive = async () => {
+        const ok = await confirm({
+            title: t('farms.archiveConfirmTitle'),
+            message: t('farms.archiveConfirmBody'),
+            confirmLabel: t('farms.archiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        setDeleteBlocked(false);
+        await runLifecycle(() => farmsApi.archive(farmId), 'farms.errorArchiveFarm');
+    };
+
+    const onUnarchive = async () => {
+        const ok = await confirm({
+            title: t('farms.unarchiveConfirmTitle'),
+            message: t('farms.unarchiveConfirmBody'),
+            confirmLabel: t('farms.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        await runLifecycle(() => farmsApi.unarchive(farmId), 'farms.errorUnarchiveFarm');
+    };
+
+    /**
+     * Bring one archived pond back. Archiving a pond was a one-way door until
+     * Phase 2 added `PATCH /ponds/:id/unarchive` — the list below could show
+     * them but offered no way out.
+     */
+    const onUnarchivePond = async (pondId: string) => {
+        const ok = await confirm({
+            title: t('ponds.unarchiveConfirmTitle'),
+            message: t('ponds.unarchiveConfirmBody'),
+            confirmLabel: t('ponds.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        await runLifecycle(async () => {
+            await pondsApi.unarchive(pondId);
+            await archivedQuery.refetch();
+        }, 'ponds.errorUnarchivePond');
+    };
+
+    const onDelete = async () => {
+        const ok = await confirm({
+            title: t('farms.deleteConfirmTitle'),
+            message: t('farms.deleteConfirmBody'),
+            confirmLabel: t('farms.deleteConfirmCta'),
+            cancelLabel: t('common.cancel'),
+            destructive: true,
+        });
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await farmsApi.delete(farmId);
+            navigation.goBack();
+        } catch (e) {
+            // A refusal here is the farm's own history talking, not a fault.
+            // The farmer is offered the action that DOES work, right here.
+            if (isHistoryConflict(e)) setDeleteBlocked(true);
+            else Alert.alert(t('common.error'), apiErrorMessage(e, t('farms.errorDeleteFarm')));
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const header = (
         <ScreenHeader
             eyebrow={eyebrow || null}
@@ -223,6 +348,18 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     />
                 }
             >
+                {archived && (
+                    <View style={styles.bannerWrap}>
+                        <AlertBanner type="info" title={t('farms.archivedNoticeTitle')} message={t('farms.archivedNoticeBody')} />
+                    </View>
+                )}
+
+                {perms.canOwnerActions && hasCycleHistory && !archived && (
+                    <View style={styles.bannerWrap}>
+                        <FirstUseHint flagKey={`farm-delete-lock:${farmId}`} message={t('farms.deleteLockHint')} />
+                    </View>
+                )}
+
                 <StatRow
                     size="lg"
                     divider
@@ -238,6 +375,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.tiles}>
                     <Tile icon="checklist" label={t('farms.tasks')} onPress={() => navigation.navigate('TaskList', { farmId, farmName })} />
                     <Tile icon="groups" label={t('farms.members')} onPress={() => navigation.navigate('FarmMembers', { farmId, farmName })} />
+                    {/* Every cycle across every pond on this farm — the season
+                        view the per-pond dashboards cannot give. */}
+                    <Tile icon="history" label={t('cycles.listTitle')} onPress={() => navigation.navigate('CycleList', { farmId, farmName })} />
                     {perms.canViewFinancials && (
                         <Tile icon="currency_rupee" label={t('farms.money')} onPress={() => navigation.navigate('Transactions', { farmId, farmName })} />
                     )}
@@ -319,6 +459,84 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                             </TouchableOpacity>
                         )}
                     </>
+                )}
+
+                {/* Archived ponds — off by default, so the table above stays
+                    the working farm and nothing else. */}
+                <View style={styles.section}>
+                    <ChipGroup
+                        options={[{ value: 'archived', label: t('farms.includeArchivedPonds'), icon: 'archive-outline' }]}
+                        value={showArchivedPonds ? ['archived'] : []}
+                        multiple
+                        onChange={(v: string[]) => setShowArchivedPonds(v.includes('archived'))}
+                    />
+                    {showArchivedPonds && (
+                        archivedQuery.isPending ? (
+                            <SkeletonList count={2} />
+                        ) : archivedQuery.isError ? (
+                            <ErrorState
+                                title={t('farms.errorPondsTitle')}
+                                error={archivedQuery.error}
+                                onRetry={() => archivedQuery.refetch()}
+                            />
+                        ) : !archivedQuery.data?.length ? (
+                            <Text style={styles.mutedNote}>{t('farms.archivedPondsEmpty')}</Text>
+                        ) : (
+                            <>
+                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedQuery.data.length} />
+                                {archivedQuery.data.map((p) => (
+                                    <View key={p.id} style={styles.archivedRow}>
+                                        <Text style={styles.archivedName} numberOfLines={1}>
+                                            {pondLabel(p)}
+                                        </Text>
+                                        <StatusBadge status="idle" label={t('farms.archivedBadge')} />
+                                        {perms.canManageOperations && (
+                                            <TouchableOpacity
+                                                onPress={() => onUnarchivePond(p.id)}
+                                                disabled={busy}
+                                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={t('ponds.unarchivePond')}
+                                            >
+                                                <Text style={styles.unarchiveLink}>{t('ponds.unarchivePond')}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                ))}
+                            </>
+                        )
+                    )}
+                </View>
+
+                {/* Farm lifecycle. Owner only — the same capability the server
+                    guards these three routes with. */}
+                {perms.canOwnerActions && (
+                    <View style={styles.section}>
+                        <SectionHeader label={t('farms.manageFarm')} />
+                        {deleteBlocked && (
+                            <AlertBanner
+                                type="warning"
+                                title={t('farms.deleteBlockedTitle')}
+                                message={t('farms.deleteBlockedBody')}
+                                style={{ marginBottom: theme.spacing[3] }}
+                            />
+                        )}
+                        {archived ? (
+                            <Button title={t('farms.unarchiveFarm')} variant="outlined" loading={busy} onPress={onUnarchive} />
+                        ) : (
+                            <>
+                                <Button title={t('farms.archiveFarm')} variant="outlined" loading={busy} onPress={onArchive} />
+                                <Button
+                                    title={t('farms.deleteFarm')}
+                                    variant="text"
+                                    disabled={busy}
+                                    onPress={onDelete}
+                                    textStyle={{ color: theme.roles.light.dangerText }}
+                                    style={{ marginTop: theme.spacing[2] }}
+                                />
+                            </>
+                        )}
+                    </View>
                 )}
             </ScrollView>
         </ScreenWrapper>
@@ -420,6 +638,35 @@ const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
+    bannerWrap: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
+    section: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[5] },
+    mutedNote: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        paddingBottom: theme.spacing[2],
+    },
+    unarchiveLink: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        paddingVertical: theme.spacing[2],
+        paddingLeft: theme.spacing[3],
+    },
+    archivedRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.surfaceVariant,
+        paddingVertical: theme.spacing[3],
+        minHeight: 44,
+    },
+    archivedName: {
+        ...theme.typeScale.labelLarge,
+        fontSize: 15,
+        flex: 1,
+        minWidth: 0,
+        color: theme.roles.light.textTertiary,
+    },
     tiles: {
         flexDirection: 'row',
         gap: theme.spacing[1.5],

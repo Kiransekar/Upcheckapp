@@ -1,6 +1,10 @@
 // "Pond 1" tells a farmer nothing once they work two farms and have one in
 // each. When the ponds span more than one farm, name the farm under the chip.
-jest.mock('../../../api/ponds', () => ({ pondsApi: { getMine: jest.fn() } }));
+//
+// Since §4.8 the chip row IS the shared PondPicker (with `fetchContext={false}`),
+// so the caption is the picker's meta line and the full farm-grouped list is one
+// "Change pond" tap away. Same promise, one component instead of two.
+jest.mock('../../../api/ponds', () => ({ pondsApi: { getMine: jest.fn(), getById: jest.fn() } }));
 jest.mock('../../../api/farms', () => ({ farmsApi: { getAll: jest.fn() } }));
 jest.mock('@react-navigation/native', () => ({
     // `[effect]`, not `[]` — with an empty dep array only the callback captured
@@ -12,7 +16,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QuickLogScreen } from '../QuickLogScreen';
 import { pondsApi } from '../../../api/ponds';
@@ -49,10 +53,15 @@ describe('QuickLogScreen — farm caption on pond chips', () => {
             ],
         });
 
-        const { getByText } = renderScreen();
+        const { getByText, getAllByText } = renderScreen();
 
+        // The chosen pond's farm is named right under it…
         await waitFor(() => expect(getByText('Delta Farm')).toBeTruthy());
-        expect(getByText('Coastal Farm')).toBeTruthy();
+
+        // …and opening the picker groups the rest by farm too.
+        fireEvent.press(getByText('Change'));
+        await waitFor(() => expect(getByText('Coastal Farm')).toBeTruthy());
+        expect(getAllByText('Delta Farm').length).toBeGreaterThan(0);
     });
 
     it('does not fetch farms when every pond is on the same farm', async () => {

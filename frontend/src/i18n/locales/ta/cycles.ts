@@ -53,5 +53,36 @@ const cycles = {
   fieldTargetDays: 'இலக்கு நாட்கள்',
   fieldTargetSize: 'இலக்கு அளவு (எண்ணிக்கை)',
   fieldTargetSr: 'இலக்கு உயிர்வாழ்வு (%)',
+
+  // CycleListScreen
+  listTitle: 'சுழற்சி வரலாறு',
+  listStocked: 'குஞ்சு விடல்',
+  listHarvested: 'அறுவடை',
+  listRevenue: 'வருவாய்',
+  listKg: '{{amount}} கிலோ',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'இதுவரை சுழற்சி இல்லை',
+  listEmptyText: 'இங்கு தொடங்கும் சுழற்சிகள் அவற்றின் குஞ்சு விடல், அறுவடை மற்றும் முடிவுடன் பட்டியலிடப்படும்.',
+  listErrorTitle: 'சுழற்சி வரலாற்றை ஏற்ற முடியவில்லை',
+  status_active: 'இயங்குகிறது',
+  status_completed: 'முடிந்தது',
+  status_cancelled: 'ரத்து',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: 'இந்தச் சுழற்சியை ஏற்ற முடியவில்லை',
+  sectionPnl: 'லாபம் & நஷ்டம்',
+  pnlRevenue: 'வருவாய்',
+  pnlCost: 'செலவு',
+  pnlProfit: 'லாபம்',
+  pnlBiomass: 'அறுவடை',
+  pnlProvisional: 'தற்காலிகம் — இந்தச் சுழற்சி இன்னும் முழுமையாக அறுவடை செய்யப்படவில்லை.',
+  editTitle: 'சுழற்சியைத் திருத்து',
+  editConfirmTitle: 'இந்த மாற்றங்களைச் சேமிக்கவா?',
+  editConfirmMessage: 'நீங்கள் {{fields}} மாற்றுகிறீர்கள். இது சுழற்சியின் தேதியையும், எச்சரிக்கைகள் ஒப்பிடப்படும் இலக்குகளையும் மாற்றும்.',
+  editField_stockingDate: 'குஞ்சு விடல் தேதி',
+  editField_stockingCount: 'குஞ்சு எண்ணிக்கை',
+  editField_speciesType: 'இனம்',
+  editField_seedType: 'விதை வகை',
+  errorEditCycle: 'சுழற்சியைச் சேமிக்க முடியவில்லை',
 };
 export default cycles;

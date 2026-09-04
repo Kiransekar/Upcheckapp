@@ -53,5 +53,36 @@ const cycles = {
   fieldTargetDays: 'लक्ष्य दिन',
   fieldTargetSize: 'लक्ष्य आकार (काउंट)',
   fieldTargetSr: 'लक्ष्य उत्तरजीविता (%)',
+
+  // CycleListScreen
+  listTitle: 'साइकिल इतिहास',
+  listStocked: 'स्टॉकिंग',
+  listHarvested: 'हार्वेस्ट',
+  listRevenue: 'आय',
+  listKg: '{{amount}} किग्रा',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'अभी कोई साइकिल नहीं',
+  listEmptyText: 'यहाँ शुरू की गई साइकिलें अपनी स्टॉकिंग, हार्वेस्ट और नतीजे के साथ दिखेंगी।',
+  listErrorTitle: 'साइकिल इतिहास लोड नहीं हो सका',
+  status_active: 'चालू',
+  status_completed: 'पूरा',
+  status_cancelled: 'रद्द',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: 'यह साइकिल लोड नहीं हो सकी',
+  sectionPnl: 'लाभ और हानि',
+  pnlRevenue: 'आय',
+  pnlCost: 'लागत',
+  pnlProfit: 'लाभ',
+  pnlBiomass: 'हार्वेस्ट',
+  pnlProvisional: 'अस्थायी — यह साइकिल अभी पूरी तरह हार्वेस्ट नहीं हुई है।',
+  editTitle: 'साइकिल संपादित करें',
+  editConfirmTitle: 'ये बदलाव सहेजें?',
+  editConfirmMessage: 'आप {{fields}} बदल रहे हैं। इससे साइकिल की तारीख बदलेगी और अलर्ट जिन लक्ष्यों पर आँके जाते हैं वे भी बदलेंगे।',
+  editField_stockingDate: 'स्टॉकिंग तारीख',
+  editField_stockingCount: 'स्टॉकिंग संख्या',
+  editField_speciesType: 'प्रजाति',
+  editField_seedType: 'बीज प्रकार',
+  errorEditCycle: 'साइकिल सहेजी नहीं जा सकी',
 };
 export default cycles;

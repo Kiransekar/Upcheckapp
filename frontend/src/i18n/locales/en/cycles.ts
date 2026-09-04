@@ -55,5 +55,36 @@ const cycles = {
   fieldTargetDays: 'Target days',
   fieldTargetSize: 'Target size (count)',
   fieldTargetSr: 'Target survival (%)',
+
+  // CycleListScreen
+  listTitle: 'Cycle history',
+  listStocked: 'Stocked',
+  listHarvested: 'Harvested',
+  listRevenue: 'Revenue',
+  listKg: '{{amount}} kg',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'No cycles yet',
+  listEmptyText: 'Cycles you start here will be listed with their stocking, harvest and result.',
+  listErrorTitle: "Couldn't load cycle history",
+  status_active: 'Active',
+  status_completed: 'Completed',
+  status_cancelled: 'Cancelled',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: "Couldn't load this cycle",
+  sectionPnl: 'Profit & loss',
+  pnlRevenue: 'Revenue',
+  pnlCost: 'Cost',
+  pnlProfit: 'Profit',
+  pnlBiomass: 'Harvested',
+  pnlProvisional: 'Provisional — this cycle is not fully harvested yet.',
+  editTitle: 'Edit cycle',
+  editConfirmTitle: 'Save these changes?',
+  editConfirmMessage: 'You are changing {{fields}}. This re-dates the cycle and changes the targets the alerts are judged against.',
+  editField_stockingDate: 'stocking date',
+  editField_stockingCount: 'stocking count',
+  editField_speciesType: 'species',
+  editField_seedType: 'seed type',
+  errorEditCycle: 'Failed to save the cycle',
 };
 export default cycles;

@@ -9,9 +9,27 @@ import { Repository, In } from 'typeorm';
 import { InventoryItem } from './inventory-item.entity';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
+import { LOW_STOCK_SQL, isLowStock } from './inventory.constants';
 
 import { AlertsService } from '../alerts/alerts.service';
-import { FarmsService } from '../farms/farms.service';
+import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmCapability, roleSatisfies } from '../farm-access/farm-capability';
+import { FarmMember } from '../farm-access/farm-member.entity';
+import { Farm } from '../farms/farm.entity';
+
+/** Options for a stock adjustment. */
+export interface AdjustStockOptions {
+  /** Persisted to `last_adjustment_reason`. */
+  reason?: string;
+  /**
+   * Capability the caller must hold. The inventory route passes
+   * MANAGE_INVENTORY; the feed-log deduction passes WRITE_OPERATIONAL, because
+   * a worker logging a feeding is not managing the catalogue.
+   */
+  capability?: FarmCapability;
+  /** Reject the adjustment unless the item belongs to this farm. */
+  expectedFarmId?: string;
+}
 
 @Injectable()
 export class InventoryService {
@@ -20,12 +38,18 @@ export class InventoryService {
   constructor(
     @InjectRepository(InventoryItem)
     private itemsRepository: Repository<InventoryItem>,
+    @InjectRepository(FarmMember)
+    private membersRepository: Repository<FarmMember>,
     private alertsService: AlertsService,
-    private farmsService: FarmsService,
+    private readonly farmAccess: FarmAccessService,
   ) {}
 
   async create(createDto: CreateInventoryItemDto, userId: string) {
-    await this.farmsService.verifyOwnership(createDto.farmId, userId);
+    await this.farmAccess.assertCanAccessFarm(
+      userId,
+      createDto.farmId,
+      'MANAGE_INVENTORY',
+    );
     const item = this.itemsRepository.create(createDto);
     return this.itemsRepository.save(item);
   }
@@ -39,12 +63,20 @@ export class InventoryService {
     if (category) where.category = category;
 
     if (farmId) {
-      // Workers may view inventory.
-      await this.farmsService.verifyAccess(farmId, userId, 'READ');
+      await this.farmAccess.assertCanAccessFarm(
+        userId,
+        farmId,
+        'VIEW_INVENTORY',
+      );
       where.farmId = farmId;
     } else {
-      const farms = await this.farmsService.findAll(userId);
-      const farmIds = farms.map((f) => f.id);
+      // D7: this used to list OWNED farms only, so every non-owner member got
+      // an empty inventory list. Scope it to the farms whose inventory the
+      // caller may actually read.
+      const farmIds = await this.farmAccess.getFarmIdsWithCapability(
+        userId,
+        'VIEW_INVENTORY',
+      );
       if (farmIds.length === 0) return [];
       where.farmId = In(farmIds);
     }
@@ -52,48 +84,47 @@ export class InventoryService {
     return this.itemsRepository.find({ where, order: { name: 'ASC' } });
   }
 
-  /**
-   * Load an item and assert the caller's access at the given capability.
-   * Defaults to OWNER_ONLY (catalog management); reads pass READ and the
-   * feed-driven stock adjustment passes WRITE_OPERATIONAL.
-   */
-  private async findOwned(
+  /** Load an item and assert the caller's access at the given capability. */
+  private async loadItem(
     id: string,
     userId: string,
-    capability: 'READ' | 'WRITE_OPERATIONAL' | 'OWNER_ONLY' = 'OWNER_ONLY',
-  ): Promise<InventoryItem> {
+    capability: FarmCapability,
+  ): Promise<{ item: InventoryItem; farm: Farm }> {
     const item = await this.itemsRepository.findOneBy({ id });
     if (!item) {
       throw new NotFoundException(`Inventory item with ID ${id} not found`);
     }
-    await this.farmsService.verifyAccess(item.farmId, userId, capability);
+    const farm = await this.farmAccess.assertCanAccessFarm(
+      userId,
+      item.farmId,
+      capability,
+    );
+    return { item, farm };
+  }
+
+  async findOne(id: string, userId: string) {
+    const { item } = await this.loadItem(id, userId, 'VIEW_INVENTORY');
     return item;
   }
 
-  findOne(id: string, userId: string) {
-    return this.findOwned(id, userId, 'READ');
-  }
-
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-    await this.findOwned(id, userId, 'OWNER_ONLY');
-    if (updateDto.farmId) {
-      await this.farmsService.verifyOwnership(updateDto.farmId, userId);
-    }
+    await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    // farmId is not on the DTO (D14) — an item cannot change farms.
     await this.itemsRepository.update(id, updateDto);
     return this.itemsRepository.findOneBy({ id });
   }
 
   async remove(id: string, userId: string) {
-    await this.findOwned(id, userId, 'OWNER_ONLY');
+    await this.loadItem(id, userId, 'MANAGE_INVENTORY');
     return this.itemsRepository.delete(id);
   }
 
   async getLowStock(farmId: string, userId: string): Promise<InventoryItem[]> {
-    await this.farmsService.verifyAccess(farmId, userId, 'READ');
+    await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_INVENTORY');
     return this.itemsRepository
       .createQueryBuilder('item')
       .where('item.farmId = :farmId', { farmId })
-      .andWhere('item.quantity <= item.reorderLevel')
+      .andWhere(LOW_STOCK_SQL)
       .orderBy('item.name', 'ASC')
       .getMany();
   }
@@ -102,13 +133,28 @@ export class InventoryService {
     return this.itemsRepository
       .createQueryBuilder('item')
       .where('item.farmId = :farmId', { farmId })
-      .andWhere('item.quantity <= item.reorderLevel')
+      .andWhere(LOW_STOCK_SQL)
       .getCount();
   }
 
-  async adjustStock(id: string, quantityChange: number, userId: string) {
-    // Workers consume feed stock when logging feeding — operational write.
-    const item = await this.findOwned(id, userId, 'WRITE_OPERATIONAL');
+  async adjustStock(
+    id: string,
+    quantityChange: number,
+    userId: string,
+    options: AdjustStockOptions = {},
+  ) {
+    const { item, farm } = await this.loadItem(
+      id,
+      userId,
+      options.capability ?? 'MANAGE_INVENTORY',
+    );
+
+    // A feed log on pond X must not be able to draw down another farm's stock.
+    if (options.expectedFarmId && item.farmId !== options.expectedFarmId) {
+      throw new BadRequestException(
+        'Inventory item belongs to a different farm',
+      );
+    }
 
     // Atomic SQL-level delta (not read-modify-write in JS) so concurrent
     // feed logs can't clobber each other's stock updates. The guard clause
@@ -123,7 +169,12 @@ export class InventoryService {
     const result = await this.itemsRepository
       .createQueryBuilder()
       .update(InventoryItem)
-      .set({ quantity: () => `quantity + (${quantityChange})` })
+      .set({
+        quantity: () => `quantity + (${quantityChange})`,
+        ...(options.reason !== undefined
+          ? { lastAdjustmentReason: options.reason }
+          : {}),
+      })
       .where('id = :id AND quantity + (:quantityChange) >= 0', {
         id,
         quantityChange,
@@ -141,31 +192,57 @@ export class InventoryService {
       id,
     })) as InventoryItem;
 
-    // Auto-raise a low-stock alert for the farm owner when crossing the threshold.
-    if (
-      savedItem.reorderLevel != null &&
-      savedItem.quantity <= savedItem.reorderLevel
-    ) {
-      try {
-        const farm = await this.farmsService.findOneInternal(savedItem.farmId);
-        if (farm) {
-          await this.alertsService.createAutoAlert(
-            farm.userId,
-            farm.id,
-            'inventory_low_stock',
-            'Low Stock Alert',
-            `${savedItem.name} is running low (${savedItem.quantity} ${savedItem.unit ?? ''}).`,
-            'warning',
-            { inventoryItemId: savedItem.id },
-          );
-        }
-      } catch (error: any) {
-        this.logger.error(
-          `Failed to create low stock alert: ${error?.message ?? error}`,
-        );
-      }
+    if (isLowStock(savedItem)) {
+      await this.raiseLowStockAlert(savedItem, farm);
     }
 
     return savedItem;
+  }
+
+  /**
+   * D10: the alert used to go to `farm.userId` alone, so the manager who does
+   * the reordering never heard about it. Everyone who may see the stock gets
+   * told it ran out.
+   */
+  private async raiseLowStockAlert(item: InventoryItem, farm: Farm) {
+    try {
+      const members = await this.membersRepository.find({
+        where: { farmId: farm.id, status: 'active' },
+      });
+      const recipients = new Set<string>([farm.userId]);
+      for (const m of members) {
+        // MANAGE_INVENTORY, not VIEW_INVENTORY: an alert is a call to reorder,
+        // so it goes to the people who can. VIEW_INVENTORY defaults to every
+        // member including viewers, who would get a notification about stock
+        // they are not allowed to touch.
+        if (
+          roleSatisfies(
+            m.role,
+            'MANAGE_INVENTORY',
+            m.capabilityOverrides ?? null,
+            farm.rolePolicy ?? null,
+          )
+        ) {
+          recipients.add(m.userId);
+        }
+      }
+
+      const message = `${item.name} is running low (${item.quantity} ${item.unit ?? ''}).`;
+      for (const userId of recipients) {
+        await this.alertsService.createAutoAlert(
+          userId,
+          farm.id,
+          'inventory_low_stock',
+          'Low Stock Alert',
+          message,
+          'warning',
+          { inventoryItemId: item.id },
+        );
+      }
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to create low stock alert: ${error?.message ?? error}`,
+      );
+    }
   }
 }

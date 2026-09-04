@@ -39,6 +39,7 @@ import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { personName } from '../../utils/personName';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import { toLocalISODate } from '../../utils/localDate';
+import { toCsv, type CsvCell } from '../../utils/csv';
 
 const c = theme.roles.light;
 
@@ -91,31 +92,22 @@ export const monthGrid = (anchor: Date): Array<Array<number | null>> => {
 };
 
 /**
- * CSV of exactly the rows on screen.
+ * Exactly the rows on screen, as CSV cells.
  *
  * Exporting the unfiltered month would be a different, silent answer to "give
  * me this" — what a manager wants out is what they just narrowed down to.
  * Dates and times stay ISO so a spreadsheet parses them; the localised
- * rendering is for reading, not for accounting.
+ * rendering is for reading, not for accounting. The quoting itself lives in
+ * utils/csv, shared with the activity export.
  */
-export const toCsv = (rows: LogRow[], headings: string[]): string => {
-    const cell = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-    const lines = [headings.map(cell).join(',')];
-    for (const row of rows) {
-        lines.push(
-            [
-                row.day,
-                row.name,
-                row.record.checkInAt,
-                row.record.checkOutAt ?? '',
-                row.hours == null ? '' : oneDecimal(row.hours),
-            ]
-                .map(cell)
-                .join(','),
-        );
-    }
-    return lines.join('\n');
-};
+export const csvRows = (rows: LogRow[]): CsvCell[][] =>
+    rows.map((row) => [
+        row.day,
+        row.name,
+        row.record.checkInAt,
+        row.record.checkOutAt ?? '',
+        row.hours == null ? '' : oneDecimal(row.hours),
+    ]);
 
 export const AttendanceLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -239,7 +231,7 @@ export const AttendanceLogScreen = ({ route, navigation }: any) => {
             Alert.alert(t('attendance.exportEmptyTitle'), t('attendance.exportEmptySub'));
             return;
         }
-        const csv = toCsv(rows, [
+        const csv = toCsv(csvRows(rows), [
             t('attendance.csvDate'),
             t('attendance.csvName'),
             t('attendance.csvIn'),

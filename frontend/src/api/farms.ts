@@ -19,9 +19,23 @@ export interface Farm {
     rolePolicy?: RolePolicy | null;
     createdAt: string;
     updatedAt: string;
+    /** Set while the farm is archived — it drops out of every list and total. */
+    archivedAt?: string | null;
     deletedAt?: string | null;
     ponds?: any[];
 }
+
+/**
+ * "You cannot delete this, because it holds records."
+ *
+ * Both `DELETE /farms/:id` and `DELETE /ponds/:id` answer a delete that would
+ * take crop history with it as a 409 — the farm one with an
+ * `error: 'crop_history_exists'` body, the pond one with a bare message. The
+ * screens turn this into "archive it instead", never a raw API string, so the
+ * status code is the whole test.
+ */
+export const isHistoryConflict = (err: unknown): boolean =>
+    (err as any)?.response?.status === 409;
 
 export interface CreateFarmDto {
     name: string;
@@ -39,7 +53,9 @@ export interface CreateFarmDto {
 export interface UpdateFarmDto extends Partial<CreateFarmDto> {}
 
 export const farmsApi = {
-    getAll: () => apiClient.get<Farm[]>('/farms'),
+    // Archived farms are excluded server-side unless `includeArchived` is set.
+    getAll: (params?: { includeArchived?: boolean }) =>
+        apiClient.get<Farm[]>('/farms', { params }),
 
     getById: (id: string) => apiClient.get<Farm>(`/farms/${id}`),
 
@@ -47,6 +63,12 @@ export const farmsApi = {
 
     update: (id: string, data: UpdateFarmDto) => apiClient.patch<Farm>(`/farms/${id}`, data),
 
+    /** Owner only. Reversible — the farm keeps every record. */
+    archive: (id: string) => apiClient.patch(`/farms/${id}/archive`),
+
+    unarchive: (id: string) => apiClient.patch(`/farms/${id}/unarchive`),
+
+    /** Owner only. Refused with a 409 once any pond has crop history. */
     delete: (id: string) => apiClient.delete(`/farms/${id}`),
 
     /** Set what each role may do on this farm. Owner only; `null` clears it. */

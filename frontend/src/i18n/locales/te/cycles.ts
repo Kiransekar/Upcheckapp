@@ -53,5 +53,36 @@ const cycles = {
   fieldTargetDays: 'లక్ష్య రోజులు',
   fieldTargetSize: 'లక్ష్య పరిమాణం (కౌంట్)',
   fieldTargetSr: 'లక్ష్య మనుగడ (%)',
+
+  // CycleListScreen
+  listTitle: 'సైకిల్ చరిత్ర',
+  listStocked: 'స్టాకింగ్',
+  listHarvested: 'హార్వెస్ట్',
+  listRevenue: 'ఆదాయం',
+  listKg: '{{amount}} కిలో',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'ఇంకా సైకిల్‌లు లేవు',
+  listEmptyText: 'ఇక్కడ మొదలుపెట్టిన సైకిల్‌లు వాటి స్టాకింగ్, హార్వెస్ట్ మరియు ఫలితంతో కనిపిస్తాయి.',
+  listErrorTitle: 'సైకిల్ చరిత్రను లోడ్ చేయలేకపోయాం',
+  status_active: 'నడుస్తోంది',
+  status_completed: 'పూర్తయింది',
+  status_cancelled: 'రద్దు',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: 'ఈ సైకిల్‌ను లోడ్ చేయలేకపోయాం',
+  sectionPnl: 'లాభం & నష్టం',
+  pnlRevenue: 'ఆదాయం',
+  pnlCost: 'ఖర్చు',
+  pnlProfit: 'లాభం',
+  pnlBiomass: 'హార్వెస్ట్',
+  pnlProvisional: 'తాత్కాలికం — ఈ సైకిల్ ఇంకా పూర్తిగా హార్వెస్ట్ కాలేదు.',
+  editTitle: 'సైకిల్‌ను సవరించండి',
+  editConfirmTitle: 'ఈ మార్పులను భద్రపరచాలా?',
+  editConfirmMessage: 'మీరు {{fields}} మారుస్తున్నారు. దీనితో సైకిల్ తేదీ మారుతుంది మరియు అలర్ట్‌లు ఏ లక్ష్యాలతో పోల్చబడతాయో అవీ మారతాయి.',
+  editField_stockingDate: 'స్టాకింగ్ తేదీ',
+  editField_stockingCount: 'స్టాకింగ్ సంఖ్య',
+  editField_speciesType: 'జాతి',
+  editField_seedType: 'సీడ్ రకం',
+  errorEditCycle: 'సైకిల్‌ను భద్రపరచలేకపోయాం',
 };
 export default cycles;

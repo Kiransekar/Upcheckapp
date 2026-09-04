@@ -8,7 +8,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { randomBytes } from 'crypto';
 import {
   FarmInvite,
@@ -185,11 +185,16 @@ export class FarmInvitesService {
       farmId,
       'MANAGE_WORKERS',
     );
+    // Mint FIRST, then retire the rest. Revoking first meant a `create` that
+    // threw (a manager who may not mint the requested role) left the farm with
+    // every invite dead and no replacement — a destructive half call from one
+    // rejected request.
+    const minted = await this.create(farmId, callerId, dto);
     await this.invitesRepo.update(
-      { farmId, revokedAt: IsNull() },
+      { farmId, revokedAt: IsNull(), id: Not(minted.id) },
       { revokedAt: new Date() },
     );
-    return this.create(farmId, callerId, dto);
+    return minted;
   }
 
   /**

@@ -168,6 +168,9 @@ Frontend:
 ### 4.2 Team hub: everyone in one place (#18, #19)
 - Rebuild `AllWorkersScreen` as the roster across farms: per member → today's attendance, open leave, role, pending-approval state; owner/manager approve/decline inline; self check-in card on top.
 - Badges: `tabBarBadge` on the Team tab = pending joins + pending leaves (owner/manager). Counts from `team-overview` (add `pendingJoins` to it). One query, no new endpoint.
+- **Built (backend):** `GET /team/overview` gains two numbers, summed over the farms in scope:
+  - `pendingJoins: number` — memberships awaiting approval. Owner/manager only *by construction*: it comes from `FarmInvitesService.listPending` (MANAGE_WORKERS, narrowed to owner where `joinApprover === 'owner'`), and the per-farm call is settled independently, so a worker's rejection degrades to `0` rather than an error.
+  - `myPendingLeave: number` — the CALLER's own still-pending leave requests (`LeaveRequestsService.findMine`, READ), filtered to `status === 'pending'`. This is the Phase 1 deferral (§10) — the field is named `myPendingLeave`, not `myLeaveRequests`, because it is a count.
 
 ### 4.3 Activity endpoint, audit page, day view, export (#20, #21, #29)
 - `GET /activity?farmId|pondId&from&to&kinds[]` → `{ at, kind, pondId, cropId, actorId, actorName, summary, recordId }[]`, built as one `UNION ALL` over the fourteen log tables with per-branch timestamp casts (the four shapes are enumerated in the explorer report), scoped by `getAccessibleFarmIds`, paginated by `(at, id)` cursor. `VIEW_FINANCIALS` gates the harvest-sale and transaction branches.
@@ -180,9 +183,20 @@ Frontend:
 ### 4.5 Weekly chemistry (#23)
 - Screen: three groups (nitrogen: ammonia, nitrite, nitrate · buffering: alkalinity, hardness · clarity: transparency), band hints from `waterQualityThresholds`, last-week value beside each field, offline toast, section headers.
 - `WeeklyChemistryHistoryScreen` over `GET /water-quality?pondId&chemistryOnly`, chart per parameter. Tile history route points here.
+- **Built (backend):** `GET /water-quality?pondId=&chemistryOnly=true` (the literal string `true`; anything else, including absence, keeps the old behaviour byte for byte). It returns the same paginated `PageDto` shape, restricted to rows where at least ONE of `ammonia, nitrite, nitrate, alkalinity, hardness, transparency` is non-null — an OR across the six columns, so probe-only daily rows never pad the chemistry chart.
 
 ### 4.6 Water quality prefill (#24)
 - Backend: `latest` returns per-column latest with `*AsOf` (logic exists in `pond-context.service.ts:390-396`, expose it).
+- **Built (backend):** `GET /water-quality/latest?pondId=` (a NEW route — `GET /water-quality/pond/:pondId/latest` still returns the newest whole row and is untouched). It scans the newest 60 records, the same window the engines use, and returns one flat object:
+  ```
+  { pondId, recordedAt,                      // newest record's time, null if none
+    ph, phAsOf, temperature, temperatureAsOf,
+    dissolvedOxygen, dissolvedOxygenAsOf, salinity, salinityAsOf,
+    ammonia, ammoniaAsOf, nitrite, nitriteAsOf, nitrate, nitrateAsOf,
+    alkalinity, alkalinityAsOf, hardness, hardnessAsOf,
+    transparency, transparencyAsOf }
+  ```
+  Each `<field>` is the latest NON-NULL value of that column and `<field>AsOf` is the ISO time of the record it came from (both `null` when never measured), so the client applies the 12 h rule per field instead of per record. The carry-forward itself is `latestNonNull` exported from `pond-context.service.ts`, shared with `resolveWaterQuality` so the engines and the prefill can never disagree about what "latest" means.
 - Frontend: if last record < 12 h → prefill silently as today; if ≥ 12 h → do not prefill, show a "Use last reading" button with the age; on prefill, every field marked and a persistent warning above Save until the farmer touches each prefilled field or explicitly confirms.
 
 ### 4.7 Inventory (#25, #26, #27)
@@ -317,7 +331,7 @@ Inventory facts: the entity has no `icon`, `location`, `position`, `userId`, `po
 ### 9.5 Water quality and weekly chemistry facts (Phase 2 §4.5, §4.6)
 
 - Weekly chemistry writes the `water_quality_records` columns `ammonia, nitrite, nitrate, alkalinity, hardness, transparency` via `saveRecord({ entity: 'water_quality' })`; `chemical_data` (`ChemicalLogScreen`) is a separate crop-scoped table with overlapping fields plus calcium, magnesium, potassium.
-- `GET /water-quality/pond/:pondId/latest` returns the newest **row**; per-column carry-forward exists server-side only in `pond-context.service.ts:390-396` (`chemistryAsOf`, `alkalinityAsOf`).
+- `GET /water-quality/pond/:pondId/latest` returns the newest **row**; per-column carry-forward exists server-side only in `pond-context.service.ts:390-396` (`chemistryAsOf`, `alkalinityAsOf`). *(Phase 2: extracted as the exported `latestNonNull` and served by `GET /water-quality/latest` — see §4.6.)*
 - `WaterQualityLogScreen.tsx:20` `SLOW_CHANGING_PREFILL_FIELDS = ['salinity','alkalinity','hardness','transparency']`; prefill effect at `:49-85`; the hint is only inside the collapsed "more readings" block (`showMore` defaults false, `:46,179-186`).
 - `features/logProgress.ts` is pure (no storage); `SessionHint` derives from `PondContext`; neither can serve as a last-values cache.
 - History screens registered: WaterQuality, Feed, Sampling, Treatment, Harvest, Chemical, Plankton, Microbiology, Disease, Mortality, PondDimension. None for WeeklyChemistry, DailyRoutine, Measurements, FeedingTrayChecks.
@@ -337,7 +351,7 @@ Inventory facts: the entity has no `icon`, `location`, `position`, `userId`, `po
 Commits on `feat/phase1-hardening`: `cd609c8` (B2 data integrity), `cf97820` (B1 permissions), `102e51d` (F1 errors and cache), `bd4334f` (F4 confirm, labels, keyboard), `48c9395` (F3 team), `ec7984c` (F2 permission grid, harvest gate, species, chemistry rows).
 
 Deferred from Phase 1; carry into Phase 2:
-- The worker's Team Leave row shows a static "Request time off" instead of a count of own open requests; needs a `myLeaveRequests` field in the `team-overview` payload.
+- ~~The worker's Team Leave row shows a static "Request time off" instead of a count of own open requests; needs a `myLeaveRequests` field in the `team-overview` payload.~~ **Paid off in Phase 2 §4.2** as `myPendingLeave` (a count).
 - `common.savedOffline` is not a defined key; two call sites use the default-value form and F3 added `team.savedOffline`. Define it in `common.ts` and drop the local copy.
 - `RootNavigator.tsx` `HarvestHistory` param type does not declare `pondName` (screens are `any`-typed, so no error).
 - Six error-alert sites under `screens/auth/**` still pass `response.data.message` raw (auth is frozen by user instruction).

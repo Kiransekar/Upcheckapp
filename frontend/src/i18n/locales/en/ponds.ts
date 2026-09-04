@@ -144,5 +144,27 @@ const ponds = {
   metricProfit: "Profit",
   metricLoss: "Loss",
   metricMargin: "Margin",
+
+  // Archive and delete — spec §4.1
+  managePond: "Manage pond",
+  archivePond: "Archive pond",
+  deletePond: "Delete pond",
+  archiveConfirmTitle: "Archive this pond?",
+  archiveConfirmBody: "It leaves your pond lists and every total, and cannot be stocked while archived. Every record it holds stays.",
+  archiveConfirmCta: "Archive",
+  deleteConfirmTitle: "Delete this pond?",
+  deleteConfirmBody: "The pond goes for good. This cannot be undone.",
+  deleteConfirmCta: "Delete",
+  deleteBlockedTitle: "This pond has cycle records",
+  deleteBlockedBody: "So it can't be deleted — that is what keeps your history safe. Archive it instead: it leaves your lists but keeps every record.",
+  manageNeedsCycleEnd: "A pond running a cycle cannot be archived or deleted. Close the cycle first.",
+  errorArchivePond: "Could not archive the pond.",
+  unarchivePond: "Unarchive",
+  unarchiveConfirmTitle: "Bring this pond back?",
+  unarchiveConfirmBody: "It returns to your pond list and counts in your farm totals again.",
+  unarchiveConfirmCta: "Unarchive",
+  errorUnarchivePond: "Could not bring the pond back.",
+  errorArchiveActiveCycle: "This pond is running a cycle, so it cannot be archived. Close the cycle first.",
+  errorDeletePond: "Could not delete the pond.",
 };
 export default ponds;

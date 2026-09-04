@@ -104,17 +104,44 @@ export class HarvestsService {
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     if (farmIds.length === 0) return [];
 
+    // A worker restricted to specific ponds must not see the whole farm's
+    // harvests just because the row hangs off a crop rather than a pond.
+    const pondIds = (
+      await Promise.all(
+        farmIds.map((farmId) =>
+          this.farmAccess.getAccessiblePondIds(userId, farmId),
+        ),
+      )
+    ).flat();
+    if (pondIds.length === 0) return [];
+
     const qb = this.harvestsRepository
       .createQueryBuilder('harvest')
       .innerJoin('harvest.crop', 'crop')
       .innerJoin('crop.pond', 'pond')
+      .addSelect('pond.farmId', 'row_farm_id')
       .where('pond.farmId IN (:...farmIds)', { farmIds })
+      .andWhere('crop.pondId IN (:...pondIds)', { pondIds })
       .orderBy('harvest.harvestDate', 'DESC');
     if (cropId) qb.andWhere('harvest.cropId = :cropId', { cropId });
-    // Filters WITHIN the farm scope established above — never widens it.
+    // Filters WITHIN the pond scope established above — never widens it.
     if (pondId) qb.andWhere('crop.pondId = :pondId', { pondId });
     // ponytail: bounded cap to avoid an unbounded payload; paginate if needed.
-    return qb.take(500).getMany();
+    const { entities, raw } = await qb.take(500).getRawAndEntities();
+
+    // A sale price is a financial. This list is an operational history (what
+    // came out of this pond), so it stays readable by every member — but the
+    // money on it is masked per farm unless the caller holds VIEW_FINANCIALS
+    // there, matching `findMoneyEntries`. Masking beats dropping the row: the
+    // worker still gets their harvest weights.
+    const financialFarmIds = new Set(
+      await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS'),
+    );
+    return entities.map((h, i) =>
+      financialFarmIds.has(raw[i]?.row_farm_id)
+        ? h
+        : ({ ...h, salePriceTotal: null, buyerName: null } as Harvest),
+    );
   }
 
   /**

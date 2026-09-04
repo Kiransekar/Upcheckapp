@@ -228,11 +228,17 @@ describe('CropsService', () => {
 
       jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOne').mockResolvedValue(updatedCrop);
+      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(updatedCrop);
 
       const result = await service.update(cropId, mockUpdateCropDto, userId);
 
-      expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
+      // WRITE_MANAGEMENT, matching the route guard — not the VIEW_FINANCIALS
+      // `findOne`, which would 403 a member granted WRITE_MANAGEMENT.
+      expect(service.findOneAccessible).toHaveBeenCalledWith(
+        cropId,
+        userId,
+        'WRITE_MANAGEMENT',
+      );
       expect(repository.update).toHaveBeenCalledWith(cropId, mockUpdateCropDto);
       expect(result).toEqual(updatedCrop);
     });
@@ -264,10 +270,9 @@ describe('CropsService', () => {
         harvestWeightKg: 2500,
       };
 
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue(undefined);
-      jest.spyOn(service, 'findOne').mockResolvedValue(
+      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(
         Object.assign(new Crop(), mockCrop, {
           status: 'completed',
           actualHarvestDate: harvestData.actualHarvestDate,
@@ -277,7 +282,17 @@ describe('CropsService', () => {
 
       const result = await service.harvest(cropId, harvestData, userId);
 
-      expect(service.findOne).toHaveBeenCalledWith(cropId, userId);
+      // Completing a cycle is RECORD_HARVEST end to end — crop read AND pond.
+      expect(service.findOneAccessible).toHaveBeenCalledWith(
+        cropId,
+        userId,
+        'RECORD_HARVEST',
+      );
+      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(
+        'pond-1',
+        userId,
+        'RECORD_HARVEST',
+      );
       expect(repository.update).toHaveBeenCalledWith(cropId, {
         actualHarvestDate: new Date(harvestData.actualHarvestDate),
         harvestWeightKg: harvestData.harvestWeightKg,
@@ -289,7 +304,7 @@ describe('CropsService', () => {
 
   describe('closeCycle', () => {
     it('rejects a second close (idempotent) with ConflictException', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       // Guarded UPDATE matched no open row → already closed.
       (repository.update as jest.Mock).mockResolvedValue({ affected: 0 });
@@ -300,12 +315,25 @@ describe('CropsService', () => {
     });
 
     it('closes an open cycle and unlinks it from the pond', async () => {
-      jest.spyOn(service, 'findOne').mockResolvedValue(mockCrop);
+      jest.spyOn(service, 'findOneAccessible').mockResolvedValue(mockCrop);
       pondsService.findOneAccessible.mockResolvedValue(mockPond as any);
       (repository.update as jest.Mock).mockResolvedValue({ affected: 1 });
 
       await service.closeCycle('crop-1', '2024-06-01', 'user-1');
 
+      // The whole close path runs on RECORD_HARVEST. It used to read the crop
+      // through the VIEW_FINANCIALS `findOne`, which 403'd a granted worker
+      // AFTER `harvests.create` had already committed the harvest row.
+      expect(service.findOneAccessible).toHaveBeenCalledWith(
+        'crop-1',
+        'user-1',
+        'RECORD_HARVEST',
+      );
+      expect(pondsService.findOneAccessible).toHaveBeenCalledWith(
+        'pond-1',
+        'user-1',
+        'RECORD_HARVEST',
+      );
       expect(repository.update).toHaveBeenCalled();
       // The pond returns to 'fallow' as well as losing its cycle link. These
       // two fields describe the same fact and were previously allowed to

@@ -360,6 +360,40 @@ describe('PondsService', () => {
     });
   });
 
+  // ── unarchive ──────────────────────────────────────────────
+  //
+  // Archiving used to be a one-way door: the client could list archived ponds
+  // but had no route back, and `status` is not on UpdatePondDto, so the
+  // whitelist stripped any attempt to patch it directly.
+
+  describe('unarchive', () => {
+    it('returns an archived pond to fallow and clears the timestamp', async () => {
+      pondsRepository.findOne.mockResolvedValue({
+        ...mockPond,
+        status: 'archived',
+        archivedAt: new Date(),
+      });
+      pondsRepository.update.mockResolvedValue(undefined);
+
+      const result = await service.unarchive('pond-1', 'user-1');
+
+      expect(result.message).toContain('unarchived');
+      expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', {
+        status: 'fallow',
+        archivedAt: null,
+      });
+    });
+
+    it('refuses a pond that is not archived, rather than silently resetting it to fallow', async () => {
+      pondsRepository.findOne.mockResolvedValue(mockPond); // status: 'fallow'
+
+      await expect(service.unarchive('pond-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(pondsRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
   // ── remove ─────────────────────────────────────────────────
 
   describe('remove', () => {

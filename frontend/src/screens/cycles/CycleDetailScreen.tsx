@@ -10,22 +10,34 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { MetricCard } from '../../components/ui/MetricCard';
+import { SkeletonList } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
-import { cropsApi, Crop } from '../../api/crops';
+import { cropsApi, Crop, computeDoc } from '../../api/crops';
+import { pnlApi, CropPnl } from '../../api/pnl';
 import { confirm } from '../../utils/confirm';
+import { usePermissions } from '../../hooks/usePermissions';
+import { EditCycleForm } from './EditCycleForm';
 
 export const CycleDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { cycleId } = route.params;
     const [cycle, setCycle] = useState<Crop | null>(null);
+    const [pnl, setPnl] = useState<CropPnl | null>(null);
+    const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<any>(null);
+    // The crop carries its own farmId, so the gate follows the cycle rather
+    // than whichever farm happens to be active in the picker.
+    const { canRecordHarvest, canManageOperations, canViewFinancials } = usePermissions(cycle?.farmId);
 
     const fetchCycle = useCallback(async () => {
         setError(null);
         try {
             const { data } = await cropsApi.getById(cycleId);
             setCycle(data);
+            // P&L is a separate, gated read — a 403 for a member without
+            // VIEW_FINANCIALS must not blank the whole screen.
+            pnlApi.cropPnl(cycleId).then(({ data: p }) => setPnl(p)).catch(() => setPnl(null));
         } catch (err) {
             console.error('Failed to fetch cycle details:', err);
             setError(err);
@@ -63,7 +75,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
     };
 
     if (isLoading) {
-        return <ScreenWrapper><Text>{t('common.loading')}</Text></ScreenWrapper>;
+        return <ScreenWrapper><SkeletonList count={4} /></ScreenWrapper>;
     }
     // A fetch failure must show a retry action, never a permanent "Loading…" — the
     // old guard left the screen stuck on the loading text on any API error.
@@ -75,16 +87,26 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
         );
     }
 
-    const calculateDOC = (stockingDateStr: string) => {
-        // Local-calendar day, 1-based, freezes at harvest — matches the backend
-        // computeDoc convention so DOC agrees across every screen.
-        const [y, m, d] = stockingDateStr.split('T')[0].split('-').map(Number);
-        const start = new Date(y, (m ?? 1) - 1, d ?? 1).getTime();
-        const endSrc = cycle.actualHarvestDate ? new Date(cycle.actualHarvestDate) : new Date();
-        const end = new Date(endSrc.getFullYear(), endSrc.getMonth(), endSrc.getDate()).getTime();
-        const diff = Math.round((end - start) / 86_400_000);
-        return diff >= 0 ? diff + 1 + (cycle.initialAgeDays ?? 0) : 0;
-    };
+    if (isEditing) {
+        // scroll={false}: EditCycleForm brings its own ScrollView, and nesting
+        // two makes the inner one unscrollable on Android.
+        return (
+            <ScreenWrapper scroll={false}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.backBtn}>
+                        <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
+                    </TouchableOpacity>
+                    <Text style={styles.title}>{t('cycles.editTitle')}</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+                <EditCycleForm
+                    cycle={cycle}
+                    onCancel={() => setIsEditing(false)}
+                    onSaved={() => { setIsEditing(false); onRetry(); }}
+                />
+            </ScreenWrapper>
+        );
+    }
 
     return (
         <ScreenWrapper>
@@ -93,7 +115,18 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>{t('cycles.detailTitle')}</Text>
-                <View style={{ width: 40 }} />
+                {canManageOperations ? (
+                    <TouchableOpacity
+                        onPress={() => setIsEditing(true)}
+                        style={styles.backBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('common.edit')}
+                    >
+                        <MaterialCommunityIcons name="pencil-outline" size={22} color={theme.roles.light.textPrimary} />
+                    </TouchableOpacity>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
@@ -114,7 +147,7 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                         </View>
                         <View style={styles.col}>
                             <Text style={styles.infoLabel}>{t('cycles.infoDoc')}</Text>
-                            <Text style={styles.infoValue}>{cycle.stockingDate ? calculateDOC(cycle.stockingDate) : (cycle.doc ?? 0)} {t('cycles.infoDocUnit')}</Text>
+                            <Text style={styles.infoValue}>{cycle.stockingDate ? computeDoc(cycle) : (cycle.computedDOC ?? cycle.doc ?? 0)} {t('cycles.infoDocUnit')}</Text>
                         </View>
                     </View>
                     <View style={styles.row}>
@@ -145,7 +178,42 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                     />
                 </View>
 
-                {cycle.status === 'active' && (
+                {/* P&L is the farm's economics — hidden, not merely disabled,
+                    for a member without VIEW_FINANCIALS. `pnl` stays null when
+                    that read 403s, so this block never renders half-blank. */}
+                {canViewFinancials && pnl && (
+                    <Card style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>{t('cycles.sectionPnl')}</Text>
+                        <View style={styles.row}>
+                            <View style={styles.col}>
+                                <Text style={styles.infoLabel}>{t('cycles.pnlRevenue')}</Text>
+                                <Text style={styles.infoValue}>{t('cycles.currency', { amount: pnl.revenue.toLocaleString() })}</Text>
+                            </View>
+                            <View style={styles.col}>
+                                <Text style={styles.infoLabel}>{t('cycles.pnlCost')}</Text>
+                                <Text style={styles.infoValue}>{t('cycles.currency', { amount: pnl.totalCost.toLocaleString() })}</Text>
+                            </View>
+                        </View>
+                        <View style={styles.row}>
+                            <View style={styles.col}>
+                                <Text style={styles.infoLabel}>{t('cycles.pnlProfit')}</Text>
+                                <Text style={[styles.infoValue, { color: pnl.profit < 0 ? theme.roles.light.dangerText : theme.roles.light.successText }]}>
+                                    {t('cycles.currency', { amount: pnl.profit.toLocaleString() })}
+                                </Text>
+                            </View>
+                            <View style={styles.col}>
+                                <Text style={styles.infoLabel}>{t('cycles.pnlBiomass')}</Text>
+                                <Text style={styles.infoValue}>{t('cycles.listKg', { amount: pnl.harvestBiomassKg.toLocaleString() })}</Text>
+                            </View>
+                        </View>
+                        {!pnl.harvestComplete && <Text style={styles.infoLabel}>{t('cycles.pnlProvisional')}</Text>}
+                    </Card>
+                )}
+
+                {/* A harvest books revenue and closes the cycle: RECORD_HARVEST,
+                    which is what the API enforces. This used to be ungated, so a
+                    viewer tapped through to a 403 after the fact. */}
+                {cycle.status === 'active' && canRecordHarvest && (
                     <View style={styles.actionContainer}>
                         <Button
                             title={t('cycles.btnRecordHarvest')}
@@ -163,12 +231,14 @@ export const CycleDetailScreen = ({ route, navigation }: any) => {
                 )}
 
                 <View style={styles.actionContainer}>
-                    <Button
-                        title={t('cycles.btnExpenses')}
-                        variant="outlined"
-                        onPress={() => navigation.navigate('Expenses', { cropId: cycle.id })}
-                        style={styles.actionBtn}
-                    />
+                    {canViewFinancials && (
+                        <Button
+                            title={t('cycles.btnExpenses')}
+                            variant="outlined"
+                            onPress={() => navigation.navigate('Expenses', { cropId: cycle.id })}
+                            style={styles.actionBtn}
+                        />
+                    )}
                     <Button
                         title={t('cycles.btnHarvestPlans')}
                         variant="outlined"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity, Switch } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -9,9 +9,12 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { ChipGroup } from '../../components/ui/ChipGroup';
+import { SelectField } from '../../components/ui/SelectField';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { feedApi } from '../../api/feedRecords';
+import { pondsApi } from '../../api/ponds';
+import { inventoryApi, type InventoryItem } from '../../api/inventory';
 import { apiErrorMessage } from '../../api/errors';
 
 export const FeedLogScreen = ({ route, navigation }: any) => {
@@ -43,6 +46,32 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
     const [feedType, setFeedType] = useState(editRecord?.feedType ?? 'Starter');
     const [notes, setNotes] = useState(editRecord?.notes ?? '');
 
+    /*
+     * Which sack this feeding came out of. The whole deduct / compensate /
+     * reconcile pipeline already exists server-side on `inventoryItemId`; the
+     * picker was the missing piece, so stock never went down when feed was fed.
+     * Two requests, not one: the pond knows its farm, the farm knows its feed.
+     */
+    const [feedItems, setFeedItems] = useState<InventoryItem[]>([]);
+    const [inventoryItemId, setInventoryItemId] = useState<string | null>(
+        editRecord?.inventoryItemId ?? null,
+    );
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data: pond } = await pondsApi.getById(pondId);
+                const { data } = await inventoryApi.getAll(pond.farmId, 'feed');
+                if (!cancelled) setFeedItems(data);
+            } catch {
+                // No stock list is not a reason to block a feed log — the field
+                // simply stays hidden and the record saves without a link.
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [pondId]);
+
     const [isLoading, setIsLoading] = useState(false);
     // Tray checks are a supplementary observation, not required to save a
     // feed log — collapse them by default so the daily-fatigue field count
@@ -71,6 +100,7 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
             quantityKg: fasting ? 0 : parseFloat(totalFeed),
             feedingTime: date,
             notes: combinedNotes || undefined,
+            inventoryItemId: inventoryItemId ?? undefined,
         };
 
         try {
@@ -161,6 +191,26 @@ export const FeedLogScreen = ({ route, navigation }: any) => {
                                     { value: 'Finisher', label: t('logs.feed_typeFinisher', 'Finisher') },
                                 ]}
                             />
+
+                            {/* Skipped entirely when the farm holds no feed —
+                                an empty dropdown is a dead end, not a field. */}
+                            {feedItems.length > 0 && (
+                                <SelectField
+                                    label={t('inventory.feedFromStock')}
+                                    value={inventoryItemId}
+                                    options={feedItems.map((i) => ({
+                                        value: i.id,
+                                        label: i.name,
+                                        sublabel: t('inventory.remainingStock', {
+                                            quantity: Number(i.quantity),
+                                            unit: i.unit ?? '',
+                                        }),
+                                    }))}
+                                    onSelect={setInventoryItemId}
+                                    placeholder={t('inventory.selectStockPlaceholder')}
+                                    leftIcon="package-variant"
+                                />
+                            )}
                         </Card>
 
                         <TouchableOpacity

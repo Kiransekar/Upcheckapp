@@ -8,6 +8,7 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   Delete,
   UseGuards,
 } from '@nestjs/common';
@@ -38,8 +39,8 @@ export class FarmsController {
   }
 
   @Get()
-  findAll(@CurrentUser() user) {
-    return this.farmsService.findAll(user.id);
+  findAll(@CurrentUser() user, @Query('includeArchived') includeArchived?: string) {
+    return this.farmsService.findAll(user.id, includeArchived === 'true');
   }
 
   @Get(':id')
@@ -56,11 +57,34 @@ export class FarmsController {
     return this.farmsService.update(id, updateFarmDto);
   }
 
+  /**
+   * Archive / unarchive — the reversible half of farm lifecycle. Owner only;
+   * the service asserts it again (see setRolePolicy).
+   */
+  @Patch(':id/archive')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
+  archive(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.archive(id, user.id);
+  }
+
+  @Patch(':id/unarchive')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
+  unarchive(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.unarchive(id, user.id);
+  }
+
+  /**
+   * Hard-ish delete (soft tombstone). Refuses a farm with crop history —
+   * mirrors DELETE /ponds/:id. Archive is the action for a farm that has been
+   * used.
+   */
   @Delete(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
-  remove(@Param('id') id: string) {
-    return this.farmsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.remove(id, user.id);
   }
 
   /**

@@ -128,8 +128,44 @@ describe('FeedRecordsService', () => {
         'inv-item-1',
         -50,
         'user-1',
-      ); // Verify deduction (scoped to caller)
+        expect.objectContaining({
+          capability: 'WRITE_OPERATIONAL',
+          expectedFarmId: 'farm-1',
+        }),
+      ); // Verify deduction (scoped to caller AND to the pond's farm)
       expect(result).toEqual(expect.objectContaining(createDto));
+    });
+
+    it('refuses to deduct from an item on another farm', async () => {
+      const pondServiceMock = module.get<PondsService>(PondsService);
+      jest.spyOn(pondServiceMock, 'findOneAccessible').mockResolvedValue({
+        id: 'pond-1',
+        activeCycleId: 'crop-1',
+        farmId: 'farm-1',
+      } as any);
+
+      const inventory = module.get<InventoryService>(InventoryService);
+      // The cross-farm rejection lives in adjustStock (it is the only place
+      // that has loaded the item); this asserts the feed log propagates it
+      // rather than swallowing it and writing the record anyway.
+      jest
+        .spyOn(inventory, 'adjustStock')
+        .mockRejectedValue(
+          new Error('Inventory item belongs to a different farm'),
+        );
+
+      await expect(
+        service.create(
+          {
+            pondId: 'pond-1',
+            feedType: 'Pellet',
+            quantityKg: 10,
+            inventoryItemId: 'other-farm-item',
+          } as any,
+          'user-1',
+        ),
+      ).rejects.toThrow('different farm');
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
     it('should not deduct stock if inventoryItemId is missing', async () => {
@@ -292,7 +328,12 @@ describe('FeedRecordsService', () => {
         { quantityKg: 30, isFasting: false } as any,
         'user-1',
       );
-      expect(inventory.adjustStock).toHaveBeenCalledWith('inv-1', 20, 'user-1');
+      expect(inventory.adjustStock).toHaveBeenCalledWith(
+        'inv-1',
+        20,
+        'user-1',
+        expect.objectContaining({ capability: 'WRITE_OPERATIONAL' }),
+      );
       const [, patch] = mockRepository.update.mock.calls.at(-1);
       expect(patch).not.toHaveProperty('isFasting');
     });

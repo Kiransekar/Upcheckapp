@@ -31,6 +31,25 @@ const team = {
     status_in_progress: 'ଚାଲିଛି',
     status_done: 'ଯାଞ୍ଚ',
     status_verified: 'ସମ୍ପୂର୍ଣ୍ଣ',
+
+    rosterTitle: 'ଦଳ ତାଲିକା',
+    rosterSub: 'ହାଜିରା, ଛୁଟି ଓ ଯୋଗଦାନ ଅନୁରୋଧ',
+    rosterPeople: '{{count}} ଜଣ',
+    unknownPerson: 'ଅଜଣା',
+    youAreIn: 'ଆପଣ ହାଜର ଅଛନ୍ତି',
+    youSuffix: '{{name}} (ଆପଣ)',
+    sinceTime: '{{time}} ଠାରୁ',
+    att_in: 'ଭିତରେ',
+    att_out: 'ବାହାରି ଗଲେ',
+    att_absent: 'ଆସିନାହାନ୍ତି',
+    pendingJoinBadge: 'ଅପେକ୍ଷାରେ',
+    leaveRange: 'ଛୁଟି {{from}} – {{to}}',
+    approve: 'ମଞ୍ଜୁର କରନ୍ତୁ',
+    reject: 'ନାମଞ୍ଜୁର କରନ୍ତୁ',
+    joins: 'ଯୋଗଦାନ ଅନୁରୋଧ',
+    joinsWaiting: '{{count}} ଜଣ ଭିତରକୁ ଆସିବାକୁ ଅପେକ୍ଷାରେ',
+    leaveMineWaiting: 'ଆପଣଙ୍କର {{count}} ଅନୁରୋଧ ଅପେକ୍ଷାରେ',
+    actionError: 'ବଦଳାଇ ହେଲା ନାହିଁ। ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
 };
 
 export default team;

@@ -31,6 +31,25 @@ const team = {
     status_in_progress: 'జరుగుతోంది',
     status_done: 'సరిచూడండి',
     status_verified: 'పూర్తి',
+
+    rosterTitle: 'బృంద జాబితా',
+    rosterSub: 'హాజరు, సెలవు, చేరే అభ్యర్థనలు',
+    rosterPeople: '{{count}} మంది',
+    unknownPerson: 'తెలియదు',
+    youAreIn: 'మీరు హాజరులో ఉన్నారు',
+    youSuffix: '{{name}} (మీరు)',
+    sinceTime: '{{time}} నుండి',
+    att_in: 'లోపల',
+    att_out: 'బయటకు',
+    att_absent: 'రాలేదు',
+    pendingJoinBadge: 'ఎదురుచూస్తున్నారు',
+    leaveRange: 'సెలవు {{from}} – {{to}}',
+    approve: 'ఆమోదించు',
+    reject: 'తిరస్కరించు',
+    joins: 'చేరే అభ్యర్థనలు',
+    joinsWaiting: '{{count}} మంది లోపలికి రావడానికి ఎదురుచూస్తున్నారు',
+    leaveMineWaiting: 'మీ {{count}} అభ్యర్థనలు ఎదురుచూస్తున్నాయి',
+    actionError: 'మార్చలేకపోయాం. మళ్లీ ప్రయత్నించండి.',
 };
 
 export default team;

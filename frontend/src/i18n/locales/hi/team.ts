@@ -31,6 +31,25 @@ const team = {
     status_in_progress: 'चल रहा',
     status_done: 'जाँचें',
     status_verified: 'पूरा',
+
+    rosterTitle: 'टीम सूची',
+    rosterSub: 'हाज़िरी, छुट्टी और जुड़ने की विनती',
+    rosterPeople: '{{count}} लोग',
+    unknownPerson: 'अज्ञात',
+    youAreIn: 'आप हाज़िर हैं',
+    youSuffix: '{{name}} (आप)',
+    sinceTime: '{{time}} से',
+    att_in: 'हाज़िर',
+    att_out: 'निकल गए',
+    att_absent: 'नहीं आए',
+    pendingJoinBadge: 'इंतज़ार में',
+    leaveRange: 'छुट्टी {{from}} – {{to}}',
+    approve: 'मंज़ूर करें',
+    reject: 'मना करें',
+    joins: 'जुड़ने की विनती',
+    joinsWaiting: '{{count}} लोग अंदर आने के इंतज़ार में',
+    leaveMineWaiting: 'आपकी {{count}} विनती इंतज़ार में',
+    actionError: 'बदलाव नहीं हो सका। फिर कोशिश करें।',
 };
 
 export default team;

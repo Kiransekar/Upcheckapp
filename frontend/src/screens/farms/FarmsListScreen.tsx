@@ -9,7 +9,7 @@
  * Cost of that: three list-wide calls plus one batched pond-context call per
  * farm, instead of the twenty-odd per-pond calls the same data used to imply.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
+    Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -30,6 +31,12 @@ import { Icon } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { confirm } from '../../utils/confirm';
+import { apiErrorMessage } from '../../api/errors';
+import { roleCan } from '../../permissions/capabilities';
 import { theme } from '../../theme';
 import { farmsApi, type Farm } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
@@ -61,6 +68,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const roleForFarm = useMembershipStore((s) => s.roleForFarm);
     const loadMemberships = useMembershipStore((s) => s.load);
+    const grantForFarm = useMembershipStore((s) => s.grantForFarm);
+    /** Off by default — archived farms are out of sight until asked for. */
+    const [includeArchived, setIncludeArchived] = useState(false);
 
     /**
      * The farm list — the only fatal call, and the only thing the first paint
@@ -72,6 +82,41 @@ export const FarmsListScreen = ({ navigation }: any) => {
         queryFn: async () => (await farmsApi.getAll()).data,
     });
     const farms = query.data ?? [];
+
+    /**
+     * Archived farms, on their own query and only when asked for. Kept out of
+     * `farms` on purpose: every roll-up, total and eyebrow on this screen reads
+     * that array, and an archived farm belongs in none of them.
+     */
+    const archivedQuery = useAppQuery({
+        queryKey: [...qk.farms(), 'archived'],
+        enabled: includeArchived,
+        queryFn: async () =>
+            (await farmsApi.getAll({ includeArchived: true })).data.filter((f) => !!f.archivedAt),
+    });
+    const archivedFarms = archivedQuery.data ?? [];
+
+    /** Unarchive is OWNER_ONLY, the same capability the server guards it with. */
+    const canOwnerOn = (farmId: string) => {
+        const { role, overrides, policy } = grantForFarm(farmId);
+        return roleCan(role, 'OWNER_ONLY', overrides, policy);
+    };
+
+    const onUnarchive = async (farm: Farm) => {
+        const ok = await confirm({
+            title: t('farms.unarchiveConfirmTitle'),
+            message: t('farms.unarchiveConfirmBody'),
+            confirmLabel: t('farms.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        try {
+            await farmsApi.unarchive(farm.id);
+            await Promise.all([query.refetch(), archivedQuery.refetch()]);
+        } catch (e) {
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('farms.errorUnarchiveFarm')));
+        }
+    };
 
     /**
      * The figures. Kept a SEPARATE query on purpose: waiting for all of them
@@ -278,6 +323,57 @@ export const FarmsListScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     </>
                 )}
+
+                {/* Archived farms. Off by default and visually muted, so the
+                    list above is only the farms being worked. */}
+                <View style={styles.archivedBlock}>
+                    <ChipGroup
+                        options={[{ value: 'archived', label: t('farms.includeArchived'), icon: 'archive-outline' }]}
+                        value={includeArchived ? ['archived'] : []}
+                        multiple
+                        onChange={(v: string[]) => setIncludeArchived(v.includes('archived'))}
+                    />
+                    {includeArchived && (
+                        archivedQuery.isPending ? (
+                            <SkeletonList count={2} />
+                        ) : archivedQuery.isError ? (
+                            <ErrorState
+                                title={t('farms.errorTitle')}
+                                error={archivedQuery.error}
+                                onRetry={() => archivedQuery.refetch()}
+                            />
+                        ) : !archivedFarms.length ? (
+                            <Text style={styles.mutedNote}>{t('farms.archivedFarmsEmpty')}</Text>
+                        ) : (
+                            <>
+                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedFarms.length} />
+                                {archivedFarms.map((farm) => (
+                                    <View key={farm.id} style={styles.archivedRow}>
+                                        <TouchableOpacity
+                                            style={styles.archivedMain}
+                                            onPress={() => openFarm(farm)}
+                                            accessibilityRole="button"
+                                        >
+                                            <Text style={styles.archivedName} numberOfLines={1}>
+                                                {farm.name}
+                                            </Text>
+                                            <StatusBadge status="idle" label={t('farms.archivedBadge')} />
+                                        </TouchableOpacity>
+                                        {canOwnerOn(farm.id) && (
+                                            <TouchableOpacity
+                                                onPress={() => onUnarchive(farm)}
+                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                accessibilityRole="button"
+                                            >
+                                                <Text style={styles.unarchive}>{t('farms.unarchiveFarm')}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                ))}
+                            </>
+                        )
+                    )}
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );
@@ -390,6 +486,35 @@ const Legend: React.FC = () => {
 const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[24], backgroundColor: theme.roles.light.surface },
     skeleton: { padding: theme.spacing[4] },
+    archivedBlock: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[5] },
+    mutedNote: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        paddingBottom: theme.spacing[2],
+    },
+    archivedRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.surfaceVariant,
+        paddingVertical: theme.spacing[3],
+        minHeight: 44,
+    },
+    archivedMain: {
+        flex: 1,
+        minWidth: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+    },
+    archivedName: {
+        ...theme.typeScale.labelLarge,
+        fontSize: 15,
+        flexShrink: 1,
+        color: theme.roles.light.textTertiary,
+    },
+    unarchive: { ...theme.typeScale.labelMedium, color: theme.roles.light.textLink },
     card: {
         borderLeftWidth: 3,
         borderBottomWidth: 1,

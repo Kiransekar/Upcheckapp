@@ -7,8 +7,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { inventoryApi, InventoryItem } from '../../api/inventory';
+import { inventoryApi, InventoryItem, isLowStock, stockFraction, itemIcon, CATEGORY_LABEL_KEY } from '../../api/inventory';
 import { apiErrorMessage } from '../../api/errors';
+import { usePermissions } from '../../hooks/usePermissions';
+import { confirm } from '../../utils/confirm';
 import { useFocusEffect } from '@react-navigation/native';
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
@@ -23,10 +25,9 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const [adjustReason, setAdjustReason] = useState('');
     const [isAdjusting, setIsAdjusting] = useState(false);
 
-    // Edit-item modal state
-    const [showEdit, setShowEdit] = useState(false);
-    const [editForm, setEditForm] = useState({ name: '', category: '', unit: '', reorderLevel: '', unitPrice: '', supplier: '' });
-    const [isEditSaving, setIsEditSaving] = useState(false);
+    // Editing lives on InventoryForm now — the same screen that creates an item,
+    // so the two can never drift into offering different fields again (D4).
+    const { canManageInventory } = usePermissions(item?.farmId);
 
     // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
     // once opened, so a mount-only effect never ran again — the page kept
@@ -50,8 +51,8 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
 
     const getStockStatus = () => {
         if (!item) return { color: theme.roles.light.textDisabled, label: t('common.status') };
-        if (item.quantity <= 0) return { color: theme.roles.light.dangerText, label: t('inventory.outOfStock'), icon: 'alert-circle' };
-        if (item.quantity <= (item.reorderLevel ?? 0)) return { color: theme.roles.light.warningText, label: t('inventory.lowStock'), icon: 'alert' };
+        if (Number(item.quantity) <= 0) return { color: theme.roles.light.dangerText, label: t('inventory.outOfStock'), icon: 'alert-circle' };
+        if (isLowStock(item)) return { color: theme.roles.light.warningText, label: t('inventory.lowStock'), icon: 'alert' };
         return { color: theme.roles.light.successText, label: t('inventory.inStock'), icon: 'check-circle' };
     };
 
@@ -86,40 +87,21 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
         }
     };
 
-    const handleEdit = () => {
+    const handleDelete = async () => {
         if (!item) return;
-        setEditForm({
-            name: item.name,
-            category: item.category,
-            unit: item.unit ?? '',
-            reorderLevel: item.reorderLevel != null ? String(item.reorderLevel) : '',
-            unitPrice: item.unitPrice != null ? String(item.unitPrice) : '',
-            supplier: item.supplier ?? '',
+        const ok = await confirm({
+            title: t('inventory.deleteItem'),
+            message: t('inventory.deleteConfirm', { name: item.name }),
+            confirmLabel: t('common.delete'),
+            cancelLabel: t('common.cancel'),
+            destructive: true,
         });
-        setShowEdit(true);
-    };
-
-    const submitEdit = async () => {
-        if (!editForm.name.trim()) {
-            Alert.alert(t('common.error'), t('inventory.nameRequired', 'Item name is required.'));
-            return;
-        }
-        setIsEditSaving(true);
+        if (!ok) return;
         try {
-            await inventoryApi.update(inventoryId, {
-                name: editForm.name.trim(),
-                category: editForm.category.trim() || undefined,
-                unit: editForm.unit.trim() || undefined,
-                reorderLevel: editForm.reorderLevel ? Number(editForm.reorderLevel) : undefined,
-                unitPrice: editForm.unitPrice ? Number(editForm.unitPrice) : undefined,
-                supplier: editForm.supplier.trim() || undefined,
-            });
-            setShowEdit(false);
-            await fetchItem();
+            await inventoryApi.delete(inventoryId);
+            navigation.goBack();
         } catch (err: any) {
-            Alert.alert(t('common.error'), apiErrorMessage(err, t('inventory.editFailed', 'Failed to update item.')));
-        } finally {
-            setIsEditSaving(false);
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('inventory.deleteFailed')));
         }
     };
 
@@ -159,10 +141,29 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
                 </TouchableOpacity>
-                <Text style={styles.title}>{item.name}</Text>
-                <TouchableOpacity onPress={handleEdit} style={styles.editBtn}>
-                    <MaterialCommunityIcons name="pencil" size={20} color={theme.roles.light.primary} />
-                </TouchableOpacity>
+                <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
+                {canManageInventory ? (
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('InventoryForm', { itemId: inventoryId })}
+                            style={styles.editBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.edit')}
+                        >
+                            <MaterialCommunityIcons name="pencil" size={20} color={theme.roles.light.primary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => void handleDelete()}
+                            style={styles.editBtn}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('common.delete')}
+                        >
+                            <MaterialCommunityIcons name="trash-can-outline" size={20} color={theme.roles.light.dangerText} />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
@@ -173,14 +174,17 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
 
                 <Card style={styles.stockCard}>
                     <Text style={styles.stockLabel}>{t('inventory.currentStock')}</Text>
-                    <Text style={styles.stockValue}>{item.quantity}</Text>
+                    <Text style={styles.stockValue}>{Number(item.quantity)}</Text>
                     <Text style={styles.stockUnit}>{item.unit}</Text>
                     <View style={styles.stockBar}>
+                        {/* Was `quantity / (reorderLevel * 2)` — NaN% with no
+                            threshold, Infinity% with a threshold of zero, and
+                            React Native silently drew nothing either way (D6). */}
                         <View
                             style={[
                                 styles.stockBarFill,
                                 {
-                                    width: `${Math.min(100, (item.quantity / ((item.reorderLevel ?? 0) * 2)) * 100)}%`,
+                                    width: `${stockFraction(item.quantity, item.reorderLevel) * 100}%`,
                                     backgroundColor: status.color,
                                 }
                             ]}
@@ -193,10 +197,12 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
 
                 <Card style={styles.infoCard}>
                     <View style={styles.infoRow}>
-                        <MaterialCommunityIcons name="shape" size={20} color={theme.roles.light.textSecondary} />
+                        <MaterialCommunityIcons name={itemIcon(item) as any} size={20} color={theme.roles.light.textSecondary} />
                         <View style={styles.infoTextContainer}>
                             <Text style={styles.infoLabel}>{t('inventory.labelCategory')}</Text>
-                            <Text style={styles.infoValue}>{item.category}</Text>
+                            <Text style={styles.infoValue}>
+                                {t(CATEGORY_LABEL_KEY[item.category] ?? 'inventory.catOther')}
+                            </Text>
                         </View>
                     </View>
 
@@ -212,10 +218,33 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                         <View style={styles.infoRow}>
                             <MaterialCommunityIcons name="calendar" size={20} color={theme.roles.light.textSecondary} />
                             <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>{t('inventory.labelLastPurchase')}</Text>
+                                {/* This column is `expiry_date` and always was. It
+                                    was labelled "Last Purchase" in all six locales
+                                    (D3) — telling a farmer their medicine was bought
+                                    on the day it in fact goes off. */}
+                                <Text style={styles.infoLabel}>{t('inventory.labelExpiryDate')}</Text>
                                 <Text style={styles.infoValue}>
                                     {new Date(item.expiryDate).toLocaleDateString()}
                                 </Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {/*
+                        The last adjustment's reason, not a history: `reason` used
+                        to be validated, sent and then thrown away (D2). It is now
+                        persisted as `lastAdjustmentReason` — one value, overwritten
+                        each time.
+                        ponytail: one reason, not a ledger. An `inventory_movements`
+                        table (Phase 3 §5 #33) is the upgrade path when the farmer
+                        needs "who took 20 kg last Tuesday".
+                    */}
+                    {item.lastAdjustmentReason && (
+                        <View style={styles.infoRow}>
+                            <MaterialCommunityIcons name="history" size={20} color={theme.roles.light.textSecondary} />
+                            <View style={styles.infoTextContainer}>
+                                <Text style={styles.infoLabel}>{t('inventory.labelLastAdjustment')}</Text>
+                                <Text style={styles.infoValue}>{item.lastAdjustmentReason}</Text>
                             </View>
                         </View>
                     )}
@@ -231,22 +260,13 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     )}
                 </Card>
 
-                <Button
-                    title={t('inventory.adjustStock')}
-                    onPress={handleAdjustStock}
-                    style={styles.adjustBtn}
-                    icon="package-variant-closed"
-                />
-
-                <Text style={styles.sectionTitle}>{t('inventory.stockHistory')}</Text>
-                <Card style={styles.historyCard}>
-                    <View style={styles.historyPlaceholder}>
-                        <MaterialCommunityIcons name="history" size={32} color={theme.roles.light.textDisabled} />
-                        <Text style={styles.historyPlaceholderText}>
-                            {t('inventory.stockHistoryComingSoon')}
-                        </Text>
-                    </View>
-                </Card>
+                {canManageInventory && (
+                    <Button
+                        title={t('inventory.adjustStock')}
+                        onPress={handleAdjustStock}
+                        style={styles.adjustBtn}
+                    />
+                )}
             </ScrollView>
 
             <Modal
@@ -295,74 +315,6 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                 </View>
             </Modal>
 
-            <Modal
-                visible={showEdit}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowEdit(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <Card style={styles.modalCard}>
-                        <ScrollView keyboardShouldPersistTaps="handled">
-                            <Text style={styles.modalTitle}>{t('inventory.editItem', 'Edit item')}</Text>
-                            <Input
-                                label={t('inventory.fieldName', 'Item name')}
-                                value={editForm.name}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, name: v }))}
-                                required
-                                leftIcon="tag-outline"
-                            />
-                            <Input
-                                label={t('inventory.fieldCategory', 'Category')}
-                                value={editForm.category}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, category: v }))}
-                                leftIcon="shape"
-                            />
-                            <Input
-                                label={t('inventory.fieldUnit', 'Unit')}
-                                value={editForm.unit}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, unit: v }))}
-                                leftIcon="scale-balance"
-                            />
-                            <Input
-                                label={t('inventory.fieldReorderLevel', 'Reorder level')}
-                                value={editForm.reorderLevel}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, reorderLevel: v }))}
-                                keyboardType="decimal-pad"
-                                leftIcon="alert-outline"
-                            />
-                            <Input
-                                label={t('inventory.fieldUnitPrice', 'Unit price (₹)')}
-                                value={editForm.unitPrice}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, unitPrice: v }))}
-                                keyboardType="decimal-pad"
-                                leftIcon="currency-inr"
-                            />
-                            <Input
-                                label={t('inventory.fieldSupplier', 'Supplier')}
-                                value={editForm.supplier}
-                                onChangeText={(v) => setEditForm((f) => ({ ...f, supplier: v }))}
-                                leftIcon="truck-outline"
-                            />
-                            <View style={styles.modalActions}>
-                                <Button
-                                    title={t('common.cancel')}
-                                    variant="outlined"
-                                    onPress={() => setShowEdit(false)}
-                                    style={styles.modalBtn}
-                                    disabled={isEditSaving}
-                                />
-                                <Button
-                                    title={t('common.save')}
-                                    onPress={() => void submitEdit()}
-                                    loading={isEditSaving}
-                                    style={styles.modalBtn}
-                                />
-                            </View>
-                        </ScrollView>
-                    </Card>
-                </View>
-            </Modal>
         </ScreenWrapper>
     );
 };
@@ -384,8 +336,16 @@ const styles = StyleSheet.create({
         ...theme.typeScale.h3,
         color: theme.roles.light.textPrimary,
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     editBtn: {
-        padding: theme.spacing[4],
+        minWidth: 44,
+        minHeight: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: theme.spacing[3],
     },
     loadingContainer: {
         flex: 1,
@@ -482,23 +442,6 @@ const styles = StyleSheet.create({
     },
     adjustBtn: {
         marginBottom: theme.spacing[6],
-    },
-    sectionTitle: {
-        ...theme.typeScale.h4,
-        color: theme.roles.light.textPrimary,
-        marginBottom: theme.spacing[3],
-    },
-    historyCard: {
-        padding: theme.spacing[4],
-    },
-    historyPlaceholder: {
-        alignItems: 'center',
-        padding: theme.spacing[4],
-    },
-    historyPlaceholderText: {
-        ...theme.typeScale.bodyMedium,
-        color: theme.roles.light.textDisabled,
-        marginTop: theme.spacing[2],
     },
     modalOverlay: {
         flex: 1,

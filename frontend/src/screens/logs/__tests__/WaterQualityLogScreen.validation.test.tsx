@@ -11,7 +11,8 @@
  * the second argument to Alert.alert is a STRING.
  */
 jest.mock('../../../api/waterQuality', () => ({
-    waterQualityApi: { getLatest: jest.fn() },
+    ...jest.requireActual('../../../api/waterQuality'),
+    waterQualityApi: { getLatest: jest.fn(), getLatestPerColumn: jest.fn() },
 }));
 jest.mock('../../../sync/recordSync', () => ({
     saveRecord: jest.fn(),
@@ -28,7 +29,7 @@ import { WaterQualityLogScreen } from '../WaterQualityLogScreen';
 import { waterQualityApi } from '../../../api/waterQuality';
 import { saveRecord } from '../../../sync/recordSync';
 
-const mockedGetLatest = waterQualityApi.getLatest as jest.Mock;
+const mockedGetLatest = waterQualityApi.getLatestPerColumn as jest.Mock;
 const mockedSaveRecord = saveRecord as jest.Mock;
 
 const TEST_SAFE_AREA_METRICS = {

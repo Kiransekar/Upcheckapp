@@ -119,14 +119,19 @@ function makeFindAllService(farmIds = ['f1']) {
     andWhere: jest.fn(() => qb),
     orderBy: jest.fn(() => qb),
     take: jest.fn(() => qb),
+    addSelect: jest.fn(() => qb),
     getMany: jest.fn().mockResolvedValue([]),
+    getRawAndEntities: jest.fn().mockResolvedValue({ entities: [], raw: [] }),
   };
   const repo = { createQueryBuilder: jest.fn(() => qb) };
   const farmAccess = {
     getAccessibleFarmIds: jest.fn().mockResolvedValue(farmIds),
+    // Unrestricted member: every pond on each accessible farm.
+    getAccessiblePondIds: jest.fn().mockResolvedValue(['p1', 'p2']),
+    getFarmIdsWithCapability: jest.fn().mockResolvedValue(farmIds),
   };
   const svc = new HarvestsService(repo as any, {} as any, farmAccess as any);
-  return { svc, qb };
+  return { svc, qb, farmAccess };
 }
 
 describe('HarvestsService.findAll pond filter', () => {
@@ -160,6 +165,37 @@ describe('HarvestsService.findAll pond filter', () => {
 
     await expect(svc.findAll('u', undefined, 'p1')).resolves.toEqual([]);
     expect(qb.getMany).not.toHaveBeenCalled();
+  });
+
+  // The list route carries no capability guard, so a viewer or a pond-scoped
+  // worker reaches it. It may show them what came out of the pond; it may not
+  // show them what it sold for.
+  it('masks the sale price and buyer for a farm the caller cannot see the books of', async () => {
+    const { svc, qb, farmAccess } = makeFindAllService(['f1', 'f2']);
+    qb.getRawAndEntities.mockResolvedValue({
+      entities: [
+        { id: 'h1', salePriceTotal: 900, buyerName: 'Trader A' },
+        { id: 'h2', salePriceTotal: 800, buyerName: 'Trader B' },
+      ],
+      raw: [{ row_farm_id: 'f1' }, { row_farm_id: 'f2' }],
+    });
+    farmAccess.getFarmIdsWithCapability.mockResolvedValue(['f1']);
+
+    const rows = await svc.findAll('u');
+
+    expect(rows[0]).toMatchObject({ salePriceTotal: 900, buyerName: 'Trader A' });
+    expect(rows[1]).toMatchObject({ salePriceTotal: null, buyerName: null });
+  });
+
+  it('narrows to the ponds a scoped worker may reach', async () => {
+    const { svc, qb, farmAccess } = makeFindAllService(['f1']);
+    farmAccess.getAccessiblePondIds.mockResolvedValue(['p2']);
+
+    await svc.findAll('u');
+
+    expect(qb.andWhere).toHaveBeenCalledWith('crop.pondId IN (:...pondIds)', {
+      pondIds: ['p2'],
+    });
   });
 });
 

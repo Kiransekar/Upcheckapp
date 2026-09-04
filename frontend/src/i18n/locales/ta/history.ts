@@ -112,6 +112,12 @@ const history = {
   waterQualityMetricHardness: 'கடினத்தன்மை',
   waterQualityMetricTransparency: 'ஒளிபுகுதிறன்',
   weeklyChemistryTag: 'வாராந்திர வேதியியல்',
+  weeklyChemistryTitle: 'வாராந்திர வேதியியல்',
+  weeklyChemistryEmptyTitle: 'இதுவரை வேதியியல் சோதனை இல்லை',
+  weeklyChemistryEmptyText: 'சோதனைக் கருவி அளவீட்டைப் பதிவு செய்யுங்கள், ஒவ்வொரு அளவுருவின் போக்கும் இங்கே தெரியும்.',
+  weeklyChemistryLogAction: 'சோதனையைப் பதிவு செய்',
+  weeklyChemistryNeedsMore: 'போக்கை வரைய குறைந்தது இரண்டு சோதனைகள் தேவை.',
+  weeklyChemistryEntries: 'அனைத்து சோதனைகள்',
   waterQualityEmptyTitle: 'நீர் தர பதிவுகள் இல்லை',
   waterQualityEmptyText: 'போக்குகளை பார்க்க நீர் தரம் பதிவு செய்யத் தொடங்குங்கள்.',
 };
