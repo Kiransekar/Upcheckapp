@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { InventoryItem } from './inventory-item.entity';
@@ -22,6 +23,7 @@ describe('InventoryService', () => {
   let updateResult: any;
   let movementRepo: any;
   let pairingRepo: any;
+  let dataSource: any;
 
   beforeEach(async () => {
     updateResult = { affected: 1 };
@@ -46,11 +48,11 @@ describe('InventoryService', () => {
       create: jest.fn((dto) => dto),
       save: jest.fn().mockResolvedValue({}),
       find: jest.fn().mockResolvedValue([]),
-      manager: {
-        transaction: jest.fn((cb: any) =>
-          cb({ delete: jest.fn(), insert: jest.fn() }),
-        ),
-      },
+    };
+    dataSource = {
+      transaction: jest.fn((cb: any) =>
+        cb({ delete: jest.fn(), insert: jest.fn(), update: jest.fn() }),
+      ),
     };
     items = {
       create: jest.fn((dto) => dto),
@@ -82,6 +84,7 @@ describe('InventoryService', () => {
         { provide: AlertsService, useValue: alerts },
         { provide: FarmAccessService, useValue: farmAccess },
         { provide: getRepositoryToken(InventoryFarm), useValue: pairingRepo },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -333,6 +336,43 @@ describe('InventoryService', () => {
       pairingRepo.find.mockResolvedValue([]);
       const result = await service.findAll('user-1', 'f1');
       expect(result).toEqual([]);
+    });
+
+    // Coordinator fix 1 (security): a zero-farm item must fail CLOSED on
+    // direct-id access, not open. Before the fix, assertPaired returned
+    // early with no capability check at all — this is the regression test
+    // that proves the hole and then proves it is closed.
+    it('fails closed on a direct-id read of an item with no farm anywhere', async () => {
+      pairingRepo.find.mockResolvedValue([]); // no join rows
+      items.findOneBy.mockResolvedValue({ id: 'i1', farmId: null, quantity: 10 }); // no legacy farm_id either
+      await expect(service.findOne('i1', 'user-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      // Not "checked and denied" — genuinely never gated, which is the bug:
+      // there is no farm to check access against, so nothing was called.
+      expect(farmAccess.assertCanAccessFarm).not.toHaveBeenCalled();
+    });
+
+    it('fails closed on a direct-id write of an item with no farm anywhere', async () => {
+      pairingRepo.find.mockResolvedValue([]);
+      items.findOneBy.mockResolvedValue({ id: 'i1', farmId: null, quantity: 10 });
+      await expect(
+        service.update('i1', { name: 'x' } as any, 'user-1'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(items.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses to create an item paired to zero farms', async () => {
+      await expect(
+        service.create({ name: 'x', category: 'feed' } as any, 'u1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(items.save).not.toHaveBeenCalled();
+    });
+
+    it('refuses to leave an item paired to zero farms via setPairing', async () => {
+      await expect(service.setPairing('i1', [], 'u1')).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

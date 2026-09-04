@@ -295,11 +295,11 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         find: jest.fn().mockResolvedValue([]),
         save: jest.fn().mockResolvedValue({}),
         create: (d: any) => d,
-        manager: {
-          transaction: jest.fn((cb: any) =>
-            cb({ delete: jest.fn(), insert: jest.fn() }),
-          ),
-        },
+      } as any,
+      {
+        transaction: jest.fn((cb: any) =>
+          cb({ delete: jest.fn(), insert: jest.fn(), update: jest.fn() }),
+        ),
       } as any,
     );
 

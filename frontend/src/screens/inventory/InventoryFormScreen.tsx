@@ -166,9 +166,15 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
             Alert.alert(t('common.error'), t('inventory.nameRequired'));
             return;
         }
-        // An empty selection is legal (D-Task8): it saves, with the warning
-        // banner shown below, and the item appears in no farm's list until
-        // it is paired. Unlike before, there is no hard block here.
+        // Security fix (coordinator, overrides the original spec): an item
+        // paired to zero farms is unreachable by any capability check, so
+        // the server now refuses to create/leave one that way. This block
+        // mirrors that server-side BadRequestException client-side, reusing
+        // the pre-existing "select a farm" copy rather than adding a key.
+        if (farmIds.length === 0) {
+            Alert.alert(t('common.error'), t('inventory.noFarmSelected'));
+            return;
+        }
         // The server @Min(0)s all three; catch it here so the farmer gets a
         // sentence in their own language instead of a 400.
         const numbers: [string, string][] = [
@@ -320,7 +326,9 @@ export const InventoryFormScreen = ({ navigation, route }: any) => {
                         onChange={setFarmIds}
                     />
                     {farmIds.length === 0 && (
-                        <AlertBanner type="warning" title={t('inventory.unpairedTitle')} message={t('inventory.unpairedWarning')} />
+                        // "critical", not "warning": save() now blocks on this rather
+                        // than letting it through (coordinator security fix).
+                        <AlertBanner type="critical" title={t('inventory.unpairedTitle')} message={t('inventory.unpairedWarning')} />
                     )}
                 </Card>
 

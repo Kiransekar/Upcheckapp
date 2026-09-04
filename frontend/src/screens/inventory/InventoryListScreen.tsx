@@ -30,6 +30,16 @@ const CATEGORY_LABEL_KEY: Record<string, string> = {
     other: 'inventory.catOther',
 };
 
+/**
+ * Every farm one item is paired to. `getAll()` now attaches `farmIds` (Task
+ * 8 fix — the list endpoint used to only carry the single fast-path
+ * `farmId`, so a multi-paired item silently vanished from every farm's
+ * section but its primary one). Falls back to the single `farmId` for
+ * safety if an older cached response lacks the field.
+ */
+const farmsOf = (item: InventoryItem): string[] =>
+    item.farmIds ?? (item.farmId ? [item.farmId] : []);
+
 export const InventoryListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
 
@@ -77,7 +87,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
             cacheRef.current = { data, timestamp: Date.now() };
 
             // Farm captions only matter once there are two farms to tell apart.
-            if (new Set(data.map((i) => i.farmId)).size > 1) {
+            if (new Set(data.flatMap(farmsOf)).size > 1) {
                 try {
                     const { data: farms } = await farmsApi.getAll();
                     setFarmNames(Object.fromEntries(farms.map((f) => [f.id, f.name])));
@@ -115,14 +125,9 @@ export const InventoryListScreen = ({ navigation }: any) => {
         fetchInventory(true);
     }, [fetchInventory]);
 
-    /**
-     * Which farm a new item goes to: the active one, else the only one on
-     * screen. `farmId` is now nullable (Task 8: an item may be paired to
-     * several farms or none via `inventory_farms`) — this fast-path grouping
-     * only covers items still resolvable to one farm.
-     */
+    /** Which farm a new item goes to: the active one, else the only one on screen. */
     const farmIds = useMemo(
-        () => [...new Set(inventory.map((i) => i.farmId).filter((id): id is string => id != null))],
+        () => [...new Set(inventory.flatMap(farmsOf))],
         [inventory],
     );
     const addFarmId = selectedFarm?.id ?? (farmIds.length === 1 ? farmIds[0] : undefined);
@@ -137,7 +142,13 @@ export const InventoryListScreen = ({ navigation }: any) => {
         [inventory, selectedCategory],
     );
 
-    /** One section per farm when the list spans several; one unlabelled otherwise. */
+    /**
+     * One section per farm when the list spans several; one unlabelled
+     * otherwise. A multi-paired item (Task 8) appears under EVERY farm it is
+     * paired to, not just its primary one — chosen over a single "shared"
+     * section because a farmer checking farm A's stock should see it there
+     * even though it is also stocked at farm B.
+     */
     const sections = useMemo(() => {
         if (farmIds.length <= 1) {
             return filtered.length ? [{ title: '', data: filtered }] : [];
@@ -145,7 +156,12 @@ export const InventoryListScreen = ({ navigation }: any) => {
         return farmIds
             .map((id) => ({
                 title: farmNames[id] ?? t('inventory.farmFallback'),
-                data: filtered.filter((i) => i.farmId === id),
+                // A multi-paired item's id now appears in more than one
+                // section's data — `_rowKey` keeps SectionList's flattened
+                // key list unique (it otherwise warns/collides on repeated ids).
+                data: filtered
+                    .filter((i) => farmsOf(i).includes(id))
+                    .map((i) => ({ ...i, _rowKey: `${id}:${i.id}` })),
             }))
             .filter((s) => s.data.length > 0);
     }, [filtered, farmIds, farmNames, t]);
@@ -247,7 +263,7 @@ export const InventoryListScreen = ({ navigation }: any) => {
             ) : (
                 <SectionList
                     sections={sections}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item: any) => item._rowKey ?? item.id}
                     renderItem={renderInventoryItem}
                     renderSectionHeader={({ section }) =>
                         section.title ? <Text style={styles.sectionHeader}>{section.title}</Text> : null
