@@ -400,6 +400,16 @@ export const useAuthStore = create<AuthState>()(
                     return { requires2FA: false };
                 } catch (err: any) {
                     const message = apiErrorMessage(err, err.message || 'Login failed');
+                    // An unverified account is a DEAD END unless we re-arm the
+                    // resend banner. `pendingVerificationEmail` was only ever set
+                    // during signup, and it does not survive leaving the app — so
+                    // someone who closed the app before clicking the link came
+                    // back, got "email not confirmed", and had no way to ask for
+                    // another one. Their account was unusable and unrecoverable
+                    // from inside the app.
+                    if (/email\s*not\s*confirmed|not\s*verified|confirm.*email/i.test(message)) {
+                        get().setPendingVerification(email);
+                    }
                     get().setError(message);
                     throw new Error(message);
                 }

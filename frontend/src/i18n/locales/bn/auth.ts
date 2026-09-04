@@ -136,6 +136,8 @@ const auth = {
   truecallerNoSession: 'সার্ভার কোনো সেশন ফেরত দেয়নি। অনুগ্রহ করে আবার চেষ্টা করুন।',
   truecallerVerificationFailed: 'Truecaller যাচাই ব্যর্থ হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
   networkErrorBody: 'সার্ভারে পৌঁছানো যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।',
+  serverError: 'কিছু একটা ভুল হয়েছে',
+  serverErrorBody: 'সার্ভার সাইন-ইন সম্পূর্ণ করতে পারেনি। আবার চেষ্টা করুন, বা বারবার হলে সহায়তা দলের সঙ্গে যোগাযোগ করুন।',
 
   // ── Truecaller মিসড-কল / OTP (নন-Truecaller ইউজার) ফ্লো ──────────────────
   tcFallbackCta: 'Truecaller অ্যাপ নেই? মিসড কলে যাচাই করুন',

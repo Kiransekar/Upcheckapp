@@ -136,6 +136,8 @@ const auth = {
   truecallerNoSession: 'The server did not return a session. Please try again.',
   truecallerVerificationFailed: 'Truecaller verification failed. Please try again.',
   networkErrorBody: 'Could not reach the server. Please try again.',
+  serverError: 'Something went wrong',
+  serverErrorBody: 'The server could not complete sign-in. Please try again, or contact support if it keeps happening.',
 
   // ── Truecaller missed-call / OTP (non-Truecaller-user) flow ───────────────
   tcFallbackCta: 'No Truecaller app? Verify with a missed call',

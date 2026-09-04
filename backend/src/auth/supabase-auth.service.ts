@@ -507,18 +507,46 @@ export class SupabaseAuthService {
     }
 
     if (existingUser) {
-      // 2a. Existing user — verify the phone, and HEAL the stored form so the
-      // next login hits the fast path above instead of relying on the fallback.
+      // A public.users row is NOT proof that the matching auth.users row still
+      // exists. The two are written by separate calls (createUser, then the
+      // users upsert), and the pair can be broken from either side: a signup
+      // that half-completed, or an auth user deleted from the dashboard while
+      // the profile row survived.
+      //
+      // When that happens the row below still matches on phone, so this branch
+      // ran and handed a dead id to createSessionForUser → admin.updateUserById
+      // → Supabase "User not found" → 503. The user could never log in again,
+      // and the client rendered it as a network error, so it looked like a
+      // connectivity problem forever. Verify the auth side before trusting it.
+      const { data: authUser } = await this.supabase.auth.admin.getUserById(
+        existingUser.id,
+      );
+
+      if (authUser?.user) {
+        // 2a. Existing user — verify the phone, and HEAL the stored form so the
+        // next login hits the fast path above instead of relying on the fallback.
+        await this.supabaseData
+          .from('users')
+          .update({
+            phone,
+            phone_verified: true,
+            auth_provider: 'truecaller',
+          })
+          .eq('id', existingUser.id);
+
+        return this.createSessionForUser(existingUser.id, profile);
+      }
+
+      // 2b. Orphaned profile row. Drop it and fall through to a clean signup:
+      // public.users.email is unique and the phone is the lookup key, so
+      // leaving the stale row here would collide with the upsert below and
+      // strand the user a second time. Deleting is safe precisely because the
+      // auth user is already gone — nothing can authenticate as this row.
       await this.supabaseData
         .from('users')
-        .update({
-          phone,
-          phone_verified: true,
-          auth_provider: 'truecaller',
-        })
+        .delete()
         .eq('id', existingUser.id);
-
-      return this.createSessionForUser(existingUser.id, profile);
+      existingUser = null;
     }
 
     // SECURITY (account-takeover fix): we intentionally do NOT link a
