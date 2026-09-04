@@ -32,7 +32,12 @@ export interface AdjustStockOptions {
    * a worker logging a feeding is not managing the catalogue.
    */
   capability?: FarmCapability;
-  /** Reject the adjustment unless the item belongs to this farm. */
+  /**
+   * Reject the adjustment unless the item is stocked for this farm. Checked
+   * against EVERY paired farm (`inventory_farms`), not the legacy single
+   * `farm_id` column — an item shared by farms {A,B} is legitimately drawn
+   * down by a feed log on either one.
+   */
   expectedFarmId?: string;
   /** Set by the feed pipeline so a deduction can be traced to its log. */
   feedRecordId?: string;
@@ -97,21 +102,19 @@ export class InventoryService {
     );
 
     const { farmIds: _drop, ...rest } = createDto;
-    const item = this.itemsRepository.create({
-      ...rest,
-      farmId: farmIds[0] ?? null,
-    });
-    const saved = await this.itemsRepository.save(item);
+    const item = this.itemsRepository.create({ ...rest, farmId: farmIds[0] });
 
-    if (farmIds.length) {
-      await this.pairingRepo.save(
-        farmIds.map((farmId) =>
-          this.pairingRepo.create({ inventoryId: saved.id, farmId }),
-        ),
+    // ONE transaction, same as setPairing and adjustStock: an item saved
+    // without its pairing rows is a zero-farm item, which assertPaired denies
+    // to everyone — an unreachable orphan nobody can delete.
+    return this.dataSource.transaction(async (manager) => {
+      const saved = await manager.getRepository(InventoryItem).save(item);
+      await manager.insert(
+        InventoryFarm,
+        farmIds.map((farmId) => ({ inventoryId: saved.id, farmId })),
       );
-    }
-
-    return saved;
+      return saved;
+    });
   }
 
   async findAll(
@@ -175,12 +178,20 @@ export class InventoryService {
    * to the single `farmId` column for rows written before the backfill (or
    * before a caller starts using the join table at all). Empty means
    * deliberately unpaired.
+   *
+   * ORDERED (I3): callers pick a representative farm out of this list (the
+   * bill-to farm for a purchase, the first alert recipient). Without an ORDER
+   * BY that representative was whatever Postgres happened to return first,
+   * i.e. not reproducible between two identical calls.
    */
   private async farmsFor(
     itemId: string,
     item?: InventoryItem,
   ): Promise<string[]> {
-    const rows = await this.pairingRepo.find({ where: { inventoryId: itemId } });
+    const rows = await this.pairingRepo.find({
+      where: { inventoryId: itemId },
+      order: { farmId: 'ASC' },
+    });
     if (rows.length) return rows.map((r) => r.farmId);
     return item?.farmId ? [item.farmId] : [];
   }
@@ -204,7 +215,7 @@ export class InventoryService {
     userId: string,
     capability: FarmCapability,
     mode: 'any' | 'all',
-  ): Promise<Farm> {
+  ): Promise<Farm[]> {
     const farmIds = await this.farmsFor(itemId, item);
     if (!farmIds.length) {
       throw new ForbiddenException('You cannot access this inventory item');
@@ -226,7 +237,18 @@ export class InventoryService {
       throw new ForbiddenException('You cannot access this inventory item');
     }
     // ok implies fulfilled.length > 0 in both modes (farmIds.length > 0 here).
-    return fulfilled[0].value;
+    // In mode 'all' this is EVERY paired farm, in farmsFor's sorted order — so
+    // `[0]` is a reproducible choice, and the whole list is available to
+    // callers that must reach all of them (the low-stock alert).
+    return fulfilled.map((r) => r.value);
+  }
+
+  /**
+   * READ ('any') vs WRITE ('all'). The ONE line deciding whether a caller must
+   * be authorized on every paired farm or merely one of them; see assertPaired.
+   */
+  private static modeFor(capability: FarmCapability): 'any' | 'all' {
+    return capability === 'VIEW_INVENTORY' ? 'any' : 'all';
   }
 
   /** Load an item and assert the caller's access at the given capability. */
@@ -234,14 +256,19 @@ export class InventoryService {
     id: string,
     userId: string,
     capability: FarmCapability,
-  ): Promise<{ item: InventoryItem; farm: Farm }> {
+  ): Promise<{ item: InventoryItem; farms: Farm[] }> {
     const item = await this.itemsRepository.findOneBy({ id });
     if (!item) {
       throw new NotFoundException(`Inventory item with ID ${id} not found`);
     }
-    const mode = capability === 'VIEW_INVENTORY' ? 'any' : 'all';
-    const farm = await this.assertPaired(id, item, userId, capability, mode);
-    return { item, farm };
+    const farms = await this.assertPaired(
+      id,
+      item,
+      userId,
+      capability,
+      InventoryService.modeFor(capability),
+    );
+    return { item, farms };
   }
 
   async findOne(id: string, userId: string): Promise<InventoryItemWithFarms> {
@@ -309,14 +336,33 @@ export class InventoryService {
     return this.itemsRepository.delete(id);
   }
 
-  async getLowStock(farmId: string, userId: string): Promise<InventoryItem[]> {
-    await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_INVENTORY');
+  /**
+   * Low-stock rows for one farm, scoped through `inventory_farms` (C2).
+   *
+   * Filtering on the legacy `item.farmId` alone hid a shared item from every
+   * farm but its fast-path one, so the badge count disagreed with `findAll`.
+   * The legacy column stays in the OR as the un-backfilled fallback, exactly
+   * as `farmsFor` does — every writer keeps `farm_id` inside the pairing set,
+   * so the OR cannot pull in a farm the item is not stocked for.
+   */
+  private async lowStockQuery(farmId: string) {
+    const pairs = await this.pairingRepo.find({ where: { farmId } });
+    const ids = pairs.map((p) => p.inventoryId);
     return this.itemsRepository
       .createQueryBuilder('item')
-      .where('item.farmId = :farmId', { farmId })
-      .andWhere(LOW_STOCK_SQL)
-      .orderBy('item.name', 'ASC')
-      .getMany();
+      .where(
+        ids.length
+          ? '(item.farmId = :farmId OR item.id IN (:...ids))'
+          : 'item.farmId = :farmId',
+        { farmId, ids },
+      )
+      .andWhere(LOW_STOCK_SQL);
+  }
+
+  async getLowStock(farmId: string, userId: string): Promise<InventoryItem[]> {
+    await this.farmAccess.assertCanAccessFarm(userId, farmId, 'VIEW_INVENTORY');
+    const qb = await this.lowStockQuery(farmId);
+    return qb.orderBy('item.name', 'ASC').getMany();
   }
 
   /** One item's stock history, newest first. */
@@ -333,11 +379,8 @@ export class InventoryService {
   }
 
   async countLowStock(farmId: string): Promise<number> {
-    return this.itemsRepository
-      .createQueryBuilder('item')
-      .where('item.farmId = :farmId', { farmId })
-      .andWhere(LOW_STOCK_SQL)
-      .getCount();
+    const qb = await this.lowStockQuery(farmId);
+    return qb.getCount();
   }
 
   async adjustStock(
@@ -346,14 +389,32 @@ export class InventoryService {
     userId: string,
     options: AdjustStockOptions = {},
   ) {
-    const { item, farm } = await this.loadItem(
-      id,
-      userId,
-      options.capability ?? 'MANAGE_INVENTORY',
-    );
+    const capability = options.capability ?? 'MANAGE_INVENTORY';
+
+    // T9 guard. `purchase` bills `farm.id` through createInternal, which
+    // performs NO capability check by design — safe only because mode 'all'
+    // means the caller is authorized on every paired farm. A caller combining
+    // `purchase` with VIEW_INVENTORY would get mode 'any', so `farm` could be
+    // a farm they merely have READ access to, and that farm would be billed.
+    // Same bug class as the caller-supplied `purchase.farmId` already removed
+    // from this path; closed here before it can be written.
+    if (options.purchase && InventoryService.modeFor(capability) === 'any') {
+      throw new ForbiddenException(
+        'A purchase requires a write capability on every paired farm',
+      );
+    }
+
+    const { item, farms } = await this.loadItem(id, userId, capability);
+    const farm = farms[0];
 
     // A feed log on pond X must not be able to draw down another farm's stock.
-    if (options.expectedFarmId && item.farmId !== options.expectedFarmId) {
+    // C1: checked against every farm the item is PAIRED to, not the legacy
+    // single `farmId` column — an item shared by {A,B} has farmId === A, so
+    // the old check threw for every legitimate deduction billed to B.
+    if (
+      options.expectedFarmId &&
+      !(await this.farmsFor(id, item)).includes(options.expectedFarmId)
+    ) {
       throw new BadRequestException(
         'Inventory item belongs to a different farm',
       );
@@ -454,8 +515,14 @@ export class InventoryService {
       id,
     })) as InventoryItem;
 
+    // I3: alert EVERY paired farm, not an arbitrary one. Each farm the item is
+    // stocked for depends on that stock; warning only whichever row Postgres
+    // returned first left the others to discover the shortage themselves.
+    // Mode is 'all' on any write capability, so `farms` is all of them.
     if (isLowStock(savedItem)) {
-      await this.raiseLowStockAlert(savedItem, farm);
+      for (const f of farms) {
+        await this.raiseLowStockAlert(savedItem, f);
+      }
     }
 
     return savedItem;

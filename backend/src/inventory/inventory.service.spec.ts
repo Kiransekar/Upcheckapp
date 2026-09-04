@@ -62,7 +62,12 @@ describe('InventoryService', () => {
           insert: jest.fn(),
           update: jest.fn(),
           createQueryBuilder: jest.fn(() => updateBuilder),
-          getRepository: jest.fn(() => movementRepo),
+          // create() now saves the item inside the transaction too, so this
+          // has to hand back the right repo per entity rather than always
+          // the movement one.
+          getRepository: jest.fn((entity: any) =>
+            entity === InventoryItem ? items : movementRepo,
+          ),
         }),
       ),
     };
@@ -479,6 +484,145 @@ describe('InventoryService', () => {
       await expect(service.setPairing('i1', [], 'u1')).rejects.toThrow(
         BadRequestException,
       );
+    });
+
+    // C1: `expectedFarmId` used to compare the legacy single `item.farmId`
+    // column. Authority moved to `inventory_farms` and every other read path
+    // migrated; this guard did not. setPairing writes farmId = farmIds[0], so
+    // an item shared by {farm-a, farm-b} logged feed fine on farm-a and threw
+    // "belongs to a different farm" on farm-b — the pairing feature's whole
+    // point, broken in the pipeline it exists to serve
+    // (feed-records.service.ts's four adjustStock call sites).
+    describe('expectedFarmId across a multi-paired item (C1)', () => {
+      beforeEach(() => {
+        pairingRepo.find.mockResolvedValue([
+          { inventoryId: 'item-1', farmId: 'farm-a' },
+          { inventoryId: 'item-1', farmId: 'farm-b' },
+        ]);
+        items.findOneBy.mockResolvedValue({
+          id: 'item-1',
+          farmId: 'farm-a', // the fast-path column: farm-b is join-table only
+          quantity: 100,
+        });
+        farmAccess.assertCanAccessFarm.mockImplementation(
+          (_userId: string, farmId: string) =>
+            Promise.resolve({
+              id: farmId,
+              userId: 'owner-1',
+              rolePolicy: null,
+            }),
+        );
+      });
+
+      it.each(['farm-a', 'farm-b'])(
+        'accepts a feed deduction billed to %s',
+        async (expectedFarmId) => {
+          await expect(
+            service.adjustStock('item-1', -1, 'u1', {
+              capability: 'WRITE_OPERATIONAL',
+              expectedFarmId,
+            }),
+          ).resolves.toBeDefined();
+          expect(updateBuilder.execute).toHaveBeenCalled();
+        },
+      );
+
+      it('still rejects a farm the item is not paired to at all', async () => {
+        await expect(
+          service.adjustStock('item-1', -1, 'u1', {
+            capability: 'WRITE_OPERATIONAL',
+            expectedFarmId: 'farm-z',
+          }),
+        ).rejects.toThrow('different farm');
+        expect(updateBuilder.execute).not.toHaveBeenCalled();
+      });
+    });
+
+    // C2: getLowStock/countLowStock filtered `item.farmId = :farmId`, so a
+    // shared item never appeared as low stock for its second farm and the
+    // badge count disagreed with findAll (which reads the join table).
+    describe('low stock across a multi-paired item (C2)', () => {
+      beforeEach(() => {
+        // farm-a is the fast-path column, farm-b is join-table only. Both are
+        // real memberships, so both must see the shortage.
+        pairingRepo.find.mockImplementation(({ where }: any) =>
+          Promise.resolve(
+            where.farmId === 'farm-a' || where.farmId === 'farm-b'
+              ? [{ inventoryId: 'item-1', farmId: where.farmId }]
+              : [],
+          ),
+        );
+        updateBuilder.getMany.mockResolvedValue([{ id: 'item-1' }]);
+        updateBuilder.getCount.mockResolvedValue(1);
+      });
+
+      it.each(['farm-a', 'farm-b'])(
+        'lists the shared item as low stock for %s',
+        async (farmId) => {
+          const rows = await service.getLowStock(farmId, 'u1');
+          expect(rows.map((r: any) => r.id)).toEqual(['item-1']);
+          expect(updateBuilder.where).toHaveBeenCalledWith(
+            expect.stringContaining('item.id IN (:...ids)'),
+            expect.objectContaining({ farmId, ids: ['item-1'] }),
+          );
+        },
+      );
+
+      it('counts through the join table so the badge agrees with findAll', async () => {
+        expect(await service.countLowStock('farm-b')).toBe(1);
+        expect(updateBuilder.where).toHaveBeenCalledWith(
+          expect.stringContaining('item.id IN (:...ids)'),
+          expect.objectContaining({ farmId: 'farm-b', ids: ['item-1'] }),
+        );
+      });
+    });
+
+    // I3: raiseLowStockAlert used to fire for assertPaired's arbitrary
+    // fulfilled[0] farm, so the OTHER farm depending on that shared stock was
+    // never warned.
+    it('warns every paired farm when shared stock runs low (I3)', async () => {
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'item-1', farmId: 'farm-a' },
+        { inventoryId: 'item-1', farmId: 'farm-b' },
+      ]);
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        farmId: 'farm-a',
+        name: 'Feed',
+        quantity: 2,
+        reorderLevel: 5,
+        unit: 'kg',
+      });
+      farmAccess.assertCanAccessFarm.mockImplementation(
+        (_userId: string, farmId: string) =>
+          Promise.resolve({
+            id: farmId,
+            userId: `owner-${farmId}`,
+            rolePolicy: null,
+          }),
+      );
+
+      await service.adjustStock('item-1', -1, 'u1');
+
+      const farmsAlerted = alerts.createAutoAlert.mock.calls.map(
+        (c: any[]) => c[1],
+      );
+      expect([...new Set(farmsAlerted)].sort()).toEqual(['farm-a', 'farm-b']);
+    });
+
+    // T9 guard: `purchase` bills farm.id through createInternal, which does no
+    // capability check by design. That is safe only while mode is 'all'. A
+    // caller pairing `purchase` with VIEW_INVENTORY would get mode 'any' and
+    // could bill a farm they merely have READ access to.
+    it('refuses a purchase combined with a read-only capability (T9)', async () => {
+      await expect(
+        service.adjustStock('item-1', 10, 'u1', {
+          capability: 'VIEW_INVENTORY',
+          purchase: { amount: 4500 },
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+      expect(updateBuilder.execute).not.toHaveBeenCalled();
     });
 
     // Review finding 2: the only pre-existing setPairing test used the SAME
