@@ -236,6 +236,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         'adjustStock',
         'update',
         'remove',
+        'listMovements',
       ] as const
     ).map((handler): [new (...args: any[]) => any, string, string] => [
       InventoryController,
@@ -254,6 +255,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
     ['remove', 'MANAGE_INVENTORY'],
     ['getLowStock', 'VIEW_INVENTORY'],
     ['adjustStock', 'MANAGE_INVENTORY'],
+    ['listMovements', 'VIEW_INVENTORY'],
   ])('InventoryService.%s asserts %s', async (method, capability) => {
     const assertCanAccessFarm = jest
       .fn()
@@ -297,6 +299,7 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       remove: ['i1', 'u1'],
       getLowStock: ['farm-1', 'u1'],
       adjustStock: ['i1', -1, 'u1'],
+      listMovements: ['i1', 'u1'],
     };
     await (service as any)[method](...args[method]);
 

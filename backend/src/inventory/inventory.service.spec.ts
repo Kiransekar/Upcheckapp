@@ -161,6 +161,7 @@ describe('InventoryService', () => {
       await expect(service.adjustStock('item-1', -1, 'u1')).rejects.toThrow(
         /Insufficient stock/,
       );
+      expect(movementRepo.save).not.toHaveBeenCalled();
     });
   });
 
@@ -242,11 +243,13 @@ describe('InventoryService', () => {
     });
 
     it('writes no movement when the negative-stock guard rejects the update', async () => {
-      // The UPDATE is what enforces `quantity + delta >= 0`. A movement written
-      // when affected === 0 would record a change that did not happen.
+      // -1 against the mocked quantity of 10 clears the earlier JS-level
+      // pre-check, so this actually reaches the atomic UPDATE — the real
+      // race-safe path that enforces `quantity + delta >= 0`. A movement
+      // written when affected === 0 would record a change that did not happen.
       updateResult.affected = 0;
       await expect(
-        service.adjustStock('item-1', -999, 'user-1', {
+        service.adjustStock('item-1', -1, 'user-1', {
           capability: 'MANAGE_INVENTORY',
         }),
       ).rejects.toThrow(BadRequestException);
