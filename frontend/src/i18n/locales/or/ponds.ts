@@ -165,5 +165,8 @@ const ponds = {
   errorUnarchivePond: "ପୋଖରୀକୁ ଫେରାଇ ଆଣି ହେଲା ନାହିଁ।",
   errorArchiveActiveCycle: "ଏହି ପୋଖରୀରେ ଚକ୍ର ଚାଲିଛି, ତେଣୁ ସଂରକ୍ଷଣ ହୋଇପାରିବ ନାହିଁ। ପ୍ରଥମେ ଚକ୍ରଟି ବନ୍ଦ କରନ୍ତୁ।",
   errorDeletePond: "ପୋଖରୀ ଡିଲିଟ୍ ହୋଇପାରିଲା ନାହିଁ।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "ଶେଷ ଲଗ୍ {{age}}",
 };
 export default ponds;

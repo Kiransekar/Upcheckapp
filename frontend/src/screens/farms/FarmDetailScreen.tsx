@@ -32,6 +32,7 @@ import { AlertBanner } from '../../components/ui/AlertBanner';
 import { Button } from '../../components/ui/Button';
 import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { confirm } from '../../utils/confirm';
+import { formatAge } from '../../utils/formatDate';
 import { apiErrorMessage } from '../../api/errors';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
@@ -157,7 +158,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     );
 
     const rows = useMemo(
-        () => sortByHealth(buildPondRows(ponds, contexts, briefing)),
+        () => sortByHealth(buildPondRows(ponds, contexts, briefing, new Date())),
         [ponds, contexts, briefing],
     );
     const roll = useMemo(() => rollUpFarm(rows), [rows]);
@@ -568,7 +569,7 @@ const PondRow: React.FC<{
     onStartCycle: () => void;
 }> = ({ row, canStartCycle, onOpen, onStartCycle }) => {
     const { t } = useTranslation();
-    const { pond, health, reason, context } = row;
+    const { pond, health, reason, context, freshness } = row;
     const doValue = context?.waterQuality?.dissolvedOxygen;
 
     if (health === 'fallow') {
@@ -614,6 +615,14 @@ const PondRow: React.FC<{
                 {!!context && (
                     <View style={styles.sessionHint}>
                         <SessionHint ctx={context} />
+                        {freshness.state !== 'fresh' && (
+                            <View style={styles.staleChip}>
+                                <Icon name="schedule" size={12} color={theme.roles.light.staleText} />
+                                <Text style={styles.staleChipLabel} numberOfLines={1}>
+                                    {t('ponds.lastLog', { age: formatAge(freshness.asOf) })}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 )}
             </View>
@@ -737,6 +746,18 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textTertiary,
     },
     sessionHint: { marginTop: theme.spacing[1] },
+    staleChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 3,
+        paddingHorizontal: theme.spacing[2],
+        height: theme.tokens.chip.height,
+        borderRadius: theme.radius.full,
+        borderWidth: 1,
+        backgroundColor: theme.roles.light.staleBg,
+        borderColor: theme.roles.light.staleBorder,
+    },
+    staleChipLabel: { ...theme.typeScale.labelSmall, color: theme.roles.light.staleText },
     cell: {
         fontFamily: 'DMMono-Regular',
         fontSize: 15,

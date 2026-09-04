@@ -165,5 +165,8 @@ const ponds = {
   errorUnarchivePond: "পুকুরটি ফিরিয়ে আনা গেল না।",
   errorArchiveActiveCycle: "এই পুকুরে চক্র চলছে, তাই সংরক্ষণ করা যাবে না। আগে চক্রটি শেষ করুন।",
   errorDeletePond: "পুকুরটি মোছা গেল না।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "শেষ লগ {{age}}",
 };
 export default ponds;

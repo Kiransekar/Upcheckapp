@@ -166,5 +166,8 @@ const ponds = {
   errorUnarchivePond: "Could not bring the pond back.",
   errorArchiveActiveCycle: "This pond is running a cycle, so it cannot be archived. Close the cycle first.",
   errorDeletePond: "Could not delete the pond.",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "Last log {{age}}",
 };
 export default ponds;
