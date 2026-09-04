@@ -49,6 +49,24 @@ export class TransactionsService {
     return this.transactionsRepository.save(transaction);
   }
 
+  /**
+   * INTERNAL, unchecked — no VIEW_FINANCIALS assert. Mirrors
+   * InventoryService.countLowStock: exists for another module (currently
+   * only an inventory purchase) that has already authorized the write under
+   * ITS OWN capability (e.g. MANAGE_INVENTORY) and must not be forced to
+   * also hold VIEW_FINANCIALS, a financial READ capability, just to record
+   * the money it just spent. The CALLER is responsible for authorization —
+   * this method trusts it completely. Do not expose this over HTTP.
+   */
+  async createInternal(createDto: CreateTransactionDto, userId: string) {
+    const transaction = this.transactionsRepository.create({
+      ...createDto,
+      createdById: userId,
+      updatedById: userId,
+    });
+    return this.transactionsRepository.save(transaction);
+  }
+
   async findAll(userId: string, farmId?: string, type?: string) {
     const where: any = {};
     if (type) where.type = type;

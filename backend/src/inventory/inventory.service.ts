@@ -19,6 +19,8 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmCapability, roleSatisfies } from '../farm-access/farm-capability';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { Farm } from '../farms/farm.entity';
+import { TransactionsService } from '../transactions/transactions.service';
+import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
 
 /** Options for a stock adjustment. */
 export interface AdjustStockOptions {
@@ -34,6 +36,13 @@ export interface AdjustStockOptions {
   expectedFarmId?: string;
   /** Set by the feed pipeline so a deduction can be traced to its log. */
   feedRecordId?: string;
+  /**
+   * Present only when this adjustment is a purchase. Opt-in: a plain stock
+   * correction must not write a money row. When set, `adjustStock` records a
+   * 'inventory'-category expense on `farmId` for `amount`, tagged with the
+   * item, after the stock movement is written.
+   */
+  purchase?: { amount: number; farmId: string };
 }
 
 /** An item plus every farm it is paired to (not persisted on the entity). */
@@ -55,6 +64,7 @@ export class InventoryService {
     @InjectRepository(InventoryFarm)
     private pairingRepo: Repository<InventoryFarm>,
     private readonly dataSource: DataSource,
+    private readonly transactionsService: TransactionsService,
   ) {}
 
   async create(createDto: CreateInventoryItemDto, userId: string) {
@@ -387,6 +397,27 @@ export class InventoryService {
         feedRecordId: options.feedRecordId ?? null,
       }),
     );
+
+    // Opt-in money write. A purchase spends the farm's cash, so it goes
+    // through TransactionsService — but via the INTERNAL, unchecked path:
+    // the caller already proved MANAGE_INVENTORY (or WRITE_OPERATIONAL) on
+    // this item's farm above, and re-asserting VIEW_FINANCIALS (a financial
+    // READ capability) here would 403 a storekeeper who has no financial
+    // access but has every right to buy stock. No `purchase` option means no
+    // money row — a plain stock correction stays out of the ledger.
+    if (options.purchase) {
+      await this.transactionsService.createInternal(
+        {
+          farmId: options.purchase.farmId,
+          transactionDate: new Date().toISOString(),
+          type: 'expense',
+          category: 'inventory',
+          amount: options.purchase.amount,
+          inventoryItemId: id,
+        } as CreateTransactionDto,
+        userId,
+      );
+    }
 
     // Re-fetch through the repository (not raw driver output) so the
     // result is a properly camelCase-mapped entity.

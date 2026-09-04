@@ -9,6 +9,7 @@ import { InventoryFarm } from './inventory-farm.entity';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { TransactionsService } from '../transactions/transactions.service';
 import { isLowStock } from './inventory.constants';
 
 const FARM = { id: 'farm-1', userId: 'owner-1', rolePolicy: null } as any;
@@ -24,6 +25,7 @@ describe('InventoryService', () => {
   let movementRepo: any;
   let pairingRepo: any;
   let dataSource: any;
+  let transactionsService: any;
 
   beforeEach(async () => {
     updateResult = { affected: 1 };
@@ -71,6 +73,10 @@ describe('InventoryService', () => {
       assertCanAccessFarm: jest.fn().mockResolvedValue(FARM),
       getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
     };
+    transactionsService = {
+      create: jest.fn().mockResolvedValue({}),
+      createInternal: jest.fn().mockResolvedValue({}),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,6 +91,7 @@ describe('InventoryService', () => {
         { provide: FarmAccessService, useValue: farmAccess },
         { provide: getRepositoryToken(InventoryFarm), useValue: pairingRepo },
         { provide: DataSource, useValue: dataSource },
+        { provide: TransactionsService, useValue: transactionsService },
       ],
     }).compile();
 
@@ -290,6 +297,39 @@ describe('InventoryService', () => {
       expect(movementRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ feedRecordId: 'feed-9' }),
       );
+    });
+  });
+
+  describe('purchase-flavoured adjustments', () => {
+    // The RULING (not the naive brief text): a purchase goes through the
+    // INTERNAL, unchecked TransactionsService.createInternal, not .create —
+    // the caller already proved MANAGE_INVENTORY on the farm being billed,
+    // and re-asserting VIEW_FINANCIALS (a financial READ capability) for
+    // this write would 403 a storekeeper with no financial access.
+    it('records a purchase as an inventory expense tagged with the item', async () => {
+      await service.adjustStock('item-1', 10, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+        reason: 'Purchase',
+        purchase: { amount: 4500, farmId: 'f1' },
+      });
+      expect(transactionsService.createInternal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          farmId: 'f1',
+          type: 'expense',
+          category: 'inventory',
+          amount: 4500,
+          inventoryItemId: 'item-1',
+        }),
+        'user-1',
+      );
+      expect(transactionsService.create).not.toHaveBeenCalled();
+    });
+
+    it('does not write money for a plain stock correction', async () => {
+      await service.adjustStock('item-1', 10, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+      });
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
     });
   });
 

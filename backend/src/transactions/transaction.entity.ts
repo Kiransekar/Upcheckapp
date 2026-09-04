@@ -50,4 +50,10 @@ export class Transaction {
 
   @Column({ name: 'updated_by_id', type: 'uuid', nullable: true })
   updatedById: string | null;
+
+  // The item a purchase bought, if this row is one. SET NULL on delete (see
+  // migration 1780600500000): losing the item must not lose the record of
+  // having paid for it.
+  @Column({ name: 'inventory_item_id', type: 'uuid', nullable: true })
+  inventoryItemId: string | null;
 }

@@ -302,6 +302,9 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
           cb({ delete: jest.fn(), insert: jest.fn(), update: jest.fn() }),
         ),
       } as any,
+      // Task 9: purchase-flavoured adjustStock's internal money write. Unused
+      // by every route pinned in this file (none pass a `purchase` option).
+      { createInternal: jest.fn() } as any,
     );
 
     const args: Record<string, unknown[]> = {
