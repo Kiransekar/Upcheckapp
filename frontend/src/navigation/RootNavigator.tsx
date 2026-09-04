@@ -271,7 +271,8 @@ export type RootStackParamList = {
     Intent: undefined;
     PondSetup: { farmId: string; totalPonds: number };
     PondNames: { farm: CreateFarmDto; pondCount: number };
-    JoinFarm: undefined;
+    // code: from the upcheckapp://join/<CODE> deep link (linking.ts).
+    JoinFarm: { code?: string } | undefined;
     JoinedFarm: { farmName: string; role: FarmRole; status: 'active' | 'pending' };
 
     // Additional calculators + feed products

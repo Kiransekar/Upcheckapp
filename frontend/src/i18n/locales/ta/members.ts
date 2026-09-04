@@ -25,7 +25,7 @@ const members = {
     revokeInvite: 'நீக்கு',
     revokeTitle: 'இந்த அழைப்பை நீக்கவா?',
     revokeConfirm: 'இந்தக் குறியீட்டை வைத்திருப்பவர் இனி சேர முடியாது.',
-    shareInviteMessage: 'இந்தக் குறியீட்டுடன் Upcheck-இல் {{farm}} சேரவும்: {{code}}',
+    shareInviteMessage: 'இந்தக் குறியீட்டுடன் Upcheck-இல் {{farm}} சேரவும்: {{code}}\nஅல்லது தட்டவும்: upcheckapp://join/{{code}}',
     neverExpires: 'காலாவதி ஆகாது',
     expiresInDays: '{{count}} நாட்களில் காலாவதி',
     expiresInHours: '{{count}} மணி நேரத்தில் காலாவதி',
@@ -74,6 +74,8 @@ const members = {
 
     notFoundTitle: 'பயனர் கிடைக்கவில்லை',
     notFoundSub: 'அந்த அடையாளத்துடன் எந்தக் கணக்கும் பொருந்தவில்லை. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
+    inviteInstead: 'அதற்குப் பதிலாக அழைப்பை அனுப்பு',
+    inviteInsteadBody: 'அந்த அடையாளத்துடன் எந்தக் கணக்கும் பொருந்தவில்லை. அதற்குப் பதிலாக அழைப்பை அனுப்பவும் — கணக்கு உருவாக்கியதும் அவர் சேரலாம்.',
     invalidQrTitle: 'அறியப்படாத QR',
     invalidQrSub: 'இது Upcheck பணியாளர் குறியீடு அல்ல.',
     confirmAdd: 'பண்ணையில் சேர்',

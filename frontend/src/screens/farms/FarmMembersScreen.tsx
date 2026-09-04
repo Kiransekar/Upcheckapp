@@ -15,7 +15,7 @@
  * The QR is the same code, scannable — AddWorkerScreen already reads one, so
  * this closes the loop for a worker standing next to the owner.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
@@ -184,6 +184,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             // Share sheet dismissed — nothing to report.
         }
     };
+
+    // AddWorkerScreen's "send an invite instead" (for someone with no
+    // account) lands here with autoShare — fire the share sheet ourselves
+    // once a live invite is on screen, instead of making the owner hunt for
+    // the button. Guarded to fire once: `invites` refetches on every focus,
+    // which would otherwise reopen the share sheet on every return trip.
+    const autoSharedRef = useRef(false);
+    useEffect(() => {
+        if (route.params?.autoShare && !autoSharedRef.current && activeInvite) {
+            autoSharedRef.current = true;
+            shareInvite(activeInvite.code);
+        }
+    }, [activeInvite]);
 
     const approve = useCallback(
         async (m: FarmMember) => {

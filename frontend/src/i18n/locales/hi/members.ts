@@ -25,7 +25,7 @@ const members = {
     revokeInvite: 'रद्द करें',
     revokeTitle: 'इस आमंत्रण को रद्द करें?',
     revokeConfirm: 'यह कोड रखने वाला कोई भी व्यक्ति अब नहीं जुड़ पाएगा।',
-    shareInviteMessage: 'इस कोड से Upcheck पर {{farm}} से जुड़ें: {{code}}',
+    shareInviteMessage: 'इस कोड से Upcheck पर {{farm}} से जुड़ें: {{code}}\nया टैप करें: upcheckapp://join/{{code}}',
     neverExpires: 'कभी समाप्त नहीं होता',
     expiresInDays: '{{count}} दिनों में समाप्त',
     expiresInHours: '{{count}} घंटों में समाप्त',
@@ -74,6 +74,8 @@ const members = {
 
     notFoundTitle: 'उपयोगकर्ता नहीं मिला',
     notFoundSub: 'उस पहचान से कोई खाता मेल नहीं खाता। जाँचें और पुनः प्रयास करें।',
+    inviteInstead: 'इसके बजाय आमंत्रण भेजें',
+    inviteInsteadBody: 'उस पहचान से कोई खाता मेल नहीं खाता। इसके बजाय आमंत्रण भेजें — खाता बनाने के बाद वे जुड़ सकते हैं।',
     invalidQrTitle: 'अमान्य QR',
     invalidQrSub: 'यह Upcheck वर्कर कोड नहीं है।',
     confirmAdd: 'फ़ार्म में जोड़ें',
