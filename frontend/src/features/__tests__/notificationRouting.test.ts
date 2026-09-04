@@ -21,4 +21,23 @@ describe('routeForNotification', () => {
         expect(routeForNotification(undefined)).toBeNull();
         expect(routeForNotification({ type: 'feedback_reply', reportId: 42 })).toBeNull();
     });
+
+    it('routes a pending-join push to the farm team screen', () => {
+        expect(routeForNotification({ type: 'pending_join', farmId: 'f1' })).toEqual({
+            screen: 'FarmMembers',
+            params: { farmId: 'f1' },
+        });
+    });
+
+    it('routes a leave-request push to the leave screen', () => {
+        expect(routeForNotification({ type: 'leave_request', farmId: 'f1', leaveRequestId: 'lr1' })).toEqual({
+            screen: 'LeaveRequests',
+            params: { farmId: 'f1' },
+        });
+    });
+
+    it('ignores pending_join / leave_request payloads missing a farmId', () => {
+        expect(routeForNotification({ type: 'pending_join' })).toBeNull();
+        expect(routeForNotification({ type: 'leave_request' })).toBeNull();
+    });
 });

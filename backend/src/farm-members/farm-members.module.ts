@@ -9,6 +9,7 @@ import { FarmMembersController } from './farm-members.controller';
 import { FarmMembersService } from './farm-members.service';
 import { FarmInvitesService } from './farm-invites.service';
 import { FarmRecoveryService } from './farm-recovery.service';
+import { PushModule } from '../push/push.module';
 
 /**
  * Team-membership API: look up users, add/remove farm workers, list members,
@@ -16,7 +17,10 @@ import { FarmRecoveryService } from './farm-recovery.service';
  * global FarmAccessService (owner-only for add/remove). Auth itself is untouched.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([FarmMember, User, Farm, FarmInvite, Pond])],
+  imports: [
+    TypeOrmModule.forFeature([FarmMember, User, Farm, FarmInvite, Pond]),
+    PushModule,
+  ],
   controllers: [FarmMembersController],
   providers: [FarmMembersService, FarmInvitesService, FarmRecoveryService],
   exports: [FarmMembersService, FarmInvitesService, FarmRecoveryService],

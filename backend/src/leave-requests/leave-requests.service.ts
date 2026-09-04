@@ -10,6 +10,9 @@ import { Repository } from 'typeorm';
 import { LeaveRequest, LeaveRequestStatus } from './leave-request.entity';
 import { CreateLeaveRequestDto } from './dto/create-leave-request.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmMember } from '../farm-access/farm-member.entity';
+import { Farm } from '../farms/farm.entity';
+import { PushService } from '../push/push.service';
 
 /**
  * Postgres "undefined_table" (42P01) — same pattern as attendance.service.ts:
@@ -40,7 +43,10 @@ export class LeaveRequestsService {
   constructor(
     @InjectRepository(LeaveRequest)
     private readonly leaveRepo: Repository<LeaveRequest>,
+    @InjectRepository(FarmMember)
+    private readonly membersRepo: Repository<FarmMember>,
     private readonly farmAccess: FarmAccessService,
+    private readonly push: PushService,
   ) {}
 
   /** Submit a leave request for the caller's own account. */
@@ -61,7 +67,7 @@ export class LeaveRequestsService {
       throw new BadRequestException('endDate cannot be before startDate');
     }
 
-    await this.farmAccess.assertCanAccessFarm(
+    const farm = await this.farmAccess.assertCanAccessFarm(
       callerId,
       dto.farmId,
       'WRITE_OPERATIONAL',
@@ -76,7 +82,45 @@ export class LeaveRequestsService {
       reason: dto.reason ?? null,
       status: 'pending',
     });
-    return this.leaveRepo.save(record);
+    const saved = await this.leaveRepo.save(record);
+
+    // After the save, and after the offline-replay guard above returns early
+    // — a sync-queue drain that re-submits a request from days ago must not
+    // re-push. Best-effort: sendToUser never throws, and a query failure
+    // while resolving recipients must not fail a request that already saved.
+    await this.notifyApprovers(farm, saved).catch((err: any) =>
+      this.logger.warn(
+        `Failed to notify approvers of leave request ${saved.id}: ${err?.message ?? err}`,
+      ),
+    );
+
+    return saved;
+  }
+
+  /** Owner plus every active manager — decide() gates on WRITE_MANAGEMENT
+   * with no narrowing, so the notified set matches exactly who may act. */
+  private async approversOf(farm: Farm): Promise<string[]> {
+    const managers = await this.membersRepo.find({
+      where: { farmId: farm.id, role: 'manager', status: 'active' },
+    });
+    return [...new Set([farm.userId, ...managers.map((m) => m.userId)])];
+  }
+
+  private async notifyApprovers(farm: Farm, record: LeaveRequest) {
+    const recipients = await this.approversOf(farm);
+    await Promise.all(
+      recipients.map((userId) =>
+        this.push.sendToUser(userId, {
+          title: 'New leave request',
+          body: `A team member requested leave from ${record.startDate} to ${record.endDate}.`,
+          data: {
+            type: 'leave_request',
+            farmId: record.farmId,
+            leaveRequestId: record.id,
+          },
+        }),
+      ),
+    );
   }
 
   /** The caller's own leave requests for a farm, most recent first. */
