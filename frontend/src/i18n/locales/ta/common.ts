@@ -67,5 +67,10 @@ const common = {
   // Asked before overwriting a record that already exists — see utils/confirm.ts
   confirmEditTitle: "இந்த மாற்றங்களைச் சேமிக்கவா?",
   confirmEditMessage: "இது முன்பு சேமித்ததை மாற்றிவிடும்.",
+
+  ageJustNow: "<1 ம",
+  ageHours: "{{count}} ம",
+  ageDays: "{{count}} நா",
+  ageNever: "இல்லை",
 };
 export default common;
