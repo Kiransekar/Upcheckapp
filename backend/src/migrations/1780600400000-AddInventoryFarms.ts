@@ -59,11 +59,25 @@ export class AddInventoryFarms1780600400000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // farm_id was backfilled and is never cleared, so restoring NOT NULL is
-    // safe — but only after any unpaired rows created since are given one.
-    await queryRunner.query(
-      `DELETE FROM "inventory" WHERE "farm_id" IS NULL`,
-    );
+    // Recover before destroying. `inventory_farms` is still here, so any row
+    // whose fast-path `farm_id` went null after `up()` (via `setPairing`,
+    // for example) can get one back from its own pairing — real recovery,
+    // not a guess.
+    await queryRunner.query(`
+      UPDATE "inventory" SET "farm_id" = (
+        SELECT "farm_id" FROM "inventory_farms"
+        WHERE "inventory_id" = "inventory"."id" LIMIT 1
+      ) WHERE "farm_id" IS NULL
+    `);
+
+    // Whatever still has no `farm_id` here has no pairing at all — there is
+    // nothing left to recover it from. Do NOT delete those rows: that would
+    // destroy inventory history with no trace. Let SET NOT NULL fail loudly
+    // instead, so an operator running this by hand sees there is unpaired
+    // data to reconcile (`SELECT id FROM inventory WHERE farm_id IS NULL`)
+    // rather than silently losing it. A failure here also leaves
+    // `inventory_farms` in place (the DROP below never runs), so the
+    // pairing data used for recovery isn't destroyed either.
     await queryRunner.query(
       `ALTER TABLE "inventory" ALTER COLUMN "farm_id" SET NOT NULL`,
     );

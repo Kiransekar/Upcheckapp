@@ -13,14 +13,16 @@ import { INVENTORY_CATEGORIES, INVENTORY_UNITS } from '../inventory.constants';
 export class CreateInventoryItemDto {
   /**
    * Kept for backward compatibility with the shipped client, which still
-   * sends a single farm. Now optional: the multi-farm client sends `farmIds`
-   * instead, and an item may be created deliberately unpaired (neither field).
+   * sends a single farm. Now optional at the DTO layer only: the multi-farm
+   * client sends `farmIds` instead — but `InventoryService.create` rejects
+   * the request with a 400 unless `farmId` or `farmIds` resolves to at least
+   * one farm. An item can never be created unpaired.
    */
   @IsUUID()
   @IsOptional()
   farmId?: string;
 
-  /** The farms to pair this item to. Empty/absent means unpaired. */
+  /** The farms to pair this item to. See `farmId` above — at least one is required. */
   @IsArray()
   @IsUUID('4', { each: true })
   @IsOptional()

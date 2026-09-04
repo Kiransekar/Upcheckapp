@@ -374,5 +374,27 @@ describe('InventoryService', () => {
         BadRequestException,
       );
     });
+
+    // Review finding 2: the only pre-existing setPairing test used the SAME
+    // farm as old and new, so it could not tell "checks the union" apart
+    // from "checks the new set only" — exactly the bypass the union design
+    // exists to prevent (re-pairing an item away from a farm you have no
+    // rights on). Distinct old/new sets here close that gap: the caller can
+    // manage the NEW farm but not the OLD one, and must still be refused.
+    it('refuses to re-pair an item away from a farm the caller cannot manage', async () => {
+      items.findOneBy.mockResolvedValue({ id: 'i1', farmId: 'old-farm' });
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'i1', farmId: 'old-farm' },
+      ]);
+      farmAccess.assertCanAccessFarm.mockImplementation(
+        (_userId: string, farmId: string) =>
+          farmId === 'new-farm'
+            ? Promise.resolve(FARM)
+            : Promise.reject(new ForbiddenException()),
+      );
+      await expect(
+        service.setPairing('i1', ['new-farm'], 'u1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 });
