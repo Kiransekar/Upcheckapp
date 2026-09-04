@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, आहार, अमोनिया गणनाएं',
   moreSimulations: 'सिमुलेशन',
   moreSimulationsDesc: 'वृद्धि सिमुलेशन चलाएं',
-  moreReports: 'रिपोर्ट',
   moreReportsDesc: 'चक्र विश्लेषण और वित्तीय',
   moreDiseaseEncyclopedia: 'रोग विश्वकोश',
   moreDiseaseEncyclopediaDesc: 'रोग पुस्तकालय ब्राउज़ और खोजें',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ऐप संस्करण और श्रेय',
 
   // ReportsScreen
-  reportsTitle: 'रिपोर्ट',
   reportsSelectFarm: 'फार्म चुनें',
   reportsOverview: 'अवलोकन',
   reportsFinancialSummary: 'वित्तीय सारांश',

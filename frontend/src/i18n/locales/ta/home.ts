@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, தீவனம், அம்மோனியா கணக்கீடுகள்',
   moreSimulations: 'உருவகப்படுத்தல்கள்',
   moreSimulationsDesc: 'வளர்ச்சி உருவகப்படுத்தல் இயக்கு',
-  moreReports: 'அறிக்கைகள்',
   moreReportsDesc: 'சுழற்சி பகுப்பாய்வு மற்றும் நிதி',
   moreDiseaseEncyclopedia: 'நோய் கலைக்களஞ்சியம்',
   moreDiseaseEncyclopediaDesc: 'நோய் நூலகத்தை உலாவு மற்றும் தேடு',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ஆப் பதிப்பு மற்றும் வரவேற்புகள்',
 
   // ReportsScreen
-  reportsTitle: 'அறிக்கைகள்',
   reportsSelectFarm: 'பண்ணை தேர்ந்தெடு',
   reportsOverview: 'கண்ணோட்டம்',
   reportsFinancialSummary: 'நிதி சுருக்கம்',

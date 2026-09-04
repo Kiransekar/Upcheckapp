@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, খাদ্য, অ্যামোনিয়া গণনা',
   moreSimulations: 'সিমুলেশন',
   moreSimulationsDesc: 'বৃদ্ধির সিমুলেশন চালান',
-  moreReports: 'প্রতিবেদন',
   moreReportsDesc: 'চক্র বিশ্লেষণ ও আর্থিক তথ্য',
   moreDiseaseEncyclopedia: 'রোগ বিশ্বকোষ',
   moreDiseaseEncyclopediaDesc: 'রোগের লাইব্রেরি ব্রাউজ ও অনুসন্ধান করুন',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'অ্যাপ সংস্করণ ও কৃতিত্ব',
 
   // ReportsScreen
-  reportsTitle: 'প্রতিবেদন',
   reportsSelectFarm: 'খামার বেছে নিন',
   reportsOverview: 'সারসংক্ষেপ',
   reportsFinancialSummary: 'আর্থিক সারসংক্ষেপ',

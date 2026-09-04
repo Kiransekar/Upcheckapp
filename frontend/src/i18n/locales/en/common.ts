@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'Settings',
   tabDashboard: 'Dashboard',
   tabFarms: 'Farms',
-  tabReports: 'Reports',
   tabMore: 'More',
   savedSuccess: 'Saved',
   networkError: 'Cannot reach the server. Check your internet connection and try again.',

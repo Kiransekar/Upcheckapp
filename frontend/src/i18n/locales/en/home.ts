@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, feed, ammonia calculations',
   moreSimulations: 'Simulations',
   moreSimulationsDesc: 'Run growth simulations',
-  moreReports: 'Reports',
   moreReportsDesc: 'Cycle analysis and financials',
   moreDiseaseEncyclopedia: 'Disease Encyclopedia',
   moreDiseaseEncyclopediaDesc: 'Browse and search disease library',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'App version and credits',
 
   // ReportsScreen
-  reportsTitle: 'Reports',
   reportsSelectFarm: 'Select Farm',
   reportsOverview: 'Overview',
   reportsFinancialSummary: 'Financial Summary',

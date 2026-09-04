@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'সেটিংস',
   tabDashboard: 'ড্যাশবোর্ড',
   tabFarms: 'খামার',
-  tabReports: 'প্রতিবেদন',
   tabMore: 'আরও',
   savedSuccess: 'সংরক্ষিত হয়েছে',
   networkError: 'সার্ভারে পৌঁছানো যাচ্ছে না। আপনার ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',

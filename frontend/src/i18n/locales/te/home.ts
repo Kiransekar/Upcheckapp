@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, దాణా, అమ్మోనియా లెక్కింపులు',
   moreSimulations: 'సిమ్యులేషన్లు',
   moreSimulationsDesc: 'వృద్ధి సిమ్యులేషన్లు నడపండి',
-  moreReports: 'నివేదికలు',
   moreReportsDesc: 'సైకిల్ విశ్లేషణ మరియు ఆర్థిక వివరాలు',
   moreDiseaseEncyclopedia: 'వ్యాధి విజ్ఞాన కోశం',
   moreDiseaseEncyclopediaDesc: 'వ్యాధి లైబ్రరీ చూడండి మరియు వెతుకుండి',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'యాప్ వెర్షన్ మరియు క్రెడిట్స్',
 
   // ReportsScreen
-  reportsTitle: 'నివేదికలు',
   reportsSelectFarm: 'ఫారం ఎంచుకోండి',
   reportsOverview: 'అవలోకనం',
   reportsFinancialSummary: 'ఆర్థిక సారాంశం',

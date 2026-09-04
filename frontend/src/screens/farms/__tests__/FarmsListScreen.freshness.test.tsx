@@ -5,7 +5,7 @@
 // card claiming "All fine" in words, not just in colour. `roll.stale` (Task 3)
 // now sits ahead of that fallthrough.
 import React from 'react';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, within } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { HEALTH_COLOR } from '../../../utils/pondHealth';
@@ -39,6 +39,15 @@ const TEST_SAFE_AREA_METRICS = {
 };
 
 const nav = { navigate: jest.fn(), goBack: jest.fn() };
+
+// The farm cards on screen. Several TouchableOpacitys render (join-with-code
+// button, header action, chips); a farm card is the one carrying styles.card's
+// `borderLeftWidth`.
+const farmCards = (utils: { UNSAFE_getAllByType: any }) =>
+    utils.UNSAFE_getAllByType(TouchableOpacity).filter((el: any) => {
+        const flat = StyleSheet.flatten(el.props.style);
+        return flat && flat.borderLeftWidth != null;
+    });
 
 const renderScreen = () =>
     render(
@@ -88,11 +97,23 @@ describe('FarmsListScreen — freshness (Task 4)', () => {
             { pondId: 'p1', farmId: 'f1', waterQuality: { recordedAt: '2026-01-01T00:00:00.000Z' } },
         ]);
 
-        const { queryByText, findByText } = renderScreen();
+        const utils = renderScreen();
+        const { queryByText } = utils;
 
         // StatRow renders value and label as separate nodes, so assert on the
         // label and the absence of the claim — not on a joined string.
-        expect(await findByText('Not updated')).toBeTruthy();
+        //
+        // Scoped to the CARD deliberately. 'Not updated' is also a Legend
+        // swatch label, so a bare findByText('Not updated') matched two nodes:
+        // it resolved against the always-present legend before the card's stat
+        // had rendered, then threw "found multiple elements" once both were
+        // there. That is an ambiguous query, not a slow one — no timeout fixes
+        // it. `within(card)` names the node the test actually means.
+        await waitFor(() => {
+            const cards = farmCards(utils);
+            expect(cards).toHaveLength(1);
+            expect(within(cards[0]).getByText('Not updated')).toBeTruthy();
+        });
         expect(queryByText('All fine')).toBeNull();
     });
 
@@ -124,16 +145,10 @@ describe('FarmsListScreen — freshness (Task 4)', () => {
             { pondId: 'p1', farmId: 'f1', waterQuality: { recordedAt: '2026-01-01T00:00:00.000Z' } },
         ]);
 
-        const { findByText, UNSAFE_getAllByType } = renderScreen();
-        await findByText('Farm A');
+        const utils = renderScreen();
+        await utils.findByText('Farm A');
 
-        // Several TouchableOpacitys are on screen (join-with-code button,
-        // header action, chips); the farm card is the one carrying
-        // styles.card's `borderLeftWidth`.
-        const cards = UNSAFE_getAllByType(TouchableOpacity).filter((el: any) => {
-            const flat = StyleSheet.flatten(el.props.style);
-            return flat && flat.borderLeftWidth != null;
-        });
+        const cards = farmCards(utils);
         expect(cards).toHaveLength(1);
         const flat = StyleSheet.flatten(cards[0].props.style);
         expect(flat.borderLeftColor).toBe(HEALTH_COLOR.stale);

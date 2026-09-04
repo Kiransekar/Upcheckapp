@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'ସେଟିଂସ',
   tabDashboard: 'ଡ୍ୟାଶବୋର୍ଡ',
   tabFarms: 'ଫାର୍ମ',
-  tabReports: 'ରିପୋର୍ଟ',
   tabMore: 'ଆଧିକ',
   savedSuccess: 'ସେଭ୍ ହୋଇଛି',
   networkError: 'ସର୍ଭର ସହ ସଂଯୋଗ ହେଉନାହିଁ। ଆପଣଙ୍କ ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',

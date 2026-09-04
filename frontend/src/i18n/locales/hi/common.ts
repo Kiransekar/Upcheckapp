@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'सेटिंग्स',
   tabDashboard: 'डैशबोर्ड',
   tabFarms: 'फार्म',
-  tabReports: 'रिपोर्ट',
   tabMore: 'अधिक',
   savedSuccess: 'सहेजा गया',
   networkError: 'सर्वर से कनेक्ट नहीं हो पा रहा। अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।',

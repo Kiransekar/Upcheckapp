@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'அமைப்புகள்',
   tabDashboard: 'டாஷ்போர்டு',
   tabFarms: 'பண்ணைகள்',
-  tabReports: 'அறிக்கைகள்',
   tabMore: 'மேலும்',
   savedSuccess: 'சேமிக்கப்பட்டது',
   networkError: 'சர்வரை அணுக முடியவில்லை. உங்கள் இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
