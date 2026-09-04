@@ -19,6 +19,7 @@
  * commit, and make sure the matching service assert moves with it.
  */
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import {
   OWNS_RESOURCE_KEY,
   OwnsResourceOptions,
@@ -31,10 +32,12 @@ import { HarvestTimingController } from '../harvest-timing/harvest-timing.contro
 import { ReportsController } from '../reports/reports.controller';
 import { HarvestsController } from '../harvests/harvests.controller';
 import { InventoryController } from '../inventory/inventory.controller';
+import { TransactionsController } from '../transactions/transactions.controller';
 import { FarmsController } from '../farms/farms.controller';
 import { CropsController } from '../crops/crops.controller';
 import { PondsController } from '../ponds/ponds.controller';
 import { InventoryService } from '../inventory/inventory.service';
+import { TransactionsService } from '../transactions/transactions.service';
 
 type Row = [
   controller: new (...args: any[]) => any,
@@ -236,11 +239,31 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         'adjustStock',
         'update',
         'remove',
+        'listMovements',
+        'setPairing',
       ] as const
     ).map((handler): [new (...args: any[]) => any, string, string] => [
       InventoryController,
       handler,
       'farm-scoped, enforced in InventoryService',
+    ]),
+    // Transactions: same shape as inventory — the farmId is in the BODY on
+    // create and on the row (not the URL) everywhere else, so there is no
+    // single entity for the guard to resolve an owner path off. Enforced in
+    // TransactionsService via FarmAccessService (update/remove pinned below).
+    ...(
+      [
+        'create',
+        'findAll',
+        'getSummary',
+        'findOne',
+        'update',
+        'remove',
+      ] as const
+    ).map((handler): [new (...args: any[]) => any, string, string] => [
+      TransactionsController,
+      handler,
+      'farm-scoped, enforced in TransactionsService',
     ]),
   ];
 
@@ -254,6 +277,8 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
     ['remove', 'MANAGE_INVENTORY'],
     ['getLowStock', 'VIEW_INVENTORY'],
     ['adjustStock', 'MANAGE_INVENTORY'],
+    ['listMovements', 'VIEW_INVENTORY'],
+    ['setPairing', 'MANAGE_INVENTORY'],
   ])('InventoryService.%s asserts %s', async (method, capability) => {
     const assertCanAccessFarm = jest
       .fn()
@@ -279,9 +304,41 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         delete: jest.fn().mockResolvedValue({}),
         createQueryBuilder: () => qb,
       } as any,
+      {
+        create: (d: any) => d,
+        save: jest.fn().mockResolvedValue({}),
+        find: jest.fn().mockResolvedValue([]),
+      } as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
       { createAutoAlert: jest.fn() } as any,
       { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,
+      {
+        find: jest.fn().mockResolvedValue([]),
+        save: jest.fn().mockResolvedValue({}),
+        create: (d: any) => d,
+      } as any,
+      {
+        // adjustStock now runs its stock UPDATE and movement insert through
+        // this manager (Task 9 review finding 2's transaction wrap), so it
+        // needs the same createQueryBuilder/getRepository shape as the
+        // item/movement repos above.
+        transaction: jest.fn((cb: any) =>
+          cb({
+            delete: jest.fn(),
+            insert: jest.fn(),
+            update: jest.fn(),
+            createQueryBuilder: () => qb,
+            getRepository: () => ({
+              find: jest.fn().mockResolvedValue([]),
+              save: jest.fn().mockResolvedValue({}),
+              create: (d: any) => d,
+            }),
+          }),
+        ),
+      } as any,
+      // Task 9: purchase-flavoured adjustStock's internal money write. Unused
+      // by every route pinned in this file (none pass a `purchase` option).
+      { createInternal: jest.fn() } as any,
     );
 
     const args: Record<string, unknown[]> = {
@@ -292,6 +349,8 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       remove: ['i1', 'u1'],
       getLowStock: ['farm-1', 'u1'],
       adjustStock: ['i1', -1, 'u1'],
+      listMovements: ['i1', 'u1'],
+      setPairing: ['i1', ['farm-1'], 'u1'],
     };
     await (service as any)[method](...args[method]);
 
@@ -302,10 +361,117 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
     );
   });
 
+  /**
+   * I6 — the ANY/ALL contract, which the rows above cannot see.
+   *
+   * Every pinned InventoryService row mocks `pairingRepo.find -> []`, so
+   * `farmsFor` always falls back to the single legacy `farmId` and only the
+   * one-farm path runs; `assertCanAccessFarm` is an always-resolving mock, so
+   * `Promise.allSettled` always fulfils. They pin the capability NAME and
+   * nothing else. Changing `loadItem`'s mode line to always `'any'` leaves
+   * them ALL GREEN — and that line is the only thing standing between
+   * `TransactionsService.createInternal`'s deliberately unchecked money write
+   * and a caller who merely has VIEW on one of an item's farms.
+   *
+   * So pin the contract itself: a genuinely multi-paired item, a caller
+   * authorized on one farm and refused on the other, must be READABLE and NOT
+   * WRITABLE.
+   */
+  describe('InventoryService multi-farm read/write contract', () => {
+    const buildService = () => {
+      // Authorized on farm-1, refused on farm-2 — the case a single-farm
+      // fixture and an always-resolving mock can never produce.
+      const assertCanAccessFarm = jest.fn((_u: string, farmId: string) =>
+        farmId === 'farm-1'
+          ? Promise.resolve({
+              id: 'farm-1',
+              userId: 'owner-1',
+              rolePolicy: null,
+            })
+          : Promise.reject(new ForbiddenException()),
+      );
+      const service = new InventoryService(
+        {
+          findOneBy: jest
+            .fn()
+            .mockResolvedValue({ id: 'i1', farmId: 'farm-1', quantity: 10 }),
+          update: jest.fn().mockResolvedValue({}),
+          delete: jest.fn().mockResolvedValue({}),
+        } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { createAutoAlert: jest.fn() } as any,
+        { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,
+        {
+          find: jest.fn().mockResolvedValue([
+            { inventoryId: 'i1', farmId: 'farm-1' },
+            { inventoryId: 'i1', farmId: 'farm-2' },
+          ]),
+        } as any,
+        { transaction: jest.fn() } as any,
+        { createInternal: jest.fn() } as any,
+      );
+      return { service, assertCanAccessFarm };
+    };
+
+    it('READS a shared item on VIEW_INVENTORY for ANY one paired farm', async () => {
+      const { service, assertCanAccessFarm } = buildService();
+      const item = await service.findOne('i1', 'u1');
+      expect(item.farmIds).toEqual(['farm-1', 'farm-2']);
+      // Both farms were actually consulted — not short-circuited on the legacy
+      // column, which is what makes the write assertion below meaningful.
+      expect(assertCanAccessFarm.mock.calls.map((c) => c[1]).sort()).toEqual([
+        'farm-1',
+        'farm-2',
+      ]);
+    });
+
+    it('REFUSES to write it without MANAGE_INVENTORY on EVERY paired farm', async () => {
+      const { service } = buildService();
+      await expect(
+        service.update('i1', { name: 'x' } as any, 'u1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   it.each(UNGUARDED)(
     '%p.%s intentionally has no @OwnsResource (%s)',
     (controller, handler) => {
       expect(metaFor(controller, handler)).toBeUndefined();
     },
   );
+
+  // Transaction writes (D12): update/remove rode VIEW_FINANCIALS — the same
+  // capability as merely SEEING the money, so anyone with financial read
+  // access could rewrite or hard-delete a transaction. Pinned to
+  // WRITE_MANAGEMENT so the gate cannot silently slide back onto the read
+  // capability. Reads and create stay on VIEW_FINANCIALS, unpinned here.
+  it.each([
+    ['update', 'WRITE_MANAGEMENT'],
+    ['remove', 'WRITE_MANAGEMENT'],
+  ])('TransactionsService.%s asserts %s', async (method, capability) => {
+    const assertCanAccessFarm = jest
+      .fn()
+      .mockResolvedValue({ id: 'farm-1', userId: 'owner-1' });
+    const service = new TransactionsService(
+      {
+        findOneBy: jest.fn().mockResolvedValue({ id: 't1', farmId: 'farm-1' }),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+        delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      } as any,
+      { assertCanAccessFarm } as any,
+    );
+
+    const args: Record<string, unknown[]> = {
+      update: ['t1', { amount: 1 }, 'u1'],
+      remove: ['t1', 'u1'],
+    };
+    await (service as any)[method](...args[method]);
+
+    expect(assertCanAccessFarm).toHaveBeenCalledWith(
+      'u1',
+      'farm-1',
+      capability,
+    );
+  });
 });

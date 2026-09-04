@@ -48,6 +48,9 @@ const inventory = {
   negativeNotAllowed: '{{field}} రుణాత్మకంగా ఉండకూడదు.',
   saveFailed: 'అంశాన్ని సేవ్ చేయడం విఫలమైంది.',
   noPermission: 'ఈ ఫారం ఇన్వెంటరీని మార్చే అనుమతి మీకు లేదు.',
+  pairedFarms: "ఏ వ్యవసాయ క్షేత్రానికి",
+  unpairedTitle: "ఏ క్షేత్రంతోనూ జతచేయలేదు",
+  unpairedWarning: "మీరు జతచేసే వరకు ఇది ఏ క్షేత్రం జాబితాలోనూ కనిపించదు. సిఫారసు చేయబడలేదు.",
 
   // Icon picker
   pickIcon: 'ఒక చిహ్నాన్ని ఎంచుకోండి',
@@ -82,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'గడువు తేదీ',
   labelLastAdjustment: 'చివరి సర్దుబాటు',
   labelNotes: 'గమనికలు',
+  movementHistory: 'స్టాక్ చరిత్ర',
+  movementNoReason: 'కారణం ఇవ్వలేదు',
 
   // Adjust stock
   adjustStock: 'స్టాక్ సర్దుబాటు చేయి',

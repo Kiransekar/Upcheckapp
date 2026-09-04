@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'సెట్టింగ్‌లు',
   tabDashboard: 'డాష్‌బోర్డ్',
   tabFarms: 'ఫారాలు',
-  tabReports: 'నివేదికలు',
   tabMore: 'మరిన్ని',
   savedSuccess: 'సేవ్ చేయబడింది',
   networkError: 'సర్వర్‌ను చేరుకోలేకపోతున్నాం. మీ ఇంటర్నెట్ కనెక్షన్‌ను తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
@@ -67,5 +66,10 @@ const common = {
   // Asked before overwriting a record that already exists — see utils/confirm.ts
   confirmEditTitle: "ఈ మార్పులను సేవ్ చేయాలా?",
   confirmEditMessage: "ఇది ఇంతకుముందు సేవ్ చేసిన సమాచారాన్ని మారుస్తుంది.",
+
+  ageJustNow: "<1 గం",
+  ageHours: "{{count}} గం",
+  ageDays: "{{count}} రో",
+  ageNever: "ఎప్పుడూ లేదు",
 };
 export default common;

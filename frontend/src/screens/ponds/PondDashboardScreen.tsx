@@ -47,8 +47,9 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
-import { formatTime } from '../../utils/formatDate';
+import { formatTime, formatAge } from '../../utils/formatDate';
 import { pondLabel } from '../../utils/pondHealth';
+import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 
 /** The create form already names these; the detail view must not re-word them. */
 const SHAPE_KEY: Record<string, string> = {
@@ -103,7 +104,7 @@ const LOG_ACTIONS: LogAction[] = [
     // reading them — but that list is dominated by daily probe rows, so the six
     // chemistry values were buried. WeeklyChemistryHistory reads the same table
     // through `chemistryOnly=true`, which drops the probe-only rows.
-    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
+    { key: 'actionWeeklyChem', icon: 'calendar_month', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
 ];
 
 /**
@@ -706,6 +707,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             )}
                         </View>
 
+                        {/*
+                          * How much of the pond's snapshot is real, current data
+                          * versus a stale or missing reading — the same trust
+                          * signal the engines show, right where the farmer can
+                          * act on it: `showHint` names what to log next.
+                          */}
+                        {context?.confidence && (
+                            <View style={styles.confidenceRow}>
+                                <ConfidenceChip confidence={context.confidence} showHint />
+                            </View>
+                        )}
+
                         <StatRow
                             divider
                             stats={[
@@ -763,6 +776,21 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                         ] as Stat[]
                                     }
                                 />
+                                {/*
+                                  * Each figure above can come from a DIFFERENT
+                                  * record — a pH-only log does not refresh
+                                  * yesterday's DO reading — so every figure gets
+                                  * its OWN age, not the tile's newest one
+                                  * (`readingAgo`). Same 4-cell layout as the
+                                  * StatRow above so each caption sits under the
+                                  * value it describes.
+                                  */}
+                                <View style={styles.readingAgeRow}>
+                                    <Text style={styles.readingAge}>{formatAge(wq.dissolvedOxygenAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.phAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.temperatureAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.salinityAsOf)}</Text>
+                                </View>
                             </>
                         )}
 
@@ -1027,6 +1055,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     alertBtnLabel: { ...theme.typeScale.labelLarge, color: theme.roles.light.textInverse },
+
+    confidenceRow: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
+    readingAgeRow: {
+        flexDirection: 'row',
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[3],
+        backgroundColor: theme.roles.light.surface,
+    },
+    readingAge: { flex: 1, ...theme.typeScale.caption, color: theme.roles.light.textTertiary },
 
     cycleRow: {
         flexDirection: 'row',

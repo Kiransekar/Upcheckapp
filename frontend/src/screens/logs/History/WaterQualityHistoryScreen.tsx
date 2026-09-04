@@ -12,9 +12,9 @@ import { theme } from '../../../theme';
 import { waterQualityApi, WaterQualityRecord } from '../../../api/waterQuality';
 import { cropsApi } from '../../../api/crops';
 import { apiErrorMessage } from '../../../api/errors';
-import { getStatusColor } from '../../../constants/ranges';
 import {
     evaluateParameter,
+    getStatusColor,
     toThresholdSpecies,
     ThresholdSpecies,
     ThresholdParam,
@@ -31,8 +31,7 @@ const MAX_OVERLAY_POINTS = 14;
  * was on screen as four dashes.
  *
  * Only what the record actually holds is rendered, so a daily reading is still
- * four tiles and a chemistry entry is its six. `hardness` has no threshold band
- * yet, so it shows a value with no status dot rather than a wrong one.
+ * four tiles and a chemistry entry is its six.
  */
 const METRICS: {
     key: string;
@@ -48,7 +47,7 @@ const METRICS: {
     { key: 'nitrite', labelKey: 'history.waterQualityMetricNitrite', get: (r) => r.nitrite, param: 'nitrite' },
     { key: 'nitrate', labelKey: 'history.waterQualityMetricNitrate', get: (r) => r.nitrate, param: 'nitrate' },
     { key: 'alkalinity', labelKey: 'history.waterQualityMetricAlkalinity', get: (r) => r.alkalinity, param: 'alkalinity' },
-    { key: 'hardness', labelKey: 'history.waterQualityMetricHardness', get: (r) => r.hardness },
+    { key: 'hardness', labelKey: 'history.waterQualityMetricHardness', get: (r) => r.hardness, param: 'hardness' },
     { key: 'transparency', labelKey: 'history.waterQualityMetricTransparency', get: (r) => r.transparency, param: 'transparency' },
 ];
 

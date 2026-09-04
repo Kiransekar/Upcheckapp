@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'सेटिंग्स',
   tabDashboard: 'डैशबोर्ड',
   tabFarms: 'फार्म',
-  tabReports: 'रिपोर्ट',
   tabMore: 'अधिक',
   savedSuccess: 'सहेजा गया',
   networkError: 'सर्वर से कनेक्ट नहीं हो पा रहा। अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।',
@@ -67,5 +66,10 @@ const common = {
   // Asked before overwriting a record that already exists — see utils/confirm.ts
   confirmEditTitle: "ये बदलाव सहेजें?",
   confirmEditMessage: "यह पहले सहेजी गई जानकारी को बदल देगा।",
+
+  ageJustNow: "<1 घं",
+  ageHours: "{{count}} घं",
+  ageDays: "{{count}} दि",
+  ageNever: "कभी नहीं",
 };
 export default common;

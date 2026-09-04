@@ -39,6 +39,14 @@ export const light = {
     infoText: '#0B4F8A',
     infoBg: '#EBF4FD',
     infoBorder: '#1A7FD4',
+
+    // Stale — "this data is too old to trust", NOT "this water is bad".
+    // Deliberately not amber: amber is `watch`, and a farmer must never read
+    // "nobody logged it" as "something is wrong with the pond". Darker than
+    // borderDefault (#E0E8EC) so a stale bar is distinguishable from a fallow one.
+    staleText: '#3E5163',
+    staleBg: '#EDF1F4',
+    staleBorder: '#8496A6',
 };
 // ponytail: dark palette removed — was exported but never rendered (no useColorScheme
 // hook, all 118 screens hardcode roles.light, StatusBar fixed dark-content). Re-add

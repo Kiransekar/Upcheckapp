@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'ସେଟିଂସ',
   tabDashboard: 'ଡ୍ୟାଶବୋର୍ଡ',
   tabFarms: 'ଫାର୍ମ',
-  tabReports: 'ରିପୋର୍ଟ',
   tabMore: 'ଆଧିକ',
   savedSuccess: 'ସେଭ୍ ହୋଇଛି',
   networkError: 'ସର୍ଭର ସହ ସଂଯୋଗ ହେଉନାହିଁ। ଆପଣଙ୍କ ଇଣ୍ଟରନେଟ୍ ସଂଯୋଗ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
@@ -67,5 +66,10 @@ const common = {
   // Asked before overwriting a record that already exists — see utils/confirm.ts
   confirmEditTitle: "ଏହି ପରିବର୍ତ୍ତନ ସଞ୍ଚୟ କରିବେ?",
   confirmEditMessage: "ଏହା ପୂର୍ବରୁ ସଞ୍ଚିତ ତଥ୍ୟକୁ ବଦଳାଇଦେବ।",
+
+  ageJustNow: "<1 ଘ",
+  ageHours: "{{count}} ଘ",
+  ageDays: "{{count}} ଦି",
+  ageNever: "କେବେ ନୁହେଁ",
 };
 export default common;

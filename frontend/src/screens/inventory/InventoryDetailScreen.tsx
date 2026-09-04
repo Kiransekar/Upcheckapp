@@ -7,16 +7,18 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { inventoryApi, InventoryItem, isLowStock, stockFraction, itemIcon, CATEGORY_LABEL_KEY } from '../../api/inventory';
+import { inventoryApi, InventoryItem, InventoryMovement, isLowStock, stockFraction, itemIcon, CATEGORY_LABEL_KEY } from '../../api/inventory';
 import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { confirm } from '../../utils/confirm';
+import { formatAge, formatNumber } from '../../utils/formatDate';
 import { useFocusEffect } from '@react-navigation/native';
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
     const { inventoryId, itemName } = route.params;
     const [item, setItem] = useState<InventoryItem | null>(null);
+    const [movements, setMovements] = useState<InventoryMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Adjust-stock modal state
@@ -27,7 +29,9 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
 
     // Editing lives on InventoryForm now — the same screen that creates an item,
     // so the two can never drift into offering different fields again (D4).
-    const { canManageInventory } = usePermissions(item?.farmId);
+    // item.farmId is now nullable (Task 8: an item may be paired to several
+    // farms or none) — usePermissions still wants a single farm or undefined.
+    const { canManageInventory } = usePermissions(item?.farmId ?? undefined);
 
     // Refetch on FOCUS, not on mount. React Navigation keeps a screen mounted
     // once opened, so a mount-only effect never ran again — the page kept
@@ -44,6 +48,23 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
         } catch (error) {
             console.error('Failed to fetch inventory item:', error);
             Alert.alert(t('common.error'), t('inventory.loadItemError'));
+            setIsLoading(false);
+            return;
+        }
+        // Own call, own failure: a farmer with no ledger permission (or an
+        // item created before this shipped) still sees the item itself — the
+        // history section just falls back to lastAdjustmentReason below.
+        // This is the same focus-refetch/post-adjust choke point that keeps
+        // `item` fresh (see submitAdjust and the useFocusEffect above); the
+        // TanStack cache in query/client.ts intentionally does not cover
+        // /inventory reads (see its URL_ENTITY_MAP comment), so this is where
+        // "an adjustment must refresh the list" actually gets satisfied.
+        try {
+            const { data } = await inventoryApi.listMovements(inventoryId);
+            setMovements(data);
+        } catch (error) {
+            console.error('Failed to fetch inventory movements:', error);
+            setMovements([]);
         } finally {
             setIsLoading(false);
         }
@@ -231,15 +252,40 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     )}
 
                     {/*
-                        The last adjustment's reason, not a history: `reason` used
-                        to be validated, sent and then thrown away (D2). It is now
-                        persisted as `lastAdjustmentReason` — one value, overwritten
-                        each time.
-                        ponytail: one reason, not a ledger. An `inventory_movements`
-                        table (Phase 3 §5 #33) is the upgrade path when the farmer
-                        needs "who took 20 kg last Tuesday".
+                        Stock history (Task 15): `inventory_movements` is now the
+                        source of truth for "who changed what and when" — D2's
+                        `lastAdjustmentReason` only ever held the MOST RECENT
+                        reason, overwriting every prior one. Items adjusted before
+                        this shipped have a reason but no ledger rows, so that
+                        single-value view survives below as the fallback.
                     */}
-                    {item.lastAdjustmentReason && (
+                    {movements.length > 0 ? (
+                        <View style={styles.infoRow}>
+                            <MaterialCommunityIcons name="history" size={20} color={theme.roles.light.textSecondary} />
+                            <View style={styles.infoTextContainer}>
+                                <Text style={styles.infoLabel}>{t('inventory.movementHistory')}</Text>
+                                {movements.map((m) => {
+                                    const delta = Number(m.delta);
+                                    const sign = delta > 0 ? '+' : '';
+                                    return (
+                                        <View key={m.id} style={styles.movementRow}>
+                                            <Text
+                                                style={[
+                                                    styles.movementDelta,
+                                                    { color: delta >= 0 ? theme.roles.light.successText : theme.roles.light.dangerText },
+                                                ]}
+                                            >
+                                                {sign}{formatNumber(delta)} {item.unit}
+                                            </Text>
+                                            <Text style={styles.movementMeta} numberOfLines={1}>
+                                                {m.reason || t('inventory.movementNoReason')} · {formatAge(m.createdAt)}
+                                            </Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        </View>
+                    ) : item.lastAdjustmentReason ? (
                         <View style={styles.infoRow}>
                             <MaterialCommunityIcons name="history" size={20} color={theme.roles.light.textSecondary} />
                             <View style={styles.infoTextContainer}>
@@ -247,7 +293,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                 <Text style={styles.infoValue}>{item.lastAdjustmentReason}</Text>
                             </View>
                         </View>
-                    )}
+                    ) : null}
 
                     {item.notes && (
                         <View style={[styles.infoRow, styles.noBorder]}>
@@ -439,6 +485,17 @@ const styles = StyleSheet.create({
     infoValue: {
         ...theme.typeScale.bodyLarge,
         color: theme.roles.light.textPrimary,
+    },
+    movementRow: {
+        marginTop: theme.spacing[2],
+    },
+    movementDelta: {
+        ...theme.typeScale.bodyMedium,
+        fontWeight: '600',
+    },
+    movementMeta: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
     },
     adjustBtn: {
         marginBottom: theme.spacing[6],

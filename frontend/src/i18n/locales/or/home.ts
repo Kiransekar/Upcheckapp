@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, ଖାଦ୍ୟ, ଅ୍ୟାମୋନିଆ ଗଣନା',
   moreSimulations: 'ସିମୁଲେସନ',
   moreSimulationsDesc: 'ବୃଦ୍ଧି ସିମୁଲେସନ ଚଲାନ୍ତୁ',
-  moreReports: 'ରିପୋର୍ଟ',
   moreReportsDesc: 'ଚକ୍ର ବିଶ୍ଳେଷଣ ଓ ଆର୍ଥିକ ବିବରଣୀ',
   moreDiseaseEncyclopedia: 'ରୋଗ ବିଶ୍ୱକୋଷ',
   moreDiseaseEncyclopediaDesc: 'ରୋଗ ଭଣ୍ଡାର ବ୍ରାଉଜ ଓ ଖୋଜ',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ଆପ ସଂସ୍କରଣ ଓ କ୍ରେଡିଟ',
 
   // ReportsScreen
-  reportsTitle: 'ରିପୋର୍ଟ',
   reportsSelectFarm: 'ଫାର୍ମ ଚୟନ',
   reportsOverview: 'ଅବଲୋକନ',
   reportsFinancialSummary: 'ଆର୍ଥିକ ସାରାଂଶ',

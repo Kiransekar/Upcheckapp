@@ -165,5 +165,8 @@ const ponds = {
   errorUnarchivePond: "तालाब वापस नहीं लाया जा सका।",
   errorArchiveActiveCycle: "इस तालाब में चक्र चल रहा है, इसलिए यह संग्रहित नहीं हो सकता। पहले चक्र बंद करें।",
   errorDeletePond: "तालाब हटाया नहीं जा सका।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "अंतिम लॉग {{age}}",
 };
 export default ponds;

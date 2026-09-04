@@ -90,6 +90,7 @@ describe('sortByHealth', () => {
         health,
         reason: null,
         context: null,
+        freshness: { state: 'fresh', asOf: null, ageMs: null },
     });
 
     it('puts the worst pond first and fallow last', () => {
@@ -139,7 +140,8 @@ describe('rollUpFarm', () => {
         expect(roll.actNow).toBe(1);
         expect(roll.watch).toBe(1);
         expect(roll.biomassKg).toBe(758); // 412 + 346.4, rounded
-        expect(roll.strip).toEqual(['critical', 'watch', 'fine', 'fallow']);
+        // p3 has no context at all — never logged — so it reads stale, not fine.
+        expect(roll.strip).toEqual(['critical', 'watch', 'stale', 'fallow']);
     });
 
     it('reports biomass as unknown rather than zero when nothing is sampled', () => {
@@ -156,6 +158,7 @@ describe('rollUpFarm', () => {
             biomassKg: null,
             actNow: 0,
             watch: 0,
+            stale: 0,
             strip: [],
         });
     });
@@ -259,5 +262,67 @@ describe('mergeBriefings', () => {
         );
 
         expect(out).toHaveLength(2);
+    });
+});
+
+describe('healthOf with freshness', () => {
+    it('never reports fine when the data is not fresh', () => {
+        // The whole point: green must mean "checked recently and OK".
+        expect(healthOf(pond(), null, 'stale')).toBe('stale');
+        expect(healthOf(pond(), null, 'noData')).toBe('stale');
+    });
+
+    it('lets a real alert outrank silence', () => {
+        expect(healthOf(pond(), 'critical', 'noData')).toBe('critical');
+        expect(healthOf(pond(), 'watch', 'stale')).toBe('watch');
+    });
+
+    it('leaves a fallow pond fallow — an empty pond has nothing to be stale about', () => {
+        expect(healthOf(pond({ activeCycleId: null }), null, 'noData')).toBe('fallow');
+    });
+
+    it('still reads fine when the data is fresh', () => {
+        expect(healthOf(pond(), null, 'fresh')).toBe('fine');
+    });
+
+    it('defaults to the old behaviour when freshness is not supplied', () => {
+        // Keeps every existing caller and test honest during the rollout.
+        expect(healthOf(pond(), null)).toBe('fine');
+    });
+});
+
+describe('stale ranking and roll-up', () => {
+    it('sorts stale above fine and below watch', () => {
+        const row = (health: any, id: string): PondWithHealth =>
+            ({ pond: pond({ id, name: id }), health, reason: null, context: null }) as any;
+        const sorted = sortByHealth([
+            row('fine', 'a'),
+            row('stale', 'b'),
+            row('watch', 'c'),
+        ]);
+        expect(sorted.map((r) => r.health)).toEqual(['watch', 'stale', 'fine']);
+    });
+
+    it('counts stale ponds on the roll-up', () => {
+        const rows = buildPondRows(
+            [pond({ id: 'p1' }), pond({ id: 'p2' })],
+            [
+                ctx({ pondId: 'p1', waterQuality: { recordedAt: new Date().toISOString() } as any }),
+                ctx({ pondId: 'p2', waterQuality: { recordedAt: '2026-01-01T00:00:00.000Z' } as any }),
+            ],
+            [],
+            new Date('2026-09-04T10:00:00.000Z'),
+        );
+        expect(rollUpFarm(rows).stale).toBe(1);
+    });
+
+    it('attaches freshness to each row so screens need not recompute it', () => {
+        const rows = buildPondRows(
+            [pond({ id: 'p1' })],
+            [ctx({ pondId: 'p1', waterQuality: null as any })],
+            [],
+            new Date('2026-09-04T10:00:00.000Z'),
+        );
+        expect(rows[0].freshness).toEqual({ state: 'noData', asOf: null, ageMs: null });
     });
 });

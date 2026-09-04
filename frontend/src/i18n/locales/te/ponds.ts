@@ -165,5 +165,8 @@ const ponds = {
   errorUnarchivePond: "చెరువును తిరిగి తీసుకురాలేకపోయాం.",
   errorArchiveActiveCycle: "ఈ చెరువులో సైకిల్ నడుస్తోంది, కాబట్టి ఆర్కైవ్ చేయలేరు. ముందు సైకిల్‌ను ముగించండి.",
   errorDeletePond: "చెరువును తొలగించలేకపోయాం.",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "చివరి లాగ్ {{age}}",
 };
 export default ponds;

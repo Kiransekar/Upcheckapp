@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'Settings',
   tabDashboard: 'Dashboard',
   tabFarms: 'Farms',
-  tabReports: 'Reports',
   tabMore: 'More',
   savedSuccess: 'Saved',
   networkError: 'Cannot reach the server. Check your internet connection and try again.',
@@ -67,5 +66,12 @@ const common = {
   // Asked before overwriting a record that already exists — see utils/confirm.ts
   confirmEditTitle: "Save these changes?",
   confirmEditMessage: "This replaces what was saved before.",
+
+  // Compact data-age hints — "4 h", "3 d", "never". Deliberately terse: these
+  // sit inside chips and strip captions, not sentences.
+  ageJustNow: "<1 h",
+  ageHours: "{{count}} h",
+  ageDays: "{{count}} d",
+  ageNever: "never",
 };
 export default common;

@@ -77,7 +77,10 @@ export const unitStep = (unit?: string | null): number => {
 
 export interface InventoryItem {
     id: string;
-    farmId: string;
+    /** The single-farm fast path; null when the item is paired to several farms or none. */
+    farmId: string | null;
+    /** Every farm the item is paired to. Only populated on `getById` (D-Task8). Empty = unpaired. */
+    farmIds?: string[];
     name: string;
     category: string;
     /** MCI glyph name chosen in the icon picker; null = derive from category. */
@@ -95,8 +98,28 @@ export interface InventoryItem {
     updatedAt: string;
 }
 
+/**
+ * One row of the append-only `inventory_movements` ledger (Task 7). Negative
+ * `delta` is a deduction (e.g. a feed log), positive a credit (a purchase or
+ * a compensating credit). `reason`/`createdById`/`feedRecordId` are all
+ * nullable — an old feed-log movement has no reason, a deleted user's
+ * movements still exist, a manual adjustment has no feed record.
+ */
+export interface InventoryMovement {
+    id: string;
+    inventoryId: string;
+    delta: number;
+    reason: string | null;
+    createdById: string | null;
+    feedRecordId: string | null;
+    createdAt: string;
+}
+
 export interface CreateInventoryItemDto {
-    farmId: string;
+    /** Kept for backward compatibility; the multi-farm client sends `farmIds` instead. */
+    farmId?: string;
+    /** The farms to pair this item to. Empty/absent means deliberately unpaired. */
+    farmIds?: string[];
     name: string;
     category: string;
     icon?: string;
@@ -142,6 +165,10 @@ export const inventoryApi = {
     update: (id: string, data: UpdateInventoryItemDto) =>
         apiClient.patch<InventoryItem>(`/inventory/${id}`, data),
 
+    /** Replaces the item's farm pairing. Empty array is legal — it unpairs the item. */
+    setPairing: (id: string, farmIds: string[]) =>
+        apiClient.patch(`/inventory/${id}/farms`, { farmIds }),
+
     delete: (id: string) =>
         apiClient.delete(`/inventory/${id}`),
 
@@ -150,4 +177,8 @@ export const inventoryApi = {
 
     getLowStock: (farmId: string) =>
         apiClient.get<InventoryItem[]>(`/inventory/low-stock/${farmId}`),
+
+    /** Newest-first, capped at 100 rows server-side (Task 7). */
+    listMovements: (id: string) =>
+        apiClient.get<InventoryMovement[]>(`/inventory/${id}/movements`),
 };

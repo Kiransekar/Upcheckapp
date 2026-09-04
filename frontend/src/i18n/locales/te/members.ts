@@ -25,7 +25,7 @@ const members = {
     revokeInvite: 'రద్దు చేయండి',
     revokeTitle: 'ఈ ఆహ్వానాన్ని రద్దు చేయాలా?',
     revokeConfirm: 'ఈ కోడ్ ఉన్నవారు ఇక చేరలేరు.',
-    shareInviteMessage: 'ఈ కోడ్‌తో Upcheck లో {{farm}} చేరండి: {{code}}',
+    shareInviteMessage: 'ఈ కోడ్‌తో Upcheck లో {{farm}} చేరండి: {{code}}\nలేదా నొక్కండి: upcheckapp://join/{{code}}',
     neverExpires: 'ఎప్పటికీ గడువు ముగియదు',
     expiresInDays: '{{count}} రోజుల్లో గడువు ముగుస్తుంది',
     expiresInHours: '{{count}} గంటల్లో గడువు ముగుస్తుంది',
@@ -74,6 +74,8 @@ const members = {
 
     notFoundTitle: 'వినియోగదారు కనుగొనబడలేదు',
     notFoundSub: 'ఆ గుర్తింపుతో ఏ ఖాతా సరిపోలలేదు. తనిఖీ చేసి మళ్లీ ప్రయత్నించండి.',
+    inviteInstead: 'బదులుగా ఆహ్వానం పంపండి',
+    inviteInsteadBody: 'ఆ గుర్తింపుతో ఏ ఖాతా సరిపోలలేదు. బదులుగా ఆహ్వానం పంపండి — ఖాతా సృష్టించాక వారు చేరవచ్చు.',
     invalidQrTitle: 'గుర్తించని QR',
     invalidQrSub: 'ఇది Upcheck వర్కర్ కోడ్ కాదు.',
     confirmAdd: 'ఫారంకు చేర్చు',

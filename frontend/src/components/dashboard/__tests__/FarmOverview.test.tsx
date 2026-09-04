@@ -11,6 +11,7 @@ const pond = (id: string, health: PondWithHealth['health']): PondWithHealth => (
     health,
     reason: null,
     context: { pondId: id, biomassKg: health === 'fallow' ? null : 500 } as any,
+    freshness: { state: 'fresh', asOf: null, ageMs: null },
 });
 
 const farm = (id: string, name: string, rows: PondWithHealth[]) => ({ id, name, rows });

@@ -4,6 +4,8 @@ import { BadRequestException, ConflictException, NotFoundException } from '@nest
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveRequest } from './leave-request.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmMember } from '../farm-access/farm-member.entity';
+import { PushService } from '../push/push.service';
 
 describe('LeaveRequestsService', () => {
   let service: LeaveRequestsService;
@@ -13,7 +15,11 @@ describe('LeaveRequestsService', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
+  let membersRepo: { find: jest.Mock };
   let farmAccess: { assertCanAccessFarm: jest.Mock };
+  let push: { sendToUser: jest.Mock };
+
+  const FARM = { id: 'farm-1', userId: 'owner-1' };
 
   beforeEach(async () => {
     leaveRepo = {
@@ -22,13 +28,17 @@ describe('LeaveRequestsService', () => {
       create: jest.fn((x) => x),
       save: jest.fn((x) => Promise.resolve(x)),
     };
-    farmAccess = { assertCanAccessFarm: jest.fn().mockResolvedValue(undefined) };
+    membersRepo = { find: jest.fn().mockResolvedValue([{ userId: 'manager-1' }]) };
+    farmAccess = { assertCanAccessFarm: jest.fn().mockResolvedValue(FARM) };
+    push = { sendToUser: jest.fn().mockResolvedValue(true) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeaveRequestsService,
         { provide: getRepositoryToken(LeaveRequest), useValue: leaveRepo },
+        { provide: getRepositoryToken(FarmMember), useValue: membersRepo },
         { provide: FarmAccessService, useValue: farmAccess },
+        { provide: PushService, useValue: push },
       ],
     }).compile();
 
@@ -68,6 +78,48 @@ describe('LeaveRequestsService', () => {
 
       expect(leaveRepo.create).not.toHaveBeenCalled();
       expect(result).toBe(existing);
+    });
+
+    describe('push on submit', () => {
+      it('notifies the owner and every active manager, unconditionally', async () => {
+        leaveRepo.findOne.mockResolvedValue(null);
+
+        await service.create('worker-1', {
+          id: 'req-1', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+        });
+
+        expect(push.sendToUser).toHaveBeenCalledWith('owner-1', expect.anything());
+        expect(push.sendToUser).toHaveBeenCalledWith('manager-1', expect.anything());
+      });
+
+      it('does not push on an offline-replay hit — the guard returns before the save', async () => {
+        const existing = { id: 'req-1', farmId: 'farm-1', userId: 'worker-1', status: 'pending' };
+        leaveRepo.findOne.mockResolvedValue(existing);
+
+        await service.create('worker-1', {
+          id: 'req-1', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+        });
+
+        expect(push.sendToUser).not.toHaveBeenCalled();
+      });
+
+      it('does not fail the request when the push fails', async () => {
+        leaveRepo.findOne.mockResolvedValue(null);
+        push.sendToUser.mockResolvedValue(false);
+
+        await expect(service.create('worker-1', {
+          id: 'req-1', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+        })).resolves.toBeDefined();
+      });
+
+      it('does not fail the request when resolving recipients throws', async () => {
+        leaveRepo.findOne.mockResolvedValue(null);
+        membersRepo.find.mockRejectedValue(new Error('db down'));
+
+        await expect(service.create('worker-1', {
+          id: 'req-1', farmId: 'farm-1', startDate: '2026-08-01', endDate: '2026-08-03',
+        })).resolves.toBeDefined();
+      });
     });
   });
 

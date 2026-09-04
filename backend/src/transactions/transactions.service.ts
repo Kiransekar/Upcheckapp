@@ -1,10 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import { Transaction } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
 export class TransactionsService {
@@ -48,6 +49,36 @@ export class TransactionsService {
     return this.transactionsRepository.save(transaction);
   }
 
+  /**
+   * INTERNAL, unchecked — no VIEW_FINANCIALS assert. Mirrors
+   * InventoryService.countLowStock: exists for another module (currently
+   * only an inventory purchase) that has already authorized the write under
+   * ITS OWN capability (e.g. MANAGE_INVENTORY) and must not be forced to
+   * also hold VIEW_FINANCIALS, a financial READ capability, just to record
+   * the money it just spent. The CALLER is responsible for authorization —
+   * this method trusts it completely. Do not expose this over HTTP.
+   *
+   * Accepts an optional `manager` so the write can join a transaction the
+   * CALLER already opened (e.g. InventoryService.adjustStock's stock-update +
+   * movement + money transaction) — falls back to this service's own
+   * repository, which runs autocommitted, when no manager is given.
+   */
+  async createInternal(
+    createDto: CreateTransactionDto,
+    userId: string,
+    manager?: EntityManager,
+  ) {
+    const repo = manager
+      ? manager.getRepository(Transaction)
+      : this.transactionsRepository;
+    const transaction = repo.create({
+      ...createDto,
+      createdById: userId,
+      updatedById: userId,
+    });
+    return repo.save(transaction);
+  }
+
   async findAll(userId: string, farmId?: string, type?: string) {
     const where: any = {};
     if (type) where.type = type;
@@ -75,18 +106,26 @@ export class TransactionsService {
     });
   }
 
-  private async findOwned(id: string, userId: string): Promise<Transaction> {
+  private async findWithCapability(
+    id: string,
+    userId: string,
+    capability: FarmCapability,
+  ): Promise<Transaction> {
     const transaction = await this.transactionsRepository.findOneBy({ id });
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
-    // Throws Forbidden/NotFound unless the caller may view this farm's financials.
+    // Throws Forbidden/NotFound unless the caller holds this capability on the farm.
     await this.farmAccess.assertCanAccessFarm(
       userId,
       transaction.farmId,
-      'VIEW_FINANCIALS',
+      capability,
     );
     return transaction;
+  }
+
+  private findOwned(id: string, userId: string): Promise<Transaction> {
+    return this.findWithCapability(id, userId, 'VIEW_FINANCIALS');
   }
 
   findOne(id: string, userId: string) {
@@ -94,13 +133,15 @@ export class TransactionsService {
   }
 
   async update(id: string, updateDto: UpdateTransactionDto, userId: string) {
-    await this.findOwned(id, userId);
+    // Rewriting money is a write, not a view — gated on WRITE_MANAGEMENT, not
+    // VIEW_FINANCIALS (which anyone with read access to financials also has).
+    await this.findWithCapability(id, userId, 'WRITE_MANAGEMENT');
     // Never allow re-pointing a transaction at a farm the caller can't manage financially.
     if (updateDto.farmId) {
       await this.farmAccess.assertCanAccessFarm(
         userId,
         updateDto.farmId,
-        'VIEW_FINANCIALS',
+        'WRITE_MANAGEMENT',
       );
     }
     // `id` rides on the DTO for create-time idempotency only — spreading it
@@ -114,7 +155,8 @@ export class TransactionsService {
   }
 
   async remove(id: string, userId: string) {
-    await this.findOwned(id, userId);
+    // Hard delete — same reasoning as update: erasing money is a write.
+    await this.findWithCapability(id, userId, 'WRITE_MANAGEMENT');
     return this.transactionsRepository.delete(id);
   }
 

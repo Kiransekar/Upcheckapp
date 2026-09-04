@@ -125,14 +125,6 @@ export class CropsService {
     });
   }
 
-  async findByPond(pondId: string, userId: string) {
-    // Verify user owns the pond
-    await this.pondsService.verifyOwner(pondId, userId);
-    return this.cropsRepository.find({
-      where: { pondId },
-      order: { createdAt: 'DESC' },
-    });
-  }
 
   /**
    * VIEW_FINANCIALS crop read (owner + manager). This is the economics path —

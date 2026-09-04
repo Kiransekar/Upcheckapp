@@ -212,7 +212,7 @@ export type RootStackParamList = {
     Measurements: { pondId: string; pondName?: string; cropId?: string };
 
     // Decision engines (PRD P2)
-    WeeklyChemistry: { pondId: string; pondName?: string; cropId?: string };
+    WeeklyChemistry: { pondId: string; pondName?: string };
     WeeklyChemistryHistory: { pondId: string; pondName?: string; cropId?: string };
     DailyRoutine: { pondId: string; pondName?: string; cropId?: string };
     EnginesHub: { pondId?: string; pondName?: string; cropId?: string };
@@ -271,7 +271,8 @@ export type RootStackParamList = {
     Intent: undefined;
     PondSetup: { farmId: string; totalPonds: number };
     PondNames: { farm: CreateFarmDto; pondCount: number };
-    JoinFarm: undefined;
+    // code: from the upcheckapp://join/<CODE> deep link (linking.ts).
+    JoinFarm: { code?: string } | undefined;
     JoinedFarm: { farmName: string; role: FarmRole; status: 'active' | 'pending' };
 
     // Additional calculators + feed products

@@ -165,5 +165,8 @@ const ponds = {
   errorUnarchivePond: "குளத்தை மீண்டும் கொண்டு வர முடியவில்லை.",
   errorArchiveActiveCycle: "இந்தக் குளத்தில் சுழற்சி ஓடுகிறது, எனவே காப்பகப்படுத்த முடியாது. முதலில் சுழற்சியை முடியுங்கள்.",
   errorDeletePond: "குளத்தை நீக்க முடியவில்லை.",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "கடைசி பதிவு {{age}}",
 };
 export default ponds;

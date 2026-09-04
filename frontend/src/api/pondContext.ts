@@ -20,10 +20,21 @@ export interface PondContext {
     nitrite: number | null;
     nitrate: number | null;
     alkalinity: number | null;
-    /** When the daily probe params were last logged. */
+    /** When the newest water-quality record was logged. */
     recordedAt: string | null;
+    /**
+     * Each parameter's OWN source-record time. Probe params can come from
+     * different records than one another, so freshness is per-parameter —
+     * a pH-only log does not make yesterday's DO reading current.
+     */
+    dissolvedOxygenAsOf: string | null;
+    phAsOf: string | null;
+    temperatureAsOf: string | null;
+    salinityAsOf: string | null;
     /** When ammonia (chemistry) was last measured — may be older. */
     chemistryAsOf: string | null;
+    /** When alkalinity was last measured — independent of ammonia's date. */
+    alkalinityAsOf: string | null;
   } | null;
   freeAmmoniaMgL: number | null;
   abwG: number | null;

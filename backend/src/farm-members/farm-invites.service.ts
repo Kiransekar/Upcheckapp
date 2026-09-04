@@ -18,10 +18,12 @@ import {
 import { FarmMember } from '../farm-access/farm-member.entity';
 import type { FarmRole } from '../farm-access/farm-member.entity';
 import { Farm } from '../farms/farm.entity';
+import { User } from '../auth/user.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { canAssignRole } from '../farm-access/farm-capability';
 import { CreateInviteDto } from './dto/create-invite.dto';
 import { JoinFarmDto } from './dto/join-farm.dto';
+import { PushService } from '../push/push.service';
 
 /** Same charset as farms.service.ts generateFarmCode() — no I/O/0/1. */
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -61,8 +63,11 @@ export class FarmInvitesService {
     private readonly membersRepo: Repository<FarmMember>,
     @InjectRepository(Farm)
     private readonly farmsRepo: Repository<Farm>,
+    @InjectRepository(User)
+    private readonly usersRepo: Repository<User>,
     private readonly farmAccess: FarmAccessService,
     private readonly dataSource: DataSource,
+    private readonly push: PushService,
   ) {}
 
   private generateCode(): string {
@@ -206,7 +211,14 @@ export class FarmInvitesService {
   async join(callerId: string, dto: JoinFarmDto) {
     const code = dto.code.toUpperCase();
 
-    return this.dataSource.transaction(async (manager) => {
+    // `_farmEntity` is internal-only — carried out of the transaction so the
+    // post-commit notify below can resolve approvers (owner + managers)
+    // without a second query, then stripped before the response goes back to
+    // the caller so the API shape is unchanged. Both the primary invite path
+    // and the legacyJoinByFarmCode fallback (still reachable from inside this
+    // same transaction, at :223 and :233) flow through this one return, so
+    // notifying here covers both — without ever notifying before commit.
+    const outcome = await this.dataSource.transaction(async (manager) => {
       let invite: FarmInvite | null = null;
       try {
         invite = await manager.findOne(FarmInvite, {
@@ -279,8 +291,60 @@ export class FarmInvitesService {
         role: member.role,
         status,
         farm: { id: farm.id, name: farm.name },
+        _farmEntity: farm,
       };
     });
+
+    // After commit, and never inside the transaction: a push announcing a
+    // membership that then rolls back cannot be recalled.
+    const { _farmEntity, ...result } = outcome;
+    if (result.status === 'pending') {
+      await this.notifyPendingJoin(_farmEntity, callerId);
+    }
+    return result;
+  }
+
+  /**
+   * Exactly the set `assertCanApprove` would let through: the owner always,
+   * plus active managers when the farm delegates approval to them.
+   */
+  private async approversOf(farm: Farm): Promise<string[]> {
+    const ids = [farm.userId];
+    if ((farm.joinApprover ?? 'managers') === 'managers') {
+      const managers = await this.membersRepo.find({
+        where: { farmId: farm.id, role: 'manager', status: 'active' },
+      });
+      ids.push(...managers.map((m) => m.userId));
+    }
+    return [...new Set(ids)];
+  }
+
+  /**
+   * Best-effort: never lets a push failure — or even a query failure while
+   * resolving recipients — fail the join that already committed.
+   */
+  private async notifyPendingJoin(farm: Farm, joinerId: string) {
+    try {
+      const joiner = await this.usersRepo.findOne({ where: { id: joinerId } });
+      const joinerName =
+        [joiner?.firstName, joiner?.lastName].filter(Boolean).join(' ') ||
+        joiner?.username ||
+        'Someone';
+      const recipients = await this.approversOf(farm);
+      await Promise.all(
+        recipients.map((userId) =>
+          this.push.sendToUser(userId, {
+            title: 'Someone wants to join your farm',
+            body: `${joinerName} is waiting for approval at ${farm.name}.`,
+            data: { type: 'pending_join', farmId: farm.id },
+          }),
+        ),
+      );
+    } catch (err: any) {
+      this.logger.warn(
+        `Failed to notify approvers of pending join on farm ${farm.id}: ${err?.message ?? err}`,
+      );
+    }
   }
 
   /**
@@ -320,6 +384,7 @@ export class FarmInvitesService {
       role: member.role,
       status,
       farm: { id: farm.id, name: farm.name },
+      _farmEntity: farm,
     };
   }
 

@@ -54,13 +54,15 @@ const DEAD_CODE_KEY: Record<'expired' | 'revoked' | 'exhausted', string> = {
     exhausted: 'members.joinExhausted',
 };
 
-export const JoinFarmScreen = ({ navigation }: any) => {
+export const JoinFarmScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const pendingFarmJoin = useAuthStore((s) => s.pendingFarmJoin);
     const completeFarmJoin = useAuthStore((s) => s.completeFarmJoin);
     const loadMemberships = useMembershipStore((s) => s.load);
 
-    const [code, setCode] = useState('');
+    // upcheckapp://join/<CODE> — a messaging app may lower-case the link, and
+    // the invite alphabet excludes I/O/0/1, so uppercase it defensively.
+    const [code, setCode] = useState(route?.params?.code?.toUpperCase() ?? '');
     const [busy, setBusy] = useState(false);
     /** null = no failure yet. Split into two shapes; see the header. */
     const [failure, setFailure] = useState<{ dead: boolean; message: string } | null>(null);

@@ -44,4 +44,8 @@ export class CreateTransactionDto {
   @IsString()
   @IsOptional()
   referenceNumber?: string;
+
+  @IsUUID()
+  @IsOptional()
+  inventoryItemId?: string;
 }

@@ -22,9 +22,9 @@ import { FAB } from '../../../components/ui/FAB';
 import { LineChart } from '../../../components/charts/LineChart';
 import { theme } from '../../../theme';
 import { waterQualityApi, WaterQualityRecord } from '../../../api/waterQuality';
-import { getStatusColor } from '../../../constants/ranges';
 import {
     evaluateParameter,
+    getStatusColor,
     toThresholdSpecies,
     ThresholdSpecies,
     ThresholdParam,
@@ -46,7 +46,7 @@ const PARAMS: {
     { key: 'nitrite', labelKey: 'history.waterQualityMetricNitrite', unit: 'mg/L', get: (r) => r.nitrite, param: 'nitrite' },
     { key: 'nitrate', labelKey: 'history.waterQualityMetricNitrate', unit: 'mg/L', get: (r) => r.nitrate, param: 'nitrate' },
     { key: 'alkalinity', labelKey: 'history.waterQualityMetricAlkalinity', unit: 'mg/L', get: (r) => r.alkalinity, param: 'alkalinity' },
-    { key: 'hardness', labelKey: 'history.waterQualityMetricHardness', unit: 'mg/L', get: (r) => r.hardness },
+    { key: 'hardness', labelKey: 'history.waterQualityMetricHardness', unit: 'mg/L', get: (r) => r.hardness, param: 'hardness' },
     { key: 'transparency', labelKey: 'history.waterQualityMetricTransparency', unit: 'cm', get: (r) => r.transparency, param: 'transparency' },
 ];
 
@@ -125,7 +125,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
                     title={t('history.weeklyChemistryEmptyTitle')}
                     subtitle={t('history.weeklyChemistryEmptyText')}
                     actionLabel={t('history.weeklyChemistryLogAction')}
-                    onAction={() => navigation.navigate('WeeklyChemistry', { pondId, pondName, cropId })}
+                    onAction={() => navigation.navigate('WeeklyChemistry', { pondId, pondName })}
                 />
             );
         }
@@ -222,7 +222,7 @@ export const WeeklyChemistryHistoryScreen = ({ route, navigation }: any) => {
                 {body()}
             </ScrollView>
 
-            <FAB icon="plus" onPress={() => navigation.navigate('WeeklyChemistry', { pondId, pondName, cropId })} />
+            <FAB icon="plus" onPress={() => navigation.navigate('WeeklyChemistry', { pondId, pondName })} />
         </ScreenWrapper>
     );
 };

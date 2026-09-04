@@ -7,8 +7,8 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 // Five of the parameters below are the SAME measurements the daily
-// water-quality form takes, and constants/ranges.ts already holds their
-// bands — this screen simply was not asking. Calcium, magnesium and
+// water-quality form takes, and features/waterQualityThresholds.ts already
+// holds their bands — this screen simply was not asking. Calcium, magnesium and
 // potassium stay plain fields: there is no agronomist-confirmed band for
 // them in that table, and a made-up target on a chemistry form is worse
 // than none, because a farmer would dose against it.

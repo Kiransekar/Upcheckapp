@@ -48,6 +48,9 @@ const inventory = {
   negativeNotAllowed: '{{field}} cannot be negative.',
   saveFailed: 'Failed to save the item.',
   noPermission: 'You do not have permission to change inventory on this farm.',
+  pairedFarms: "Stocked for",
+  unpairedTitle: "Not stocked for any farm",
+  unpairedWarning: "This item will not appear in any farm's inventory until you pair it. Not recommended.",
 
   // Icon picker
   pickIcon: 'Pick an icon',
@@ -82,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'Expires On',
   labelLastAdjustment: 'Last adjustment',
   labelNotes: 'Notes',
+  movementHistory: 'Stock history',
+  movementNoReason: 'No reason given',
 
   // Adjust stock
   adjustStock: 'Adjust Stock',

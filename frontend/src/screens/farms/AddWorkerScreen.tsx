@@ -58,13 +58,35 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
             setFound(data);
         } catch (e: any) {
             setFound(null);
-            // Re-arm the scanner. `onBarcode` sets `scanned` before calling us and
-            // bails out early while it is true, so without this a valid-prefix QR
-            // whose lookup fails wedges the camera until the user toggles modes.
-            // Same 1200ms debounce as the invalid-prefix path below, so dismissing
-            // the alert doesn't immediately re-scan the same failing code.
-            setTimeout(() => setScanned(false), 1200);
-            Alert.alert(t('members.notFoundTitle'), apiErrorMessage(e, t('members.notFoundSub')));
+            // #35: a failed lookup used to dead-end here — alert and re-arm,
+            // with no way forward for someone who simply has no account yet.
+            // Now the alert offers a real next step. The scanner only re-arms
+            // on Cancel: re-arming unconditionally (the old behaviour) is what
+            // made this a loop with no exit, because "send an invite" also
+            // navigates away, and a QR scan mid-navigation is not useful.
+            Alert.alert(
+                t('members.notFoundTitle'),
+                apiErrorMessage(e, t('members.inviteInsteadBody')),
+                [
+                    {
+                        text: t('common.cancel'),
+                        style: 'cancel',
+                        onPress: () => {
+                            // `onBarcode` sets `scanned` before calling us and bails
+                            // out early while it is true, so without this a
+                            // valid-prefix QR whose lookup fails wedges the camera
+                            // until the user toggles modes. Same 1200ms debounce as
+                            // the invalid-prefix path below, so dismissing the alert
+                            // doesn't immediately re-scan the same failing code.
+                            setTimeout(() => setScanned(false), 1200);
+                        },
+                    },
+                    {
+                        text: t('members.inviteInstead'),
+                        onPress: () => navigation.navigate('FarmMembers', { farmId, farmName, autoShare: true }),
+                    },
+                ],
+            );
         } finally {
             setBusy(false);
         }

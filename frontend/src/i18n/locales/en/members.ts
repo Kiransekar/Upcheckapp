@@ -28,7 +28,7 @@ const members = {
     revokeInvite: 'Revoke',
     revokeTitle: 'Revoke this invite?',
     revokeConfirm: 'Anyone still holding this code will no longer be able to join.',
-    shareInviteMessage: 'Join {{farm}} on Upcheck with this code: {{code}}',
+    shareInviteMessage: 'Join {{farm}} on Upcheck with this code: {{code}}\nOr tap: upcheckapp://join/{{code}}',
     neverExpires: 'Never expires',
     expiresInDays: 'Expires in {{count}} days',
     expiresInHours: 'Expires in {{count}} hours',
@@ -80,6 +80,8 @@ const members = {
     // Lookup / add results
     notFoundTitle: 'User not found',
     notFoundSub: 'No account matches that identifier. Check and try again.',
+    inviteInstead: 'Send an invite instead',
+    inviteInsteadBody: 'No account matches that identifier. Send an invite instead — they can join once they have an Upcheck account.',
     invalidQrTitle: 'Unrecognized QR',
     invalidQrSub: 'That is not an Upcheck worker code.',
     confirmAdd: 'Add to farm',

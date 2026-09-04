@@ -61,7 +61,20 @@ const navigationRef = createNavigationContainerRef<RootStackParamList>();
 function navigateForNotification(data: unknown): void {
   const route = routeForNotification(data);
   if (!route || !navigationRef.isReady()) return;
-  navigationRef.navigate(route.screen, route.params);
+  // A switch (not a destructured .navigate(route.screen, route.params)) so
+  // TS keeps route.screen and route.params paired per navigator overload —
+  // splitting a discriminated union across two args loses that narrowing.
+  switch (route.screen) {
+    case 'FeedbackDetail':
+      navigationRef.navigate('FeedbackDetail', route.params);
+      break;
+    case 'FarmMembers':
+      navigationRef.navigate('FarmMembers', route.params);
+      break;
+    case 'LeaveRequests':
+      navigationRef.navigate('LeaveRequests', route.params);
+      break;
+  }
 }
 
 export default function App() {

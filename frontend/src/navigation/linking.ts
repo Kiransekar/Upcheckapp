@@ -17,7 +17,13 @@ import { getStateFromPath as defaultGetStateFromPath } from '@react-navigation/n
  */
 export const linking = {
   prefixes: ['upcheckapp://'],
-  config: { screens: { ResetPassword: 'reset-password', OtpCallback: 'otp-callback' } },
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+      OtpCallback: 'otp-callback',
+      JoinFarm: 'join/:code',
+    },
+  },
   getStateFromPath: (path: string, options: Parameters<typeof defaultGetStateFromPath>[1]) =>
     defaultGetStateFromPath(path.split('#')[0], options),
 };

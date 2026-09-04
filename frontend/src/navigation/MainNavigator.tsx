@@ -16,7 +16,6 @@ import { useAppQuery } from '../query/hooks';
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { FarmsListScreen } from '../screens/farms/FarmsListScreen';
-import { ReportsScreen } from '../screens/main/ReportsScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TeamScreen } from '../screens/main/TeamScreen';
 import { MoneyScreen } from '../screens/finance/MoneyScreen';

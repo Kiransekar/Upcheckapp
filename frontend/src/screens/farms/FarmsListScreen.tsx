@@ -178,13 +178,30 @@ export const FarmsListScreen = ({ navigation }: any) => {
     );
 
     const cards: FarmCardData[] = useMemo(() => {
-        const rows = buildPondRows(ponds, contexts, briefing);
+        // A stable clock: taken once per memo run, not once per pond, so a
+        // re-render mid-second cannot flip one pond's bar and not another's.
+        const now = new Date();
+        const rows = buildPondRows(ponds, contexts, briefing, now);
         return farms.map((farm) => ({
             farm,
             role: roleForFarm(farm.id),
             roll: rollUpFarm(rows.filter((r) => r.pond.farmId === farm.id)),
         }));
     }, [farms, ponds, contexts, briefing, roleForFarm]);
+
+    const totals = useMemo(() => {
+        const actNow = cards.reduce((a, c) => a + c.roll.actNow, 0);
+        const stale = cards.reduce((a, c) => a + c.roll.stale, 0);
+        const farmsAffected = cards.filter((c) => c.roll.actNow > 0).length;
+        const biomassCards = cards.filter((c) => c.roll.biomassKg != null);
+        const biomass = biomassCards.reduce((a, c) => a + (c.roll.biomassKg ?? 0), 0);
+        return {
+            actNow,
+            stale,
+            farmsAffected,
+            biomassKg: biomassCards.length ? biomass : null,
+        };
+    }, [cards]);
 
     /** "3 farms · 24 ponds · 31.6 ha" — the eyebrow above the title. */
     const eyebrow = useMemo(() => {
@@ -195,20 +212,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
             t('farms.countPonds', { count: ponds.length }),
         ];
         if (area > 0) parts.push(t('farms.countHectares', { area: area.toFixed(1) }));
+        if (totals.stale > 0) parts.push(t('farms.notUpdatedCount', { count: totals.stale }));
         return parts.join(' · ');
-    }, [farms, ponds.length, t]);
-
-    const totals = useMemo(() => {
-        const actNow = cards.reduce((a, c) => a + c.roll.actNow, 0);
-        const farmsAffected = cards.filter((c) => c.roll.actNow > 0).length;
-        const biomassCards = cards.filter((c) => c.roll.biomassKg != null);
-        const biomass = biomassCards.reduce((a, c) => a + (c.roll.biomassKg ?? 0), 0);
-        return {
-            actNow,
-            farmsAffected,
-            biomassKg: biomassCards.length ? biomass : null,
-        };
-    }, [cards]);
+    }, [farms, ponds.length, totals, t]);
 
     const openFarm = (farm: Farm) =>
         navigation.navigate('FarmDetail', { farmId: farm.id, farmName: farm.name });
@@ -386,7 +392,8 @@ export const FarmsListScreen = ({ navigation }: any) => {
 const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data, onPress }) => {
     const { t } = useTranslation();
     const { farm, role, roll } = data;
-    const worst: PondHealth = roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : 'fine';
+    const worst: PondHealth =
+        roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : roll.stale > 0 ? 'stale' : 'fine';
 
     const subtitle = [farm.address, role ? t(`members.role_${role}`) : null]
         .filter(Boolean)
@@ -400,12 +407,19 @@ const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data,
             ? { value: String(roll.actNow), label: t('farms.actNow'), tone: 'danger' as const }
             : roll.watch > 0
               ? { value: String(roll.watch), label: t('farms.watch'), tone: 'warning' as const }
-              : {
-                    value: t('farms.allFine'),
-                    label: t('farms.status'),
-                    tone: 'success' as const,
-                    text: true,
-                };
+              : roll.stale > 0
+                ? {
+                      // Never "All fine" while a pond is unaccounted for.
+                      value: String(roll.stale),
+                      label: t('farms.notUpdated'),
+                      tone: 'neutral' as const,
+                  }
+                : {
+                      value: t('farms.allFine'),
+                      label: t('farms.status'),
+                      tone: 'success' as const,
+                      text: true,
+                  };
 
     return (
         <TouchableOpacity
@@ -468,6 +482,7 @@ const Legend: React.FC = () => {
     const entries: [PondHealth, string][] = [
         ['critical', t('farms.actNow')],
         ['watch', t('farms.watch')],
+        ['stale', t('farms.notUpdated')],
         ['fine', t('farms.fine')],
         ['fallow', t('farms.fallow')],
     ];
