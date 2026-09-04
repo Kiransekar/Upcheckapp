@@ -19,6 +19,7 @@
  * commit, and make sure the matching service assert moves with it.
  */
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import {
   OWNS_RESOURCE_KEY,
   OwnsResourceOptions,
@@ -31,6 +32,7 @@ import { HarvestTimingController } from '../harvest-timing/harvest-timing.contro
 import { ReportsController } from '../reports/reports.controller';
 import { HarvestsController } from '../harvests/harvests.controller';
 import { InventoryController } from '../inventory/inventory.controller';
+import { TransactionsController } from '../transactions/transactions.controller';
 import { FarmsController } from '../farms/farms.controller';
 import { CropsController } from '../crops/crops.controller';
 import { PondsController } from '../ponds/ponds.controller';
@@ -245,6 +247,24 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       handler,
       'farm-scoped, enforced in InventoryService',
     ]),
+    // Transactions: same shape as inventory — the farmId is in the BODY on
+    // create and on the row (not the URL) everywhere else, so there is no
+    // single entity for the guard to resolve an owner path off. Enforced in
+    // TransactionsService via FarmAccessService (update/remove pinned below).
+    ...(
+      [
+        'create',
+        'findAll',
+        'getSummary',
+        'findOne',
+        'update',
+        'remove',
+      ] as const
+    ).map((handler): [new (...args: any[]) => any, string, string] => [
+      TransactionsController,
+      handler,
+      'farm-scoped, enforced in TransactionsService',
+    ]),
   ];
 
   // The inventory capability contract, pinned so it cannot silently slide back
@@ -339,6 +359,79 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       'farm-1',
       capability,
     );
+  });
+
+  /**
+   * I6 — the ANY/ALL contract, which the rows above cannot see.
+   *
+   * Every pinned InventoryService row mocks `pairingRepo.find -> []`, so
+   * `farmsFor` always falls back to the single legacy `farmId` and only the
+   * one-farm path runs; `assertCanAccessFarm` is an always-resolving mock, so
+   * `Promise.allSettled` always fulfils. They pin the capability NAME and
+   * nothing else. Changing `loadItem`'s mode line to always `'any'` leaves
+   * them ALL GREEN — and that line is the only thing standing between
+   * `TransactionsService.createInternal`'s deliberately unchecked money write
+   * and a caller who merely has VIEW on one of an item's farms.
+   *
+   * So pin the contract itself: a genuinely multi-paired item, a caller
+   * authorized on one farm and refused on the other, must be READABLE and NOT
+   * WRITABLE.
+   */
+  describe('InventoryService multi-farm read/write contract', () => {
+    const buildService = () => {
+      // Authorized on farm-1, refused on farm-2 — the case a single-farm
+      // fixture and an always-resolving mock can never produce.
+      const assertCanAccessFarm = jest.fn((_u: string, farmId: string) =>
+        farmId === 'farm-1'
+          ? Promise.resolve({
+              id: 'farm-1',
+              userId: 'owner-1',
+              rolePolicy: null,
+            })
+          : Promise.reject(new ForbiddenException()),
+      );
+      const service = new InventoryService(
+        {
+          findOneBy: jest
+            .fn()
+            .mockResolvedValue({ id: 'i1', farmId: 'farm-1', quantity: 10 }),
+          update: jest.fn().mockResolvedValue({}),
+          delete: jest.fn().mockResolvedValue({}),
+        } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { createAutoAlert: jest.fn() } as any,
+        { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,
+        {
+          find: jest.fn().mockResolvedValue([
+            { inventoryId: 'i1', farmId: 'farm-1' },
+            { inventoryId: 'i1', farmId: 'farm-2' },
+          ]),
+        } as any,
+        { transaction: jest.fn() } as any,
+        { createInternal: jest.fn() } as any,
+      );
+      return { service, assertCanAccessFarm };
+    };
+
+    it('READS a shared item on VIEW_INVENTORY for ANY one paired farm', async () => {
+      const { service, assertCanAccessFarm } = buildService();
+      const item = await service.findOne('i1', 'u1');
+      expect(item.farmIds).toEqual(['farm-1', 'farm-2']);
+      // Both farms were actually consulted — not short-circuited on the legacy
+      // column, which is what makes the write assertion below meaningful.
+      expect(assertCanAccessFarm.mock.calls.map((c) => c[1]).sort()).toEqual([
+        'farm-1',
+        'farm-2',
+      ]);
+    });
+
+    it('REFUSES to write it without MANAGE_INVENTORY on EVERY paired farm', async () => {
+      const { service } = buildService();
+      await expect(
+        service.update('i1', { name: 'x' } as any, 'u1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   it.each(UNGUARDED)(
