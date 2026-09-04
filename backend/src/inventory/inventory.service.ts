@@ -39,10 +39,14 @@ export interface AdjustStockOptions {
   /**
    * Present only when this adjustment is a purchase. Opt-in: a plain stock
    * correction must not write a money row. When set, `adjustStock` records a
-   * 'inventory'-category expense on `farmId` for `amount`, tagged with the
-   * item, after the stock movement is written.
+   * 'inventory'-category expense of `amount`, tagged with the item, in the
+   * SAME transaction as the stock update. Billed to the farm `loadItem`
+   * already authorized the caller against — there is no caller-supplied
+   * farmId, deliberately: taking one from the caller and not checking it
+   * against the authorized farm was a cross-farm billing hole (Task 9 review
+   * finding 1).
    */
-  purchase?: { amount: number; farmId: string };
+  purchase?: { amount: number };
 }
 
 /** An item plus every farm it is paired to (not persisted on the entity). */
@@ -365,59 +369,84 @@ export class InventoryService {
       );
     }
 
-    const result = await this.itemsRepository
-      .createQueryBuilder()
-      .update(InventoryItem)
-      .set({
-        quantity: () => `quantity + (${quantityChange})`,
-        ...(options.reason !== undefined
-          ? { lastAdjustmentReason: options.reason }
-          : {}),
-      })
-      .where('id = :id AND quantity + (:quantityChange) >= 0', {
-        id,
-        quantityChange,
-      })
-      .execute();
+    // ONE transaction across the guarded stock UPDATE, the movement row and
+    // (when this is a purchase) the money row. Review finding (Task 9,
+    // review round 2): these used to be three independent awaits — a
+    // `createInternal` failure after the stock UPDATE committed left a
+    // durable quantity change with no movement/money trail, and a retried
+    // request would double-apply the delta. Same pattern as `setPairing`:
+    // throwing inside the callback rolls everything in it back, so the
+    // `affected === 0` guard still leaves no movement row and no money row.
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager
+        .createQueryBuilder()
+        .update(InventoryItem)
+        .set({
+          quantity: () => `quantity + (${quantityChange})`,
+          ...(options.reason !== undefined
+            ? { lastAdjustmentReason: options.reason }
+            : {}),
+        })
+        .where('id = :id AND quantity + (:quantityChange) >= 0', {
+          id,
+          quantityChange,
+        })
+        .execute();
 
-    if (result.affected === 0) {
-      throw new BadRequestException(
-        `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
+      if (result.affected === 0) {
+        throw new BadRequestException(
+          `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
+        );
+      }
+
+      // Append-only ledger. Written after the guard, so a rejected adjustment
+      // leaves no trace of a change that never happened.
+      const movementRepo = manager.getRepository(InventoryMovement);
+      await movementRepo.save(
+        movementRepo.create({
+          inventoryId: id,
+          delta: quantityChange,
+          reason: options.reason ?? null,
+          createdById: userId ?? null,
+          feedRecordId: options.feedRecordId ?? null,
+        }),
       );
-    }
 
-    // Append-only ledger. Written after the guard, so a rejected adjustment
-    // leaves no trace of a change that never happened.
-    await this.movementRepo.save(
-      this.movementRepo.create({
-        inventoryId: id,
-        delta: quantityChange,
-        reason: options.reason ?? null,
-        createdById: userId ?? null,
-        feedRecordId: options.feedRecordId ?? null,
-      }),
-    );
-
-    // Opt-in money write. A purchase spends the farm's cash, so it goes
-    // through TransactionsService — but via the INTERNAL, unchecked path:
-    // the caller already proved MANAGE_INVENTORY (or WRITE_OPERATIONAL) on
-    // this item's farm above, and re-asserting VIEW_FINANCIALS (a financial
-    // READ capability) here would 403 a storekeeper who has no financial
-    // access but has every right to buy stock. No `purchase` option means no
-    // money row — a plain stock correction stays out of the ledger.
-    if (options.purchase) {
-      await this.transactionsService.createInternal(
-        {
-          farmId: options.purchase.farmId,
-          transactionDate: new Date().toISOString(),
-          type: 'expense',
-          category: 'inventory',
-          amount: options.purchase.amount,
-          inventoryItemId: id,
-        } as CreateTransactionDto,
-        userId,
-      );
-    }
+      // Opt-in money write. A purchase spends the farm's cash, so it goes
+      // through TransactionsService — but via the INTERNAL, unchecked path:
+      // the caller already proved MANAGE_INVENTORY (or WRITE_OPERATIONAL) on
+      // EVERY farm this item is paired to above (loadItem/assertPaired, mode
+      // 'all' for any non-VIEW_INVENTORY capability), so `farm.id` — the farm
+      // that check authorized — is always a safe bill-to. There is
+      // deliberately no caller-supplied farmId here any more: an earlier
+      // version took `options.purchase.farmId` from the caller and never
+      // checked it against `farm`, which would have let the first caller to
+      // wire user input into `purchase` bill an arbitrary, unauthorized farm
+      // (Task 9 review finding 1). Billing `farm.id` unconditionally closes
+      // that hole by construction instead of by a runtime equality check.
+      // No `purchase` option means no money row — a plain stock correction
+      // stays out of the ledger.
+      // ponytail: no idempotency guard on this path — AdjustStockDto carries
+      // no client id and createInternal accepts none, so a retried request
+      // double-writes the movement row today and would double-write the
+      // money row too. Not reachable yet (no route sets `purchase`); add a
+      // client id + replay guard (mirroring TransactionsService.create's)
+      // when the purchase UI is wired up and retries become real.
+      if (options.purchase) {
+        await this.transactionsService.createInternal(
+          {
+            farmId: farm.id,
+            transactionDate: new Date().toISOString(),
+            type: 'expense',
+            category: 'inventory',
+            amount: options.purchase.amount,
+            inventoryItemId: id,
+          } as CreateTransactionDto,
+          userId,
+          manager,
+        );
+      }
+    });
 
     // Re-fetch through the repository (not raw driver output) so the
     // result is a properly camelCase-mapped entity.

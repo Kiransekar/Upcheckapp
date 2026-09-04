@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import { Transaction } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
@@ -57,14 +57,26 @@ export class TransactionsService {
    * also hold VIEW_FINANCIALS, a financial READ capability, just to record
    * the money it just spent. The CALLER is responsible for authorization —
    * this method trusts it completely. Do not expose this over HTTP.
+   *
+   * Accepts an optional `manager` so the write can join a transaction the
+   * CALLER already opened (e.g. InventoryService.adjustStock's stock-update +
+   * movement + money transaction) — falls back to this service's own
+   * repository, which runs autocommitted, when no manager is given.
    */
-  async createInternal(createDto: CreateTransactionDto, userId: string) {
-    const transaction = this.transactionsRepository.create({
+  async createInternal(
+    createDto: CreateTransactionDto,
+    userId: string,
+    manager?: EntityManager,
+  ) {
+    const repo = manager
+      ? manager.getRepository(Transaction)
+      : this.transactionsRepository;
+    const transaction = repo.create({
       ...createDto,
       createdById: userId,
       updatedById: userId,
     });
-    return this.transactionsRepository.save(transaction);
+    return repo.save(transaction);
   }
 
   async findAll(userId: string, farmId?: string, type?: string) {

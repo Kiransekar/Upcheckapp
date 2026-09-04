@@ -298,8 +298,22 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         create: (d: any) => d,
       } as any,
       {
+        // adjustStock now runs its stock UPDATE and movement insert through
+        // this manager (Task 9 review finding 2's transaction wrap), so it
+        // needs the same createQueryBuilder/getRepository shape as the
+        // item/movement repos above.
         transaction: jest.fn((cb: any) =>
-          cb({ delete: jest.fn(), insert: jest.fn(), update: jest.fn() }),
+          cb({
+            delete: jest.fn(),
+            insert: jest.fn(),
+            update: jest.fn(),
+            createQueryBuilder: () => qb,
+            getRepository: () => ({
+              find: jest.fn().mockResolvedValue([]),
+              save: jest.fn().mockResolvedValue({}),
+              create: (d: any) => d,
+            }),
+          }),
         ),
       } as any,
       // Task 9: purchase-flavoured adjustStock's internal money write. Unused

@@ -52,8 +52,18 @@ describe('InventoryService', () => {
       find: jest.fn().mockResolvedValue([]),
     };
     dataSource = {
+      // adjustStock now runs the stock UPDATE, movement insert and (opt-in)
+      // money insert through this one manager — createQueryBuilder for the
+      // stock update (same shape as the item repo's), getRepository for the
+      // movement row. setPairing's delete/insert/update stay as bare fns.
       transaction: jest.fn((cb: any) =>
-        cb({ delete: jest.fn(), insert: jest.fn(), update: jest.fn() }),
+        cb({
+          delete: jest.fn(),
+          insert: jest.fn(),
+          update: jest.fn(),
+          createQueryBuilder: jest.fn(() => updateBuilder),
+          getRepository: jest.fn(() => movementRepo),
+        }),
       ),
     };
     items = {
@@ -310,17 +320,18 @@ describe('InventoryService', () => {
       await service.adjustStock('item-1', 10, 'user-1', {
         capability: 'MANAGE_INVENTORY',
         reason: 'Purchase',
-        purchase: { amount: 4500, farmId: 'f1' },
+        purchase: { amount: 4500 },
       });
       expect(transactionsService.createInternal).toHaveBeenCalledWith(
         expect.objectContaining({
-          farmId: 'f1',
+          farmId: 'farm-1',
           type: 'expense',
           category: 'inventory',
           amount: 4500,
           inventoryItemId: 'item-1',
         }),
         'user-1',
+        expect.anything(),
       );
       expect(transactionsService.create).not.toHaveBeenCalled();
     });
@@ -330,6 +341,61 @@ describe('InventoryService', () => {
         capability: 'MANAGE_INVENTORY',
       });
       expect(transactionsService.createInternal).not.toHaveBeenCalled();
+    });
+
+    // Review finding 1: `purchase` used to carry a caller-supplied `farmId`
+    // that was never checked against the farm `loadItem` actually authorized
+    // — the vulnerable line was `farmId: options.purchase.farmId` with
+    // nothing comparing it to `farm.id` anywhere nearby (see git history of
+    // this file / task-9-report.md for the exact removed line). The fix
+    // dropped the field entirely: `purchase` no longer HAS a farmId to pass,
+    // so there is nothing left to check at runtime, and no future caller can
+    // wire user input into a farm this call never authorized. Prove that the
+    // money row always bills the farm `loadItem` actually authorized, even
+    // when that farm is only known at call time (multi-farm item, mode
+    // 'all' — every paired farm must pass MANAGE_INVENTORY).
+    it('bills the money row to the authorized farm, never a caller-supplied one (finding 1)', async () => {
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'item-1', farmId: 'farm-9' },
+      ]);
+      farmAccess.assertCanAccessFarm.mockImplementation(
+        (_userId: string, farmId: string) =>
+          Promise.resolve({ id: farmId, userId: 'owner-1', rolePolicy: null }),
+      );
+      await service.adjustStock('item-1', 10, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+        purchase: { amount: 4500 },
+      });
+      expect(transactionsService.createInternal).toHaveBeenCalledWith(
+        expect.objectContaining({ farmId: 'farm-9' }),
+        'user-1',
+        expect.anything(),
+      );
+    });
+
+    // Review finding 2: the stock UPDATE, movement insert and money insert
+    // used to be three independent awaits. A money-write failure after the
+    // stock UPDATE committed would have left a durable quantity change with
+    // no movement/money trail. Now all three run inside ONE
+    // `dataSource.transaction` call, so a real Postgres transaction rolls
+    // all of them back together when the callback throws — this test proves
+    // the structural guarantee (single transaction boundary, propagated
+    // failure, no post-transaction "success" path), which is what makes
+    // that rollback happen for real outside this mock.
+    it('propagates a money-write failure instead of reporting success (finding 2)', async () => {
+      transactionsService.createInternal.mockRejectedValueOnce(
+        new Error('db down'),
+      );
+      await expect(
+        service.adjustStock('item-1', 10, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+          purchase: { amount: 4500 },
+        }),
+      ).rejects.toThrow('db down');
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      // The post-transaction re-fetch (the second findOneBy call in a
+      // successful run) never runs — the failure is not swallowed.
+      expect(items.findOneBy).toHaveBeenCalledTimes(1);
     });
   });
 
