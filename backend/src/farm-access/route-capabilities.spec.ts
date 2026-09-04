@@ -35,6 +35,7 @@ import { FarmsController } from '../farms/farms.controller';
 import { CropsController } from '../crops/crops.controller';
 import { PondsController } from '../ponds/ponds.controller';
 import { InventoryService } from '../inventory/inventory.service';
+import { TransactionsService } from '../transactions/transactions.service';
 
 type Row = [
   controller: new (...args: any[]) => any,
@@ -329,4 +330,38 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       expect(metaFor(controller, handler)).toBeUndefined();
     },
   );
+
+  // Transaction writes (D12): update/remove rode VIEW_FINANCIALS — the same
+  // capability as merely SEEING the money, so anyone with financial read
+  // access could rewrite or hard-delete a transaction. Pinned to
+  // WRITE_MANAGEMENT so the gate cannot silently slide back onto the read
+  // capability. Reads and create stay on VIEW_FINANCIALS, unpinned here.
+  it.each([
+    ['update', 'WRITE_MANAGEMENT'],
+    ['remove', 'WRITE_MANAGEMENT'],
+  ])('TransactionsService.%s asserts %s', async (method, capability) => {
+    const assertCanAccessFarm = jest
+      .fn()
+      .mockResolvedValue({ id: 'farm-1', userId: 'owner-1' });
+    const service = new TransactionsService(
+      {
+        findOneBy: jest.fn().mockResolvedValue({ id: 't1', farmId: 'farm-1' }),
+        update: jest.fn().mockResolvedValue({ affected: 1 }),
+        delete: jest.fn().mockResolvedValue({ affected: 1 }),
+      } as any,
+      { assertCanAccessFarm } as any,
+    );
+
+    const args: Record<string, unknown[]> = {
+      update: ['t1', { amount: 1 }, 'u1'],
+      remove: ['t1', 'u1'],
+    };
+    await (service as any)[method](...args[method]);
+
+    expect(assertCanAccessFarm).toHaveBeenCalledWith(
+      'u1',
+      'farm-1',
+      capability,
+    );
+  });
 });

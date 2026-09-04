@@ -5,6 +5,7 @@ import { Transaction } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { FarmCapability } from '../farm-access/farm-capability';
 
 @Injectable()
 export class TransactionsService {
@@ -75,18 +76,26 @@ export class TransactionsService {
     });
   }
 
-  private async findOwned(id: string, userId: string): Promise<Transaction> {
+  private async findWithCapability(
+    id: string,
+    userId: string,
+    capability: FarmCapability,
+  ): Promise<Transaction> {
     const transaction = await this.transactionsRepository.findOneBy({ id });
     if (!transaction) {
       throw new NotFoundException(`Transaction with ID ${id} not found`);
     }
-    // Throws Forbidden/NotFound unless the caller may view this farm's financials.
+    // Throws Forbidden/NotFound unless the caller holds this capability on the farm.
     await this.farmAccess.assertCanAccessFarm(
       userId,
       transaction.farmId,
-      'VIEW_FINANCIALS',
+      capability,
     );
     return transaction;
+  }
+
+  private findOwned(id: string, userId: string): Promise<Transaction> {
+    return this.findWithCapability(id, userId, 'VIEW_FINANCIALS');
   }
 
   findOne(id: string, userId: string) {
@@ -94,13 +103,15 @@ export class TransactionsService {
   }
 
   async update(id: string, updateDto: UpdateTransactionDto, userId: string) {
-    await this.findOwned(id, userId);
+    // Rewriting money is a write, not a view — gated on WRITE_MANAGEMENT, not
+    // VIEW_FINANCIALS (which anyone with read access to financials also has).
+    await this.findWithCapability(id, userId, 'WRITE_MANAGEMENT');
     // Never allow re-pointing a transaction at a farm the caller can't manage financially.
     if (updateDto.farmId) {
       await this.farmAccess.assertCanAccessFarm(
         userId,
         updateDto.farmId,
-        'VIEW_FINANCIALS',
+        'WRITE_MANAGEMENT',
       );
     }
     // `id` rides on the DTO for create-time idempotency only — spreading it
@@ -114,7 +125,8 @@ export class TransactionsService {
   }
 
   async remove(id: string, userId: string) {
-    await this.findOwned(id, userId);
+    // Hard delete — same reasoning as update: erasing money is a write.
+    await this.findWithCapability(id, userId, 'WRITE_MANAGEMENT');
     return this.transactionsRepository.delete(id);
   }
 

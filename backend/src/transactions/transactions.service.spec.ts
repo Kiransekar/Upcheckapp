@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ForbiddenException } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { Transaction } from './transaction.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -252,6 +253,29 @@ describe('TransactionsService', () => {
       expect(mockRepository.delete).toHaveBeenCalledWith(transactionId);
       expect(result).toEqual({ affected: 1 });
     });
+  });
+
+  it('refuses to edit or delete a transaction on read-only financial access', async () => {
+    // VIEW_FINANCIALS is the capability for SEEING the money. Rewriting or
+    // erasing it is a write, and was running on the same key.
+    mockRepository.findOneBy.mockResolvedValue({
+      id: 't1',
+      farmId: 'farm-1',
+    });
+    mockFarmAccess.assertCanAccessFarm.mockRejectedValue(
+      new ForbiddenException(),
+    );
+    await expect(
+      service.update('t1', { amount: 1 } as any, 'user-1'),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(service.remove('t1', 'user-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+      'user-1',
+      expect.any(String),
+      'WRITE_MANAGEMENT',
+    );
   });
 
   describe('getSummaryByFarm', () => {
