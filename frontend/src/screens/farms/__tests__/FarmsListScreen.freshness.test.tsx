@@ -7,6 +7,8 @@
 import React from 'react';
 import { render, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { TouchableOpacity, StyleSheet } from 'react-native';
+import { HEALTH_COLOR } from '../../../utils/pondHealth';
 
 jest.mock('../../../api/farms', () => ({
     farmsApi: { getAll: jest.fn() },
@@ -109,5 +111,31 @@ describe('FarmsListScreen — freshness (Task 4)', () => {
         const { findByText } = renderScreen();
         await waitFor(() => expect(pondContextApi.forFarm).toHaveBeenCalledTimes(2));
         expect(await findByText(/2 not updated/)).toBeTruthy();
+    });
+
+    it('colours the card border slate, not green, for a farm that is only stale', async () => {
+        // The left border is "readable from further away than any number on
+        // it" (component comment) — the most prominent signal on the card.
+        // A stale-only farm must not render it as the all-clear green.
+        mockFarms([{ id: 'f1', name: 'Farm A' }]);
+        mockPonds([{ id: 'p1', farmId: 'f1', name: 'Pond 01', activeCycleId: 'c1', status: 'active' }]);
+        mockBriefing([]);
+        mockContexts([
+            { pondId: 'p1', farmId: 'f1', waterQuality: { recordedAt: '2026-01-01T00:00:00.000Z' } },
+        ]);
+
+        const { findByText, UNSAFE_getAllByType } = renderScreen();
+        await findByText('Farm A');
+
+        // Several TouchableOpacitys are on screen (join-with-code button,
+        // header action, chips); the farm card is the one carrying
+        // styles.card's `borderLeftWidth`.
+        const cards = UNSAFE_getAllByType(TouchableOpacity).filter((el: any) => {
+            const flat = StyleSheet.flatten(el.props.style);
+            return flat && flat.borderLeftWidth != null;
+        });
+        expect(cards).toHaveLength(1);
+        const flat = StyleSheet.flatten(cards[0].props.style);
+        expect(flat.borderLeftColor).toBe(HEALTH_COLOR.stale);
     });
 });

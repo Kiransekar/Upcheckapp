@@ -392,7 +392,8 @@ export const FarmsListScreen = ({ navigation }: any) => {
 const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data, onPress }) => {
     const { t } = useTranslation();
     const { farm, role, roll } = data;
-    const worst: PondHealth = roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : 'fine';
+    const worst: PondHealth =
+        roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : roll.stale > 0 ? 'stale' : 'fine';
 
     const subtitle = [farm.address, role ? t(`members.role_${role}`) : null]
         .filter(Boolean)
