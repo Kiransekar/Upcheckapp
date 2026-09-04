@@ -85,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'समाप्ति तिथि',
   labelLastAdjustment: 'अंतिम समायोजन',
   labelNotes: 'नोट्स',
+  movementHistory: 'स्टॉक इतिहास',
+  movementNoReason: 'कोई कारण नहीं दिया गया',
 
   // Adjust stock
   adjustStock: 'स्टॉक समायोजित करें',

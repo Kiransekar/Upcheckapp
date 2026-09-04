@@ -85,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'గడువు తేదీ',
   labelLastAdjustment: 'చివరి సర్దుబాటు',
   labelNotes: 'గమనికలు',
+  movementHistory: 'స్టాక్ చరిత్ర',
+  movementNoReason: 'కారణం ఇవ్వలేదు',
 
   // Adjust stock
   adjustStock: 'స్టాక్ సర్దుబాటు చేయి',

@@ -98,6 +98,23 @@ export interface InventoryItem {
     updatedAt: string;
 }
 
+/**
+ * One row of the append-only `inventory_movements` ledger (Task 7). Negative
+ * `delta` is a deduction (e.g. a feed log), positive a credit (a purchase or
+ * a compensating credit). `reason`/`createdById`/`feedRecordId` are all
+ * nullable — an old feed-log movement has no reason, a deleted user's
+ * movements still exist, a manual adjustment has no feed record.
+ */
+export interface InventoryMovement {
+    id: string;
+    inventoryId: string;
+    delta: number;
+    reason: string | null;
+    createdById: string | null;
+    feedRecordId: string | null;
+    createdAt: string;
+}
+
 export interface CreateInventoryItemDto {
     /** Kept for backward compatibility; the multi-farm client sends `farmIds` instead. */
     farmId?: string;
@@ -160,4 +177,8 @@ export const inventoryApi = {
 
     getLowStock: (farmId: string) =>
         apiClient.get<InventoryItem[]>(`/inventory/low-stock/${farmId}`),
+
+    /** Newest-first, capped at 100 rows server-side (Task 7). */
+    listMovements: (id: string) =>
+        apiClient.get<InventoryMovement[]>(`/inventory/${id}/movements`),
 };

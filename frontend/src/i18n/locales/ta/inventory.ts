@@ -85,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'காலாவதி தேதி',
   labelLastAdjustment: 'கடைசி சரிசெய்வு',
   labelNotes: 'குறிப்புகள்',
+  movementHistory: 'இருப்பு வரலாறு',
+  movementNoReason: 'காரணம் குறிப்பிடப்படவில்லை',
 
   // Adjust stock
   adjustStock: 'இருப்பை சரிசெய்',

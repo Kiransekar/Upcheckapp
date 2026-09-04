@@ -85,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'Expires On',
   labelLastAdjustment: 'Last adjustment',
   labelNotes: 'Notes',
+  movementHistory: 'Stock history',
+  movementNoReason: 'No reason given',
 
   // Adjust stock
   adjustStock: 'Adjust Stock',

@@ -85,6 +85,8 @@ const inventory = {
   labelExpiryDate: 'ମିଆଦ ଶେଷ ତାରିଖ',
   labelLastAdjustment: 'ଶେଷ ସଂଶୋଧନ',
   labelNotes: 'ଟୀକା',
+  movementHistory: 'ଷ୍ଟକ ଇତିହାସ',
+  movementNoReason: 'କୌଣସି କାରଣ ଦିଆଯାଇ ନାହିଁ',
 
   // Adjust stock
   adjustStock: 'ଷ୍ଟକ ସଂଶୋଧନ',
