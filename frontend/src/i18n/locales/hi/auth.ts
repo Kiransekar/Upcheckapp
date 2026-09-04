@@ -136,6 +136,8 @@ const auth = {
   truecallerNoSession: 'सर्वर ने कोई सत्र नहीं लौटाया। कृपया पुनः प्रयास करें।',
   truecallerVerificationFailed: 'Truecaller सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',
   networkErrorBody: 'सर्वर तक नहीं पहुँच सके। कृपया पुनः प्रयास करें।',
+  serverError: 'कुछ गड़बड़ हो गई',
+  serverErrorBody: 'सर्वर साइन-इन पूरा नहीं कर सका। कृपया पुनः प्रयास करें, या बार-बार होने पर सहायता टीम से संपर्क करें।',
 
   // ── Truecaller मिस्ड-कॉल / OTP (नॉन-Truecaller यूज़र) फ़्लो ───────────────
   tcFallbackCta: 'Truecaller ऐप नहीं है? मिस्ड कॉल से सत्यापित करें',

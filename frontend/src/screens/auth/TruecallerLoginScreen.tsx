@@ -151,14 +151,29 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                             'Truecaller verification failed. Please try again.',
                         ),
                 );
-            } else {
+            } else if (status) {
+                // A 5xx IS a reply — the server was reached and failed. Titling
+                // it "Network error" sent a real user (and the person debugging
+                // it) hunting a connectivity problem for a backend bug: a 503
+                // carrying Supabase's "User not found" read on screen as
+                // "Network Error: User not found".
                 Alert.alert(
-                    t('auth.networkError'),
+                    t('auth.serverError', 'Something went wrong'),
                     serverMessage ||
                         t(
-                            'auth.networkErrorBody',
-                            'Could not reach the server. Please try again.',
+                            'auth.serverErrorBody',
+                            'The server could not complete sign-in. Please try again, or contact support if it keeps happening.',
                         ),
+                );
+            } else {
+                // No `status` at all — axios never got a reply. This is the only
+                // case that is genuinely a network failure.
+                Alert.alert(
+                    t('auth.networkError'),
+                    t(
+                        'auth.networkErrorBody',
+                        'Could not reach the server. Please try again.',
+                    ),
                 );
             }
         } finally {

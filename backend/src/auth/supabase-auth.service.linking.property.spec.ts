@@ -223,6 +223,14 @@ class StatefulSupabaseMock {
         this.authUsers.set(id, user);
         return { data: { user }, error: null };
       },
+      // The service verifies the auth user still exists before trusting a
+      // public.users row that matched on phone. Reading the same map the rest
+      // of this fake writes to keeps that check honest: an id this store never
+      // created, or one deleteUser removed, correctly reports as missing.
+      getUserById: async (id: string) => {
+        const user = this.authUsers.get(id);
+        return { data: { user: user ?? null }, error: null };
+      },
       updateUserById: async (
         id: string,
         updates: { user_metadata?: Record<string, unknown> },
