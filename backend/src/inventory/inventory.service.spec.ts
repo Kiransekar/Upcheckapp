@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { InventoryItem } from './inventory-item.entity';
+import { InventoryMovement } from './inventory-movement.entity';
 import { FarmMember } from '../farm-access/farm-member.entity';
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -17,17 +18,25 @@ describe('InventoryService', () => {
   let alerts: any;
   let farmAccess: any;
   let updateBuilder: any;
+  let updateResult: any;
+  let movementRepo: any;
 
   beforeEach(async () => {
+    updateResult = { affected: 1 };
     updateBuilder = {
       update: jest.fn().mockReturnThis(),
       set: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
-      execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      execute: jest.fn().mockImplementation(() => Promise.resolve(updateResult)),
       getMany: jest.fn().mockResolvedValue([]),
       getCount: jest.fn().mockResolvedValue(0),
+    };
+    movementRepo = {
+      create: jest.fn((dto) => dto),
+      save: jest.fn().mockResolvedValue({}),
+      find: jest.fn().mockResolvedValue([]),
     };
     items = {
       create: jest.fn((dto) => dto),
@@ -51,6 +60,10 @@ describe('InventoryService', () => {
       providers: [
         InventoryService,
         { provide: getRepositoryToken(InventoryItem), useValue: items },
+        {
+          provide: getRepositoryToken(InventoryMovement),
+          useValue: movementRepo,
+        },
         { provide: getRepositoryToken(FarmMember), useValue: members },
         { provide: AlertsService, useValue: alerts },
         { provide: FarmAccessService, useValue: farmAccess },
@@ -209,6 +222,46 @@ describe('InventoryService', () => {
         (c: any[]) => c[0],
       );
       expect(notified.sort()).toEqual(['granted-1', 'manager-1', 'owner-1']);
+    });
+  });
+
+  describe('adjustStock movement ledger', () => {
+    it('writes a movement row carrying the delta, reason and actor', async () => {
+      await service.adjustStock('item-1', -5, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+        reason: 'Feed log',
+      });
+      expect(movementRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inventoryId: 'item-1',
+          delta: -5,
+          reason: 'Feed log',
+          createdById: 'user-1',
+        }),
+      );
+    });
+
+    it('writes no movement when the negative-stock guard rejects the update', async () => {
+      // The UPDATE is what enforces `quantity + delta >= 0`. A movement written
+      // when affected === 0 would record a change that did not happen.
+      updateResult.affected = 0;
+      await expect(
+        service.adjustStock('item-1', -999, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(movementRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('links a feed-driven movement back to its feed record', async () => {
+      await service.adjustStock('item-1', -2, 'user-1', {
+        capability: 'WRITE_OPERATIONAL',
+        reason: 'Feed log',
+        feedRecordId: 'feed-9',
+      });
+      expect(movementRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ feedRecordId: 'feed-9' }),
+      );
     });
   });
 });

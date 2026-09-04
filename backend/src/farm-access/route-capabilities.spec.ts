@@ -279,6 +279,11 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         delete: jest.fn().mockResolvedValue({}),
         createQueryBuilder: () => qb,
       } as any,
+      {
+        create: (d: any) => d,
+        save: jest.fn().mockResolvedValue({}),
+        find: jest.fn().mockResolvedValue([]),
+      } as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
       { createAutoAlert: jest.fn() } as any,
       { assertCanAccessFarm, getFarmIdsWithCapability: jest.fn() } as any,

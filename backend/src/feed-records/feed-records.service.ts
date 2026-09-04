@@ -78,6 +78,9 @@ export class FeedRecordsService {
           capability: 'WRITE_OPERATIONAL',
           expectedFarmId: pond.farmId,
           reason: 'Feed log',
+          // Only known here when the client minted an idempotency-key id
+          // up front — a DB-generated id doesn't exist until save() below.
+          feedRecordId: createDto.id,
         },
       );
     }
@@ -117,7 +120,12 @@ export class FeedRecordsService {
           createDto.inventoryItemId!,
           createDto.quantityKg,
           userId,
-          { capability: 'WRITE_OPERATIONAL', reason: 'Feed log failed' },
+          {
+            capability: 'WRITE_OPERATIONAL',
+            expectedFarmId: pond.farmId,
+            reason: 'Feed log failed',
+            feedRecordId: createDto.id,
+          },
         );
       }
       throw err;
@@ -212,7 +220,11 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         delta,
         userId,
-        { capability: 'WRITE_OPERATIONAL', reason: 'Feed log edited' },
+        {
+          capability: 'WRITE_OPERATIONAL',
+          reason: 'Feed log edited',
+          feedRecordId: id,
+        },
       );
     }
 
@@ -242,7 +254,11 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         Number(existing.quantityKg),
         userId,
-        { capability: 'WRITE_OPERATIONAL', reason: 'Feed log deleted' },
+        {
+          capability: 'WRITE_OPERATIONAL',
+          reason: 'Feed log deleted',
+          feedRecordId: id,
+        },
       );
     }
     return { message: 'Feed record deleted successfully' };

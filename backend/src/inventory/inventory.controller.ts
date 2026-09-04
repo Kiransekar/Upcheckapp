@@ -37,6 +37,11 @@ export class InventoryController {
     return this.inventoryService.getLowStock(farmId, user.id);
   }
 
+  @Get(':id/movements')
+  listMovements(@Param('id') id: string, @CurrentUser() user) {
+    return this.inventoryService.listMovements(id, user.id);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user, @Param('id') id: string) {
     return this.inventoryService.findOne(id, user.id);

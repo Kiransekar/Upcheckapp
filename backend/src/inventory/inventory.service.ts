@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { InventoryItem } from './inventory-item.entity';
+import { InventoryMovement } from './inventory-movement.entity';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { LOW_STOCK_SQL, isLowStock } from './inventory.constants';
@@ -29,6 +30,8 @@ export interface AdjustStockOptions {
   capability?: FarmCapability;
   /** Reject the adjustment unless the item belongs to this farm. */
   expectedFarmId?: string;
+  /** Set by the feed pipeline so a deduction can be traced to its log. */
+  feedRecordId?: string;
 }
 
 @Injectable()
@@ -38,6 +41,8 @@ export class InventoryService {
   constructor(
     @InjectRepository(InventoryItem)
     private itemsRepository: Repository<InventoryItem>,
+    @InjectRepository(InventoryMovement)
+    private movementRepo: Repository<InventoryMovement>,
     @InjectRepository(FarmMember)
     private membersRepository: Repository<FarmMember>,
     private alertsService: AlertsService,
@@ -129,6 +134,19 @@ export class InventoryService {
       .getMany();
   }
 
+  /** One item's stock history, newest first. */
+  async listMovements(
+    itemId: string,
+    userId: string,
+  ): Promise<InventoryMovement[]> {
+    await this.loadItem(itemId, userId, 'VIEW_INVENTORY');
+    return this.movementRepo.find({
+      where: { inventoryId: itemId },
+      order: { createdAt: 'DESC' },
+      take: 100,
+    });
+  }
+
   async countLowStock(farmId: string): Promise<number> {
     return this.itemsRepository
       .createQueryBuilder('item')
@@ -186,6 +204,19 @@ export class InventoryService {
         `Insufficient stock. Available: ${item.quantity}, Required: ${Math.abs(quantityChange)}`,
       );
     }
+
+    // Append-only ledger. Written after the guard, so a rejected adjustment
+    // leaves no trace of a change that never happened.
+    await this.movementRepo.save(
+      this.movementRepo.create({
+        inventoryId: id,
+        delta: quantityChange,
+        reason: options.reason ?? null,
+        createdById: userId ?? null,
+        feedRecordId: options.feedRecordId ?? null,
+      }),
+    );
+
     // Re-fetch through the repository (not raw driver output) so the
     // result is a properly camelCase-mapped entity.
     const savedItem = (await this.itemsRepository.findOneBy({
