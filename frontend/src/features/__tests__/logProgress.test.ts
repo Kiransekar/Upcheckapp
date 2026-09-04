@@ -1,6 +1,7 @@
 import type { PondContext } from '../../api/pondContext';
 import {
     slotAt, pondSlotDone, pondFedThisSession, chemistryDone, progressFor,
+    pondFreshness, STALE_AFTER_MS, NO_DATA_AFTER_MS,
 } from '../logProgress';
 
 const at = (iso: string) => new Date(iso);
@@ -116,5 +117,52 @@ describe('progressFor', () => {
 
     it('reports an empty account as nothing to do rather than dividing by zero', () => {
         expect(progressFor([], now).overall).toEqual({ done: 0, total: 0 });
+    });
+});
+
+const NOW = new Date('2026-09-04T10:00:00.000Z');
+const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3600_000).toISOString();
+
+// Reuses the file's own `ctx` and `wq` factories rather than a new one.
+const freshCtx = (recordedAt: string | null): PondContext =>
+    ctx({ waterQuality: recordedAt ? wq(recordedAt) : null });
+
+describe('pondFreshness', () => {
+    it('is fresh inside the two-day window', () => {
+        expect(pondFreshness(freshCtx(hoursAgo(47)), NOW).state).toBe('fresh');
+    });
+
+    it('goes stale just past two days', () => {
+        expect(pondFreshness(freshCtx(hoursAgo(49)), NOW).state).toBe('stale');
+    });
+
+    it('is still stale, not noData, at six days', () => {
+        expect(pondFreshness(freshCtx(hoursAgo(24 * 6)), NOW).state).toBe('stale');
+    });
+
+    it('becomes noData past seven days', () => {
+        expect(pondFreshness(freshCtx(hoursAgo(24 * 8)), NOW).state).toBe('noData');
+    });
+
+    it('reports noData with a null age when the pond has never been logged', () => {
+        // "never logged" must not render as "logged infinity days ago".
+        const f = pondFreshness(freshCtx(null), NOW);
+        expect(f).toEqual({ state: 'noData', asOf: null, ageMs: null });
+    });
+
+    it('carries the source timestamp and age so callers need not recompute', () => {
+        const at = hoursAgo(50);
+        const f = pondFreshness(freshCtx(at), NOW);
+        expect(f.asOf).toBe(at);
+        expect(f.ageMs).toBe(50 * 3600_000);
+    });
+
+    it('treats an unparseable timestamp as noData rather than throwing', () => {
+        expect(pondFreshness(freshCtx('not-a-date'), NOW).state).toBe('noData');
+    });
+
+    it('exports thresholds as two and seven days', () => {
+        expect(STALE_AFTER_MS).toBe(2 * 24 * 3600_000);
+        expect(NO_DATA_AFTER_MS).toBe(7 * 24 * 3600_000);
     });
 });

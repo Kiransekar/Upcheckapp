@@ -77,6 +77,47 @@ export interface Progress {
 }
 
 /**
+ * How much a pond's health colour can be trusted.
+ *
+ * The alert engine reports on readings it HAS; it cannot report "nobody gave
+ * me a reading". So a pond with no alerts and a pond nobody has logged for
+ * three weeks arrived at the same green bar. This is the missing half.
+ *
+ * Measured off the newest water-quality record and nothing else. Feed and
+ * sampling deliberately do NOT count: a pond can be fed every day and still
+ * have entirely unmeasured water, and letting a feed log stand in for a water
+ * reading would put the same false green back in a new place.
+ *
+ * Thresholds are two days and seven days, NOT the backend's own one-day
+ * confidence window (pond-context.service.ts). That window is right for
+ * scoring an engine's input; applied to a colour bar it turns nearly every
+ * pond grey every morning, and a signal that fires constantly is not a signal.
+ */
+export type Freshness = 'fresh' | 'stale' | 'noData';
+
+export interface PondFreshness {
+    state: Freshness;
+    /** The source record's time, or null if there has never been one. */
+    asOf: string | null;
+    /** null when there is nothing to measure from — never Infinity. */
+    ageMs: number | null;
+}
+
+export const STALE_AFTER_MS = 2 * 24 * 60 * 60 * 1000;
+export const NO_DATA_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const pondFreshness = (ctx: PondContext, now: Date): PondFreshness => {
+    const asOf = ctx.waterQuality?.recordedAt ?? null;
+    const t = asOf ? new Date(asOf).getTime() : NaN;
+    if (!Number.isFinite(t)) return { state: 'noData', asOf: null, ageMs: null };
+
+    const ageMs = now.getTime() - t;
+    const state: Freshness =
+        ageMs > NO_DATA_AFTER_MS ? 'noData' : ageMs > STALE_AFTER_MS ? 'stale' : 'fresh';
+    return { state, asOf, ageMs };
+};
+
+/**
  * Progress for the CURRENT slot. A slot counts as complete only when every
  * active pond has been logged (decision D6) — one outstanding pond keeps the
  * bar short, which is the whole point of showing it.
