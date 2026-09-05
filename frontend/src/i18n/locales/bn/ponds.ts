@@ -124,5 +124,55 @@ const ponds = {
   fieldSurveyedArea: "জরিপ করা এলাকা (m²)",
   surveyedDifferent: "জরিপ করা এলাকা আলাদা",
   surveyedDifferentSub: "হিসাব করা এলাকা বদলান",
+
+  sessionHintLogged: "লগ হয়েছে",
+  sessionHintFed: "খাওয়ানো হয়েছে",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "আজ এই পুকুরে",
+  todayEmpty: "আজ এখনও কিছু লগ হয়নি।",
+  modeHintLog: "নতুন এন্ট্রি লিখতে কার্ডে চাপ দিন",
+  modeHintHistory: "আগের এন্ট্রি দেখতে কার্ডে চাপ দিন",
+  tileDone: "এই সেশনে হয়েছে",
+  tilePending: "এখনও হয়নি",
+  tileNeedsCycle: "একটি চক্র দরকার",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "টাকা — শেষ হওয়া চক্র",
+  metricRevenue: "আয়",
+  metricProfit: "লাভ",
+  metricLoss: "ক্ষতি",
+  metricMargin: "মার্জিন",
+
+  // Archive and delete — spec §4.1
+  managePond: "পুকুর পরিচালনা",
+  archivePond: "পুকুর সংরক্ষণ করুন",
+  deletePond: "পুকুর মুছুন",
+  archiveConfirmTitle: "এই পুকুরটি সংরক্ষণ করবেন?",
+  archiveConfirmBody: "এটি পুকুরের তালিকা ও সব হিসাব থেকে সরে যাবে, আর সংরক্ষিত থাকা অবস্থায় এতে মজুত করা যাবে না। এর সব রেকর্ড থেকে যাবে।",
+  archiveConfirmCta: "সংরক্ষণ করুন",
+  deleteConfirmTitle: "এই পুকুরটি মুছবেন?",
+  deleteConfirmBody: "পুকুরটি চিরতরে চলে যাবে। এটি আর ফেরানো যাবে না।",
+  deleteConfirmCta: "মুছুন",
+  deleteBlockedTitle: "এই পুকুরে চক্রের রেকর্ড আছে",
+  deleteBlockedBody: "তাই এটি মোছা যাবে না — এতেই আপনার হিসাব নিরাপদ থাকে। বদলে সংরক্ষণ করুন: এটি তালিকা থেকে সরবে, কিন্তু সব রেকর্ড থাকবে।",
+  manageNeedsCycleEnd: "যে পুকুরে চক্র চলছে তা সংরক্ষণও করা যায় না, মোছাও যায় না। আগে চক্রটি শেষ করুন।",
+  errorArchivePond: "পুকুরটি সংরক্ষণ করা গেল না।",
+  unarchivePond: "ফিরিয়ে আনুন",
+  unarchiveConfirmTitle: "এই পুকুরটি ফিরিয়ে আনবেন?",
+  unarchiveConfirmBody: "এটি আপনার পুকুরের তালিকায় ফিরে আসবে এবং খামারের মোট হিসাবে আবার গণনা হবে।",
+  unarchiveConfirmCta: "ফিরিয়ে আনুন",
+  errorUnarchivePond: "পুকুরটি ফিরিয়ে আনা গেল না।",
+  errorArchiveActiveCycle: "এই পুকুরে চক্র চলছে, তাই সংরক্ষণ করা যাবে না। আগে চক্রটি শেষ করুন।",
+  errorDeletePond: "পুকুরটি মোছা গেল না।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "শেষ লগ {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "লগ {{age}} আগে",
+  ageFed: "খাবার {{age}} আগে",
+  ageNeverLogged: "কখনও লগ হয়নি",
+  ageNeverFed: "কখনও খাবার দেওয়া হয়নি",
 };
 export default ponds;

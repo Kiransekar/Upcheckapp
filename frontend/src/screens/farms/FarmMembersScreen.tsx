@@ -15,7 +15,7 @@
  * The QR is the same code, scannable — AddWorkerScreen already reads one, so
  * this closes the loop for a worker standing next to the owner.
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, RefreshControl, Share } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
@@ -23,12 +23,22 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Button } from '../../components/ui/Button';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Icon, type IconName } from '../../components/ui/Icon';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { CapabilityGrid } from '../../components/members/CapabilityGrid';
+import {
+    roleCan,
+    type CapabilityOverrides,
+    type FarmCapability,
+    type RolePolicy,
+} from '../../permissions/capabilities';
 import { theme } from '../../theme';
+import { apiErrorMessage } from '../../api/errors';
 import { farmMembersApi, type FarmMember, type FarmInvite, type FarmRole } from '../../api/farmMembers';
 import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
@@ -47,6 +57,10 @@ const ROLE_META: Record<FarmRole, { icon: IconName; color: string }> = {
 
 export const fullName = (m: FarmMember) => personName(m.user, m.userId.slice(0, 8));
 
+/** The roles a policy can speak about — an owner is never reducible. */
+type PolicyRole = 'manager' | 'worker' | 'viewer';
+const POLICY_ROLES: PolicyRole[] = ['manager', 'worker', 'viewer'];
+
 export const FarmMembersScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params ?? {};
@@ -55,6 +69,8 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
     const [pending, setPending] = useState<FarmMember[]>([]);
     const [invites, setInvites] = useState<FarmInvite[]>([]);
     const [farmCode, setFarmCode] = useState<string | null>(null);
+    const [rolePolicy, setRolePolicy] = useState<RolePolicy | null>(null);
+    const [policyRole, setPolicyRole] = useState<PolicyRole>('worker');
     const [ponds, setPonds] = useState<{ id: string; name: string }[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +117,10 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             if (!perms.canInviteMember) return;
             farmsApi
                 .getById(farmId)
-                .then(({ data }) => setFarmCode(data.farmCode ?? null))
+                .then(({ data }) => {
+                    setFarmCode(data.farmCode ?? null);
+                    setRolePolicy(data.rolePolicy ?? null);
+                })
                 .catch(() => setFarmCode(null));
             farmMembersApi
                 .listInvites(farmId)
@@ -129,11 +148,34 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             await Clipboard.setStringAsync(data.code);
             Alert.alert(t('members.inviteCreatedTitle'), t('members.inviteCreatedSub'));
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.inviteError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.inviteError')));
         } finally {
             setInviteBusy(false);
         }
     }, [farmId, t]);
+
+    /**
+     * "My workers may record harvests." Written optimistically so the chips
+     * answer the tap, and put back exactly as it was if the server refuses —
+     * a permission that looks granted but is not is worse than a slow one.
+     */
+    const savePolicy = useCallback(
+        async (next: CapabilityOverrides | null) => {
+            const previous = rolePolicy;
+            const merged: RolePolicy = { ...(rolePolicy ?? {}) };
+            if (next) merged[policyRole] = next;
+            else delete merged[policyRole];
+            const value = Object.keys(merged).length > 0 ? merged : null;
+            setRolePolicy(value);
+            try {
+                await farmsApi.setRolePolicy(farmId, value);
+            } catch (e: any) {
+                setRolePolicy(previous);
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.rolePolicyError')));
+            }
+        },
+        [farmId, policyRole, rolePolicy, t],
+    );
 
     const shareInvite = async (code: string) => {
         try {
@@ -143,6 +185,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         }
     };
 
+    // AddWorkerScreen's "send an invite instead" (for someone with no
+    // account) lands here with autoShare — fire the share sheet ourselves
+    // once a live invite is on screen, instead of making the owner hunt for
+    // the button. Guarded to fire once: `invites` refetches on every focus,
+    // which would otherwise reopen the share sheet on every return trip.
+    const autoSharedRef = useRef(false);
+    useEffect(() => {
+        if (route.params?.autoShare && !autoSharedRef.current && activeInvite) {
+            autoSharedRef.current = true;
+            shareInvite(activeInvite.code);
+        }
+    }, [activeInvite]);
+
     const approve = useCallback(
         async (m: FarmMember) => {
             try {
@@ -150,7 +205,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                 setPending((cur) => cur.filter((p) => p.id !== m.id));
                 load();
             } catch (e: any) {
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.approveError')));
             }
         },
         [farmId, load, t],
@@ -168,7 +223,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                             await farmMembersApi.declineMember(farmId, m.userId);
                             setPending((cur) => cur.filter((p) => p.id !== m.id));
                         } catch (e: any) {
-                            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.approveError'));
+                            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.approveError')));
                         }
                     },
                 },
@@ -259,24 +314,19 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
 
                         <View style={styles.codeActions}>
                             {!!activeInvite && (
-                                <TouchableOpacity
-                                    style={styles.shareBtn}
+                                <Button
+                                    title={t('members.shareCode')}
                                     onPress={() => shareInvite(activeInvite.code)}
-                                    accessibilityRole="button"
-                                >
-                                    <Text style={styles.shareLabel}>{t('members.shareCode')}</Text>
-                                </TouchableOpacity>
+                                    style={styles.codeBtn}
+                                />
                             )}
-                            <TouchableOpacity
-                                style={[styles.newBtn, inviteBusy && styles.busy]}
+                            <Button
+                                title={activeInvite ? t('members.newCode') : t('members.createInvite')}
+                                variant="outlined"
+                                loading={inviteBusy}
                                 onPress={rotate}
-                                disabled={inviteBusy}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.newLabel}>
-                                    {activeInvite ? t('members.newCode') : t('members.createInvite')}
-                                </Text>
-                            </TouchableOpacity>
+                                style={styles.codeBtn}
+                            />
                         </View>
                     </View>
                 )}
@@ -314,6 +364,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                     navigation.navigate('MemberDetail', { farmId, farmName, member: m })
                                 }
                                 accessibilityRole="button"
+                                accessibilityLabel={[fullName(m), t(`members.role_${m.role}`), scope]
+                                    .filter(Boolean)
+                                    .join(' · ')}
                             >
                                 <Icon name={meta.icon} size={24} color={meta.color} />
                                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -351,10 +404,15 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                 <Text style={styles.memberName}>{fullName(m)}</Text>
                                 <Text style={styles.pendingSub}>{t('members.usedYourCode')}</Text>
                                 <View style={styles.pendingActions}>
+                                    {/* Kept hand-styled: these two carry the
+                                        approve/refuse semantics in colour, which
+                                        Button's primary/outlined pair does not
+                                        offer. */}
                                     <TouchableOpacity
                                         style={styles.letInBtn}
                                         onPress={() => approve(m)}
                                         accessibilityRole="button"
+                                        accessibilityLabel={`${t('members.letIn')} — ${fullName(m)}`}
                                     >
                                         <Text style={styles.letInLabel}>{t('members.letIn')}</Text>
                                     </TouchableOpacity>
@@ -362,6 +420,7 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                                         style={styles.declineBtn}
                                         onPress={() => decline(m)}
                                         accessibilityRole="button"
+                                        accessibilityLabel={`${t('members.decline')} — ${fullName(m)}`}
                                     >
                                         <Text style={styles.declineLabel}>{t('members.decline')}</Text>
                                     </TouchableOpacity>
@@ -371,20 +430,48 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/*
+                  * Permissions by ROLE, not by person: an owner setting
+                  * "workers may record harvests" once should not have to repeat
+                  * it for every worker they ever add. A single member who needs
+                  * to differ is overridden on their own screen, which wins.
+                  */}
+                {perms.canOwnerActions && (
+                    <>
+                        <SectionHeader label={t('members.rolePolicySection')} />
+                        <Text style={styles.policyNote}>{t('members.rolePolicyNote')}</Text>
+                        <View style={styles.policyRoles}>
+                            <ChipGroup
+                                options={POLICY_ROLES.map((r) => ({
+                                    value: r,
+                                    label: t(`members.role_${r}`),
+                                }))}
+                                value={policyRole}
+                                onChange={(r) => setPolicyRole((current) => (r as PolicyRole) ?? current)}
+                            />
+                        </View>
+                        <CapabilityGrid
+                            value={rolePolicy?.[policyRole] ?? null}
+                            defaults={(capability: FarmCapability) => roleCan(policyRole, capability)}
+                            onChange={savePolicy}
+                        />
+                    </>
+                )}
+
                 {perms.canInviteMember && members.length > 0 && (
                     <Text style={styles.footnote}>{t('members.tapToEdit')}</Text>
                 )}
             </ScrollView>
 
+            {/* One label for one job: this button says exactly what the screen
+                it opens is titled ("Add worker"), rather than describing one of
+                the two ways that screen lets you find someone. */}
             {perms.canInviteMember && (
                 <View style={styles.footer}>
-                    <TouchableOpacity
-                        style={styles.inviteByBtn}
+                    <Button
+                        title={t('members.addWorker')}
                         onPress={() => navigation.navigate('AddWorker', { farmId, farmName })}
-                        accessibilityRole="button"
-                    >
-                        <Text style={styles.inviteByLabel}>{t('members.inviteByIdentifier')}</Text>
-                    </TouchableOpacity>
+                    />
                 </View>
             )}
         </ScreenWrapper>
@@ -421,26 +508,7 @@ const styles = StyleSheet.create({
     codeMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary, marginTop: 2 },
     qr: { backgroundColor: c.surface, padding: theme.spacing[2], borderRadius: theme.radius.xs },
     codeActions: { flexDirection: 'row', gap: theme.spacing[2], marginTop: theme.spacing[3] },
-    shareBtn: {
-        flex: 1,
-        backgroundColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    shareLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.textInverse },
-    newBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    newLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.primaryHover },
-    busy: { opacity: 0.6 },
+    codeBtn: { flex: 1, paddingHorizontal: theme.spacing[3] },
 
     farmCodeBlock: {
         paddingHorizontal: theme.spacing[5],
@@ -501,6 +569,14 @@ const styles = StyleSheet.create({
     },
     declineLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.dangerText },
 
+    policyNote: {
+        ...theme.typeScale.bodySmall,
+        color: c.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[2],
+    },
+    policyRoles: { paddingHorizontal: theme.spacing[5] },
+
     footnote: {
         ...theme.typeScale.bodyMedium,
         color: c.textTertiary,
@@ -515,14 +591,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: theme.spacing[5],
         paddingVertical: theme.spacing[3],
     },
-    inviteByBtn: {
-        backgroundColor: c.primaryHover,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 52,
-    },
-    inviteByLabel: { ...theme.typeScale.labelLarge, fontSize: 16, color: c.textInverse },
 });
 
 export default FarmMembersScreen;

@@ -19,7 +19,7 @@ export interface Stat {
     /** Uppercase caption beneath. */
     label: string;
     /** Severity colour for the value; the caption follows for danger/warning. */
-    tone?: 'default' | 'danger' | 'warning' | 'success';
+    tone?: 'default' | 'danger' | 'warning' | 'success' | 'neutral';
     /** Renders `value` as words rather than a figure ("All fine"). */
     text?: boolean;
 }
@@ -36,6 +36,9 @@ const TONE: Record<NonNullable<Stat['tone']>, string> = {
     danger: theme.roles.light.dangerText,
     warning: theme.roles.light.warningText,
     success: theme.roles.light.successText,
+    // "Nobody has logged it" is not an alarm — amber already means "the water
+    // is bad" elsewhere on this screen, so this gets its own slate tone.
+    neutral: theme.roles.light.staleText,
 };
 
 export const StatRow: React.FC<StatRowProps> = ({ stats, size = 'md', divider = false }) => (
@@ -55,6 +58,12 @@ export const StatRow: React.FC<StatRowProps> = ({ stats, size = 'md', divider = 
                             { color },
                         ]}
                         numberOfLines={1}
+                        // Shrink rather than ellipsise: truncating a figure drops
+                        // its LEAST significant digits and leaves a wrong number
+                        // that still looks right, with no visual cue (QA BUG-011).
+                        // The screen headline already does this.
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.6}
                     >
                         {s.value}
                         {!!s.unit && (

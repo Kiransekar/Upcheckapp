@@ -9,6 +9,12 @@
 jest.mock('../../../api/ponds', () => ({
     pondsApi: { getAll: jest.fn() },
 }));
+jest.mock('../../../api/pondContext', () => ({
+    pondContextApi: { forFarm: jest.fn() },
+}));
+jest.mock('../../../api/alertCenter', () => ({
+    alertCenterApi: { liveBriefing: jest.fn(), briefing: jest.fn() },
+}));
 // See src/screens/inventory/__tests__/InventoryListScreen.test.tsx for why:
 // useFocusEffect needs a NavigationContainer the plain SafeAreaProvider
 // wrapper below doesn't provide.
@@ -28,10 +34,15 @@ import { render } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FarmDetailScreen } from '../FarmDetailScreen';
 import { pondsApi } from '../../../api/ponds';
+import { pondContextApi } from '../../../api/pondContext';
+import { alertCenterApi } from '../../../api/alertCenter';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
 
 const mockedGetAll = pondsApi.getAll as jest.Mock;
+const mockedForFarm = pondContextApi.forFarm as jest.Mock;
+const mockedLiveBriefing = alertCenterApi.liveBriefing as jest.Mock;
+const mockedBriefing = alertCenterApi.briefing as jest.Mock;
 
 const TEST_SAFE_AREA_METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -68,5 +79,61 @@ describe('FarmDetailScreen — syncs the active-farm store on open (#37)', () =>
 
         renderScreen('farm-2', 'South Site');
         expect(useActiveFarmStore.getState().selectedFarm).toEqual({ id: 'farm-2', name: 'South Site' });
+    });
+});
+
+describe('FarmDetailScreen — compact last-logged / last-fed hint', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        useActiveFarmStore.setState({ selectedFarm: null } as any);
+        useMembershipStore.setState({ memberships: [], loaded: true, loading: false } as any);
+        mockedLiveBriefing.mockResolvedValue({ data: [] });
+        mockedBriefing.mockResolvedValue({ data: [] });
+    });
+
+    const renderFarm = () =>
+        render(
+            <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+                <FarmDetailScreen navigation={navigation} route={{ params: { farmId: 'f1', farmName: 'Test Farm' } }} />
+            </SafeAreaProvider>,
+        );
+
+    const onePond = (ctx: any) => {
+        mockedGetAll.mockResolvedValue({
+            data: { data: [{ id: 'p1', farmId: 'f1', name: 'Pond 01', activeCycleId: 'c1', status: 'active' }] },
+        });
+        mockedForFarm.mockResolvedValue({ data: [{ pondId: 'p1', farmId: 'f1', ...ctx }] as any });
+    };
+
+    it('shows how old a pond row is when the log is stale', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
+            lastFeedAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
+        });
+        expect(await renderFarm().findByText('Logged 3 d · Fed 6 h')).toBeTruthy();
+    });
+
+    // The age used to appear ONLY once the pond had already gone stale, so a
+    // pond logged an hour ago and one logged 40 hours ago showed the same row.
+    it('shows the age on a FRESH pond too, not only a stale one', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 4 * 3600_000).toISOString() },
+            lastFeedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
+        });
+        expect(await renderFarm().findByText('Logged 4 h · Fed 2 h')).toBeTruthy();
+    });
+
+    /**
+     * `lastFeedAt` is MAX(feed.recordedAt) GROUPED BY crop, so a pond with no
+     * active crop always reports null. That must read as "never fed", never as
+     * "just now" — the failure mode that would tell a farmer a starving pond
+     * had been fed this hour.
+     */
+    it('renders a null lastFeedAt as "never fed", not as a fresh feed', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
+            lastFeedAt: null,
+        });
+        expect(await renderFarm().findByText('Logged 2 h · Never fed')).toBeTruthy();
     });
 });

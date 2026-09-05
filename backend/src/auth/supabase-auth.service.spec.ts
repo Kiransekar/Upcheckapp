@@ -41,6 +41,7 @@ interface MockSupabase {
       updateUserById: jest.Mock;
       deleteUser: jest.Mock;
       generateLink: jest.Mock;
+      getUserById: jest.Mock;
     };
     verifyOtp: jest.Mock;
   };
@@ -54,6 +55,7 @@ interface FromBuilder {
   update: jest.Mock;
   insert: jest.Mock;
   upsert: jest.Mock;
+  delete: jest.Mock;
 }
 
 /**
@@ -77,6 +79,7 @@ function buildMockSupabase(opts: {
   createUserResult?: SbResult<{ user: { id: string; email: string } }>;
   updateUserResult?: SbResult<{ user: { id: string; email: string } }>;
   generateLinkResult?: SbResult<{ properties?: { action_link?: string } }>;
+  getUserByIdResult?: SbResult<{ user: { id: string } } | null>;
 }): MockSupabase {
   const lookupQueue: SbResult<any>[] = [opts.phoneLookup];
   if (opts.emailLookup) {
@@ -129,6 +132,11 @@ function buildMockSupabase(opts: {
       upsert: jest
         .fn()
         .mockResolvedValue(opts.insertResult ?? { data: null, error: null }),
+      // Used only when an orphaned profile row (no matching auth.users row) is
+      // reaped before falling through to a clean signup.
+      delete: jest.fn().mockReturnValue({
+        eq: jest.fn().mockResolvedValue({ data: null, error: null }),
+      }),
     };
     return builder;
   });
@@ -150,6 +158,14 @@ function buildMockSupabase(opts: {
           },
         ),
         deleteUser: jest.fn().mockResolvedValue({ data: null, error: null }),
+        // Defaults to "the auth user exists", which is the healthy pairing.
+        // `getUserByIdResult` scripts the orphaned case.
+        getUserById: jest.fn().mockResolvedValue(
+          opts.getUserByIdResult ?? {
+            data: { user: { id: 'existing-user-id' } },
+            error: null,
+          },
+        ),
         generateLink: jest.fn().mockResolvedValue(
           opts.generateLinkResult ?? {
             data: { properties: { hashed_token: 'stub-hashed-token' } },
@@ -229,6 +245,72 @@ describe('SupabaseAuthService.signInWithTruecaller', () => {
       'existing-phone-id',
       expect.any(Object),
     );
+  });
+
+  // ──────────────────────────────────────────────────────────────────
+  // Orphaned profile row — the production lockout of 2026-09-05
+  // ──────────────────────────────────────────────────────────────────
+
+  it('recovers when the profile row outlived its auth user, instead of locking the user out forever', async () => {
+    // Production had exactly this: public.users held a row for
+    // 917010133018@truecaller.temp with no matching auth.users row. The phone
+    // lookup matched it, createSessionForUser handed the dead id to
+    // admin.updateUserById, and Supabase answered "User not found" — a 503 on
+    // EVERY subsequent login, which the app rendered as a network error.
+    const mock = buildMockSupabase({
+      phoneLookup: {
+        data: { id: 'orphaned-profile-id', email: '919876543210@truecaller.temp' },
+        error: null,
+      },
+      // The auth side is gone. This is what makes the row an orphan.
+      getUserByIdResult: { data: { user: null } as any, error: null },
+      createUserResult: {
+        data: { user: { id: 'fresh-auth-id', email: '919876543210@truecaller.temp' } },
+        error: null,
+      },
+      updateUserResult: {
+        data: { user: { id: 'fresh-auth-id', email: '919876543210@truecaller.temp' } },
+        error: null,
+      },
+    });
+    const svc = buildService(mock);
+
+    const result = await svc.signInWithTruecaller(sampleProfile);
+
+    // The user gets in, on a NEW auth identity — not a 503.
+    expect(result.session).toBeDefined();
+    expect(result.user.id).toBe('fresh-auth-id');
+    expect(mock.auth.admin.createUser).toHaveBeenCalled();
+    // The dead id must never be handed to updateUserById; that call is what
+    // produced "User not found".
+    expect(mock.auth.admin.updateUserById).not.toHaveBeenCalledWith(
+      'orphaned-profile-id',
+      expect.any(Object),
+    );
+  });
+
+  it('does not disturb a healthy pairing when verifying the auth user exists', async () => {
+    // The guard added for the orphan case must not change the normal path.
+    const mock = buildMockSupabase({
+      phoneLookup: {
+        data: { id: 'existing-phone-id', email: 'aarav@example.com' },
+        error: null,
+      },
+      getUserByIdResult: {
+        data: { user: { id: 'existing-phone-id' } },
+        error: null,
+      },
+      updateUserResult: {
+        data: { user: { id: 'existing-phone-id', email: 'aarav@example.com' } },
+        error: null,
+      },
+    });
+    const svc = buildService(mock);
+
+    const result = await svc.signInWithTruecaller(sampleProfile);
+
+    expect(result.user.id).toBe('existing-phone-id');
+    expect(mock.auth.admin.createUser).not.toHaveBeenCalled();
   });
 
   it('SECURITY: an email match is IGNORED — never links to an existing account (account-takeover fix)', async () => {

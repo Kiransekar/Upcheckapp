@@ -152,6 +152,37 @@ const settings = {
   signOutConfirm: "এই ডিভাইসে আপচেক থেকে সাইন আউট করবেন?",
   toolsSection: "সরঞ্জাম",
   farmSection: "খামার",
+
+  // ── রিমাইন্ডারের সময় (স্মার্ট রিমাইন্ডার) ──────────────────────────────
+  reminderTimes: "রিমাইন্ডারের সময়",
+  reminderTimesDesc: "Upcheck কখন আপনাকে পানির গুণমান লগ করার কথা মনে করিয়ে দেবে তা নির্বাচন করুন।",
+  reminderMorning: "সকালের চেক",
+  reminderAfternoon: "দুপুরের চেক",
+  reminderEvening: "সন্ধ্যার চেক",
+  reminderChemistry: "সাপ্তাহিক রসায়ন পরীক্ষা",
+  reminderHourLabel: "ঘণ্টা",
+  reminderMinuteLabel: "মিনিট",
+  reminderStatusOn: "রিমাইন্ডার চালু আছে। পরেরটি: {{when}}",
+  reminderStatusOff: "এখন কোনো রিমাইন্ডার সেট নেই। একটি পুকুর যোগ করুন, তারপর একবার Upcheck খুলুন — রিমাইন্ডার চালু হয়ে যাবে।",
+  reminderStatusBlocked: "এই ফোনে Upcheck বিজ্ঞপ্তি দেখাতে পারে না, তাই রিমাইন্ডার আসবে না।",
+  reminderStatusOpenSettings: "ফোনের সেটিংস খুলুন",
+  reminderWhenToday: "আজ {{time}}-এ",
+  reminderWhenTomorrow: "আগামীকাল {{time}}-এ",
+  reminderWhenOn: "{{date}} তারিখে {{time}}-এ",
+
+  // ── গোপনীয়তা: ক্র্যাশ রিপোর্ট ও ব্যবহারের তথ্য ─────────────────────────────
+  privacySection: "গোপনীয়তা",
+  crashReportsToggle: "ক্র্যাশ রিপোর্ট",
+  crashReportsDesc:
+    "চালু আছে, যাতে আপনি জানানোর আগেই আমরা ত্রুটি সারাতে পারি। এই রিপোর্টে আপনার ফোন নম্বর, ইমেল, পাসওয়ার্ড, টাকার হিসাব বা খামারের রেকর্ড যায় না। আপনি এটি বন্ধ করতে পারেন।",
+  analyticsToggle: "ব্যবহারের তথ্য",
+  analyticsToggleDesc:
+    "আপনি চালু না করলে বন্ধ থাকে। কোন স্ক্রিনগুলি ব্যবহার হয় তা জানায়, যাতে আমরা সঠিক জিনিস তৈরি করি। আপনার পুকুর, টাকা ও ফসলের তথ্য কখনও পাঠানো হয় না।",
+  analyticsPromptTitle: "আপনি কোন স্ক্রিন ব্যবহার করেন তা কি আমরা দেখতে পারি?",
+  analyticsPromptBody:
+    "কোনটা ব্যবহার করা কঠিন তা ঠিক করতে এটি সাহায্য করে। আমরা কেবল স্ক্রিনের নাম পাঠাব — আপনার পুকুর, টাকা বা ফসলের হিসাব কখনও নয়। আপনার উত্তর যাই হোক, অ্যাপের সবকিছু একইভাবে কাজ করবে।",
+  analyticsPromptAllow: "হ্যাঁ, ঠিক আছে",
+  analyticsPromptDecline: "না, ধন্যবাদ",
 };
 
 export default settings;

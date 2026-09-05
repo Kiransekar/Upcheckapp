@@ -20,6 +20,7 @@ import {
     ActivityIndicator,
     Alert,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +30,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { LineChart } from '../../components/charts/LineChart';
+import { apiErrorMessage } from '../../api/errors';
 import { theme } from '../../theme';
 import {
     measurementsApi,
@@ -98,6 +100,13 @@ export const MeasurementsScreen = ({ route }: any) => {
         setValueText('');
     }, [loadSeries]);
 
+    // React Navigation keeps this screen mounted, so the trend/recent-log data
+    // above never refetched on return — e.g. a related reading logged
+    // elsewhere and coming back here still showed the stale series. This does
+    // NOT reset the input fields (unlike the effect above), so an in-progress
+    // draft survives navigating away and back.
+    useFocusEffect(useCallback(() => { loadSeries(); }, [loadSeries]));
+
     const handleSubmit = useCallback(async () => {
         if (!entry) return;
         setSubmitting(true);
@@ -130,9 +139,7 @@ export const MeasurementsScreen = ({ route }: any) => {
         } catch (err: any) {
             // saveRecord only throws on real rejections (validation/permission);
             // network failures are queued, not surfaced as errors.
-            const message =
-                err?.response?.data?.message ||
-                t('engines.measurements.invalidReadingSub');
+            const message = apiErrorMessage(err, t('engines.measurements.invalidReadingSub'));
             Alert.alert(t('engines.measurements.invalidReading'), String(message));
         } finally {
             setSubmitting(false);

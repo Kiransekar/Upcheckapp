@@ -42,6 +42,7 @@ import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LeaveRequestsModule } from './leave-requests/leave-requests.module';
 import { TeamOverviewModule } from './team-overview/team-overview.module';
+import { ActivityModule } from './activity/activity.module';
 import { MoneyOverviewModule } from './money-overview/money-overview.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PushModule } from './push/push.module';
@@ -59,6 +60,7 @@ import { AlertCenterModule } from './alert-center/alert-center.module';
 import { BannedSubstancesModule } from './banned-substances/banned-substances.module';
 import { PondContextModule } from './pond-context/pond-context.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 
 @Module({
   imports: [
@@ -123,20 +125,32 @@ import { FeedbackModule } from './feedback/feedback.module';
             // Maximum time to wait for connection (10 seconds)
             connectionTimeoutMillis: 10000,
             /**
-             * Pool size. Was 5, which was the app's real concurrency limit:
-             * one Farms screen fans out to ~300 queries (≈7 per pond across
-             * 43 ponds), and with 5 connections those serialise into ~60
-             * waves. Every wave is a round trip to Supabase in Singapore from
-             * a backend in Oregon (~180ms), so the pool alone was costing
-             * ~11s on that screen.
+             * Pool size. This has to fit inside the POOLER's own limit, and
+             * twice over — Render deploys with an overlap, so the outgoing and
+             * incoming instances hold connections at the same time.
              *
-             * DATABASE_URL points at the Supabase POOLER in transaction mode,
-             * which multiplexes onto far fewer server connections, so 20
-             * client connections here is comfortable rather than reckless.
+             * It was 20, justified by a comment claiming DATABASE_URL pointed
+             * at the pooler in TRANSACTION mode. It does not: the URL is
+             * `...pooler.supabase.com:5432`, which is SESSION mode, capped at
+             * `pool_size: 15` for the whole project. So a single instance
+             * wanted 20 of 15, and a rolling deploy wanted 40 — every deploy
+             * died on boot with `(EMAXCONNSESSION) max clients reached in
+             * session mode`, Render kept the old instance, and the service
+             * silently stopped picking up new commits.
+             *
+             * 6 leaves both instances (12) inside the cap with headroom for
+             * the cron and any admin session. The old figure was chosen to
+             * mask ~180ms-per-query latency from a backend in Oregon; the
+             * backend now sits beside the database in Singapore at ~2ms, so a
+             * smaller pool costs far less than it used to.
+             *
+             * Raising this again means moving DATABASE_URL to port 6543
+             * (transaction mode) first — and that needs prepared statements
+             * disabled, so it is a change to make deliberately, not silently.
              */
-            max: 20,
+            max: 6,
             // Minimum connections to maintain (helps with cold starts)
-            min: 2,
+            min: 1,
             /**
              * Idle/lifetime were 30s and 60s. Recycling a connection every
              * 60s meant constantly re-opening one — `pgbouncer.get_auth` was
@@ -149,7 +163,11 @@ import { FeedbackModule } from './feedback/feedback.module';
              * is eventually reclaimed.
              */
             idleTimeoutMillis: 600000, // 10 min
-            maxLifetimeMillis: 1800000, // 30 min
+            // NOTE: there was a `maxLifetimeMillis: 1800000` here. `pg-pool`
+            // has no such option — it supports max, min, idleTimeoutMillis,
+            // connectionTimeoutMillis and maxUses — so it silently did
+            // nothing while reading as a deliberate 30-minute recycle policy.
+            // Removed rather than left to mislead the next reader.
           },
           // Retry connection on startup (important for cold starts)
           connectTimeoutMS: 10000,
@@ -199,6 +217,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     TasksModule,
     LeaveRequestsModule,
     TeamOverviewModule,
+    ActivityModule,
     MoneyOverviewModule,
     AttendanceModule,
     PushModule,
@@ -215,6 +234,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     PondContextModule,
     BannedSubstancesModule,
     FeedbackModule,
+    AnnouncementsModule,
   ],
   controllers: [AppController],
   providers: [

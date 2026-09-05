@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'এই কোড দিয়ে যোগ দেওয়া যায়নি। কোডটি যাচাই করে আবার চেষ্টা করুন।',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "ধাপ {{current}} / {{total}}",
   languageTitle: "আপনার ভাষা বেছে নিন",
   welcomeTitle: "আপচেক-এ স্বাগতম",
   welcomeSubtitle: "আপনার চিংড়ি খামারের দৈনন্দিন সহায়ক",

@@ -124,5 +124,55 @@ const ponds = {
   fieldSurveyedArea: "அளந்த பரப்பு (m²)",
   surveyedDifferent: "அளந்த பரப்பு வேறாக உள்ளது",
   surveyedDifferentSub: "கணக்கிட்ட பரப்பை மாற்று",
+
+  sessionHintLogged: "பதிவானது",
+  sessionHintFed: "உணவளிக்கப்பட்டது",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "இன்று இந்தக் குளத்தில்",
+  todayEmpty: "இன்று இதுவரை எதுவும் பதிவாகவில்லை.",
+  modeHintLog: "புதிய பதிவு செய்ய அட்டையை அழுத்தவும்",
+  modeHintHistory: "பழைய பதிவுகளைப் பார்க்க அட்டையை அழுத்தவும்",
+  tileDone: "இந்த அமர்வில் முடிந்தது",
+  tilePending: "இன்னும் முடியவில்லை",
+  tileNeedsCycle: "சுழற்சி தேவை",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "பணம் — முடிந்த சுழற்சி",
+  metricRevenue: "வருவாய்",
+  metricProfit: "லாபம்",
+  metricLoss: "நஷ்டம்",
+  metricMargin: "விளிம்பு",
+
+  // Archive and delete — spec §4.1
+  managePond: "குளம் நிர்வாகம்",
+  archivePond: "குளத்தை காப்பகப்படுத்து",
+  deletePond: "குளத்தை நீக்கு",
+  archiveConfirmTitle: "இந்தக் குளத்தை காப்பகப்படுத்தவா?",
+  archiveConfirmBody: "இது குளப் பட்டியல்களிலிருந்தும் கூட்டுத்தொகைகளிலிருந்தும் விலகும், காப்பகத்தில் இருக்கும்போது இதில் குஞ்சு விட முடியாது. இதன் பதிவுகள் அனைத்தும் இருக்கும்.",
+  archiveConfirmCta: "காப்பகப்படுத்து",
+  deleteConfirmTitle: "இந்தக் குளத்தை நீக்கவா?",
+  deleteConfirmBody: "குளம் நிரந்தரமாகப் போய்விடும். இதைத் திரும்பப் பெற முடியாது.",
+  deleteConfirmCta: "நீக்கு",
+  deleteBlockedTitle: "இந்தக் குளத்தில் சுழற்சிப் பதிவுகள் உள்ளன",
+  deleteBlockedBody: "எனவே இதை நீக்க முடியாது — அதுவே உங்கள் பதிவுகளைப் பாதுகாக்கிறது. மாற்றாக காப்பகப்படுத்துங்கள்: இது பட்டியலிலிருந்து விலகும், ஆனால் ஒவ்வொரு பதிவும் இருக்கும்.",
+  manageNeedsCycleEnd: "சுழற்சி ஓடிக்கொண்டிருக்கும் குளத்தை காப்பகப்படுத்தவோ நீக்கவோ முடியாது. முதலில் சுழற்சியை முடியுங்கள்.",
+  errorArchivePond: "குளத்தை காப்பகப்படுத்த முடியவில்லை.",
+  unarchivePond: "மீண்டும் கொண்டு வா",
+  unarchiveConfirmTitle: "இந்தக் குளத்தை மீண்டும் கொண்டு வரவா?",
+  unarchiveConfirmBody: "இது உங்கள் குளப் பட்டியலுக்குத் திரும்பி, பண்ணை மொத்தத்தில் மீண்டும் சேரும்.",
+  unarchiveConfirmCta: "மீண்டும் கொண்டு வா",
+  errorUnarchivePond: "குளத்தை மீண்டும் கொண்டு வர முடியவில்லை.",
+  errorArchiveActiveCycle: "இந்தக் குளத்தில் சுழற்சி ஓடுகிறது, எனவே காப்பகப்படுத்த முடியாது. முதலில் சுழற்சியை முடியுங்கள்.",
+  errorDeletePond: "குளத்தை நீக்க முடியவில்லை.",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "கடைசி பதிவு {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "பதிவு {{age}} முன்பு",
+  ageFed: "தீவனம் {{age}} முன்பு",
+  ageNeverLogged: "பதிவே இல்லை",
+  ageNeverFed: "தீவனமே இல்லை",
 };
 export default ponds;

@@ -4,6 +4,7 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { LeaveRequestsService } from '../leave-requests/leave-requests.service';
 import { TasksService } from '../tasks/tasks.service';
 import { FarmMembersService } from '../farm-members/farm-members.service';
+import { FarmInvitesService } from '../farm-members/farm-invites.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
 /**
@@ -37,6 +38,7 @@ export class TeamOverviewService {
     private readonly leaveRequests: LeaveRequestsService,
     private readonly tasks: TasksService,
     private readonly members: FarmMembersService,
+    private readonly invites: FarmInvitesService,
     private readonly farmAccess: FarmAccessService,
   ) {}
 
@@ -53,8 +55,13 @@ export class TeamOverviewService {
     // Tasks already resolve every accessible farm in a single query
     // (TasksService.findMine → getAccessibleFarmIds), so it is asked once
     // rather than per farm.
+    //
+    // The farm filter is passed through. It used to be omitted, so filtering
+    // the Team tab to one farm scoped the members and the attendance but NOT
+    // the tasks — the tab showed one farm's roster next to every farm's chores.
+    const taskScope = farmIds.length === 1 ? farmIds[0] : undefined;
     const [tasks, perFarm] = await Promise.all([
-      this.tasks.findMine(userId).catch(() => []),
+      this.tasks.findMine(userId, { farmId: taskScope }).catch(() => []),
       Promise.all(farmIds.map((farmId) => this.forFarm(userId, farmId))),
     ]);
 
@@ -74,6 +81,14 @@ export class TeamOverviewService {
           )[0] ?? null,
       allAttendance,
       pendingLeave: perFarm.flatMap((f) => f.leave),
+      // Badge counts. `pendingJoins` is owner/manager-only by construction:
+      // listPending needs MANAGE_WORKERS, so a worker's per-farm call is
+      // rejected and settles to [] — they simply see 0.
+      pendingJoins: perFarm.reduce((n, f) => n + f.pending.length, 0),
+      // The caller's OWN open leave requests, across the farms in scope. A
+      // worker cannot see the farm-wide queue, so without this their Leave row
+      // had no count to show without an N-per-farm fan-out from the phone.
+      myPendingLeave: perFarm.reduce((n, f) => n + f.myLeave.length, 0),
       tasks,
       members: perFarm.flatMap((f) => f.members),
     };
@@ -86,12 +101,15 @@ export class TeamOverviewService {
    * it reject would blank the whole tab for exactly the people who use it most.
    */
   private async forFarm(userId: string, farmId: string) {
-    const [mine, all, leave, members] = await Promise.allSettled([
-      this.attendance.findMine(userId, farmId),
-      this.attendance.findAllForFarm(userId, farmId),
-      this.leaveRequests.findAllForFarm(userId, farmId, 'pending'),
-      this.members.listMembers(farmId, userId),
-    ]);
+    const [mine, all, leave, members, pending, myLeave] =
+      await Promise.allSettled([
+        this.attendance.findMine(userId, farmId),
+        this.attendance.findAllForFarm(userId, farmId),
+        this.leaveRequests.findAllForFarm(userId, farmId, 'pending'),
+        this.members.listMembers(farmId, userId),
+        this.invites.listPending(farmId, userId),
+        this.leaveRequests.findMine(userId, farmId),
+      ]);
 
     const val = <T>(r: PromiseSettledResult<T>, fallback: T): T =>
       r.status === 'fulfilled' ? r.value : fallback;
@@ -101,6 +119,10 @@ export class TeamOverviewService {
       all: val(all, [] as any[]),
       leave: val(leave, [] as any[]),
       members: val(members, [] as any[]),
+      pending: val(pending, [] as any[]),
+      myLeave: val(myLeave, [] as any[]).filter(
+        (r: { status?: string }) => r.status === 'pending',
+      ),
     };
   }
 }

@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, feed, ammonia calculations',
   moreSimulations: 'Simulations',
   moreSimulationsDesc: 'Run growth simulations',
-  moreReports: 'Reports',
   moreReportsDesc: 'Cycle analysis and financials',
   moreDiseaseEncyclopedia: 'Disease Encyclopedia',
   moreDiseaseEncyclopediaDesc: 'Browse and search disease library',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'App version and credits',
 
   // ReportsScreen
-  reportsTitle: 'Reports',
   reportsSelectFarm: 'Select Farm',
   reportsOverview: 'Overview',
   reportsFinancialSummary: 'Financial Summary',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'Create a farm and pond to start recording your daily readings.',
   quickLogCreateFarm: 'Create a farm',
   quickLogOpenPond: 'Open pond',
+  quickLogNoCycle: 'No cycle running in this pond',
+  quickLogNoCycleSub:
+    'Feed, sampling and measurements are counted against a cycle. Start one so this pond\'s FCR, growth and profit add up.',
+  quickLogStartCycle: 'Start a cycle',
+  quickLogNeedsCycle: 'Needs a cycle',
   farmerFallback: 'Farmer',
   onboarding_languagePrompt: 'Choose your language',
   onboarding_title: 'Welcome to Upcheck',
@@ -213,6 +216,11 @@ const home = {
   hideChecklistTitle: "Hide the setup list?",
   hideChecklistBody: "It will not come back. You can still set up ponds, log readings and invite your team from the Farm and Team tabs.",
   hideChecklistConfirm: "Hide for good",
+
+  // Today progress card (overall / per farm / per pond) — see
+  // components/today/LogProgressCard.tsx
+  logProgressTitle: "Log progress",
+  logProgressOutstanding: "Still to log",
 };
 
 export default home;

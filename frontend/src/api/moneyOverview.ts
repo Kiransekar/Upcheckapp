@@ -1,7 +1,12 @@
 import apiClient from './client';
 import { farmsApi } from './farms';
 import { reportsApi, type FinancialReport } from './reports';
-import { transactionsApi, type Transaction } from './transactions';
+import {
+    transactionsApi,
+    moneyQueryParams,
+    type Transaction,
+    type MoneyFilterParams,
+} from './transactions';
 import { creditApi, type CreditLedger } from './credit';
 
 /**
@@ -19,11 +24,37 @@ import { creditApi, type CreditLedger } from './credit';
  * financial report stays VIEW_FINANCIALS-gated. A farm the caller may not view
  * financials on simply contributes no report, exactly as before.
  */
+/**
+ * A row in the Money tab's entry list.
+ *
+ * `source: 'harvest'` marks a READ-ONLY projection of a harvest sale rather
+ * than a real transaction. A harvest already moves the headline (the financial
+ * report sums every harvest's sale price into revenue) but wrote no row the
+ * farmer could point at — so "the profit is not shown in the money tab". The
+ * backend merges them in at read time; writing a real transaction on harvest
+ * create would double-count the revenue instead.
+ *
+ * These rows have no transaction behind them, so `id` is prefixed `harvest:`
+ * and nothing may offer edit or delete on them.
+ */
+export type MoneyEntry = Omit<Transaction, 'createdAt'> & {
+    createdAt?: string;
+    source?: 'harvest';
+    buyerName?: string;
+    weightKg?: number;
+};
+
 export interface MoneyOverview {
     farms: any[];
     reports: Record<string, FinancialReport>;
-    allEntries: Transaction[];
+    allEntries: MoneyEntry[];
     credit: CreditLedger[];
+    /**
+     * Inventory-purchase expenses across EVERY farm in the response. The Money
+     * screen sums the per-report figure instead, because it has to answer for
+     * the farm in scope rather than for all of them.
+     */
+    inventoryExpenses?: number;
 }
 
 /**
@@ -37,29 +68,31 @@ const isMissingEndpoint = (err: any): boolean => {
     return status === 404 || status === 501;
 };
 
-export async function fetchMoneyOverview(): Promise<MoneyOverview> {
+export async function fetchMoneyOverview(filters?: MoneyFilterParams): Promise<MoneyOverview> {
     try {
-        const { data } = await apiClient.get('/money/overview');
+        const { data } = await apiClient.get('/money/overview', {
+            params: moneyQueryParams(filters),
+        });
         return data;
     } catch (err) {
         if (!isMissingEndpoint(err)) throw err;
-        return legacyFanOut();
+        return legacyFanOut(filters);
     }
 }
 
 /** The pre-batching path: 3 + N requests. Kept only for old backends. */
-async function legacyFanOut(): Promise<MoneyOverview> {
+async function legacyFanOut(filters?: MoneyFilterParams): Promise<MoneyOverview> {
     const list = (await farmsApi.getAll()).data ?? [];
     const [reportPairs, txRes, creditRes] = await Promise.all([
         Promise.all(
             list.map((farm: any) =>
                 reportsApi
-                    .getFinancialReport(farm.id)
+                    .getFinancialReport(farm.id, filters)
                     .then((r) => [farm.id, r.data] as const)
                     .catch(() => null),
             ),
         ),
-        transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
+        transactionsApi.getAll(undefined, undefined, filters).catch(() => ({ data: [] as Transaction[] })),
         creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
     ]);
     const reports: Record<string, FinancialReport> = {};

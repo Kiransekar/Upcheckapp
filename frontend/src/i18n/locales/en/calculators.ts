@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'Pond area must be a positive number',
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'e.g. 500000',
+    phDecimal: '0.0',
+    phDaysOfCulture: 'e.g. 120',
+    phFinalMbw: 'e.g. 25.0',
+    phFinalSr: 'e.g. 85',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'Rate (% BW)',
     errorMbw: 'MBW must be a positive number',
     errorSr: 'Survival rate must be between 0 and 100',
-    errorCount: 'Initial count must be a positive number',
-    errorFeedingRate: 'Feeding rate must be a positive number',
+    errorCount: 'Stocking count must be between 1 and 100,000,000.',
+    errorFeedingRate: 'Feeding rate must be between 0 and 100%.',
     errorBiomassZero: 'Computed biomass is zero or negative. Check inputs.',
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "Per meal kg",
     meals: "Meals",
     logThisAmount: "Log {{kg}} kg",
+
+    // placeholders (QA BUG-013)
+    phMbw: '18.4',
+    phSr: '78',
+    phCount: '28700',
+    phFeedingRate: '3.2',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'Pond Volume',
     requiredAmount: 'Required Product Amount',
     withConcentration: 'With {{conc}}% concentration:',
+    activeIngredientBasis: '100% active-ingredient basis:',
     errorArea: 'Pond area must be a positive number',
     errorDepth: 'Water depth must be a positive number',
     errorPpm: 'Target ppm must be a positive number',
     errorConc: 'Concentration must be between 0 and 100',
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'e.g. 5000',
+    phWaterDepth: 'e.g. 1.2',
+    phTargetConc: 'e.g. 5.0',
+    phProductConc: 'e.g. 100 (default)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'Temperature (°C)',
     labelSalinity: 'Salinity (ppt)',
-    hintSalinity: 'For reference only',
+    hintSalinity: 'Affects the result — enter 0 for freshwater ponds',
     calculateBtn: 'Calculate NH₃',
     resultLabel: 'Free Ammonia (NH₃)',
     serverSuffix: ' (Server)',
     toxicityTitle: 'Toxicity Scale',
     safeLabel: 'SAFE',
-    safeMessage: 'NH₃ levels are within safe limits (< 0.1 ppm). No action required.',
+    safeMessage: 'NH₃ levels are within safe limits (below 0.1 ppm). No action required.',
     warningLabel: 'WARNING',
     warningMessage: 'NH₃ levels are elevated (0.1–0.5 ppm). Consider reducing feed or partial water exchange.',
     criticalLabel: 'CRITICAL',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN must be a positive number',
     errorPh: 'pH must be between 0 and 14',
     errorTemp: 'Temperature must be a positive number',
+    errorSalinity: 'Salinity must be a valid number',
     errorCalc: 'Failed to calculate free ammonia',
     validationTitle: 'Validation Error',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'e.g. 1.5',
+    phPh: 'e.g. 8.2',
+    phTemp: 'e.g. 29',
+    phSalinity: 'e.g. 15',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'Average weight must be a positive number',
     errorCalc: 'Calculation failed',
     validationTitle: 'Validation Error',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'e.g. 500000',
+    phSurvivalRate: 'e.g. 80',
+    phTargetWeight: 'e.g. 20',
+    phCurrentWeight: 'e.g. 5.0',
+    phAdg: 'e.g. 0.2',
+    phDaysToProject: 'e.g. 30',
+    phStockCount: 'e.g. 400000',
+    phAverageWeight: 'e.g. 12.5',
+    phAverageWeightRfr: 'e.g. 8.0',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

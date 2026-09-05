@@ -10,7 +10,11 @@ import { FarmMember, FarmRole } from './farm-member.entity';
 import { FarmMemberPond, SCOPABLE_ROLES } from './farm-member-pond.entity';
 import { Farm } from '../farms/farm.entity';
 import { Pond } from '../ponds/pond.entity';
-import { FarmCapability, roleSatisfies } from './farm-capability';
+import {
+  FarmCapability,
+  MembershipGrant,
+  roleSatisfies,
+} from './farm-capability';
 
 /**
  * Postgres "undefined_table" (42P01) — raised when the `farm_members` table
@@ -59,49 +63,77 @@ export class FarmAccessService {
   }
 
   /**
-   * Role PLUS the per-farm financial grant, resolved together.
+   * Role PLUS both layers of grant, resolved together.
    *
-   * Every capability decision needs both — `roleSatisfies` consults
-   * `canViewFinancials` for VIEW_FINANCIALS — and fetching them separately
-   * would mean two queries and two chances for them to disagree.
+   * Every capability decision needs all three — `roleSatisfies` reads the
+   * member's overrides, then the farm's role policy, then the matrix — and
+   * fetching them separately would mean more queries and more chances for them
+   * to disagree.
+   *
+   * `knownFarm` is for the caller that has already loaded the farm
+   * (assertCanAccessFarm does, on every request); passing it in keeps this at
+   * exactly one query on the hot path.
    */
   async getMembershipOnFarm(
     userId: string,
     farmId: string,
-  ): Promise<{ role: FarmRole | null; canViewFinancials: boolean | null }> {
-    try {
-      // status: 'active' is load-bearing. A 'pending' row is someone who
-      // redeemed the farm code and is WAITING to be let in — it must grant
-      // nothing at all until an owner approves it. Filtering here covers every
-      // capability check in the app, since they all resolve a role through this.
-      const member = await this.membersRepo.findOne({
-        where: { farmId, userId, status: 'active' },
+    knownFarm?: Farm | null,
+  ): Promise<MembershipGrant> {
+    // status: 'active' is load-bearing. A 'pending' row is someone who
+    // redeemed the farm code and is WAITING to be let in — it must grant
+    // nothing at all until an owner approves it. Filtering here covers every
+    // capability check in the app, since they all resolve a role through this.
+    const memberQuery = this.membersRepo
+      .findOne({ where: { farmId, userId, status: 'active' } })
+      .catch((err) => {
+        if (!isMissingTable(err)) throw err;
+        this.logger.warn(
+          'farm_members table missing — run migrations; using owner-only access',
+        );
+        return null;
       });
-      if (member) {
-        return {
-          role: member.role,
-          canViewFinancials: member.canViewFinancials ?? null,
-        };
-      }
-    } catch (err) {
-      if (!isMissingTable(err)) throw err;
-      this.logger.warn(
-        'farm_members table missing — run migrations; using owner-only access',
-      );
-    }
+    // In parallel, not after: the role policy is needed whatever the membership
+    // says, and this method fires on every farm-scoped request.
+    const farmQuery =
+      knownFarm !== undefined
+        ? Promise.resolve(knownFarm)
+        : this.farmsRepo.findOne({
+            where: { id: farmId },
+            select: { id: true, userId: true, rolePolicy: true },
+          });
+    const [member, farm] = await Promise.all([memberQuery, farmQuery]);
+    const policy = farm?.rolePolicy ?? null;
 
-    const farm = await this.farmsRepo.findOne({
-      where: { id: farmId },
-      select: { id: true, userId: true },
-    });
-    if (farm && farm.userId === userId) {
-      return { role: 'owner', canViewFinancials: null };
+    if (member) {
+      return {
+        role: member.role,
+        overrides: member.capabilityOverrides ?? null,
+        policy,
+      };
     }
-    return { role: null, canViewFinancials: null };
+    if (farm && farm.userId === userId) {
+      return { role: 'owner', overrides: null, policy };
+    }
+    return { role: null, overrides: null, policy: null };
   }
 
-  /** Farm ids the user can access (owner or worker), excluding soft-deleted farms. */
-  async getAccessibleFarmIds(userId: string): Promise<string[]> {
+  /**
+   * Farm ids the user can access (owner or worker), excluding soft-deleted and
+   * archived farms.
+   *
+   * Archived is excluded here because this is the scoping root for every list
+   * and aggregate in the app (ponds, tasks, harvests, feed, sampling, alerts,
+   * reports). Filtering in each of those instead would mean an archived farm's
+   * ponds kept turning up in one screen or another forever. Pass
+   * `includeArchived` for the screens that deliberately show them.
+   *
+   * `assertCanAccessFarm` deliberately does NOT filter archived — otherwise
+   * unarchiving a farm would 403 on the farm it is unarchiving.
+   */
+  async getAccessibleFarmIds(
+    userId: string,
+    includeArchived = false,
+  ): Promise<string[]> {
     // The membership lookup and the legacy-owner lookup don't depend on each
     // other — running them sequentially (as separate awaits) was one of the
     // biggest contributors to the pond dashboard's multi-second load, since
@@ -138,7 +170,11 @@ export class FarmAccessService {
     // everyone every time anyone signed up.
     const ids = [...all];
     const live = await this.farmsRepo.find({
-      where: { id: In(ids), deletedAt: IsNull() },
+      where: {
+        id: In(ids),
+        deletedAt: IsNull(),
+        ...(includeArchived ? {} : { archivedAt: IsNull() }),
+      },
       select: { id: true },
     });
     const liveIds = new Set(live.map((f) => f.id));
@@ -172,26 +208,32 @@ export class FarmAccessService {
       );
     }
     const roleByFarm = new Map(members.map((m) => [m.farmId, m.role]));
-    // Carry the per-farm financial grant alongside the role, so this batch
-    // path reaches the same verdict as assertCanAccessFarm for VIEW_FINANCIALS.
-    const grantByFarm = new Map(
-      members.map((m) => [m.farmId, m.canViewFinancials ?? null]),
+    // Carry both grant layers alongside the role, so this batch path reaches
+    // the same verdict as assertCanAccessFarm — a worker whose owner granted
+    // VIEW_FINANCIALS by policy must see that farm in the money list.
+    const overridesByFarm = new Map(
+      members.map((m) => [m.farmId, m.capabilityOverrides ?? null]),
     );
 
-    const missing = accessibleIds.filter((id) => !roleByFarm.has(id));
-    if (missing.length > 0) {
-      const owned = await this.farmsRepo.find({
-        where: { id: In(missing), userId },
-        select: { id: true },
-      });
-      for (const f of owned) roleByFarm.set(f.id, 'owner');
+    // One farms query serves two purposes: the role policies, and the
+    // owner fallback for farms with no membership row (legacy owners).
+    const farms = await this.farmsRepo.find({
+      where: { id: In(accessibleIds) },
+      select: { id: true, userId: true, rolePolicy: true },
+    });
+    const policyByFarm = new Map(farms.map((f) => [f.id, f.rolePolicy ?? null]));
+    for (const f of farms) {
+      if (!roleByFarm.has(f.id) && f.userId === userId) {
+        roleByFarm.set(f.id, 'owner');
+      }
     }
 
     return accessibleIds.filter((id) =>
       roleSatisfies(
         roleByFarm.get(id) ?? null,
         capability,
-        grantByFarm.get(id) ?? null,
+        overridesByFarm.get(id) ?? null,
+        policyByFarm.get(id) ?? null,
       ),
     );
   }
@@ -210,11 +252,12 @@ export class FarmAccessService {
     if (!farm || farm.deletedAt) {
       throw new NotFoundException(`Farm with ID ${farmId} not found`);
     }
-    const { role, canViewFinancials } = await this.getMembershipOnFarm(
+    const { role, overrides, policy } = await this.getMembershipOnFarm(
       userId,
       farmId,
+      farm,
     );
-    if (!roleSatisfies(role, capability, canViewFinancials)) {
+    if (!roleSatisfies(role, capability, overrides, policy)) {
       throw new ForbiddenException(
         'You do not have permission to perform this action on this farm',
       );
@@ -327,11 +370,11 @@ export class FarmAccessService {
     capability: FarmCapability = 'READ',
   ): Promise<string[]> {
     // Farm-level permission first; a non-member gets nothing.
-    const { role, canViewFinancials } = await this.getMembershipOnFarm(
+    const { role, overrides, policy } = await this.getMembershipOnFarm(
       userId,
       farmId,
     );
-    if (!roleSatisfies(role, capability, canViewFinancials)) return [];
+    if (!roleSatisfies(role, capability, overrides, policy)) return [];
 
     const all = await this.pondsRepo.find({
       where: { farmId },

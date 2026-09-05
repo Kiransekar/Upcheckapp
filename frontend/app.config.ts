@@ -14,7 +14,7 @@ export default {
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#0092CC"
     },
     ios: {
       supportsTablet: true,
@@ -24,7 +24,7 @@ export default {
       package: "com.upcheck.app",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#0092CC"
       },
       // No intentFilters entry here: `scheme: "upcheckapp"` above already gets Expo
       // to generate the plain custom-scheme intent-filter on prebuild. autoVerify
@@ -46,6 +46,33 @@ export default {
       truecallerAndroidClientId: TRUECALLER_ANDROID_CLIENT_ID,
       truecallerIosAppKey: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_KEY || '',
       truecallerIosAppLink: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_LINK || '',
+      // Telemetry. Both fallbacks are PUBLIC client-side keys, the same class as
+      // supabaseAnonKey above: a Sentry DSN and a PostHog project key are
+      // embedded in every installed copy of the app by design, so they are not
+      // secrets. They are committed so an EAS build from a clean checkout is
+      // not silently telemetry-blind — .env is gitignored, and a build that
+      // quietly reports nothing is the failure you notice six weeks late.
+      //
+      // Both remain absent-safe: no DSN means crash reporting is a total no-op
+      // (src/utils/sentry.ts), and no PostHog key means analytics never starts
+      // even after consent is granted (src/features/analytics.ts).
+      //
+      // Neither grants read access. Someone with these can send events in, not
+      // read anything out — which is why they can live here but the Supabase
+      // SERVICE ROLE key never could.
+      // Sentry project `upcheck-app` (org upcheck-technologies-private-l).
+      // The backend has its OWN project, `upcheck-backend`, whose DSN is set as
+      // SENTRY_DSN in the Render environment — deliberately separate, so an
+      // app crash loop cannot bury a server incident in the same issue stream.
+      // This org is on Sentry's EU region (de.sentry.io).
+      sentryDsn:
+        process.env.EXPO_PUBLIC_SENTRY_DSN ||
+        'https://22e456d3d466a11ef1145d89df1831c4@o4511772335865856.ingest.de.sentry.io/4512033193066576',
+      posthogApiKey:
+        process.env.EXPO_PUBLIC_POSTHOG_API_KEY ||
+        'phc_wPSLqk9uyzyC4GzDuczDC73ncqC3jbygPQ7ZxYGmau5R',
+      // PostHog routed this account to its US region.
+      posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
       eas: {
         projectId: "f3274022-ae8a-4be6-9085-23f935542a4c"
       },
@@ -100,7 +127,45 @@ export default {
         { clientId: TRUECALLER_ANDROID_CLIENT_ID, sdkVersion: "3.3.0" }
       ]
     ],
-    runtimeVersion: "1.0.0",
+    // ─────────────────────────────────────────────────────────────────────
+    // BUMP THIS BY HAND WHENEVER THE NATIVE PROJECT CHANGES.
+    //
+    // "Native project changes" means: a new or removed native module, an SDK
+    // upgrade, or an edit to anything under android/ that affects the native
+    // interface. A JS-only change does NOT need a bump — that is the whole
+    // point of OTA, and bumping needlessly strands installs.
+    //
+    // Why a literal and not { policy: "fingerprint" }:
+    // The fingerprint policy requires the developer machine and the EAS builder
+    // to hash android/ to the SAME value. EAS rewrites files in there during
+    // the build and then hashes the result, so the two disagree and every build
+    // dies in "Configure expo-updates". Two of those files were found and put
+    // in .fingerprintignore (android/app/build.gradle for versionCode, and
+    // strings.xml, which circularly contains the fingerprint itself) — both
+    // confirmed by the hash moving on BOTH sides — but at least one more
+    // remained, and finding it needs `expo prebuild` to reproduce EAS's
+    // transformation, which would overwrite the hand-written Truecaller native
+    // module. Not worth it: a literal we control is deterministic, reviewable,
+    // and cannot fail this way.
+    //
+    // The literal still does the job the policy was chosen for. The hazard was
+    // never "a literal" — it was a literal that STAYS 1.0.0 while the native
+    // code changes underneath it, so Expo serves 1.0.0 installs a bundle that
+    // imports native code they do not have, crashing every one of them with no
+    // way to push a fix. Moving to 2.0.0 for this native build means existing
+    // 1.0.0 installs simply stop receiving updates, which is the correct and
+    // intended outcome.
+    //
+    // Consequence, deliberate: every install still on 1.0.0 stops receiving
+    // OTAs the moment this ships. They must install the new build. That is why
+    // the OTA-solvable work landed first, and why the in-app update prompt
+    // (sp-react-native-in-app-updates) is in this binary.
+    //
+    // 1.0.0 — original binary, pre native build-out.
+    // 2.0.0 — adds file/export, sharing, audio, video, speech, gestures,
+    //         reanimated, bottom sheet, sqlite, background tasks, image,
+    //         contacts, SMS, maps, Sentry, PostHog, in-app updates.
+    runtimeVersion: "2.0.0",
     updates: {
       url: "https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c"
     }

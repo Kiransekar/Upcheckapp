@@ -32,7 +32,26 @@ export interface Crop {
     status: string;
     createdAt: string;
     updatedAt: string;
+    /** Only `GET /crops/:id` enriches with this; the list endpoint does not. */
+    computedDOC?: number;
 }
+
+/**
+ * Day of culture, local-calendar days, stocking day = 1, frozen at harvest —
+ * the same convention as the backend's `computeDoc`, so DOC agrees on every
+ * screen. The list endpoint returns no DOC at all, so the client computes it.
+ */
+export const computeDoc = (
+    crop: Pick<Crop, 'stockingDate' | 'actualHarvestDate' | 'initialAgeDays'>,
+): number => {
+    if (!crop.stockingDate) return 0;
+    const [y, m, d] = crop.stockingDate.split('T')[0].split('-').map(Number);
+    const start = new Date(y, (m ?? 1) - 1, d ?? 1).getTime();
+    const endSrc = crop.actualHarvestDate ? new Date(crop.actualHarvestDate) : new Date();
+    const end = new Date(endSrc.getFullYear(), endSrc.getMonth(), endSrc.getDate()).getTime();
+    const diff = Math.round((end - start) / 86_400_000);
+    return diff >= 0 ? diff + 1 + (crop.initialAgeDays ?? 0) : 0;
+};
 
 export interface CreateCropDto {
     pondId: string;

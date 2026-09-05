@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'পুকুরের ক্ষেত্রফল অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'যেমন ৫০০০০০',
+    phDecimal: '০.০',
+    phDaysOfCulture: 'যেমন ১২০',
+    phFinalMbw: 'যেমন ২৫.০',
+    phFinalSr: 'যেমন ৮৫',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'হার (% BW)',
     errorMbw: 'MBW অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorSr: 'বেঁচে থাকার হার অবশ্যই ০ থেকে ১০০-এর মধ্যে হতে হবে',
-    errorCount: 'প্রাথমিক সংখ্যা অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
-    errorFeedingRate: 'খাওয়ানোর হার অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
+    errorCount: 'মজুদ সংখ্যা অবশ্যই ১ থেকে ১০,০০,০০,০০০-এর মধ্যে হতে হবে।',
+    errorFeedingRate: 'খাওয়ানোর হার অবশ্যই ০ থেকে ১০০%-এর মধ্যে হতে হবে।',
     errorBiomassZero: 'গণনাকৃত বায়োমাস শূন্য বা ঋণাত্মক। ইনপুট যাচাই করুন।',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "প্রতি বেলা কেজি",
     meals: "বেলা",
     logThisAmount: "{{kg}} কেজি নথিভুক্ত করুন",
+
+    // placeholders (QA BUG-013)
+    phMbw: '১৮.৪',
+    phSr: '৭৮',
+    phCount: '২৮৭০০',
+    phFeedingRate: '৩.২',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'পুকুরের আয়তন',
     requiredAmount: 'প্রয়োজনীয় পণ্যের পরিমাণ',
     withConcentration: '{{conc}}% ঘনত্বের সাথে:',
+    activeIngredientBasis: '১০০% সক্রিয়-উপাদান ভিত্তিতে:',
     errorArea: 'পুকুরের ক্ষেত্রফল অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorDepth: 'পানির গভীরতা অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorPpm: 'লক্ষ্য ppm অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorConc: 'ঘনত্ব অবশ্যই ০ থেকে ১০০-এর মধ্যে হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'যেমন ৫০০০',
+    phWaterDepth: 'যেমন ১.২',
+    phTargetConc: 'যেমন ৫.০',
+    phProductConc: 'যেমন ১০০ (ডিফল্ট)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'তাপমাত্রা (°C)',
     labelSalinity: 'লবণাক্ততা (ppt)',
-    hintSalinity: 'শুধুমাত্র রেফারেন্সের জন্য',
+    hintSalinity: 'ফলাফলকে প্রভাবিত করে — মিঠা পানির পুকুরের জন্য 0 লিখুন',
     calculateBtn: 'NH₃ গণনা করুন',
     resultLabel: 'মুক্ত অ্যামোনিয়া (NH₃)',
     serverSuffix: ' (সার্ভার)',
     toxicityTitle: 'বিষাক্ততার মাত্রা',
     safeLabel: 'নিরাপদ',
-    safeMessage: 'NH₃ মাত্রা নিরাপদ সীমার মধ্যে (< 0.1 ppm)। কোনো পদক্ষেপ প্রয়োজন নেই।',
+    safeMessage: 'NH₃ মাত্রা নিরাপদ সীমার মধ্যে (0.1 ppm-এর কম)। কোনো পদক্ষেপ প্রয়োজন নেই।',
     warningLabel: 'সতর্কতা',
     warningMessage: 'NH₃ মাত্রা বেশি (0.1–0.5 ppm)। খাদ্য কমানো বা আংশিক পানি পরিবর্তন বিবেচনা করুন।',
     criticalLabel: 'সংকটজনক',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorPh: 'pH অবশ্যই ০ থেকে ১৪-এর মধ্যে হতে হবে',
     errorTemp: 'তাপমাত্রা অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
+    errorSalinity: 'লবণাক্ততা অবশ্যই একটি বৈধ সংখ্যা হতে হবে',
     errorCalc: 'মুক্ত অ্যামোনিয়া গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'যেমন ১.৫',
+    phPh: 'যেমন ৮.২',
+    phTemp: 'যেমন ২৯',
+    phSalinity: 'যেমন ১৫',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'গড় ওজন অবশ্যই ধনাত্মক সংখ্যা হতে হবে',
     errorCalc: 'গণনা ব্যর্থ',
     validationTitle: 'যাচাইকরণ ত্রুটি',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'যেমন ৫০০০০০',
+    phSurvivalRate: 'যেমন ৮০',
+    phTargetWeight: 'যেমন ২০',
+    phCurrentWeight: 'যেমন ৫.০',
+    phAdg: 'যেমন ০.২',
+    phDaysToProject: 'যেমন ৩০',
+    phStockCount: 'যেমন ৪০০০০০',
+    phAverageWeight: 'যেমন ১২.৫',
+    phAverageWeightRfr: 'যেমন ৮.০',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

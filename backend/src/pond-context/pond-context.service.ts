@@ -13,8 +13,30 @@ import { CropsService } from '../crops/crops.service';
 import { ShrimpCalculationsService } from '../shrimp-calculations/shrimp-calculations.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
+/**
+ * Latest NON-NULL value of one water-quality column, with the time of the
+ * record it came from. `records` must be newest-first.
+ *
+ * Shared with `GET /water-quality/latest` so the engines' carry-forward and
+ * the log screen's prefill agree about what "latest" means per column.
+ */
+export function latestNonNull(
+  records: WaterQualityRecord[],
+  key: keyof WaterQualityRecord,
+): { value: number | null; at: string | null } {
+  for (const r of records) {
+    const v = r[key] as unknown as number | null | undefined;
+    if (v != null) {
+      return { value: Number(v), at: new Date(r.recordedAt).toISOString() };
+    }
+  }
+  return { value: null, at: null };
+}
+
 export interface PondContext {
   pondId: string;
+  /** Owning farm — lets a caller group contexts without a second request. */
+  farmId: string;
   cropId: string | null;
   /** Cultured species (free text, e.g. "Penaeus monodon") — tunes the engines. */
   species: string | null;
@@ -361,13 +383,8 @@ export class PondContextService {
     records: WaterQualityRecord[],
   ): PondContext['waterQuality'] {
     if (!records.length) return null;
-    const latest = <K extends keyof WaterQualityRecord>(key: K) => {
-      for (const r of records) {
-        const v = r[key] as unknown as number | null | undefined;
-        if (v != null) return { value: Number(v), at: r.recordedAt };
-      }
-      return { value: null as number | null, at: null as Date | null };
-    };
+    const latest = (key: keyof WaterQualityRecord) =>
+      latestNonNull(records, key);
     const iso = (d: Date | null) => (d ? new Date(d).toISOString() : null);
     const dox = latest('dissolvedOxygen');
     const ph = latest('ph');
@@ -385,12 +402,12 @@ export class PondContextService {
       nitrate: latest('nitrate').value,
       alkalinity: alk.value,
       recordedAt: iso(records[0].recordedAt as unknown as Date),
-      dissolvedOxygenAsOf: iso(dox.at),
-      phAsOf: iso(ph.at),
-      temperatureAsOf: iso(temp.at),
-      salinityAsOf: iso(sal.at),
-      chemistryAsOf: iso(amm.at),
-      alkalinityAsOf: iso(alk.at),
+      dissolvedOxygenAsOf: dox.at,
+      phAsOf: ph.at,
+      temperatureAsOf: temp.at,
+      salinityAsOf: sal.at,
+      chemistryAsOf: amm.at,
+      alkalinityAsOf: alk.at,
     };
   }
 
@@ -538,6 +555,7 @@ export class PondContextService {
   ): PondContext {
     const { crop, wqRecords, sampling, mortalityAgg, feedAgg, tray } = deps;
     const pondId = pond.id;
+    const farmId = pond.farmId;
     const cropId = pond.activeCycleId ?? null;
     const areaM2 = Number(pond.overrideAreaM2 ?? pond.calculatedAreaM2) || null;
     const installedAeratorHp =
@@ -662,6 +680,7 @@ export class PondContextService {
 
     return {
       pondId,
+      farmId,
       cropId,
       species: crop?.species?.scientificName ?? crop?.speciesType ?? null,
       areaM2,

@@ -97,7 +97,46 @@ const finance = {
   recentEntries: "Recent entries",
   seeAll: "All ›",
   noEntries: "Nothing recorded for this farm yet.",
+  // A harvest sale is a read-only line — it comes from the harvest, not from a
+  // transaction anyone can edit here.
+  harvestSale: "Harvest sale",
+  harvestSoldTo: "Sold to {{buyer}}",
+  // The list is the SIX most recent entries, and cycle costs are summarised
+  // rather than listed — so it will not add up to the net above. Say so.
+  entriesNote: "Recent entries only. The net above also counts costs recorded against a cycle — those are summarised in \"Where it went\".",
   noFarmTitle: "No farms yet",
   noFarmSub: "Add a farm to start tracking money.",
+
+  // Period filter. Ranges are the device's local calendar days — the farmer's
+  // day, not UTC — and the week starts on Sunday, like the calendar grid.
+  periodAll: "All time",
+  periodToday: "Today",
+  periodWeek: "This week",
+  periodMonth: "This month",
+  periodCustom: "Custom",
+  customFrom: "From",
+  customTo: "To",
+
+  // What the totals count. Both on by default.
+  includeArchived: "Count archived ponds",
+  includeArchivedHint: "Money from retired ponds is still money you spent and earned.",
+  includeArchivedWorth: "{{amount}} of the figures above.",
+  // The entry list is farm-level and has no pond on it, so it cannot mark
+  // archived rows at all. Say that, rather than let its silence be read as
+  // "there is no archived money here".
+  entriesArchivedNote: "Archived ponds are counted in the totals above. Entries are recorded against the farm, not a pond, so they are not marked here — use the pond list to see a retired pond's own money.",
+  includeInventory: "Count inventory purchases",
+  includeInventoryHint: "Stock you buy counts as an expense on the day you buy it.",
+  includeInventoryOff: "Stock purchases are left out of the figures above.",
+  includeInventoryWorth: "{{amount}} of the expenses above.",
+  archivedTag: "Archived",
+
+  // Pond and cycle filter
+  byPond: "By pond",
+  wholeFarm: "Whole farm",
+  allCycles: "All cycles",
+  pondCostTotal: "Costs for this pond",
+  cycleCostTotal: "Costs for this cycle",
+  noPondCosts: "Nothing recorded against this pond in this period.",
 };
 export default finance;

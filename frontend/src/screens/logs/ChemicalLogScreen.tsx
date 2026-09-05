@@ -7,14 +7,15 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 // Five of the parameters below are the SAME measurements the daily
-// water-quality form takes, and constants/ranges.ts already holds their
-// bands — this screen simply was not asking. Calcium, magnesium and
+// water-quality form takes, and features/waterQualityThresholds.ts already
+// holds their bands — this screen simply was not asking. Calcium, magnesium and
 // potassium stay plain fields: there is no agronomist-confirmed band for
 // them in that table, and a made-up target on a chemistry form is worse
 // than none, because a farmer would dose against it.
 import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
+import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
@@ -78,7 +79,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.chemical_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.chemical_errorSave')));
         } finally {
             setIsLoading(false);
         }
@@ -94,7 +95,7 @@ export const ChemicalLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>

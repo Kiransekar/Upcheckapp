@@ -28,7 +28,7 @@ const members = {
     revokeInvite: 'Revoke',
     revokeTitle: 'Revoke this invite?',
     revokeConfirm: 'Anyone still holding this code will no longer be able to join.',
-    shareInviteMessage: 'Join {{farm}} on Upcheck with this code: {{code}}',
+    shareInviteMessage: 'Join {{farm}} on Upcheck with this code: {{code}}\nOr tap: upcheckapp://join/{{code}}',
     neverExpires: 'Never expires',
     expiresInDays: 'Expires in {{count}} days',
     expiresInHours: 'Expires in {{count}} hours',
@@ -59,6 +59,12 @@ const members = {
     removeConfirm: 'Remove {{name}} from this farm?',
     removeError: 'Could not remove this member.',
 
+    // Transfer of ownership — irreversible, so the copy says so plainly.
+    transferCta: 'Transfer ownership',
+    transferTitle: 'Transfer ownership?',
+    transferConfirm: 'This cannot be undone. {{name}} becomes the owner of this farm and you become a manager.',
+    transferError: 'Could not transfer ownership. Please try again.',
+
     // Add worker
     scanTab: 'Scan QR',
     manualTab: 'Enter ID',
@@ -74,6 +80,8 @@ const members = {
     // Lookup / add results
     notFoundTitle: 'User not found',
     notFoundSub: 'No account matches that identifier. Check and try again.',
+    inviteInstead: 'Send an invite instead',
+    inviteInsteadBody: 'No account matches that identifier. Send an invite instead — they can join once they have an Upcheck account.',
     invalidQrTitle: 'Unrecognized QR',
     invalidQrSub: 'That is not an Upcheck worker code.',
     confirmAdd: 'Add to farm',
@@ -93,9 +101,9 @@ const members = {
   newCode: "New code",
   onThisFarm: "On this farm",
   tapToEdit: "Tap any member to change their role or the ponds they can log.",
-  inviteByIdentifier: "Invite by Email/Username",
   roleSection: "Role",
   roleNote: "What they can do across the whole farm.",
+  roleChangeError: "Could not change their role.",
   pondsSection: "Ponds they can log",
   allPondsAction: "All ponds",
   scopeAllNote: "Every pond on this farm. Tick some to narrow it.",
@@ -106,6 +114,25 @@ const members = {
   financialsToggle: "Can see costs and money",
   financialsNote: "Off by default for workers and viewers.",
   financialsError: "Could not change their money access.",
+
+  // Permission grid — per role (FarmMembersScreen) and per member (MemberDetailScreen)
+  permissionsSection: "What this person can do",
+  permissionsNote: "Leave anything on Default to follow the role rules below.",
+  capabilitiesError: "Could not change their permissions.",
+  rolePolicySection: "Permissions by role",
+  rolePolicyNote: "Applies to everyone with that role on this farm, unless you change it for one person.",
+  rolePolicyError: "Could not change the role permissions.",
+  capDefault: "Default",
+  capAllowed: "Allowed",
+  capBlocked: "Blocked",
+  capDefaultAllowed: "Default: allowed",
+  capDefaultBlocked: "Default: not allowed",
+  cap_RECORD_HARVEST: "Record a harvest",
+  cap_VIEW_FINANCIALS: "See costs and money",
+  cap_MANAGE_INVENTORY: "Change stock",
+  cap_VIEW_INVENTORY: "See stock",
+  cap_MANAGE_WORKERS: "Add and remove workers",
+  cap_WRITE_MANAGEMENT: "Manage ponds and cycles",
 };
 
 export default members;

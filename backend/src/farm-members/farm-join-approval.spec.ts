@@ -77,15 +77,19 @@ function makeService(over: {
     increment: jest.fn(),
   };
   const dataSource = { transaction: jest.fn(async (cb: any) => cb(manager)) };
+  const usersRepo = { findOne: jest.fn(async () => ({ id: JOINER, firstName: 'Joiner', lastName: null, username: 'joiner' })) };
+  const push = { sendToUser: jest.fn().mockResolvedValue(true) };
 
   const service = new FarmInvitesService(
     invitesRepo as any,
     membersRepo as any,
     farmsRepo as any,
+    usersRepo as any,
     farmAccess as any,
     dataSource as any,
+    push as any,
   );
-  return { service, membersRepo, farmsRepo, farmAccess, manager };
+  return { service, membersRepo, farmsRepo, farmAccess, manager, push, usersRepo };
 }
 
 describe('join honours the farm policy', () => {

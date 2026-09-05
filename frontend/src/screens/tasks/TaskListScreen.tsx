@@ -7,7 +7,6 @@ import {
     TouchableOpacity,
     RefreshControl,
     ActivityIndicator,
-    TextInput,
     Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,6 +20,7 @@ import { theme } from '../../theme';
 import { tasksApi, Task } from '../../api/tasks';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
+import { dueLabel, isOverdue, repeatLabel } from './taskLabels';
 
 const c = theme.roles.light;
 
@@ -51,6 +51,17 @@ export const TaskListScreen = ({ route, navigation }: any) => {
     const perms = usePermissions(farmId);
     const userId = useAuthStore((s) => s.user?.id);
 
+    /**
+     * Who may delete this.
+     *
+     * A farm task is the owner's to remove. A PERSONAL task is its creator's —
+     * gating both on owner-only would leave a worker able to write themselves
+     * a note and never able to delete it, which is the reason the backend
+     * dropped its route guard to READ and re-checks per scope in the service.
+     */
+    const canDelete = (task: Task) =>
+        task.scope === 'personal' ? task.createdById === userId : perms.canOwnerActions;
+
     const STATUS_META: Record<string, { label: string; color: string; icon: string }> = {
         open: { label: t('content.tasks.statusOpen'), color: c.textSecondary, icon: 'checkbox-blank-circle-outline' },
         in_progress: { label: t('content.tasks.statusInProgress'), color: c.warningText, icon: 'progress-clock' },
@@ -62,8 +73,6 @@ export const TaskListScreen = ({ route, navigation }: any) => {
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<any>(null);
-    const [newTitle, setNewTitle] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
 
     const fetchTasks = useCallback(async () => {
         setError(null);
@@ -90,25 +99,16 @@ export const TaskListScreen = ({ route, navigation }: any) => {
         fetchTasks();
     }, [fetchTasks]);
 
-    const handleAdd = async () => {
-        const title = newTitle.trim();
-        if (!title) return;
-        setIsSaving(true);
-        try {
-            // Assign it to whoever is adding it. A task with no assignee is
-            // nobody's work: it never reached Today (which asks for tasks
-            // assigned to you) and showed a blank name on the Team board, so
-            // adding one here looked like it had done nothing. Reassigning is
-            // a manager's job on the board; having an owner is the default.
-            await tasksApi.create({ farmId, title, assignedToId: assignedToId ?? userId });
-            setNewTitle('');
-            await fetchTasks();
-        } catch (err: any) {
-            Alert.alert(t('content.tasks.errorAddTitle'), err?.response?.data?.message || t('content.tasks.errorAddFallback'));
-        } finally {
-            setIsSaving(false);
-        }
-    };
+    /**
+     * Creating a task is a screen now, not a text box.
+     *
+     * The inline box could only ever send a title — no due date, no type, no
+     * pond, no recurrence, and an assignee that was always whoever tapped it.
+     * Every one of those is something the backend has always accepted and the
+     * farmer could never reach.
+     */
+    const openComposer = (scope?: 'farm' | 'personal') =>
+        navigation.navigate('TaskCompose', { farmId, farmName, scope });
 
     const advanceStatus = async (task: Task) => {
         // Terminal states aren't advanced by tapping (manager verifies a done task).
@@ -167,6 +167,12 @@ export const TaskListScreen = ({ route, navigation }: any) => {
     const renderItem = ({ item }: { item: Task }) => {
         const meta = STATUS_META[item.status] ?? STATUS_META.open;
         const done = item.status === 'done' || item.status === 'verified';
+        const overdue = isOverdue(item);
+        // Due first, then whether this is the daily routine or a one-off —
+        // the two things the farmer asked to be able to read off a row.
+        const line = [meta.label, dueLabel(t, item.dueDate), repeatLabel(t, item)]
+            .filter(Boolean)
+            .join('  ·  ');
         return (
             <Card style={styles.card}>
                 <TouchableOpacity
@@ -184,9 +190,8 @@ export const TaskListScreen = ({ route, navigation }: any) => {
                         <Text style={[styles.title, done && styles.titleDone]} numberOfLines={2}>
                             {item.title}
                         </Text>
-                        <Text style={[styles.statusText, { color: meta.color }]}>
-                            {meta.label}
-                            {item.dueDate ? `  ·  ${t('content.tasks.dueDate', { date: item.dueDate })}` : ''}
+                        <Text style={[styles.statusText, { color: overdue ? c.dangerText : meta.color }]}>
+                            {line}
                         </Text>
                     </View>
                     <View style={styles.rowActions}>
@@ -195,7 +200,7 @@ export const TaskListScreen = ({ route, navigation }: any) => {
                                 <MaterialCommunityIcons name="check-decagram-outline" size={20} color={c.primary} />
                             </TouchableOpacity>
                         )}
-                        {perms.canOwnerActions && (
+                        {canDelete(item) && (
                             <TouchableOpacity onPress={() => handleDelete(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                                 <MaterialCommunityIcons name="trash-can-outline" size={20} color={c.textTertiary} />
                             </TouchableOpacity>
@@ -224,28 +229,31 @@ export const TaskListScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            {/* Creating/assigning tasks is owner/manager only (blueprint §28). */}
-            {perms.canCreateTask && (
-                <View style={styles.addRow}>
-                    <TextInput
-                        style={styles.input}
-                        value={newTitle}
-                        onChangeText={setNewTitle}
-                        placeholder={t('content.tasks.addPlaceholder')}
-                        placeholderTextColor={c.textTertiary}
-                        onSubmitEditing={handleAdd}
-                        returnKeyType="done"
-                        editable={!isSaving}
-                    />
-                    <TouchableOpacity style={styles.addBtn} onPress={handleAdd} disabled={isSaving || !newTitle.trim()}>
-                        {isSaving ? (
-                            <ActivityIndicator size="small" color={c.textInverse} />
-                        ) : (
-                            <MaterialCommunityIcons name="plus" size={22} color={c.textInverse} />
-                        )}
+            {/* Assigning work to the farm is owner/manager only (blueprint §28).
+                A personal task is not assigning — anyone may write themselves
+                a note, and it stays theirs. */}
+            <View style={styles.addRow}>
+                <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={() => openComposer(perms.canCreateTask ? 'farm' : 'personal')}
+                    accessibilityRole="button"
+                >
+                    <MaterialCommunityIcons name="plus" size={20} color={c.textInverse} />
+                    <Text style={styles.primaryBtnLabel}>
+                        {perms.canCreateTask ? t('tasks.newTaskCta') : t('tasks.newPersonalCta')}
+                    </Text>
+                </TouchableOpacity>
+                {perms.canCreateTask && (
+                    <TouchableOpacity
+                        style={styles.secondaryBtn}
+                        onPress={() => navigation.navigate('RecurringTasks', { farmId, farmName })}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('tasks.repeatingTitle')}
+                    >
+                        <MaterialCommunityIcons name="repeat" size={20} color={c.textPrimary} />
                     </TouchableOpacity>
-                </View>
-            )}
+                )}
+            </View>
 
             {isLoading ? (
                 <View style={styles.center}>
@@ -294,22 +302,24 @@ const styles = StyleSheet.create({
         gap: theme.spacing[2],
         padding: theme.spacing[4],
     },
-    input: {
+    primaryBtn: {
         flex: 1,
-        height: 44,
-        borderWidth: 1,
-        borderColor: c.borderDefault,
-        borderRadius: theme.radius.md,
-        paddingHorizontal: theme.spacing[3],
-        ...theme.typeScale.bodyMedium,
-        color: c.textPrimary,
-        backgroundColor: c.surface,
-    },
-    addBtn: {
-        width: 44,
-        height: 44,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: theme.spacing[2],
+        minHeight: 48,
         borderRadius: theme.radius.md,
         backgroundColor: c.primary,
+    },
+    primaryBtnLabel: { ...theme.typeScale.labelLarge, color: c.textInverse },
+    secondaryBtn: {
+        width: 48,
+        height: 48,
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: c.borderDefault,
+        backgroundColor: c.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },

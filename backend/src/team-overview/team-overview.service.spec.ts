@@ -21,6 +21,10 @@ function makeService(over: any = {}) {
   };
   const leaveRequests = {
     findAllForFarm: jest.fn().mockResolvedValue(over.leave ?? []),
+    findMine: jest.fn().mockResolvedValue(over.myLeave ?? []),
+  };
+  const invites = {
+    listPending: jest.fn().mockResolvedValue(over.pending ?? []),
   };
   const tasks = { findMine: jest.fn().mockResolvedValue(over.tasks ?? []) };
   const members = { listMembers: jest.fn().mockResolvedValue(over.members ?? []) };
@@ -33,9 +37,10 @@ function makeService(over: any = {}) {
     leaveRequests as any,
     tasks as any,
     members as any,
+    invites as any,
     farmAccess as any,
   );
-  return { svc, farms, attendance, leaveRequests, tasks, members };
+  return { svc, farms, attendance, leaveRequests, tasks, members, invites };
 }
 
 describe('TeamOverviewService', () => {
@@ -67,6 +72,27 @@ describe('TeamOverviewService', () => {
 
     expect(attendance.findAllForFarm).toHaveBeenCalledTimes(1);
     expect(attendance.findAllForFarm).toHaveBeenCalledWith('u', 'f2');
+  });
+
+  /**
+   * The farm filter used to scope the members and the attendance but NOT the
+   * tasks — so filtering the tab to one farm still listed every farm's chores
+   * underneath one farm's roster.
+   */
+  it('scopes the tasks to the requested farm too', async () => {
+    const { svc, tasks } = makeService();
+
+    await svc.forUser('u', 'f2');
+
+    expect(tasks.findMine).toHaveBeenCalledWith('u', { farmId: 'f2' });
+  });
+
+  it('leaves the tasks unscoped when no farm is requested', async () => {
+    const { svc, tasks } = makeService();
+
+    await svc.forUser('u');
+
+    expect(tasks.findMine).toHaveBeenCalledWith('u', { farmId: undefined });
   });
 
   /**
@@ -122,6 +148,30 @@ describe('TeamOverviewService', () => {
     const out = await svc.forUser('u');
 
     expect(out.myAttendance?.checkInAt).toBe('2026-08-28T07:00:00Z');
+  });
+
+  it('counts pending joins across farms for the badge', async () => {
+    const { svc } = makeService({ pending: [{ userId: 'a' }, { userId: 'b' }] });
+
+    expect((await svc.forUser('owner')).pendingJoins).toBe(4); // 2 farms × 2
+  });
+
+  /** A worker is refused the pending queue (MANAGE_WORKERS) — badge is 0. */
+  it('reports zero pending joins when the caller may not see the queue', async () => {
+    const { svc, invites } = makeService();
+    invites.listPending.mockRejectedValue(new Error('Forbidden'));
+
+    expect((await svc.forUser('worker')).pendingJoins).toBe(0);
+  });
+
+  /** Own open requests only — decided ones are not "waiting on someone". */
+  it("counts only the caller's still-pending leave requests", async () => {
+    const { svc } = makeService({
+      farms: [farm('f1')],
+      myLeave: [{ status: 'pending' }, { status: 'approved' }],
+    });
+
+    expect((await svc.forUser('worker')).myPendingLeave).toBe(1);
   });
 
   it('reports no open record when every shift is closed', async () => {

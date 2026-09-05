@@ -3,11 +3,12 @@ const inventory = {
   title: 'ইনভেন্টরি',
   errorTitle: 'ইনভেন্টরি লোড করা যায়নি',
 
-  // Category filter tabs
+  // Category filter tabs — the same five the backend validates
   catAll: 'সব',
   catFeed: 'খাদ্য',
   catChemicals: 'রাসায়নিক',
   catEquipment: 'সরঞ্জাম',
+  catMedicine: 'ওষুধ',
   catOther: 'অন্যান্য',
 
   // Stock status badges
@@ -17,14 +18,54 @@ const inventory = {
 
   // Item footer
   minLabel: 'সর্বনিম্ন:',
+  lowStockCount: '{{count}}টি আইটেমের স্টক কম',
+  farmFallback: 'খামার',
 
   // Empty state
   emptyTitle: 'কোনো ইনভেন্টরি আইটেম নেই',
   emptySubtitle: 'আপনার খাদ্য, রাসায়নিক ও সরঞ্জামের স্টক ট্র্যাক শুরু করুন।',
 
-  // Add-item alert (coming soon)
+  // ── InventoryFormScreen (create AND edit) ───────────────────────────────────
   addItem: 'আইটেম যোগ করুন',
-  addItemComingSoon: 'ইনভেন্টরি আইটেম তৈরির সুবিধা শীঘ্রই আসছে!',
+  editItem: 'আইটেম সম্পাদনা করুন',
+  fieldName: 'আইটেমের নাম',
+  namePlaceholder: 'যেমন স্টার্টার ফিড',
+  fieldCategory: 'বিভাগ',
+  fieldIcon: 'আইকন',
+  fieldQuantity: 'পরিমাণ',
+  fieldUnit: 'একক',
+  unitPlaceholder: 'একক বেছে নিন',
+  fieldReorderLevel: 'পুনরায় অর্ডারের মাত্রা',
+  reorderHint: 'স্টক এই মাত্রায় নামলে আমাকে সতর্ক করুন',
+  fieldUnitPrice: 'একক মূল্য (₹)',
+  fieldSupplier: 'সরবরাহকারী',
+  supplierPlaceholder: 'ঐচ্ছিক',
+  notesPlaceholder: 'এই আইটেম সম্পর্কে মনে রাখার মতো কিছু',
+  addExpiry: 'মেয়াদ শেষের তারিখ যোগ করুন',
+  clearExpiry: 'মেয়াদ শেষের তারিখ সরান',
+  nameRequired: 'আইটেমের নাম আবশ্যক।',
+  noFarmSelected: 'ইনভেন্টরি যোগ করার আগে একটি খামার বেছে নিন।',
+  negativeNotAllowed: '{{field}} ঋণাত্মক হতে পারে না।',
+  saveFailed: 'আইটেম সংরক্ষণ করা যায়নি।',
+  noPermission: 'এই খামারের ইনভেন্টরি বদলানোর অনুমতি আপনার নেই।',
+  pairedFarms: "কোন খামারের জন্য",
+  unpairedTitle: "কোনো খামারের সঙ্গে যুক্ত নয়",
+  unpairedWarning: "যতক্ষণ না আপনি এটি কোনো খামারের সঙ্গে যুক্ত করছেন, এটি কোনো খামারের তালিকায় দেখা যাবে না। এটি সুপারিশ করা হয় না।",
+
+  // Icon picker
+  pickIcon: 'একটি আইকন বেছে নিন',
+  searchIcons: 'আইকন খুঁজুন',
+  noIconsMatch: 'এই খোঁজের সঙ্গে কোনো আইকন মেলেনি।',
+  iconFromCategory: 'বিভাগ অনুযায়ী',
+  clearIcon: 'আইকন সরান',
+  iconGroupFeed: 'খাদ্য',
+  iconGroupChemicals: 'রাসায়নিক',
+  iconGroupMedicine: 'ওষুধ',
+  iconGroupEquipment: 'সরঞ্জাম',
+  iconGroupTools: 'যন্ত্রপাতি',
+  iconGroupPackaging: 'প্যাকিং',
+  iconGroupSafety: 'নিরাপত্তা',
+  iconGroupMisc: 'অন্যান্য',
 
   // ── InventoryDetailScreen ───────────────────────────────────────────────────
   // Header fallback
@@ -41,21 +82,39 @@ const inventory = {
   // Info card labels
   labelCategory: 'বিভাগ',
   labelUnit: 'একক',
-  labelLastPurchase: 'সর্বশেষ ক্রয়',
+  labelExpiryDate: 'মেয়াদ শেষ',
+  labelLastAdjustment: 'সর্বশেষ সমন্বয়',
   labelNotes: 'নোট',
+  movementHistory: 'স্টক ইতিহাস',
+  movementNoReason: 'কোনো কারণ দেওয়া হয়নি',
 
   // Adjust stock
   adjustStock: 'স্টক সামঞ্জস্য করুন',
   adjustStockChoose: 'একটি ক্রিয়া বেছে নিন',
   addStock: 'স্টক যোগ করুন',
   reduceStock: 'স্টক কমান',
-  comingSoon: 'শীঘ্রই আসছে',
-  stockAdjustComingSoon: 'স্টক সামঞ্জস্যের সুবিধা শীঘ্রই আসছে!',
-  editComingSoon: 'ইনভেন্টরি আইটেম সম্পাদনার সুবিধা শীঘ্রই আসছে!',
+  reasonPlaceholder: 'কারণ (ঐচ্ছিক)',
+  validAmountRequired: '০-এর বেশি একটি বৈধ পরিমাণ দিন।',
+  adjustFailed: 'স্টক সামঞ্জস্য করা যায়নি।',
 
-  // Stock history section
-  stockHistory: 'স্টকের ইতিহাস',
-  stockHistoryComingSoon: 'স্টক সামঞ্জস্যের ইতিহাস শীঘ্রই আসছে',
+  // ── কেনাকাটা (স্টক ঢুকল → একটি যুক্ত খরচ) ─────────────────────────────────
+  purchaseCostHint: 'এই স্টক আগে থেকেই আপনার হলে ফাঁকা রাখুন। লিখলে খরচ নিজে থেকেই নথিভুক্ত হবে।',
+  fieldTotalCost: 'মোট খরচ',
+  billToFarm: 'কোন খামার টাকা দিয়েছে?',
+  billToFarmRequired: 'কোন খামার এই স্টকের টাকা দিয়েছে তা বেছে নিন।',
+  purchaseRecorded: '{{quantity}} {{unit}} যোগ হয়েছে এবং {{farm}}-এর জন্য {{amount}} খরচ নথিভুক্ত হয়েছে।',
+  purchaseSection: 'কেনাকাটা',
+  movementToPond: '{{pond}}-এ',
+
+  // Delete
+  deleteItem: 'আইটেম মুছুন',
+  deleteConfirm: '"{{name}}" মুছবেন? এটি ফেরানো যাবে না।',
+  deleteFailed: 'আইটেম মোছা যায়নি।',
+
+  // ── Feed log → stock link ───────────────────────────────────────────────────
+  feedFromStock: 'স্টক থেকে নিন',
+  remainingStock: '{{quantity}} {{unit}} বাকি',
+  selectStockPlaceholder: 'স্টক থেকে বাদ দেবেন না',
 
   // ── ShopScreen ──────────────────────────────────────────────────────────────
   shopTitle: 'শপ',

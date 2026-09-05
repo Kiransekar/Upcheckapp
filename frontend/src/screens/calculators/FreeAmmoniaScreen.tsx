@@ -8,6 +8,8 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { calculatorsApi, FreeAmmoniaResponse } from '../../api/calculators';
+import { parseNumericInput, parseNumericInputOrDefault } from '../../features/parseNumericInput';
+import { apiErrorMessage } from '../../api/errors';
 
 type ToxicityLevel = 'safe' | 'warning' | 'critical';
 
@@ -57,26 +59,42 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
     const [tan, setTan] = useState('');
     const [ph, setPh] = useState('');
     const [temperature, setTemperature] = useState('');
-    const [salinity, setSalinity] = useState('15');
+    // Not pre-filled: salinity is a real term in the pKa model (QA BUG-002), and
+    // a brackish default silently biases a freshwater pond's reading LOW - i.e.
+    // toward "safe" - on a toxicity screen. Blank submits 0 via
+    // `parseFloat(salinity) || 0` below, which is the freshwater Emerson form,
+    // and the hint now says so.
+    const [salinity, setSalinity] = useState('');
 
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<FreeAmmoniaResponse | null>(null);
 
     const handleCalculate = async () => {
-        const tanVal = parseFloat(tan);
-        const phVal = parseFloat(ph);
-        const tempVal = parseFloat(temperature);
+        const tanVal = parseNumericInput(tan);
+        const phVal = parseNumericInput(ph);
+        const tempVal = parseNumericInput(temperature);
 
-        if (!tanVal || tanVal <= 0) {
+        if (tanVal === null || tanVal <= 0) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorTan'));
             return;
         }
-        if (!phVal || phVal <= 0 || phVal > 14) {
+        if (phVal === null || phVal <= 0 || phVal > 14) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorPh'));
             return;
         }
-        if (!tempVal || tempVal <= 0) {
+        if (tempVal === null || tempVal <= 0) {
             Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorTemp'));
+            return;
+        }
+        // Blank salinity is deliberate freshwater shorthand for 0 (QA BUG-002)
+        // and must keep submitting silently. Anything else that isn't a valid
+        // number used to fall through `parseFloat(salinity) || 0` with no
+        // alert, while every sibling field here raises one — that silent
+        // fallback maximises computed NH₃ (over-warns) instead of catching the
+        // typo.
+        const salinityVal = parseNumericInputOrDefault(salinity, 0);
+        if (salinityVal === null) {
+            Alert.alert(t('calculators.freeAmmonia.validationTitle'), t('calculators.freeAmmonia.errorSalinity'));
             return;
         }
 
@@ -86,11 +104,11 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                 tan: tanVal,
                 ph: phVal,
                 temperature: tempVal,
-                salinity: parseFloat(salinity) || 0,
+                salinity: salinityVal,
             });
             setResult(data);
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('calculators.freeAmmonia.errorCalc'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('calculators.freeAmmonia.errorCalc')));
         } finally {
             setIsLoading(false);
         }
@@ -129,7 +147,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={tan}
                                 onChangeText={setTan}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 1.5"
+                                placeholder={t('calculators.freeAmmonia.phTan')}
                                 required
                             />
                         </View>
@@ -139,7 +157,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={ph}
                                 onChangeText={setPh}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 8.2"
+                                placeholder={t('calculators.freeAmmonia.phPh')}
                                 required
                             />
                         </View>
@@ -151,7 +169,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={temperature}
                                 onChangeText={setTemperature}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 29"
+                                placeholder={t('calculators.freeAmmonia.phTemp')}
                                 required
                             />
                         </View>
@@ -161,7 +179,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                                 value={salinity}
                                 onChangeText={setSalinity}
                                 keyboardType="decimal-pad"
-                                placeholder="e.g. 15"
+                                placeholder={t('calculators.freeAmmonia.phSalinity')}
                                 hint={t('calculators.freeAmmonia.hintSalinity')}
                             />
                         </View>
@@ -187,7 +205,7 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                             {t('calculators.freeAmmonia.resultLabel')}
                         </Text>
                         <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={styles.resultValue}>{result.unionizedAmmonia.toFixed(4)}</Text>
-                        <Text style={styles.resultUnit}>ppm / mg/L</Text>
+                        <Text style={styles.resultUnit}>{t('calculators.freeAmmonia.unitPpmMgL')}</Text>
 
                         <Text style={[styles.messageText, { color: config.textColor }]}>
                             {config.message}
@@ -200,15 +218,15 @@ export const FreeAmmoniaScreen = ({ navigation }: any) => {
                     <View style={styles.scaleRow}>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.successBg, borderColor: theme.roles.light.successBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.successText }]}>{t('calculators.freeAmmonia.scaleSafe')}</Text>
-                            <Text style={styles.scaleRange}>{'< 0.1 ppm'}</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeSafe')}</Text>
                         </View>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.warningBg, borderColor: theme.roles.light.warningBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.warningText }]}>{t('calculators.freeAmmonia.scaleWarning')}</Text>
-                            <Text style={styles.scaleRange}>0.1 – 0.5 ppm</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeWarning')}</Text>
                         </View>
                         <View style={[styles.scaleBlock, { backgroundColor: theme.roles.light.dangerBg, borderColor: theme.roles.light.dangerBorder }]}>
                             <Text style={[styles.scaleLabel, { color: theme.roles.light.dangerText }]}>{t('calculators.freeAmmonia.scaleCritical')}</Text>
-                            <Text style={styles.scaleRange}>{'> 0.5 ppm'}</Text>
+                            <Text style={styles.scaleRange}>{t('calculators.freeAmmonia.rangeCritical')}</Text>
                         </View>
                     </View>
                 </Card>

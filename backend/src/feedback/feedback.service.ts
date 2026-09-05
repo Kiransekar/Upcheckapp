@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FeedbackReport } from './feedback.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
+import { PushService } from '../push/push.service';
 import {
   CreateFeedbackDto,
   ListFeedbackDto,
@@ -39,6 +40,7 @@ export class FeedbackService {
     @InjectRepository(FeedbackReport)
     private readonly repo: Repository<FeedbackReport>,
     private readonly storage: FeedbackStorageService,
+    private readonly push: PushService,
   ) {}
 
   // ──────────────────────────────── farmer ────────────────────────────────
@@ -145,6 +147,9 @@ export class FeedbackService {
 
     if (dto.status) report.status = dto.status as FeedbackStatus;
 
+    // Only a non-empty response counts as "written" for notification purposes
+    // — a status-only PATCH, or one that clears the response, must not push.
+    let wroteResponse = false;
     if (dto.adminResponse !== undefined) {
       const text = dto.adminResponse.trim();
       report.adminResponse = text || null;
@@ -153,9 +158,25 @@ export class FeedbackService {
       report.respondedAt = text ? new Date() : null;
       report.respondedBy = text ? (dto.respondedBy?.trim() ?? null) : null;
       if (text && report.status === 'new') report.status = 'in_review';
+      wroteResponse = !!text;
     }
 
-    return this.withUrls(await this.repo.save(report));
+    const saved = await this.repo.save(report);
+
+    // Tell the farmer, rather than making them reopen the report to find out.
+    // Best-effort by design: sendToUser never throws into its caller, and an
+    // admin's reply must save whether or not delivery succeeds.
+    if (wroteResponse) {
+      await this.push
+        .sendToUser(saved.userId, {
+          title: 'Support replied to your report',
+          body: 'Tap to read the reply.',
+          data: { type: 'feedback_reply', reportId: saved.id },
+        })
+        .catch(() => undefined);
+    }
+
+    return this.withUrls(saved);
   }
 
   // ──────────────────────────────── helpers ───────────────────────────────

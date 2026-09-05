@@ -29,7 +29,8 @@ export class CalculateSurvivalRateDto {
   @Min(0)
   initialStock: number;
 
-  // Service clamps SR to 100% when harvestedCount > initialStock.
+  // No @Max: calculateSurvivalRate() clamps the result to 100 when
+  // harvestedCount exceeds initialStock, so the bound is enforced there.
   @IsNumber()
   @Min(0)
   harvestedCount: number;

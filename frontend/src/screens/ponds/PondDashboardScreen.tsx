@@ -30,10 +30,16 @@ import { StatRow, type Stat } from '../../components/ui/StatRow';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { SessionHint, AgeHint } from '../../components/ui/SessionHint';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { activityApi, type ActivityItem } from '../../api/activity';
+import { ACTIVITY_ICON, activityKindKey } from '../activity/activityKinds';
+import { slotAt, pondSlotDone, pondFedThisSession, chemistryDone, pondFreshness } from '../../features/logProgress';
+import { requiresActiveCycle } from '../../features/cycleRequirement';
+import { survivalPctFrom } from '../calculators/prefill';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pnlApi, type CropPnl } from '../../api/pnl';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -41,7 +47,9 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
 import { usePendingRecords } from '../../sync/pending';
-import { formatTime } from '../../utils/formatDate';
+import { formatTime, formatAge } from '../../utils/formatDate';
+import { pondLabel } from '../../utils/pondHealth';
+import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 
 /** The create form already names these; the detail view must not re-word them. */
 const SHAPE_KEY: Record<string, string> = {
@@ -79,17 +87,68 @@ const LOG_ACTIONS: LogAction[] = [
     { key: 'actionSampling', icon: 'scale', logRoute: 'SamplingLog', historyRoute: 'SamplingHistory', core: true },
     { key: 'actionMeasurements', icon: 'show_chart', logRoute: 'Measurements', historyRoute: 'Measurements', core: true },
     { key: 'actionAdvisor', icon: 'lightbulb', logRoute: 'EnginesHub', historyRoute: 'EnginesHub', core: true },
+    // Promoted to the surface. Harvest history was reachable only by finding
+    // the mode toggle AND then expanding "+8 more log types" — two discoveries
+    // deep for the record of what actually came out of the pond.
+    { key: 'actionHarvest', icon: 'set_meal', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory', core: true },
     { key: 'actionTreatment', icon: 'science', logRoute: 'TreatmentLog', historyRoute: 'TreatmentHistory' },
     { key: 'actionMortality', icon: 'warning', logRoute: 'MortalityLog', historyRoute: 'MortalityHistory' },
     { key: 'actionDisease', icon: 'science', logRoute: 'DiseaseLog', historyRoute: 'DiseaseHistory' },
     { key: 'actionChemical', icon: 'science', logRoute: 'ChemicalLog', historyRoute: 'ChemicalHistory' },
     { key: 'actionPlankton', icon: 'grass', logRoute: 'PlanktonLog', historyRoute: 'PlanktonHistory' },
     { key: 'actionMicrobiology', icon: 'science', logRoute: 'MicrobiologyLog', historyRoute: 'MicrobiologyHistory' },
-    { key: 'actionHarvest', icon: 'set_meal', logRoute: 'HarvestLog', historyRoute: 'HarvestHistory' },
-    { key: 'actionWeeklyChem', icon: 'science', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistry' },
+    // History goes to the dedicated chemistry history, NOT back to the blank
+    // entry form ("History" that reopened the form it came from was the whole
+    // of report #9). It was pointed at WaterQualityHistory because weekly-chem
+    // readings land in `water_quality_records` and that was the only screen
+    // reading them — but that list is dominated by daily probe rows, so the six
+    // chemistry values were buried. WeeklyChemistryHistory reads the same table
+    // through `chemistryOnly=true`, which drops the probe-only rows.
+    { key: 'actionWeeklyChem', icon: 'calendar_month', logRoute: 'WeeklyChemistry', historyRoute: 'WeeklyChemistryHistory' },
 ];
 
-const CORE_COUNT = LOG_ACTIONS.filter((a) => a.core).length;
+/**
+ * Whether this action is done for the CURRENT session, or `undefined` when
+ * "done" has no meaning for it.
+ *
+ * Every answer here comes from features/logProgress.ts — the single definition
+ * the reminders, the Today card and SessionHint also read. A second rule for
+ * "logged" written on this screen is exactly the drift that module exists to
+ * prevent, so there is none: this only routes a tile to the right predicate.
+ *
+ * `undefined` is not "not done". Eleven of the fourteen log types have no
+ * cadence the app knows about — a mortality is not owed three times a day — and
+ * an empty circle on those would read as a chore the farmer is behind on.
+ */
+export const tileDone = (
+    ctx: PondContext | null | undefined,
+    key: string,
+    now: Date,
+): boolean | undefined => {
+    if (!ctx) return undefined;
+    switch (key) {
+        case 'actionWaterQuality':
+            return pondSlotDone(ctx, slotAt(now), now);
+        case 'actionFeed':
+            return pondFedThisSession(ctx, slotAt(now), now);
+        case 'actionWeeklyChem':
+            return chemistryDone(ctx, now);
+        default:
+            return undefined;
+    }
+};
+
+/**
+ * The calendar day the farmer is standing in, as an instant range.
+ *
+ * Local midnight to the last millisecond of the day, in the phone's own
+ * timezone — "today" is a calendar question, not a 24-hour window.
+ */
+export const todayRange = (now: Date): { from: string; to: string } => {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return { from: start.toISOString(), to: end.toISOString() };
+};
 
 const num = (v: number | null | undefined, digits = 1): string =>
     v == null ? '—' : v.toFixed(digits);
@@ -101,6 +160,14 @@ const inr = (n: number): string => {
     if (a >= 1e3) return `₹${(a / 1e3).toFixed(1)}k`;
     return `₹${Math.round(a)}`;
 };
+
+/**
+ * `inr` takes the absolute value, so a loss and a profit of the same size print
+ * identically. Money that went the wrong way must say so in the CHARACTERS, not
+ * only in the colour — this screen is read in the sun, and red/green is the one
+ * pair a colour-blind farmer cannot separate.
+ */
+const signedInr = (n: number): string => (n < 0 ? `−${inr(n)}` : inr(n));
 
 const timeAgo = (iso?: string | null): string | null => {
     if (!iso) return null;
@@ -117,7 +184,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const { pondId, pondName } = route.params;
     const loadMemberships = useMembershipStore((s) => s.load);
 
-    const [pnl, setPnl] = useState<CropPnl | null>(null);
+    /** The P&L on show, and WHICH cycle it belongs to — see the effect below. */
+    const [money, setMoney] = useState<
+        { pnl: CropPnl; cycleName: string | null; closed: boolean } | null
+    >(null);
     const [mode, setMode] = useState<LogMode>('log');
     const [showAll, setShowAll] = useState(false);
 
@@ -149,6 +219,32 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         },
     });
 
+    /**
+     * Today's entries for this pond.
+     *
+     * ONE read of `/activity`, which unions all fourteen log tables server-side.
+     * This used to be two calls — water quality and feed — filtered to today on
+     * the phone, which meant a sampling, a treatment or a mortality recorded
+     * this morning simply did not appear in "what have we already done today".
+     *
+     * The key still PREFIXES `['pond']`, so it persists to disk with the rest of
+     * the pond and the axios invalidation table refetches it after the farmer's
+     * own write with no new plumbing.
+     */
+    const todayQuery = useAppQuery({
+        queryKey: [...qk.pond(pondId), 'today'] as const,
+        enabled: !!pondId,
+        queryFn: async () => {
+            const { data } = await activityApi.list({
+                pondId,
+                ...todayRange(new Date()),
+                limit: 50,
+            });
+            return data.items;
+        },
+    });
+    const today: ActivityItem[] = todayQuery.data ?? [];
+
     const pond = query.data?.pond ?? null;
     const cycle = query.data?.cycle ?? null;
     const context = query.data?.context ?? null;
@@ -178,27 +274,63 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         }, [loadMemberships]),
     );
 
-    // Costs are a separate, permissioned call — a worker never triggers it.
+    /*
+     * The money for this pond — a separate, permissioned call a worker never
+     * triggers.
+     *
+     * It falls back to the LAST CLOSED cycle, and that is the whole bug the
+     * farmer reported. A full harvest calls `closeCycle`, which nulls
+     * `pond.activeCycleId` and sets the pond fallow — so the moment they logged
+     * the harvest that realised their profit, this fetch short-circuited and the
+     * entire money section unmounted. The pond went from showing a cost to
+     * showing nothing, triggered by the exact action that made the profit
+     * knowable.
+     *
+     * The fallback is one call, not a fan-out: `GET /crops?pondId=` already
+     * returns this pond's cycles ordered createdAt DESC, so the most recent
+     * `completed` one is the first match. It only runs when there is no active
+     * cycle, which is precisely when there is nothing else to show.
+     */
     useFocusEffect(
         useCallback(() => {
-            if (!perms.canViewFinancials || !pond?.activeCycleId) {
-                setPnl(null);
+            if (!perms.canViewFinancials || !pond?.id) {
+                setMoney(null);
                 return;
             }
-            pnlApi
-                .cropPnl(pond.activeCycleId)
-                .then(({ data }) => setPnl(data))
-                .catch(() => setPnl(null));
-        }, [perms.canViewFinancials, pond?.activeCycleId]),
+            let alive = true;
+            (async () => {
+                try {
+                    let target: { id: string; name: string | null; closed: boolean } | null =
+                        pond.activeCycleId ? { id: pond.activeCycleId, name: null, closed: false } : null;
+                    if (!target) {
+                        const { data } = await cropsApi.getAll(pond.id);
+                        const last = (Array.isArray(data) ? data : []).find(
+                            (c) => c.status === 'completed',
+                        );
+                        if (last) target = { id: last.id, name: last.name, closed: true };
+                    }
+                    if (!target) {
+                        if (alive) setMoney(null);
+                        return;
+                    }
+                    const { data } = await pnlApi.cropPnl(target.id);
+                    if (alive) setMoney({ pnl: data, cycleName: target.name, closed: target.closed });
+                } catch {
+                    if (alive) setMoney(null);
+                }
+            })();
+            return () => {
+                alive = false;
+            };
+        }, [perms.canViewFinancials, pond?.id, pond?.activeCycleId]),
     );
 
-    /** Survival = live population over what was stocked. */
-    const survival = useMemo(() => {
-        const stocked = context?.crop?.stockingCount;
-        const live = context?.livePopulation;
-        if (!stocked || live == null) return null;
-        return Math.round((live / stocked) * 100);
-    }, [context]);
+    /**
+     * Survival = live population over what was stocked, but only once a
+     * sampling exists. Without one this rendered 100% directly above a card
+     * saying survival cannot be worked out without a sampling (QA BUG-019).
+     */
+    const survival = useMemo(() => survivalPctFrom(context), [context]);
 
     /** Days between today and the cycle's target length. */
     const daysToTarget = useMemo(() => {
@@ -207,7 +339,27 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         return target - context.doc;
     }, [context]);
 
+    /**
+     * Which LOG destinations this pond cannot use right now.
+     *
+     * Per tile, not per screen. The gate is `features/cycleRequirement.ts` —
+     * the same module QuickLog asks — so the two screens cannot disagree about
+     * what a pond with no cycle may record. Notably water quality stays open:
+     * `water_quality_records` has no crop column, and pond chemistry between
+     * cycles is exactly what says whether the pond is fit to stock.
+     *
+     * History is never gated. A closed cycle's record is the main thing a
+     * farmer comes back for.
+     */
+    const isLocked = (action: LogAction): boolean =>
+        mode === 'log' && !cycle && requiresActiveCycle(action.logRoute);
+
     const openAction = (action: LogAction) => {
+        // A locked tile is not dead — it goes where the lock is lifted.
+        if (isLocked(action)) {
+            navigation.navigate('CreateCycle', { pondId });
+            return;
+        }
         const params: Record<string, any> = { pondId, pondName };
         if (cycle) params.cropId = cycle.id;
         if (pond?.farmId) params.farmId = pond.farmId;
@@ -249,7 +401,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
     const header = (
         <ScreenHeader
             eyebrow={pond ? t(`ponds.status_${pond.status}`, { defaultValue: pond.status }) : null}
-            title={pondName ?? t('ponds.title')}
+            // The pond's own label once it has loaded — the route param is
+            // whatever the previous screen happened to pass, and one of them
+            // passed ''. `pondLabel` is the single definition of that name.
+            title={pond ? pondLabel(pond) : (pondName ?? t('ponds.title'))}
             onBack={() => navigation.goBack()}
             accessibilityBackLabel={t('common.back')}
             actionLabel={perms.canManageOperations ? t('common.edit') : undefined}
@@ -292,8 +447,132 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
         );
     }
 
-    const visibleActions = showAll ? LOG_ACTIONS : LOG_ACTIONS.filter((a) => a.core);
-    const hiddenCount = LOG_ACTIONS.length - CORE_COUNT;
+    // Recording a harvest needs RECORD_HARVEST; READING the history does not,
+    // so the tile only disappears in log mode.
+    const allowedActions =
+        mode === 'log' && !perms.canRecordHarvest
+            ? LOG_ACTIONS.filter((a) => a.key !== 'actionHarvest')
+            : LOG_ACTIONS;
+    const visibleActions = showAll ? allowedActions : allowedActions.filter((a) => a.core);
+    const hiddenCount = allowedActions.length - allowedActions.filter((a) => a.core).length;
+    const now = new Date();
+
+    /*
+     * The toggle, the tiles and the expander — one block, rendered whether or
+     * not a cycle is running. Two changes to why the two history complaints
+     * existed at all:
+     *
+     *  - The tile now SAYS which of the two things it will do. A clock badge in
+     *    history mode, a tick badge in log mode, and one line of prose under
+     *    the toggle. A control that silently changes every destination on the
+     *    page, with nothing on the destinations to show it, is not a control a
+     *    farmer can find by accident.
+     *  - The tick is the same "done" the reminders use (see `tileDone`), and it
+     *    is a different GLYPH, not a different colour, because this screen is
+     *    read at midday in the sun on a ₹6,000 phone.
+     *
+     * With no cycle the toggle still works: only the CROP-KEYED log tiles lock
+     * (see `isLocked`), and a locked tile opens CreateCycle rather than doing
+     * nothing.
+     */
+    const actionsBlock = (
+        <>
+            <View style={styles.modeRow}>
+                <ModeButton
+                    label={t('ponds.tabLogData')}
+                    active={mode === 'log'}
+                    onPress={() => setMode('log')}
+                />
+                <ModeButton
+                    label={t('ponds.tabViewHistory')}
+                    active={mode === 'history'}
+                    onPress={() => setMode('history')}
+                />
+            </View>
+            <Text style={styles.modeHint}>
+                {t(mode === 'log' ? 'ponds.modeHintLog' : 'ponds.modeHintHistory')}
+            </Text>
+
+            <View style={styles.grid}>
+                {visibleActions.map((action) => {
+                    const locked = isLocked(action);
+                    const done = locked || mode !== 'log' ? undefined : tileDone(context, action.key, now);
+                    const label = t(`ponds.${action.key}`);
+                    return (
+                        <TouchableOpacity
+                            key={action.key}
+                            testID={`pond-tile-${action.key}`}
+                            style={[styles.gridTile, locked && styles.gridTileLocked]}
+                            onPress={() => openAction(action)}
+                            accessibilityRole="button"
+                            /*
+                             * Deliberately NOT accessibilityState.disabled: a
+                             * locked tile still responds — it opens CreateCycle
+                             * — and announcing a working control as disabled
+                             * tells a screen-reader user not to try the one
+                             * thing that unlocks it. The lock is carried by the
+                             * label, the icon and the visible hint instead.
+                             */
+                            accessibilityState={done === undefined ? undefined : { checked: done }}
+                            accessibilityLabel={[
+                                label,
+                                locked
+                                    ? t('ponds.tileNeedsCycle')
+                                    : t(mode === 'log' ? 'ponds.modeHintLog' : 'ponds.modeHintHistory'),
+                                done === undefined ? null : t(done ? 'ponds.tileDone' : 'ponds.tilePending'),
+                            ]
+                                .filter(Boolean)
+                                .join(', ')}
+                        >
+                            <View style={styles.tileBadge}>
+                                {locked ? (
+                                    <Icon name="key" size={13} color={theme.roles.light.textTertiary} />
+                                ) : mode === 'history' ? (
+                                    <Icon name="schedule" size={13} color={theme.roles.light.textTertiary} />
+                                ) : done === undefined ? null : (
+                                    <Icon
+                                        name={done ? 'check_circle' : 'radio_button_unchecked'}
+                                        size={13}
+                                        color={done ? theme.roles.light.successText : theme.roles.light.textTertiary}
+                                    />
+                                )}
+                            </View>
+                            <Icon
+                                name={action.icon}
+                                size={20}
+                                color={locked ? theme.roles.light.textDisabled : theme.roles.light.textSecondary}
+                            />
+                            <Text
+                                style={[styles.gridLabel, locked && styles.gridLabelLocked]}
+                                numberOfLines={1}
+                            >
+                                {label}
+                            </Text>
+                            {/* Not colour alone — the reason is spelled out. */}
+                            {locked && (
+                                <Text style={styles.gridLockedHint} numberOfLines={1}>
+                                    {t('ponds.tileNeedsCycle')}
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
+            {hiddenCount > 0 && (
+                <TouchableOpacity
+                    style={styles.moreRow}
+                    onPress={() => setShowAll((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showAll }}
+                >
+                    <Text style={styles.moreLabel}>
+                        {showAll ? t('ponds.showLess') : t('ponds.moreLogTypes', { count: hiddenCount })}
+                    </Text>
+                </TouchableOpacity>
+            )}
+        </>
+    );
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -305,7 +584,10 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 refreshControl={
                     <RefreshControl
                         refreshing={query.isRefetching}
-                        onRefresh={() => query.refetch()}
+                        onRefresh={() => {
+                            void query.refetch();
+                            void todayQuery.refetch();
+                        }}
                         colors={[theme.roles.light.primary]}
                         tintColor={theme.roles.light.primary}
                     />
@@ -401,8 +683,30 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                         .filter(Boolean)
                                         .join(' · ')}
                                 </Text>
+                                {/* Logged / fed this session — same rule the
+                                    reminders and the Today progress card use
+                                    (features/logProgress.ts), so this pond
+                                    cannot disagree with either. */}
+                                {!!context && (
+                                    <View style={styles.sessionHint}>
+                                        <SessionHint ctx={context} />
+                                        {/* …and how long since each. The
+                                            per-parameter ages further down are
+                                            for reading a probe; this is the one
+                                            line that says whether the pond has
+                                            been looked at at all. */}
+                                        <AgeHint
+                                            loggedAt={context.waterQuality?.recordedAt ?? null}
+                                            fedAt={context.lastFeedAt}
+                                            stale={pondFreshness(context, now).state !== 'fresh'}
+                                        />
+                                    </View>
+                                )}
                             </View>
-                            {perms.canRecordData && (
+                            {/* RECORD_HARVEST, not WRITE_OPERATIONAL: a harvest
+                                books revenue and can close the cycle, so it is
+                                not the same permission as a pH reading. */}
+                            {perms.canRecordHarvest && (
                                 <TouchableOpacity
                                     style={styles.harvestBtn}
                                     onPress={() => navigation.navigate('HarvestLog', { pondId, pondName, cropId: cycle.id })}
@@ -412,6 +716,18 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 </TouchableOpacity>
                             )}
                         </View>
+
+                        {/*
+                          * How much of the pond's snapshot is real, current data
+                          * versus a stale or missing reading — the same trust
+                          * signal the engines show, right where the farmer can
+                          * act on it: `showHint` names what to log next.
+                          */}
+                        {context?.confidence && (
+                            <View style={styles.confidenceRow}>
+                                <ConfidenceChip confidence={context.confidence} showHint />
+                            </View>
+                        )}
 
                         <StatRow
                             divider
@@ -447,47 +763,7 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             />
                         )}
 
-                        <View style={styles.modeRow}>
-                            <ModeButton
-                                label={t('ponds.tabLogData')}
-                                active={mode === 'log'}
-                                onPress={() => setMode('log')}
-                            />
-                            <ModeButton
-                                label={t('ponds.tabViewHistory')}
-                                active={mode === 'history'}
-                                onPress={() => setMode('history')}
-                            />
-                        </View>
-
-                        <View style={styles.grid}>
-                            {visibleActions.map((action) => (
-                                <TouchableOpacity
-                                    key={action.key}
-                                    style={styles.gridTile}
-                                    onPress={() => openAction(action)}
-                                    accessibilityRole="button"
-                                >
-                                    <Icon name={action.icon} size={20} color={theme.roles.light.textSecondary} />
-                                    <Text style={styles.gridLabel} numberOfLines={1}>
-                                        {t(`ponds.${action.key}`)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        {hiddenCount > 0 && (
-                            <TouchableOpacity
-                                style={styles.moreRow}
-                                onPress={() => setShowAll((v) => !v)}
-                                accessibilityRole="button"
-                                accessibilityState={{ expanded: showAll }}
-                            >
-                                <Text style={styles.moreLabel}>
-                                    {showAll ? t('ponds.showLess') : t('ponds.moreLogTypes', { count: hiddenCount })}
-                                </Text>
-                            </TouchableOpacity>
-                        )}
+                        {actionsBlock}
 
                         {wq && (
                             <>
@@ -510,42 +786,24 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                         ] as Stat[]
                                     }
                                 />
+                                {/*
+                                  * Each figure above can come from a DIFFERENT
+                                  * record — a pH-only log does not refresh
+                                  * yesterday's DO reading — so every figure gets
+                                  * its OWN age, not the tile's newest one
+                                  * (`readingAgo`). Same 4-cell layout as the
+                                  * StatRow above so each caption sits under the
+                                  * value it describes.
+                                  */}
+                                <View style={styles.readingAgeRow}>
+                                    <Text style={styles.readingAge}>{formatAge(wq.dissolvedOxygenAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.phAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.temperatureAsOf)}</Text>
+                                    <Text style={styles.readingAge}>{formatAge(wq.salinityAsOf)}</Text>
+                                </View>
                             </>
                         )}
 
-                        {perms.canViewFinancials && (
-                            <>
-                                <SectionHeader label={t('ponds.moneyForPond')} />
-                                <SummaryRow
-                                    icon="receipt_long"
-                                    title={t('ponds.viewExpenses')}
-                                    subtitle={
-                                        pnl ? t('ponds.spentThisCycle', { amount: inr(pnl.totalCost) }) : undefined
-                                    }
-                                    onPress={() => navigation.navigate('Expenses', { cropId: cycle.id, pondName })}
-                                />
-                                <SummaryRow
-                                    icon="event_available"
-                                    title={t('ponds.harvestPlan')}
-                                    subtitle={
-                                        daysToTarget != null
-                                            ? daysToTarget > 0
-                                                ? t('ponds.windowOpensIn', { count: daysToTarget })
-                                                : t('ponds.windowOpen')
-                                            : undefined
-                                    }
-                                    onPress={() =>
-                                        navigation.navigate('HarvestPlans', {
-                                            pondId,
-                                            pondName,
-                                            cropId: cycle.id,
-                                            farmId: pond?.farmId,
-                                        })
-                                    }
-                                    divider="strong"
-                                />
-                            </>
-                        )}
                     </>
                 ) : (
                     <View style={styles.idle}>
@@ -562,6 +820,144 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                             </TouchableOpacity>
                         )}
                     </View>
+                )}
+
+                {/* Idle or stocked, the pond's past stays reachable. */}
+                {!cycle && actionsBlock}
+
+                {/*
+                  * What this pond EARNED, not only what it cost.
+                  *
+                  * The screen already fetched the full P&L and rendered one
+                  * field of it — total cost — so the one page about this pond
+                  * showed the farmer their spend and never their revenue. And
+                  * it lived inside the `cycle ?` branch, so it vanished the
+                  * instant a full harvest closed the cycle. Now it sits outside
+                  * that branch and names which cycle it is talking about.
+                  *
+                  * `perms.canViewFinancials` is unchanged: a worker who cannot
+                  * see money still sees none of this.
+                  */}
+                {perms.canViewFinancials && money && (
+                    <>
+                        <SectionHeader
+                            label={money.closed ? t('ponds.moneyLastCycle') : t('ponds.moneyForPond')}
+                            actionLabel={money.closed ? money.cycleName ?? undefined : undefined}
+                        />
+                        <StatRow
+                            divider
+                            stats={
+                                [
+                                    { value: inr(money.pnl.revenue), label: t('ponds.metricRevenue') },
+                                    {
+                                        // The WORD changes with the sign, and so
+                                        // does the figure ("−₹12.5k"). A loss
+                                        // must never be legible only as a colour.
+                                        value: signedInr(money.pnl.profit),
+                                        label:
+                                            money.pnl.profit < 0
+                                                ? t('ponds.metricLoss')
+                                                : t('ponds.metricProfit'),
+                                        tone: money.pnl.profit < 0 ? 'danger' : 'success',
+                                    },
+                                    {
+                                        value: `${Math.round(money.pnl.marginPct)}`,
+                                        unit: '%',
+                                        label: t('ponds.metricMargin'),
+                                        tone: money.pnl.profit < 0 ? 'danger' : 'default',
+                                    },
+                                ] as Stat[]
+                            }
+                        />
+                        <SummaryRow
+                            icon="receipt_long"
+                            title={t('ponds.viewExpenses')}
+                            subtitle={t('ponds.spentThisCycle', { amount: inr(money.pnl.totalCost) })}
+                            onPress={() =>
+                                navigation.navigate('Expenses', { cropId: money.pnl.cropId, pondName })
+                            }
+                            divider={cycle ? 'light' : 'strong'}
+                        />
+                        {/* A harvest plan for a cycle that is already over is
+                            not a plan, so this stays with the active one. */}
+                        {!!cycle && (
+                            <SummaryRow
+                                icon="event_available"
+                                title={t('ponds.harvestPlan')}
+                                subtitle={
+                                    daysToTarget != null
+                                        ? daysToTarget > 0
+                                            ? t('ponds.windowOpensIn', { count: daysToTarget })
+                                            : t('ponds.windowOpen')
+                                        : undefined
+                                }
+                                onPress={() =>
+                                    navigation.navigate('HarvestPlans', {
+                                        pondId,
+                                        pondName,
+                                        cropId: cycle.id,
+                                        farmId: pond?.farmId,
+                                    })
+                                }
+                                divider="strong"
+                            />
+                        )}
+                    </>
+                )}
+
+                {/* Every cycle this pond has ever run. The dashboard only ever
+                    showed the CURRENT one, so a farmer comparing this crop with
+                    the last had nowhere to look. */}
+                <SummaryRow
+                    icon="history"
+                    title={t('cycles.listTitle')}
+                    onPress={() =>
+                        navigation.navigate('CycleList', {
+                            pondId,
+                            pondName,
+                            farmId: pond?.farmId,
+                        })
+                    }
+                    divider="strong"
+                />
+
+                {/*
+                  * "What have we already done today" — the question asked
+                  * standing at the pond, before feeding again. Nothing in the
+                  * app answered it: the history screens are undated full lists,
+                  * so today's three entries were somewhere in a scroll of two
+                  * hundred.
+                  */}
+                <SectionHeader
+                    label={t('ponds.todayTitle')}
+                    trailing={today.length || undefined}
+                    actionLabel={t('activity.seeAll')}
+                    onAction={() =>
+                        navigation.navigate('Activity', {
+                            pondId,
+                            pondName,
+                            farmId: pond?.farmId,
+                        })
+                    }
+                />
+                {today.length === 0 ? (
+                    <Text style={styles.todayEmpty}>
+                        {todayQuery.isPending ? t('common.loading') : t('ponds.todayEmpty')}
+                    </Text>
+                ) : (
+                    today.map((entry, i) => (
+                        <SummaryRow
+                            key={`${entry.kind}-${entry.recordId}`}
+                            icon={ACTIVITY_ICON[entry.kind] ?? 'checklist'}
+                            title={t(activityKindKey(entry.kind))}
+                            subtitle={
+                                [entry.summary, entry.actorName].filter(Boolean).join(' · ') ||
+                                t('activity.noDetail')
+                            }
+                            value={formatTime(entry.at)}
+                            divider={i === today.length - 1 ? 'strong' : 'light'}
+                        />
+                    ))
                 )}
 
                 {/*
@@ -670,6 +1066,15 @@ const styles = StyleSheet.create({
     },
     alertBtnLabel: { ...theme.typeScale.labelLarge, color: theme.roles.light.textInverse },
 
+    confidenceRow: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
+    readingAgeRow: {
+        flexDirection: 'row',
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[3],
+        backgroundColor: theme.roles.light.surface,
+    },
+    readingAge: { flex: 1, ...theme.typeScale.caption, color: theme.roles.light.textTertiary },
+
     cycleRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -691,6 +1096,7 @@ const styles = StyleSheet.create({
     cycleDivider: { width: 1, alignSelf: 'stretch', backgroundColor: theme.roles.light.borderDefault },
     cycleName: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     cycleMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: theme.roles.light.textTertiary },
+    sessionHint: { marginTop: theme.spacing[1.5], gap: 2 },
     harvestBtn: {
         borderWidth: 1.5,
         borderColor: theme.roles.light.successText,
@@ -720,6 +1126,13 @@ const styles = StyleSheet.create({
     modeLabel: { ...theme.typeScale.labelLarge },
     modeLabelActive: { color: theme.roles.light.textInverse },
     modeLabelIdle: { color: theme.roles.light.textSecondary },
+    modeHint: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: theme.roles.light.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingTop: theme.spacing[2],
+    },
 
     grid: {
         flexDirection: 'row',
@@ -743,6 +1156,27 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     gridLabel: { ...theme.typeScale.labelMedium, fontSize: 11, color: theme.roles.light.textPrimary },
+    // Top-right of the tile, out of the icon+label column so nothing shifts
+    // when a tile has no badge.
+    tileBadge: { position: 'absolute', top: 4, right: 5 },
+    gridTileLocked: {
+        borderColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    gridLabelLocked: { color: theme.roles.light.textTertiary },
+    gridLockedHint: {
+        ...theme.typeScale.labelSmall,
+        fontSize: 9,
+        color: theme.roles.light.textTertiary,
+    },
+    todayEmpty: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[3],
+        borderBottomWidth: 1,
+        borderBottomColor: theme.roles.light.borderDefault,
+    },
     moreRow: {
         paddingHorizontal: theme.spacing[5],
         paddingTop: theme.spacing[3],

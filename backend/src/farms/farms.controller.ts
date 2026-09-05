@@ -8,12 +8,14 @@ import {
   Body,
   Patch,
   Param,
+  Query,
   Delete,
   UseGuards,
 } from '@nestjs/common';
 import { FarmsService } from './farms.service';
 import { CreateFarmDto } from './dto/create-farm.dto';
 import { UpdateFarmDto } from './dto/update-farm.dto';
+import { RolePolicyDto } from './dto/role-policy.dto';
 @Controller('farms')
 export class FarmsController {
   constructor(private readonly farmsService: FarmsService) {}
@@ -37,8 +39,8 @@ export class FarmsController {
   }
 
   @Get()
-  findAll(@CurrentUser() user) {
-    return this.farmsService.findAll(user.id);
+  findAll(@CurrentUser() user, @Query('includeArchived') includeArchived?: string) {
+    return this.farmsService.findAll(user.id, includeArchived === 'true');
   }
 
   @Get(':id')
@@ -55,10 +57,49 @@ export class FarmsController {
     return this.farmsService.update(id, updateFarmDto);
   }
 
+  /**
+   * Archive / unarchive — the reversible half of farm lifecycle. Owner only;
+   * the service asserts it again (see setRolePolicy).
+   */
+  @Patch(':id/archive')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
+  archive(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.archive(id, user.id);
+  }
+
+  @Patch(':id/unarchive')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
+  unarchive(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.unarchive(id, user.id);
+  }
+
+  /**
+   * Hard-ish delete (soft tombstone). Refuses a farm with crop history —
+   * mirrors DELETE /ponds/:id. Archive is the action for a farm that has been
+   * used.
+   */
   @Delete(':id')
   @UseGuards(OwnershipGuard)
   @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
-  remove(@Param('id') id: string) {
-    return this.farmsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user) {
+    return this.farmsService.remove(id, user.id);
+  }
+
+  /**
+   * Per-role capability defaults for this farm — "my workers may record
+   * harvests". Owner only; the service asserts it again, because the guard is
+   * a declaration and the service is the enforcement.
+   */
+  @Patch(':id/role-policy')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Farm', 'id', 'userId', 'OWNER_ONLY')
+  setRolePolicy(
+    @Param('id') id: string,
+    @Body() dto: RolePolicyDto,
+    @CurrentUser() user,
+  ) {
+    return this.farmsService.setRolePolicy(id, user.id, dto.policy ?? null);
   }
 }

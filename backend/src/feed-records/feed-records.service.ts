@@ -64,12 +64,24 @@ export class FeedRecordsService {
     );
 
     // If inventory item selected, deduct stock (skip for fasting days).
+    // WRITE_OPERATIONAL, not MANAGE_INVENTORY: a worker logging a feeding is
+    // consuming stock, not managing the catalogue. `expectedFarmId` refuses an
+    // item from another farm, so a feed log on this pond can only draw down
+    // this pond's farm's stock.
     const shouldDeduct = !!createDto.inventoryItemId && !createDto.isFasting;
     if (shouldDeduct) {
       await this.inventoryService.adjustStock(
         createDto.inventoryItemId!,
         -createDto.quantityKg,
         userId,
+        {
+          capability: 'WRITE_OPERATIONAL',
+          expectedFarmId: pond.farmId,
+          reason: 'Feed log',
+          // Only known here when the client minted an idempotency-key id
+          // up front — a DB-generated id doesn't exist until save() below.
+          feedRecordId: createDto.id,
+        },
       );
     }
 
@@ -77,6 +89,10 @@ export class FeedRecordsService {
       id: createDto.id,
       pondId: createDto.pondId,
       cropId: pond.activeCycleId,
+      // Client-supplied feeding time wins; omitted → column default (now).
+      recordedAt: createDto.recordedAt
+        ? new Date(createDto.recordedAt)
+        : undefined,
       feedType: createDto.feedType,
       feedBrand: createDto.feedBrand,
       quantityKg: createDto.quantityKg,
@@ -104,6 +120,12 @@ export class FeedRecordsService {
           createDto.inventoryItemId!,
           createDto.quantityKg,
           userId,
+          {
+            capability: 'WRITE_OPERATIONAL',
+            expectedFarmId: pond.farmId,
+            reason: 'Feed log failed',
+            feedRecordId: createDto.id,
+          },
         );
       }
       throw err;
@@ -198,14 +220,25 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         delta,
         userId,
+        {
+          capability: 'WRITE_OPERATIONAL',
+          reason: 'Feed log edited',
+          feedRecordId: id,
+        },
       );
     }
 
     // isFasting / id are not persisted columns — strip them before the update
     // (id would otherwise reassign the primary key).
-    const { isFasting: _isFasting, id: _id, ...columns } = updateDto;
+    const {
+      isFasting: _isFasting,
+      id: _id,
+      recordedAt,
+      ...columns
+    } = updateDto;
     await this.recordsRepository.update(id, {
       ...columns,
+      ...(recordedAt ? { recordedAt: new Date(recordedAt) } : {}),
       ...(userId ? { updatedById: userId } : {}),
     });
     return this.findOne(id);
@@ -221,6 +254,11 @@ export class FeedRecordsService {
         existing.inventoryItemId,
         Number(existing.quantityKg),
         userId,
+        {
+          capability: 'WRITE_OPERATIONAL',
+          reason: 'Feed log deleted',
+          feedRecordId: id,
+        },
       );
     }
     return { message: 'Feed record deleted successfully' };

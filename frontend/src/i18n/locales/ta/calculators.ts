@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'குளப் பரப்பளவு ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'எ.கா. 500000',
+    phDecimal: '0.0',
+    phDaysOfCulture: 'எ.கா. 120',
+    phFinalMbw: 'எ.கா. 25.0',
+    phFinalSr: 'எ.கா. 85',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'விகிதம் (% BW)',
     errorMbw: 'MBW ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorSr: 'உயிர்வாழ்வு விகிதம் 0 முதல் 100 க்கு இடையே இருக்க வேண்டும்',
-    errorCount: 'ஆரம்ப எண்ணிக்கை ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
-    errorFeedingRate: 'தீவன விகிதம் ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
+    errorCount: 'கையிருப்பு எண்ணிக்கை 1 முதல் 100,000,000 க்கு இடையே இருக்க வேண்டும்.',
+    errorFeedingRate: 'தீவன விகிதம் 0 முதல் 100% க்கு இடையே இருக்க வேண்டும்.',
     errorBiomassZero: 'கணக்கிடப்பட்ட உயிரி நிறை பூஜ்யம் அல்லது எதிர்மறையாக உள்ளது. உள்ளீடுகளை சரிபார்க்கவும்.',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "ஒரு வேளைக்கு கிகி",
     meals: "வேளைகள்",
     logThisAmount: "{{kg}} கிகி பதிவு செய்",
+
+    // placeholders (QA BUG-013)
+    phMbw: '18.4',
+    phSr: '78',
+    phCount: '28700',
+    phFeedingRate: '3.2',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'குள கொள்ளளவு',
     requiredAmount: 'தேவையான பொருள் அளவு',
     withConcentration: '{{conc}}% செறிவுடன்:',
+    activeIngredientBasis: '100% தீவிர-மூலப்பொருள் அடிப்படையில்:',
     errorArea: 'குளப் பரப்பளவு ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorDepth: 'நீர் ஆழம் ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorPpm: 'இலக்கு ppm ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorConc: 'செறிவு 0 முதல் 100 க்கு இடையே இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'எ.கா. 5000',
+    phWaterDepth: 'எ.கா. 1.2',
+    phTargetConc: 'எ.கா. 5.0',
+    phProductConc: 'எ.கா. 100 (இயல்பு)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'வெப்பநிலை (°C)',
     labelSalinity: 'உப்புத்தன்மை (ppt)',
-    hintSalinity: 'குறிப்புக்கு மட்டும்',
+    hintSalinity: 'முடிவை பாதிக்கிறது — நன்னீர் குளங்களுக்கு 0 என உள்ளிடவும்',
     calculateBtn: 'NH₃ கணக்கிடு',
     resultLabel: 'சுதந்திர அம்மோனியா (NH₃)',
     serverSuffix: ' (சேவையகம்)',
     toxicityTitle: 'நச்சு அளவீடு',
     safeLabel: 'பாதுகாப்பான',
-    safeMessage: 'NH₃ அளவுகள் பாதுகாப்பான வரம்பில் உள்ளன (< 0.1 ppm). நடவடிக்கை தேவையில்லை.',
+    safeMessage: 'NH₃ அளவுகள் பாதுகாப்பான வரம்பில் உள்ளன (0.1 ppm-க்கும் குறைவு). நடவடிக்கை தேவையில்லை.',
     warningLabel: 'எச்சரிக்கை',
     warningMessage: 'NH₃ அளவுகள் உயர்ந்துள்ளன (0.1–0.5 ppm). தீவனம் குறைக்கவும் அல்லது பகுதி நீர் மாற்றவும்.',
     criticalLabel: 'அவசரம்',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorPh: 'pH 0 முதல் 14 க்கு இடையே இருக்க வேண்டும்',
     errorTemp: 'வெப்பநிலை ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
+    errorSalinity: 'உப்புத்தன்மை சரியான எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'சுதந்திர அம்மோனியாவை கணக்கிட முடியவில்லை',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'எ.கா. 1.5',
+    phPh: 'எ.கா. 8.2',
+    phTemp: 'எ.கா. 29',
+    phSalinity: 'எ.கா. 15',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'சராசரி எடை ஒரு நேர்மறை எண்ணாக இருக்க வேண்டும்',
     errorCalc: 'கணக்கீடு தோல்வியடைந்தது',
     validationTitle: 'சரிபார்ப்பு பிழை',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'எ.கா. 500000',
+    phSurvivalRate: 'எ.கா. 80',
+    phTargetWeight: 'எ.கா. 20',
+    phCurrentWeight: 'எ.கா. 5.0',
+    phAdg: 'எ.கா. 0.2',
+    phDaysToProject: 'எ.கா. 30',
+    phStockCount: 'எ.கா. 400000',
+    phAverageWeight: 'எ.கா. 12.5',
+    phAverageWeightRfr: 'எ.கா. 8.0',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

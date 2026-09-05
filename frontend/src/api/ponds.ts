@@ -71,6 +71,7 @@ export const pondsApi = {
     update: (id: string, data: UpdatePondDto) => apiClient.patch<Pond>(`/ponds/${id}`, data),
 
     archive: (id: string) => apiClient.patch(`/ponds/${id}/archive`),
+    unarchive: (id: string) => apiClient.patch(`/ponds/${id}/unarchive`),
 
     delete: (id: string) => apiClient.delete(`/ponds/${id}`),
 

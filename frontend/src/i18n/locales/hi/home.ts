@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, आहार, अमोनिया गणनाएं',
   moreSimulations: 'सिमुलेशन',
   moreSimulationsDesc: 'वृद्धि सिमुलेशन चलाएं',
-  moreReports: 'रिपोर्ट',
   moreReportsDesc: 'चक्र विश्लेषण और वित्तीय',
   moreDiseaseEncyclopedia: 'रोग विश्वकोश',
   moreDiseaseEncyclopediaDesc: 'रोग पुस्तकालय ब्राउज़ और खोजें',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ऐप संस्करण और श्रेय',
 
   // ReportsScreen
-  reportsTitle: 'रिपोर्ट',
   reportsSelectFarm: 'फार्म चुनें',
   reportsOverview: 'अवलोकन',
   reportsFinancialSummary: 'वित्तीय सारांश',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'दैनिक रीडिंग दर्ज करने के लिए फ़ार्म और तालाब बनाएँ।',
   quickLogCreateFarm: 'फ़ार्म बनाएँ',
   quickLogOpenPond: 'तालाब खोलें',
+  quickLogNoCycle: 'इस तालाब में कोई साइकिल नहीं चल रही',
+  quickLogNoCycleSub:
+    'फ़ीड, सैंपलिंग और माप साइकिल के हिसाब से गिने जाते हैं। साइकिल शुरू करें ताकि इस तालाब का FCR, बढ़ोतरी और मुनाफ़ा सही जुड़े।',
+  quickLogStartCycle: 'साइकिल शुरू करें',
+  quickLogNeedsCycle: 'साइकिल चाहिए',
   farmerFallback: 'किसान',
   onboarding_languagePrompt: 'अपनी भाषा चुनें',
   onboarding_title: 'Upcheck में आपका स्वागत है',
@@ -211,6 +214,9 @@ const home = {
   hideChecklistTitle: "सेटअप सूची छिपाएँ?",
   hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",
   hideChecklistConfirm: "हमेशा के लिए छिपाएँ",
+
+  logProgressTitle: "लॉग प्रगति",
+  logProgressOutstanding: "अभी लॉग करना बाकी",
 };
 
 export default home;

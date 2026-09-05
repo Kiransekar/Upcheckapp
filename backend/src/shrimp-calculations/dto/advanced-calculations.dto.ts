@@ -1,4 +1,4 @@
-import { IsNumber, Min, IsOptional } from 'class-validator';
+import { IsNumber, Min, Max, IsOptional } from 'class-validator';
 
 export class CultivationPerformanceDto {
   @IsNumber()
@@ -29,6 +29,7 @@ export class FreeAmmoniaDto {
 
   @IsNumber()
   @Min(0)
+  @Max(14)
   ph: number;
 
   @IsNumber()

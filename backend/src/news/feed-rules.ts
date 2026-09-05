@@ -43,6 +43,20 @@ export type NewsStatus = (typeof NEWS_STATUSES)[number];
 export const MAX_SUMMARY_CHARS = 300;
 
 /**
+ * How recent "current" means for the default News listing. Shrimp market
+ * and regulatory news moves on a weeks-to-months cadence, not a daily one —
+ * Global Seafood Alliance's own feed regularly runs six weeks between
+ * shrimp-relevant posts — so a farmer's "current" window has to be generous
+ * enough to hold that, not just yesterday's items. What it must never hold
+ * is the years-old backlog: nine rows with a newest `published_at` of
+ * 2020-12-15 is what put a six-year-old recipe on the News page to begin
+ * with. `news.service.ts` filters the default listing to this window and
+ * reports whether it found anything, rather than quietly serving whatever
+ * is oldest in the table.
+ */
+export const NEWS_FRESH_WINDOW_DAYS = 45;
+
+/**
  * Below this an item is dropped. Most aquaculture feeds are majority salmon
  * and whitefish; without a threshold an Indian shrimp farmer's feed fills
  * with Norwegian salmon news and the feature dies of irrelevance.
@@ -69,6 +83,23 @@ const AQUA_TERMS =
 const OFF_TOPIC_TERMS =
   /\b(salmon|salmonid|trout|tilapia|cod|haddock|pollock|norway|norwegian|scottish|chile[an]?)\b/gi;
 
+/**
+ * Recipe and cooking vocabulary. MPEDA — our only active source — publishes
+ * recipe pages ("Shrimp Ghee Pepper Roast") on the exact same feed as trade
+ * notices and lab advisories, so source weight cannot be what tells them
+ * apart; only the words in the item can. A recipe must not merely rank below
+ * a disease alert, it must never clear the display threshold at all — see
+ * the early return in {@link scoreRelevance} below.
+ *
+ * Recipe titles also tend to pluralise the species casually ("Shrimps Fry",
+ * "Prawns Newburg") where trade/regulatory prose treats it as an invariant
+ * mass noun ("Shrimp exports", "Shrimp farmers") — so the bare plural is
+ * itself food-content evidence, not a species match (SPECIES_TERMS above is
+ * deliberately singular-only).
+ */
+const FOOD_TERMS =
+  /\b(recipes?|roast(?:ed)?|skewers?|curr(?:y|ies)|fry|fried|grill(?:ed)?|marinad(?:e|ed)|salads?|pasta|sauces?|cooking|cooks?|dish(?:es)?|serves?|served|tbsp|tsp|teaspoons?|tablespoons?|ingredients?|shrimps|prawns)\b/gi;
+
 const countMatches = (text: string, re: RegExp): number =>
   (text.match(re) ?? []).length;
 
@@ -83,6 +114,10 @@ const countMatches = (text: string, re: RegExp): number =>
  */
 export const scoreRelevance = (text: string, sourceWeight = 50): number => {
   const t = text ?? '';
+  // A farmer opening a disease-risk feed must never see cooking — this beats
+  // even the biggest source-weight bias, so it is checked before anything
+  // else is computed.
+  if (countMatches(t, FOOD_TERMS) > 0) return 0;
   const positive =
     Math.min(countMatches(t, SPECIES_TERMS), 2) * 25 +
     Math.min(countMatches(t, INDIA_TERMS), 2) * 20 +

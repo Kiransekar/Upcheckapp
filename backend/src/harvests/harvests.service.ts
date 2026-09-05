@@ -6,6 +6,30 @@ import { CreateHarvestDto } from './dto/create-harvest.dto';
 import { UpdateHarvestDto } from './dto/update-harvest.dto';
 import { CropsService } from '../crops/crops.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { toIstDateString } from '../common/ist-date';
+
+/**
+ * A harvest sale, projected into the shape the Money tab's entry list renders.
+ *
+ * `id` is deliberately NOT a transaction id — it is prefixed, and `source` says
+ * what it is — so the UI cannot offer edit/delete on a row that has no
+ * transaction behind it.
+ */
+export interface HarvestMoneyEntry {
+  id: string;
+  source: 'harvest';
+  farmId: string;
+  transactionDate: string;
+  type: 'income';
+  category: string;
+  amount: number;
+  description: string;
+  buyerName?: string;
+  weightKg?: number;
+}
+
+const asDateString = (d: unknown): string =>
+  typeof d === 'string' ? d.slice(0, 10) : toIstDateString(new Date(d as any));
 
 @Injectable()
 export class HarvestsService {
@@ -30,13 +54,29 @@ export class HarvestsService {
         await this.farmAccess.assertCanAccessPond(
           userId,
           existing.crop.pondId,
-          'WRITE_MANAGEMENT',
+          'RECORD_HARVEST',
         );
         return existing;
       }
     }
 
-    const harvest = this.harvestsRepository.create(createDto);
+    // A harvest closes a cycle and books revenue — it is not a pH reading, and
+    // it does not ride WRITE_OPERATIONAL. Owner/manager by default; an owner
+    // can grant it to a role or to one person (roleSatisfies resolves both).
+    const crop = await this.cropsService.findOneAccessible(
+      createDto.cropId,
+      userId,
+    );
+    await this.farmAccess.assertCanAccessPond(
+      userId,
+      crop.pondId,
+      'RECORD_HARVEST',
+    );
+
+    const harvest = this.harvestsRepository.create({
+      ...createDto,
+      createdById: userId,
+    });
     const savedHarvest = await this.harvestsRepository.save(harvest);
 
     if (createDto.harvestType === 'full') {
@@ -50,22 +90,121 @@ export class HarvestsService {
     return savedHarvest;
   }
 
-  async findAll(userId: string, cropId?: string) {
+  /**
+   * `pondId` gives a pond's CONTINUOUS harvest history — every harvest across
+   * every crop cycle it has ever run. `cropId` cannot express that: harvests
+   * hang off a crop, and a pond gets a new crop each cycle, so a farmer asking
+   * "what has this pond produced?" previously had to be asked back "which of
+   * your cycles?" — or, in the app, was shown every harvest on every farm.
+   */
+  async findAll(userId: string, cropId?: string, pondId?: string) {
     // Scope to farms the caller can access — cropId alone is an optional
     // filter, never the ownership boundary (was leaking every farm's harvests,
     // including sale prices, when omitted).
     const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
     if (farmIds.length === 0) return [];
 
+    // A worker restricted to specific ponds must not see the whole farm's
+    // harvests just because the row hangs off a crop rather than a pond.
+    const pondIds = (
+      await Promise.all(
+        farmIds.map((farmId) =>
+          this.farmAccess.getAccessiblePondIds(userId, farmId),
+        ),
+      )
+    ).flat();
+    if (pondIds.length === 0) return [];
+
     const qb = this.harvestsRepository
       .createQueryBuilder('harvest')
       .innerJoin('harvest.crop', 'crop')
       .innerJoin('crop.pond', 'pond')
+      .addSelect('pond.farmId', 'row_farm_id')
       .where('pond.farmId IN (:...farmIds)', { farmIds })
+      .andWhere('crop.pondId IN (:...pondIds)', { pondIds })
       .orderBy('harvest.harvestDate', 'DESC');
     if (cropId) qb.andWhere('harvest.cropId = :cropId', { cropId });
+    // Filters WITHIN the pond scope established above — never widens it.
+    if (pondId) qb.andWhere('crop.pondId = :pondId', { pondId });
     // ponytail: bounded cap to avoid an unbounded payload; paginate if needed.
-    return qb.take(500).getMany();
+    const { entities, raw } = await qb.take(500).getRawAndEntities();
+
+    // A sale price is a financial. This list is an operational history (what
+    // came out of this pond), so it stays readable by every member — but the
+    // money on it is masked per farm unless the caller holds VIEW_FINANCIALS
+    // there, matching `findMoneyEntries`. Masking beats dropping the row: the
+    // worker still gets their harvest weights.
+    const financialFarmIds = new Set(
+      await this.farmAccess.getFarmIdsWithCapability(userId, 'VIEW_FINANCIALS'),
+    );
+    return entities.map((h, i) =>
+      financialFarmIds.has(raw[i]?.row_farm_id)
+        ? h
+        : ({ ...h, salePriceTotal: null, buyerName: null } as Harvest),
+    );
+  }
+
+  /**
+   * Harvest sales as Money-tab line items — READ-ONLY projections, not rows.
+   *
+   * Reported as "after giving a harvest with some profit, that profit is not
+   * shown in the money tab". It WAS in the headline: `getFinancialReport` sums
+   * every harvest's `salePriceTotal` into revenue. What was missing is a line
+   * the farmer can point at — the entry list under the hero renders the
+   * `transactions` table only, and a harvest never writes one.
+   *
+   * The fix is emphatically NOT to write a Transaction when a harvest is
+   * created: `getFinancialReport` sums harvest sale prices AND the transactions
+   * table, so that would double-count every harvest in revenue and profit.
+   * Merging at read time keeps one source of truth per number.
+   *
+   * Scoped to VIEW_FINANCIALS farms — a sale price is a financial, and this is
+   * narrower than `findAll`'s merely-accessible scoping on purpose. It matches
+   * `transactionsService.findAll`, whose output these rows are merged with.
+   */
+  async findMoneyEntries(userId: string): Promise<HarvestMoneyEntry[]> {
+    const farmIds = await this.farmAccess.getFarmIdsWithCapability(
+      userId,
+      'VIEW_FINANCIALS',
+    );
+    if (farmIds.length === 0) return [];
+
+    const rows = await this.harvestsRepository
+      .createQueryBuilder('harvest')
+      .innerJoin('harvest.crop', 'crop')
+      .innerJoin('crop.pond', 'pond')
+      .where('pond.farmId IN (:...farmIds)', { farmIds })
+      // A harvest logged with no sale price yet is NOT ₹0 of revenue — it is a
+      // sale that has not happened. It contributes nothing to the report's
+      // revenue either, so listing it would put a line item on screen that the
+      // total above it does not contain. Same for a zero.
+      .andWhere('harvest.salePriceTotal IS NOT NULL')
+      .andWhere('harvest.salePriceTotal > 0')
+      .select('harvest.id', 'id')
+      .addSelect('harvest.harvestDate', 'harvestDate')
+      .addSelect('harvest.salePriceTotal', 'salePriceTotal')
+      .addSelect('harvest.weightKg', 'weightKg')
+      .addSelect('harvest.buyerName', 'buyerName')
+      .addSelect('pond.farmId', 'farmId')
+      .addSelect('pond.name', 'pondName')
+      .addSelect('crop.name', 'cropName')
+      .orderBy('harvest.harvestDate', 'DESC')
+      // ponytail: same bounded cap as findAll; paginate if a farm ever needs it.
+      .take(500)
+      .getRawMany<Record<string, any>>();
+
+    return rows.map((r) => ({
+      id: `harvest:${r.id}`,
+      source: 'harvest' as const,
+      farmId: r.farmId,
+      transactionDate: asDateString(r.harvestDate),
+      type: 'income' as const,
+      category: 'Harvest',
+      description: [r.pondName, r.cropName].filter(Boolean).join(' · '),
+      amount: Number(r.salePriceTotal) || 0,
+      buyerName: r.buyerName ?? undefined,
+      weightKg: r.weightKg == null ? undefined : Number(r.weightKg),
+    }));
   }
 
   async findOne(id: string): Promise<Harvest> {
@@ -76,14 +215,41 @@ export class HarvestsService {
     return harvest;
   }
 
-  async update(id: string, dto: UpdateHarvestDto): Promise<Harvest> {
-    await this.findOne(id);
-    await this.harvestsRepository.update(id, dto);
+  /**
+   * Load a harvest and prove the caller may record harvests on its pond.
+   *
+   * The route guard says the same thing, but the service is where it is
+   * enforced: `update`/`remove` are also reachable from other services, and a
+   * guard on the HTTP layer proves nothing about those.
+   */
+  private async assertCanRecord(id: string, userId: string): Promise<Harvest> {
+    const harvest = await this.harvestsRepository.findOne({
+      where: { id },
+      relations: ['crop'],
+    });
+    if (!harvest) {
+      throw new NotFoundException(`Harvest with ID ${id} not found`);
+    }
+    await this.farmAccess.assertCanAccessPond(
+      userId,
+      harvest.crop.pondId,
+      'RECORD_HARVEST',
+    );
+    return harvest;
+  }
+
+  async update(
+    id: string,
+    dto: UpdateHarvestDto,
+    userId: string,
+  ): Promise<Harvest> {
+    await this.assertCanRecord(id, userId);
+    await this.harvestsRepository.update(id, { ...dto, updatedById: userId });
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    await this.findOne(id);
+  async remove(id: string, userId: string): Promise<{ message: string }> {
+    await this.assertCanRecord(id, userId);
     await this.harvestsRepository.delete(id);
     return { message: 'Harvest deleted successfully' };
   }

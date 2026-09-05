@@ -124,5 +124,55 @@ const ponds = {
   fieldSurveyedArea: "సర్వే చేసిన విస్తీర్ణం (m²)",
   surveyedDifferent: "సర్వే విస్తీర్ణం వేరుగా ఉంది",
   surveyedDifferentSub: "లెక్కించిన విస్తీర్ణాన్ని మార్చండి",
+
+  sessionHintLogged: "నమోదైంది",
+  sessionHintFed: "మేత ఇచ్చారు",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ఈ రోజు ఈ చెరువులో",
+  todayEmpty: "ఈ రోజు ఇంకా ఏమీ నమోదు కాలేదు.",
+  modeHintLog: "కొత్త నమోదు చేయడానికి కార్డును నొక్కండి",
+  modeHintHistory: "పాత నమోదులు చూడటానికి కార్డును నొక్కండి",
+  tileDone: "ఈ సెషన్‌లో పూర్తయింది",
+  tilePending: "ఇంకా పూర్తి కాలేదు",
+  tileNeedsCycle: "సైకిల్ కావాలి",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "డబ్బు — ముగిసిన సైకిల్",
+  metricRevenue: "ఆదాయం",
+  metricProfit: "లాభం",
+  metricLoss: "నష్టం",
+  metricMargin: "మార్జిన్",
+
+  // Archive and delete — spec §4.1
+  managePond: "చెరువు నిర్వహణ",
+  archivePond: "చెరువును ఆర్కైవ్ చేయి",
+  deletePond: "చెరువును తొలగించు",
+  archiveConfirmTitle: "ఈ చెరువును ఆర్కైవ్ చేయాలా?",
+  archiveConfirmBody: "ఇది చెరువుల జాబితా నుండి, అన్ని మొత్తాల నుండి తొలగిపోతుంది; ఆర్కైవ్‌లో ఉన్నంత వరకు దీనిలో స్టాకింగ్ చేయలేరు. దీని రికార్డులన్నీ అలాగే ఉంటాయి.",
+  archiveConfirmCta: "ఆర్కైవ్ చేయి",
+  deleteConfirmTitle: "ఈ చెరువును తొలగించాలా?",
+  deleteConfirmBody: "చెరువు శాశ్వతంగా పోతుంది. దీన్ని వెనక్కి తీసుకోలేరు.",
+  deleteConfirmCta: "తొలగించు",
+  deleteBlockedTitle: "ఈ చెరువులో సైకిల్ రికార్డులు ఉన్నాయి",
+  deleteBlockedBody: "అందుకే దీన్ని తొలగించలేరు — అదే మీ రికార్డులను కాపాడుతుంది. బదులుగా ఆర్కైవ్ చేయండి: ఇది జాబితా నుండి తొలగుతుంది, కానీ ప్రతి రికార్డు ఉంటుంది.",
+  manageNeedsCycleEnd: "సైకిల్ నడుస్తున్న చెరువును ఆర్కైవ్ చేయలేరు, తొలగించలేరు. ముందు సైకిల్‌ను ముగించండి.",
+  errorArchivePond: "చెరువును ఆర్కైవ్ చేయలేకపోయాం.",
+  unarchivePond: "తిరిగి తీసుకురా",
+  unarchiveConfirmTitle: "ఈ చెరువును తిరిగి తీసుకురావాలా?",
+  unarchiveConfirmBody: "ఇది మీ చెరువుల జాబితాలోకి తిరిగి వచ్చి, ఫారం మొత్తాల్లో మళ్ళీ లెక్కలోకి వస్తుంది.",
+  unarchiveConfirmCta: "తిరిగి తీసుకురా",
+  errorUnarchivePond: "చెరువును తిరిగి తీసుకురాలేకపోయాం.",
+  errorArchiveActiveCycle: "ఈ చెరువులో సైకిల్ నడుస్తోంది, కాబట్టి ఆర్కైవ్ చేయలేరు. ముందు సైకిల్‌ను ముగించండి.",
+  errorDeletePond: "చెరువును తొలగించలేకపోయాం.",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "చివరి లాగ్ {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "లాగ్ {{age}} క్రితం",
+  ageFed: "మేత {{age}} క్రితం",
+  ageNeverLogged: "ఎప్పుడూ లాగ్ కాలేదు",
+  ageNeverFed: "ఎప్పుడూ మేత వేయలేదు",
 };
 export default ponds;

@@ -9,7 +9,7 @@
  * Cost of that: three list-wide calls plus one batched pond-context call per
  * farm, instead of the twenty-odd per-pond calls the same data used to imply.
  */
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
+    Alert,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -30,6 +31,12 @@ import { Icon } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { confirm } from '../../utils/confirm';
+import { apiErrorMessage } from '../../api/errors';
+import { roleCan } from '../../permissions/capabilities';
 import { theme } from '../../theme';
 import { farmsApi, type Farm } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
@@ -45,13 +52,17 @@ import {
     HEALTH_COLOR,
     type FarmRollup,
     type PondHealth,
+    type PondWithHealth,
 } from '../../utils/pondHealth';
+import { FarmAgeHint } from '../../components/ui/SessionHint';
 import type { FarmRole } from '../../api/farmMembers';
 
 interface FarmCardData {
     farm: Farm;
     role: FarmRole | null;
     roll: FarmRollup;
+    /** This farm's ponds — the compact age hint reads the worst of them. */
+    rows: PondWithHealth[];
 }
 
 /** 1,234 — thousands separators, because biomass is read at a glance. */
@@ -61,6 +72,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
     const roleForFarm = useMembershipStore((s) => s.roleForFarm);
     const loadMemberships = useMembershipStore((s) => s.load);
+    const grantForFarm = useMembershipStore((s) => s.grantForFarm);
+    /** Off by default — archived farms are out of sight until asked for. */
+    const [includeArchived, setIncludeArchived] = useState(false);
 
     /**
      * The farm list — the only fatal call, and the only thing the first paint
@@ -72,6 +86,41 @@ export const FarmsListScreen = ({ navigation }: any) => {
         queryFn: async () => (await farmsApi.getAll()).data,
     });
     const farms = query.data ?? [];
+
+    /**
+     * Archived farms, on their own query and only when asked for. Kept out of
+     * `farms` on purpose: every roll-up, total and eyebrow on this screen reads
+     * that array, and an archived farm belongs in none of them.
+     */
+    const archivedQuery = useAppQuery({
+        queryKey: [...qk.farms(), 'archived'],
+        enabled: includeArchived,
+        queryFn: async () =>
+            (await farmsApi.getAll({ includeArchived: true })).data.filter((f) => !!f.archivedAt),
+    });
+    const archivedFarms = archivedQuery.data ?? [];
+
+    /** Unarchive is OWNER_ONLY, the same capability the server guards it with. */
+    const canOwnerOn = (farmId: string) => {
+        const { role, overrides, policy } = grantForFarm(farmId);
+        return roleCan(role, 'OWNER_ONLY', overrides, policy);
+    };
+
+    const onUnarchive = async (farm: Farm) => {
+        const ok = await confirm({
+            title: t('farms.unarchiveConfirmTitle'),
+            message: t('farms.unarchiveConfirmBody'),
+            confirmLabel: t('farms.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        try {
+            await farmsApi.unarchive(farm.id);
+            await Promise.all([query.refetch(), archivedQuery.refetch()]);
+        } catch (e) {
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('farms.errorUnarchiveFarm')));
+        }
+    };
 
     /**
      * The figures. Kept a SEPARATE query on purpose: waiting for all of them
@@ -133,13 +182,29 @@ export const FarmsListScreen = ({ navigation }: any) => {
     );
 
     const cards: FarmCardData[] = useMemo(() => {
-        const rows = buildPondRows(ponds, contexts, briefing);
-        return farms.map((farm) => ({
-            farm,
-            role: roleForFarm(farm.id),
-            roll: rollUpFarm(rows.filter((r) => r.pond.farmId === farm.id)),
-        }));
+        // A stable clock: taken once per memo run, not once per pond, so a
+        // re-render mid-second cannot flip one pond's bar and not another's.
+        const now = new Date();
+        const rows = buildPondRows(ponds, contexts, briefing, now);
+        return farms.map((farm) => {
+            const mine = rows.filter((r) => r.pond.farmId === farm.id);
+            return { farm, role: roleForFarm(farm.id), roll: rollUpFarm(mine), rows: mine };
+        });
     }, [farms, ponds, contexts, briefing, roleForFarm]);
+
+    const totals = useMemo(() => {
+        const actNow = cards.reduce((a, c) => a + c.roll.actNow, 0);
+        const stale = cards.reduce((a, c) => a + c.roll.stale, 0);
+        const farmsAffected = cards.filter((c) => c.roll.actNow > 0).length;
+        const biomassCards = cards.filter((c) => c.roll.biomassKg != null);
+        const biomass = biomassCards.reduce((a, c) => a + (c.roll.biomassKg ?? 0), 0);
+        return {
+            actNow,
+            stale,
+            farmsAffected,
+            biomassKg: biomassCards.length ? biomass : null,
+        };
+    }, [cards]);
 
     /** "3 farms · 24 ponds · 31.6 ha" — the eyebrow above the title. */
     const eyebrow = useMemo(() => {
@@ -150,20 +215,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
             t('farms.countPonds', { count: ponds.length }),
         ];
         if (area > 0) parts.push(t('farms.countHectares', { area: area.toFixed(1) }));
+        if (totals.stale > 0) parts.push(t('farms.notUpdatedCount', { count: totals.stale }));
         return parts.join(' · ');
-    }, [farms, ponds.length, t]);
-
-    const totals = useMemo(() => {
-        const actNow = cards.reduce((a, c) => a + c.roll.actNow, 0);
-        const farmsAffected = cards.filter((c) => c.roll.actNow > 0).length;
-        const biomassCards = cards.filter((c) => c.roll.biomassKg != null);
-        const biomass = biomassCards.reduce((a, c) => a + (c.roll.biomassKg ?? 0), 0);
-        return {
-            actNow,
-            farmsAffected,
-            biomassKg: biomassCards.length ? biomass : null,
-        };
-    }, [cards]);
+    }, [farms, ponds.length, totals, t]);
 
     const openFarm = (farm: Farm) =>
         navigation.navigate('FarmDetail', { farmId: farm.id, farmName: farm.name });
@@ -278,6 +332,57 @@ export const FarmsListScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     </>
                 )}
+
+                {/* Archived farms. Off by default and visually muted, so the
+                    list above is only the farms being worked. */}
+                <View style={styles.archivedBlock}>
+                    <ChipGroup
+                        options={[{ value: 'archived', label: t('farms.includeArchived'), icon: 'archive-outline' }]}
+                        value={includeArchived ? ['archived'] : []}
+                        multiple
+                        onChange={(v: string[]) => setIncludeArchived(v.includes('archived'))}
+                    />
+                    {includeArchived && (
+                        archivedQuery.isPending ? (
+                            <SkeletonList count={2} />
+                        ) : archivedQuery.isError ? (
+                            <ErrorState
+                                title={t('farms.errorTitle')}
+                                error={archivedQuery.error}
+                                onRetry={() => archivedQuery.refetch()}
+                            />
+                        ) : !archivedFarms.length ? (
+                            <Text style={styles.mutedNote}>{t('farms.archivedFarmsEmpty')}</Text>
+                        ) : (
+                            <>
+                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedFarms.length} />
+                                {archivedFarms.map((farm) => (
+                                    <View key={farm.id} style={styles.archivedRow}>
+                                        <TouchableOpacity
+                                            style={styles.archivedMain}
+                                            onPress={() => openFarm(farm)}
+                                            accessibilityRole="button"
+                                        >
+                                            <Text style={styles.archivedName} numberOfLines={1}>
+                                                {farm.name}
+                                            </Text>
+                                            <StatusBadge status="idle" label={t('farms.archivedBadge')} />
+                                        </TouchableOpacity>
+                                        {canOwnerOn(farm.id) && (
+                                            <TouchableOpacity
+                                                onPress={() => onUnarchive(farm)}
+                                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                accessibilityRole="button"
+                                            >
+                                                <Text style={styles.unarchive}>{t('farms.unarchiveFarm')}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                ))}
+                            </>
+                        )
+                    )}
+                </View>
             </ScrollView>
         </ScreenWrapper>
     );
@@ -289,8 +394,9 @@ export const FarmsListScreen = ({ navigation }: any) => {
  */
 const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data, onPress }) => {
     const { t } = useTranslation();
-    const { farm, role, roll } = data;
-    const worst: PondHealth = roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : 'fine';
+    const { farm, role, roll, rows } = data;
+    const worst: PondHealth =
+        roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : roll.stale > 0 ? 'stale' : 'fine';
 
     const subtitle = [farm.address, role ? t(`members.role_${role}`) : null]
         .filter(Boolean)
@@ -304,12 +410,19 @@ const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data,
             ? { value: String(roll.actNow), label: t('farms.actNow'), tone: 'danger' as const }
             : roll.watch > 0
               ? { value: String(roll.watch), label: t('farms.watch'), tone: 'warning' as const }
-              : {
-                    value: t('farms.allFine'),
-                    label: t('farms.status'),
-                    tone: 'success' as const,
-                    text: true,
-                };
+              : roll.stale > 0
+                ? {
+                      // Never "All fine" while a pond is unaccounted for.
+                      value: String(roll.stale),
+                      label: t('farms.notUpdated'),
+                      tone: 'neutral' as const,
+                  }
+                : {
+                      value: t('farms.allFine'),
+                      label: t('farms.status'),
+                      tone: 'success' as const,
+                      text: true,
+                  };
 
     return (
         <TouchableOpacity
@@ -328,6 +441,11 @@ const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data,
                             {subtitle}
                         </Text>
                     )}
+                    {/* One line, worst pond first: "N not updated" said how many
+                        ponds were unaccounted for but never how long for, so a
+                        farm two days behind and one three weeks behind read the
+                        same. */}
+                    <FarmAgeHint rows={rows} />
                 </View>
                 <Icon name="chevron_right" size={22} color={theme.roles.light.textDisabled} />
             </View>
@@ -372,6 +490,7 @@ const Legend: React.FC = () => {
     const entries: [PondHealth, string][] = [
         ['critical', t('farms.actNow')],
         ['watch', t('farms.watch')],
+        ['stale', t('farms.notUpdated')],
         ['fine', t('farms.fine')],
         ['fallow', t('farms.fallow')],
     ];
@@ -390,6 +509,35 @@ const Legend: React.FC = () => {
 const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[24], backgroundColor: theme.roles.light.surface },
     skeleton: { padding: theme.spacing[4] },
+    archivedBlock: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[5] },
+    mutedNote: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        paddingBottom: theme.spacing[2],
+    },
+    archivedRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.surfaceVariant,
+        paddingVertical: theme.spacing[3],
+        minHeight: 44,
+    },
+    archivedMain: {
+        flex: 1,
+        minWidth: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+    },
+    archivedName: {
+        ...theme.typeScale.labelLarge,
+        fontSize: 15,
+        flexShrink: 1,
+        color: theme.roles.light.textTertiary,
+    },
+    unarchive: { ...theme.typeScale.labelMedium, color: theme.roles.light.textLink },
     card: {
         borderLeftWidth: 3,
         borderBottomWidth: 1,

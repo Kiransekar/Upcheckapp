@@ -58,7 +58,7 @@ export class CropsController {
 
   @Patch(':id/harvest')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
   harvest(
     @Param('id') id: string,
     @Body() harvestData: HarvestCropDto,
@@ -75,7 +75,7 @@ export class CropsController {
   }
   @Patch(':id/close')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource('Crop', 'id', 'pond.farm.userId', 'RECORD_HARVEST')
   closeCycle(
     @Param('id') id: string,
     @Body() body: { actualHarvestDate: string },

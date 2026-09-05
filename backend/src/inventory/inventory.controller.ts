@@ -12,6 +12,7 @@ import { InventoryService } from './inventory.service';
 import { CreateInventoryItemDto } from './dto/create-inventory-item.dto';
 import { UpdateInventoryItemDto } from './dto/update-inventory-item.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
+import { SetInventoryPairingDto } from './dto/set-inventory-pairing.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('inventory')
@@ -37,6 +38,17 @@ export class InventoryController {
     return this.inventoryService.getLowStock(farmId, user.id);
   }
 
+  @Get(':id/movements')
+  listMovements(@Param('id') id: string, @CurrentUser() user) {
+    return this.inventoryService.listMovements(id, user.id);
+  }
+
+  /** The expenses this item's purchases wrote. VIEW_FINANCIALS-gated per farm. */
+  @Get(':id/purchases')
+  listPurchases(@Param('id') id: string, @CurrentUser() user) {
+    return this.inventoryService.listPurchases(id, user.id);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user, @Param('id') id: string) {
     return this.inventoryService.findOne(id, user.id);
@@ -48,7 +60,17 @@ export class InventoryController {
     @Param('id') id: string,
     @Body() dto: AdjustStockDto,
   ) {
-    return this.inventoryService.adjustStock(id, dto.adjustment, user.id);
+    return this.inventoryService.adjustStock(id, dto.adjustment, user.id, {
+      reason: dto.reason,
+      capability: 'MANAGE_INVENTORY',
+      idempotencyKey: dto.idempotencyKey,
+      // `amount` present ⇒ purchase. The service owns every rule about it
+      // (positive-only, which farm is billed, whether that farm was
+      // authorized) so the route stays a pass-through.
+      ...(dto.amount !== undefined
+        ? { purchase: { amount: dto.amount, farmId: dto.billToFarmId } }
+        : {}),
+    });
   }
 
   @Patch(':id')
@@ -58,6 +80,17 @@ export class InventoryController {
     @Body() updateDto: UpdateInventoryItemDto,
   ) {
     return this.inventoryService.update(id, updateDto, user.id);
+  }
+
+  // farm-scoped, enforced in InventoryService.setPairing (asserts
+  // MANAGE_INVENTORY on both the old and new farm sets).
+  @Patch(':id/farms')
+  setPairing(
+    @CurrentUser() user,
+    @Param('id') id: string,
+    @Body() dto: SetInventoryPairingDto,
+  ) {
+    return this.inventoryService.setPairing(id, dto.farmIds, user.id);
   }
 
   @Delete(':id')

@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'इस कोड से नहीं जुड़ सके। कोड जांचें और फिर से प्रयास करें।',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "चरण {{current}} / {{total}}",
   languageTitle: "अपनी भाषा चुनें",
   welcomeTitle: "अपचेक में आपका स्वागत है",
   welcomeSubtitle: "आपके झींगा फ़ार्म का रोज़ का सहायक",

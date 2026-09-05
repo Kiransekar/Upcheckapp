@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'সেটিংস',
   tabDashboard: 'ড্যাশবোর্ড',
   tabFarms: 'খামার',
-  tabReports: 'প্রতিবেদন',
   tabMore: 'আরও',
   savedSuccess: 'সংরক্ষিত হয়েছে',
   networkError: 'সার্ভারে পৌঁছানো যাচ্ছে না। আপনার ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
@@ -63,5 +62,14 @@ const common = {
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "চালিয়ে যান",
+
+  // Asked before overwriting a record that already exists — see utils/confirm.ts
+  confirmEditTitle: "এই পরিবর্তনগুলি সংরক্ষণ করবেন?",
+  confirmEditMessage: "এটি আগে সংরক্ষিত তথ্য বদলে দেবে।",
+
+  ageJustNow: "<১ ঘ",
+  ageHours: "{{count}} ঘ",
+  ageDays: "{{count}} দি",
+  ageNever: "কখনও নয়",
 };
 export default common;

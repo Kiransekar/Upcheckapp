@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,12 +9,14 @@ import {
     ActivityIndicator,
     TextInput,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { theme } from '../../theme';
 import { diseaseApi, DiseaseLibrary } from '../../api/diseases';
+import { apiErrorMessage } from '../../api/errors';
 import { isFeatureEnabled } from '../../config/features';
 
 type Severity = 'low' | 'medium' | 'high';
@@ -41,16 +43,17 @@ export const DiseaseListScreen = ({ navigation }: any) => {
             setDiseases(data);
             setFilteredDiseases(data);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to load diseases');
+            setError(apiErrorMessage(err, 'Failed to load diseases'));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
     }, []);
 
-    useEffect(() => {
-        fetchDiseases();
-    }, [fetchDiseases]);
+    // React Navigation keeps this screen mounted, so a mount-only effect never
+    // re-ran on return — navigating away and back showed whatever was loaded
+    // the first time, including a disease detail edited/logged elsewhere.
+    useFocusEffect(useCallback(() => { fetchDiseases(); }, [fetchDiseases]));
 
     const handleRefresh = useCallback(() => {
         setIsRefreshing(true);
@@ -247,6 +250,7 @@ export const DiseaseListScreen = ({ navigation }: any) => {
             {renderSearchBar()}
             <FlatList
                 data={filteredDiseases}
+                keyboardShouldPersistTaps="handled"
                 keyExtractor={(item) => item.id}
                 renderItem={renderDiseaseItem}
                 ListEmptyComponent={renderEmpty}

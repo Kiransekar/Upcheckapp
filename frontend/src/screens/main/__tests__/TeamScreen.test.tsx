@@ -12,6 +12,7 @@ jest.mock('../../../api/leaveRequests', () => ({
     leaveRequestsApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/tasks', () => ({
+    ...jest.requireActual('../../../api/tasks'),
     tasksApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/farmMembers', () => ({
@@ -23,6 +24,12 @@ jest.mock('../../../api/farmMembers', () => ({
 // dedupe, rendering — so they drive the batched call directly.
 jest.mock('../../../api/teamOverview', () => ({
     fetchTeamOverview: jest.fn(),
+}));
+// Check-in from this tab goes through the same offline queue as the log
+// screens, so the test drives the queue rather than the HTTP client.
+jest.mock('../../../sync/recordSync', () => ({
+    saveRecord: jest.fn(),
+    drainRecordQueue: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@react-navigation/native', () => {
     const actual = jest.requireActual('@react-navigation/native');
@@ -36,6 +43,7 @@ jest.mock('@react-navigation/native', () => {
 });
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { TeamScreen } from '../TeamScreen';
@@ -45,6 +53,7 @@ import { leaveRequestsApi } from '../../../api/leaveRequests';
 import { tasksApi } from '../../../api/tasks';
 import { farmMembersApi } from '../../../api/farmMembers';
 import { fetchTeamOverview } from '../../../api/teamOverview';
+import { saveRecord } from '../../../sync/recordSync';
 import { useActiveFarmStore } from '../../../store/activeFarmStore';
 import { useMembershipStore } from '../../../store/membershipStore';
 import { useAuthStore } from '../../../store/authStore';
@@ -187,5 +196,88 @@ describe('TeamScreen — farm scope', () => {
         const { findByText } = renderScreen();
 
         expect(await findByText('No farms yet')).toBeTruthy();
+    });
+});
+
+// #6: the Attendance and Leave rows sat behind `canManageMembers`, so a worker
+// — the person whose attendance it is — had no route to either screen, and the
+// shift card only existed once you were already checked in.
+describe('TeamScreen — worker access to attendance and leave', () => {
+    beforeEach(() => {
+        useMembershipStore.setState({
+            memberships: [
+                { farmId: 'farm-1', role: 'worker', farm: FARM },
+                { farmId: 'farm-2', role: 'worker', farm: FARM_2 },
+            ],
+            loaded: true, loading: false,
+        } as any);
+        (saveRecord as jest.Mock).mockResolvedValue({ id: 'att-1', queued: false });
+        jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    });
+
+    it('shows a worker the attendance and leave rows and a check-in card', async () => {
+        const { findByText, queryByText } = renderScreen();
+
+        expect(await findByText('Attendance')).toBeTruthy();
+        expect(await findByText('Leave')).toBeTruthy();
+        expect(await findByText('Check in')).toBeTruthy();
+        // Roster management is still owner/manager work.
+        expect(queryByText('Manage team')).toBeNull();
+    });
+
+    it('checks the worker in on the farm they pick', async () => {
+        const { findByText, findByTestId } = renderScreen();
+
+        // Two farms, both eligible — so it asks rather than guessing.
+        fireEvent.press(await findByText('Check in'));
+        fireEvent.press(await findByTestId('farm-choice-farm-2'));
+
+        await waitFor(() =>
+            expect(saveRecord as jest.Mock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: 'attendance',
+                    endpoint: '/attendance/check-in',
+                    payload: { farmId: 'farm-2' },
+                }),
+            ),
+        );
+    });
+});
+
+// #7: Manage team, Attendance and Assign navigated with `farms[0]` — a farm the
+// farmer never chose — while the tab was showing every farm.
+describe('TeamScreen — farm-explicit actions in all-farms mode', () => {
+    it('asks which farm instead of navigating to farms[0]', async () => {
+        const { findByText } = renderScreen();
+
+        fireEvent.press(await findByText('Manage team'));
+
+        expect(await findByText('Which farm?')).toBeTruthy();
+        expect(navigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it('navigates to the farm that was chosen', async () => {
+        const { findByText, findByTestId } = renderScreen();
+
+        fireEvent.press(await findByText('Manage team'));
+        fireEvent.press(await findByTestId('farm-choice-farm-2'));
+
+        expect(navigation.navigate).toHaveBeenCalledWith('FarmMembers', {
+            farmId: 'farm-2',
+            farmName: 'Kakinada East',
+        });
+    });
+
+    it('does not ask when only one farm is in scope', async () => {
+        farmsInAccount = [FARM];
+        const { findByText, queryByText } = renderScreen();
+
+        fireEvent.press(await findByText('Manage team'));
+
+        expect(queryByText('Which farm?')).toBeNull();
+        expect(navigation.navigate).toHaveBeenCalledWith('FarmMembers', {
+            farmId: 'farm-1',
+            farmName: "Ravi's Farm",
+        });
     });
 });

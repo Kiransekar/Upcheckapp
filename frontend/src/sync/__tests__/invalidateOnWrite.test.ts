@@ -2,10 +2,22 @@
  * Freshness after the farmer's OWN write.
  *
  * The farmer complained once that they had to pull-to-refresh after logging
- * data. The fix routes through `saveRecord()` — the single choke point all
- * sixteen log screens use — so every screen inherits it without being touched.
- * These tests lock that in from both directions: the immediate POST, and the
- * queued op that lands later during a drain.
+ * data. The immediate-POST path is now covered by the axios response
+ * interceptor (src/api/client.ts), which invalidates on every successful
+ * write regardless of which screen or helper made the request — see
+ * src/api/__tests__/client.invalidate.test.ts (the interceptor's contract)
+ * and src/sync/__tests__/recordSync.freshness.test.ts (this exact scenario,
+ * end to end with the real apiClient). `saveRecord()` no longer invalidates
+ * on that path itself — see the comment on it — so this file, with
+ * `api/client` mocked out, cannot observe that call any more; that's
+ * intentional, not a regression.
+ *
+ * What THIS file still owns: the queued-op path. A write made offline must
+ * invalidate nothing until it actually lands (the interceptor never even ran,
+ * because no request went out), and `drainRecordQueue()` invalidates once it
+ * does — that call is still its own, direct, not the interceptor's, because a
+ * drain issues its request through `apiClient.request()` with a mocked
+ * `apiClient` here too.
  */
 jest.mock('expo-crypto', () => ({ randomUUID: () => 'fixed-uuid' }));
 jest.mock('../../api/client', () => ({
@@ -37,7 +49,7 @@ describe('a successful write invalidates the reads it could have changed', () =>
 
     afterEach(() => spy.mockRestore());
 
-    it('marks the pond, briefing and dashboard stale after an online POST', async () => {
+    it('does not invalidate directly on an online POST any more — the interceptor owns that now', async () => {
         mockedPost.mockResolvedValue({ data: { id: 'fixed-uuid' } });
 
         await saveRecord({
@@ -46,10 +58,11 @@ describe('a successful write invalidates the reads it could have changed', () =>
             payload: { pondId: 'p1', ph: 7.8 },
         });
 
-        const keys = invalidatedKeys(spy);
-        expect(keys).toContain('["pond"]');
-        expect(keys).toContain('["briefing"]');
-        expect(keys).toContain('["home"]');
+        // With `api/client` mocked here, the real response interceptor never
+        // runs — this pins that saveRecord() itself no longer duplicates its
+        // work. The actual invalidation is proven end to end in
+        // recordSync.freshness.test.ts, against the real apiClient.
+        expect(spy).not.toHaveBeenCalled();
     });
 
     it('invalidates nothing when the write only got queued — the server has not got it', async () => {

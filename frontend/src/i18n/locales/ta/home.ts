@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, தீவனம், அம்மோனியா கணக்கீடுகள்',
   moreSimulations: 'உருவகப்படுத்தல்கள்',
   moreSimulationsDesc: 'வளர்ச்சி உருவகப்படுத்தல் இயக்கு',
-  moreReports: 'அறிக்கைகள்',
   moreReportsDesc: 'சுழற்சி பகுப்பாய்வு மற்றும் நிதி',
   moreDiseaseEncyclopedia: 'நோய் கலைக்களஞ்சியம்',
   moreDiseaseEncyclopediaDesc: 'நோய் நூலகத்தை உலாவு மற்றும் தேடு',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ஆப் பதிப்பு மற்றும் வரவேற்புகள்',
 
   // ReportsScreen
-  reportsTitle: 'அறிக்கைகள்',
   reportsSelectFarm: 'பண்ணை தேர்ந்தெடு',
   reportsOverview: 'கண்ணோட்டம்',
   reportsFinancialSummary: 'நிதி சுருக்கம்',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'தினசரி அளவீடுகளைப் பதிவு செய்ய பண்ணை மற்றும் குளத்தை உருவாக்கவும்.',
   quickLogCreateFarm: 'பண்ணை உருவாக்கு',
   quickLogOpenPond: 'குளத்தைத் திற',
+  quickLogNoCycle: 'இந்தக் குளத்தில் எந்தச் சுழற்சியும் இயங்கவில்லை',
+  quickLogNoCycleSub:
+    'தீவனம், மாதிரி எடுப்பு, அளவீடுகள் அனைத்தும் ஒரு சுழற்சியின் கணக்கில் சேர்க்கப்படும். சுழற்சியைத் தொடங்கினால்தான் இந்தக் குளத்தின் FCR, வளர்ச்சி, லாபம் சரியாகக் கூடும்.',
+  quickLogStartCycle: 'சுழற்சியைத் தொடங்கு',
+  quickLogNeedsCycle: 'சுழற்சி தேவை',
   farmerFallback: 'விவசாயி',
   onboarding_languagePrompt: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்',
   onboarding_title: 'Upcheck-க்கு வரவேற்கிறோம்',
@@ -211,6 +214,9 @@ const home = {
   hideChecklistTitle: "அமைப்புப் பட்டியலை மறைக்கவா?",
   hideChecklistBody: "இது மீண்டும் வராது. குளங்கள் அமைப்பது, அளவீடு பதிவது, குழுவை அழைப்பது எல்லாம் பண்ணை மற்றும் குழு தாவல்களில் தொடரும்.",
   hideChecklistConfirm: "நிரந்தரமாக மறை",
+
+  logProgressTitle: "பதிவு முன்னேற்றம்",
+  logProgressOutstanding: "இன்னும் பதிவு செய்ய வேண்டியவை",
 };
 
 export default home;

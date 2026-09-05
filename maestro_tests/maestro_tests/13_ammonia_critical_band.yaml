@@ -1,5 +1,6 @@
 # FEATURE: Free Ammonia - CRITICAL band
-# INPUTS: TAN=5 ppm, pH=9, Temp=32 C, Salinity=15 ppt
+# INPUTS: TAN=5 ppm, pH=9, Temp=32 C, Salinity=15 ppt (entered explicitly,
+#         NOT the screen default - BUG-002 removes that default)
 # EXPECTED: NH3 = 2.2693 ppm -> band CRITICAL (>0.5)
 appId: com.upcheck.app
 ---
@@ -13,6 +14,9 @@ appId: com.upcheck.app
 - hideKeyboard
 - tapOn: 'e.g. 29'
 - inputText: "32"
+- hideKeyboard
+- tapOn: 'e.g. 15'
+- inputText: '15'
 - hideKeyboard
 - tapOn: 'Calculate NH.*'
 - assertVisible: '.*2\.2693.*'

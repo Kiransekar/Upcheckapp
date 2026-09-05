@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, దాణా, అమ్మోనియా లెక్కింపులు',
   moreSimulations: 'సిమ్యులేషన్లు',
   moreSimulationsDesc: 'వృద్ధి సిమ్యులేషన్లు నడపండి',
-  moreReports: 'నివేదికలు',
   moreReportsDesc: 'సైకిల్ విశ్లేషణ మరియు ఆర్థిక వివరాలు',
   moreDiseaseEncyclopedia: 'వ్యాధి విజ్ఞాన కోశం',
   moreDiseaseEncyclopediaDesc: 'వ్యాధి లైబ్రరీ చూడండి మరియు వెతుకుండి',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'యాప్ వెర్షన్ మరియు క్రెడిట్స్',
 
   // ReportsScreen
-  reportsTitle: 'నివేదికలు',
   reportsSelectFarm: 'ఫారం ఎంచుకోండి',
   reportsOverview: 'అవలోకనం',
   reportsFinancialSummary: 'ఆర్థిక సారాంశం',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'రోజువారీ రీడింగ్‌లను నమోదు చేయడానికి ఫారం మరియు చెరువును సృష్టించండి.',
   quickLogCreateFarm: 'ఫారం సృష్టించు',
   quickLogOpenPond: 'చెరువును తెరువు',
+  quickLogNoCycle: 'ఈ చెరువులో ఏ సైకిల్ నడవడం లేదు',
+  quickLogNoCycleSub:
+    'మేత, శాంప్లింగ్, కొలతలు అన్నీ ఒక సైకిల్ కింద లెక్కిస్తారు. సైకిల్ మొదలుపెడితేనే ఈ చెరువు FCR, పెరుగుదల, లాభం సరిగ్గా కలుస్తాయి.',
+  quickLogStartCycle: 'సైకిల్ మొదలుపెట్టు',
+  quickLogNeedsCycle: 'సైకిల్ కావాలి',
   farmerFallback: 'రైతు',
   onboarding_languagePrompt: 'మీ భాషను ఎంచుకోండి',
   onboarding_title: 'Upcheck కు స్వాగతం',
@@ -211,6 +214,9 @@ const home = {
   hideChecklistTitle: "సెటప్ జాబితా దాచాలా?",
   hideChecklistBody: "ఇది మళ్ళీ రాదు. చెరువులు ఏర్పాటు చేయడం, రీడింగ్‌లు నమోదు చేయడం, జట్టును పిలవడం ఫారం, జట్టు ట్యాబ్‌లలో ఇంకా ఉంటాయి.",
   hideChecklistConfirm: "శాశ్వతంగా దాచు",
+
+  logProgressTitle: "లాగ్ పురోగతి",
+  logProgressOutstanding: "ఇంకా నమోదు చేయాల్సినవి",
 };
 
 export default home;

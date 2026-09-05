@@ -11,19 +11,30 @@
  * cannot promote someone does not see a role picker greyed out, they see no
  * role picker. The backend enforces all of it regardless.
  */
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { Button } from '../../components/ui/Button';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmMembersApi, type FarmMember, type AssignableRole } from '../../api/farmMembers';
+import { apiErrorMessage } from '../../api/errors';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
-import { canAssignRole, canManageMember } from '../../permissions/capabilities';
+import {
+    canAssignRole,
+    canManageMember,
+    roleCan,
+    type CapabilityOverrides,
+    type FarmCapability,
+} from '../../permissions/capabilities';
+import { CapabilityGrid } from '../../components/members/CapabilityGrid';
+import { useMembershipStore } from '../../store/membershipStore';
 import { pondLabel } from '../../utils/pondHealth';
 import { fullName } from './FarmMembersScreen';
 
@@ -38,6 +49,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName, member: initial } = route.params ?? {};
     const perms = usePermissions(farmId);
+    const farmPolicy = useMembershipStore((s) => s.grantForFarm(farmId).policy);
 
     const [member, setMember] = useState<FarmMember>(initial);
     const [ponds, setPonds] = useState<Pond[]>([]);
@@ -46,12 +58,15 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
     const [scope, setScope] = useState<string[]>(initial?.pondIds ?? []);
     const [saving, setSaving] = useState(false);
 
-    useEffect(() => {
+    // React Navigation keeps this screen mounted — a mount-only fetch never
+    // saw a pond created/renamed elsewhere (e.g. CreatePondScreen) on return,
+    // same gap FarmMembersScreen already closes for its own pond list.
+    useFocusEffect(useCallback(() => {
         pondsApi
             .getAll(farmId)
             .then(({ data }) => setPonds((data as any).data ?? data ?? []))
             .catch(() => setPonds([]));
-    }, [farmId]);
+    }, [farmId]));
 
     const name = member ? fullName(member) : '';
 
@@ -67,7 +82,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 // rather than showing a scope that no longer applies.
                 if (!SCOPABLE.includes(role)) setScope([]);
             } catch (e: any) {
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.roleChangeError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.roleChangeError')));
             } finally {
                 setSaving(false);
             }
@@ -85,7 +100,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                 await farmMembersApi.setPondScope(farmId, member.userId, next);
             } catch (e: any) {
                 setScope(scope); // put it back — the server did not accept it
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.scopeError'));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.scopeError')));
             }
         },
         [farmId, member, scope, t],
@@ -98,19 +113,19 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
             await farmMembersApi.setPondScope(farmId, member.userId, []);
         } catch (e: any) {
             setScope(previous);
-            Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.scopeError'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('members.scopeError')));
         }
     }, [farmId, member, scope, t]);
 
-    const setFinancials = useCallback(
-        async (value: boolean) => {
-            const previous = member.canViewFinancials ?? null;
-            setMember((m) => ({ ...m, canViewFinancials: value }));
+    const setCapabilities = useCallback(
+        async (next: CapabilityOverrides | null) => {
+            const previous = member.capabilityOverrides ?? null;
+            setMember((m) => ({ ...m, capabilityOverrides: next }));
             try {
-                await farmMembersApi.setFinancialAccess(farmId, member.userId, value);
+                await farmMembersApi.setCapabilities(farmId, member.userId, next);
             } catch (e: any) {
-                setMember((m) => ({ ...m, canViewFinancials: previous }));
-                Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.financialsError'));
+                setMember((m) => ({ ...m, capabilityOverrides: previous }));
+                Alert.alert(t('common.error'), apiErrorMessage(e, t('members.capabilitiesError')));
             }
         },
         [farmId, member, t],
@@ -127,7 +142,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                         await farmMembersApi.removeMember(farmId, member.userId);
                         navigation.goBack();
                     } catch (e: any) {
-                        Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.removeError'));
+                        Alert.alert(t('common.error'), apiErrorMessage(e, t('members.removeError')));
                     }
                 },
             },
@@ -145,7 +160,7 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                         await farmMembersApi.transferOwnership(farmId, member.userId);
                         navigation.goBack();
                     } catch (e: any) {
-                        Alert.alert(t('common.error'), e?.response?.data?.message ?? t('members.transferError'));
+                        Alert.alert(t('common.error'), apiErrorMessage(e, t('members.transferError')));
                     }
                 },
             },
@@ -162,9 +177,13 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
 
     const roleOptions = ASSIGNABLE.filter((r) => canAssignRole(perms.role, r));
     const canScope = SCOPABLE.includes(member.role) && canManageMember(perms.role, member.role);
-    // The financial grant is the owner's call alone (OWNER_ONLY on the server),
-    // and only means anything for someone whose role does not already include it.
-    const canGrantFinancials = perms.canOwnerActions && member.role !== 'owner' && member.role !== 'manager';
+    // Handing out capabilities is the owner's call alone (OWNER_ONLY on the
+    // server), and an owner is never reducible, so their own row has no grid.
+    const canGrantCapabilities = perms.canOwnerActions && member.role !== 'owner';
+    // What this member gets with NO override — their role under this farm's
+    // policy. The policy travels on the caller's own membership for this farm.
+    const memberDefault = (capability: FarmCapability) =>
+        roleCan(member.role, capability, null, farmPolicy);
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -243,42 +262,43 @@ export const MemberDetailScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
-                {canGrantFinancials && (
+                {canGrantCapabilities && (
                     <>
-                        <SectionHeader label={t('members.financialsSection')} />
-                        <View style={styles.row}>
-                            <View style={{ flex: 1, minWidth: 0 }}>
-                                <Text style={styles.rowLabel}>{t('members.financialsToggle')}</Text>
-                                <Text style={styles.rowSub}>{t('members.financialsNote')}</Text>
-                            </View>
-                            <Switch
-                                value={member.canViewFinancials === true}
-                                onValueChange={setFinancials}
-                                trackColor={{ false: c.borderDefault, true: c.primaryHover }}
-                            />
-                        </View>
+                        <SectionHeader label={t('members.permissionsSection')} />
+                        <Text style={styles.note}>{t('members.permissionsNote')}</Text>
+                        <CapabilityGrid
+                            value={member.capabilityOverrides ?? null}
+                            defaults={memberDefault}
+                            onChange={setCapabilities}
+                        />
                     </>
                 )}
 
                 {(canManageMember(perms.role, member.role) || perms.canTransferOwnership) && (
+                    /*
+                     * Stacked full-width, not two half-width buttons side by
+                     * side: these are the screen's two irreversible actions and
+                     * a mis-tap hands the farm away. Full width also survives
+                     * the long Odia and Tamil labels without truncating them.
+                     */
                     <View style={styles.actions}>
                         {perms.canTransferOwnership && member.role !== 'owner' && (
-                            <TouchableOpacity
-                                style={styles.transferBtn}
+                            <Button
+                                title={t('members.transferCta')}
+                                variant="outlined"
                                 onPress={transfer}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.transferLabel}>{t('members.transferCta')}</Text>
-                            </TouchableOpacity>
+                                style={styles.transferBtn}
+                                textStyle={styles.transferLabel}
+                            />
                         )}
                         {canManageMember(perms.role, member.role) && (
-                            <TouchableOpacity
-                                style={styles.removeBtn}
+                            <Button
+                                title={t('members.remove')}
+                                variant="outlined"
                                 onPress={remove}
-                                accessibilityRole="button"
-                            >
-                                <Text style={styles.removeLabel}>{t('members.remove')}</Text>
-                            </TouchableOpacity>
+                                style={styles.removeBtn}
+                                textStyle={styles.removeLabel}
+                            />
                         )}
                     </View>
                 )}
@@ -329,31 +349,17 @@ const styles = StyleSheet.create({
     rowSub: { ...theme.typeScale.bodySmall, color: c.textTertiary },
 
     actions: {
-        flexDirection: 'row',
-        gap: theme.spacing[2],
+        gap: theme.spacing[3],
         paddingHorizontal: theme.spacing[5],
-        paddingTop: theme.spacing[8],
+        paddingTop: theme.spacing[6],
+        marginTop: theme.spacing[8],
+        borderTopWidth: 1,
+        borderTopColor: c.borderDefault,
     },
-    transferBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.warningBorder,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    transferLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.warningText },
-    removeBtn: {
-        flex: 1,
-        borderWidth: 1.5,
-        borderColor: c.dangerBorder,
-        borderRadius: theme.radius.xs,
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: 48,
-    },
-    removeLabel: { ...theme.typeScale.labelLarge, fontSize: 15, color: c.dangerText },
+    transferBtn: { borderColor: c.warningBorder },
+    transferLabel: { color: c.warningText },
+    removeBtn: { borderColor: c.dangerBorder },
+    removeLabel: { color: c.dangerText },
 });
 
 export default MemberDetailScreen;

@@ -18,7 +18,7 @@ const build = (opts: {
     findAll: jest.fn().mockResolvedValue({ data: [{ id: 'pond-1' }] }),
   } as any;
   const cropsService = {
-    findByPond: jest.fn().mockResolvedValue(
+    findAllAccessible: jest.fn().mockResolvedValue(
       (opts.cycleFinancials ?? []).map((_, i) => ({ id: `crop-${i}` })),
     ),
   } as any;
@@ -134,5 +134,53 @@ describe('getFinancialReport', () => {
 
     expect(report.revenue).toBe(7000);
     expect(report.totalExpenses).toBe(1000);
+  });
+
+  /**
+   * One throwing crop used to reject the whole `Promise.all`, and the Money
+   * tab's batching layer catches a failed report by dropping the FARM — so a
+   * single bad cycle made an entire farm silently vanish from the tab. Degrade
+   * the crop, keep the farm.
+   */
+  it('keeps the farm when one cycle cannot be read', async () => {
+    const service = build({
+      cycleFinancials: [
+        { totalRevenue: 5000, totalExpenses: 1000, expensesByCategory: { Seed: 1000 } },
+        null as any, // the crop that throws, wired below
+      ],
+      transactions: [],
+    });
+    const original = (service as any).expensesService.getCycleFinancials;
+    (service as any).expensesService.getCycleFinancials = jest
+      .fn()
+      .mockImplementation(async (cropId: string) => {
+        // Async, like the real service: a manager 403s inside a promise.
+        if (cropId === 'crop-1') throw new Error('Forbidden');
+        return original(cropId);
+      });
+
+    const report = await service.getFinancialReport('farm-1', 'user-1');
+
+    expect(report.revenue).toBe(5000);
+    expect(report.totalExpenses).toBe(1000);
+  });
+
+  it('keeps the farm when one pond cannot be listed', async () => {
+    const service = build({
+      cycleFinancials: [
+        { totalRevenue: 5000, totalExpenses: 1000, expensesByCategory: {} },
+      ],
+      transactions: [{ type: 'income', category: 'Fish sales', amount: 2000 }],
+    });
+    (service as any).cropsService.findAllAccessible = jest
+      .fn()
+      .mockRejectedValue(new Error('Forbidden'));
+
+    const report = await service.getFinancialReport('farm-1', 'user-1');
+
+    // The cycle ledger is lost, but the farm still reports — and still shows
+    // the transactions ledger — instead of disappearing from the Money tab.
+    expect(report.revenue).toBe(2000);
+    expect(report.profit).toBe(2000);
   });
 });

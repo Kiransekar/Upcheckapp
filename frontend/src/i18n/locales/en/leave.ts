@@ -10,6 +10,10 @@ const leave = {
   submittedSub: 'Your leave request was sent for approval.',
   submitError: 'Could not submit your request. Try again.',
   errorDateRange: 'End date cannot be before start date.',
+  // Reviewing leave spans every farm; requesting it needs exactly one, so the
+  // form asks when it was opened without one.
+  farmLabel: 'Farm',
+  errorNoFarm: 'Choose which farm this leave is from.',
   decideError: 'Could not update this request. Try again.',
   pendingTitle: 'Pending approvals',
   pendingEmpty: 'No pending leave requests.',

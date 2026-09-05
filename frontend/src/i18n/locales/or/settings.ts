@@ -152,6 +152,37 @@ const settings = {
   signOutConfirm: "ଏହି ଡିଭାଇସରେ ଅପଚେକରୁ ସାଇନ ଆଉଟ କରିବେ?",
   toolsSection: "ଉପକରଣ",
   farmSection: "ଫାର୍ମ",
+
+  // ── ରିମାଇଣ୍ଡର ସମୟ (ସ୍ମାର୍ଟ ରିମାଇଣ୍ଡର) ──────────────────────────────
+  reminderTimes: "ରିମାଇଣ୍ଡର ସମୟ",
+  reminderTimesDesc: "ପାଣିର ଗୁଣବତ୍ତା ଲଗ୍ କରିବାକୁ Upcheck ଆପଣଙ୍କୁ କେବେ ମନେ ପକାଇବ ତାହା ବାଛନ୍ତୁ।",
+  reminderMorning: "ସକାଳ ଯାଞ୍ଚ",
+  reminderAfternoon: "ଅପରାହ୍ନ ଯାଞ୍ଚ",
+  reminderEvening: "ସନ୍ଧ୍ୟା ଯାଞ୍ଚ",
+  reminderChemistry: "ସାପ୍ତାହିକ ରସାୟନ ଯାଞ୍ଚ",
+  reminderHourLabel: "ଘଣ୍ଟା",
+  reminderMinuteLabel: "ମିନିଟ୍",
+  reminderStatusOn: "ସ୍ମାରକ ଚାଲୁ ଅଛି। ପରବର୍ତ୍ତୀ: {{when}}",
+  reminderStatusOff: "ବର୍ତ୍ତମାନ କୌଣସି ସ୍ମାରକ ସେଟ୍ ହୋଇନାହିଁ। ଗୋଟିଏ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ, ତାପରେ Upcheck ଥରେ ଖୋଲନ୍ତୁ — ସ୍ମାରକ ଲାଗିଯିବ।",
+  reminderStatusBlocked: "ଏହି ଫୋନରେ Upcheck ବିଜ୍ଞପ୍ତି ଦେଖାଇ ପାରିବ ନାହିଁ, ତେଣୁ ସ୍ମାରକ ଆସିବ ନାହିଁ।",
+  reminderStatusOpenSettings: "ଫୋନ୍ ସେଟିଂସ୍ ଖୋଲନ୍ତୁ",
+  reminderWhenToday: "ଆଜି {{time}} ବେଳେ",
+  reminderWhenTomorrow: "ଆସନ୍ତାକାଲି {{time}} ବେଳେ",
+  reminderWhenOn: "{{date}} ରେ {{time}} ବେଳେ",
+
+  // ── ଗୋପନୀୟତା: କ୍ରାଶ ରିପୋର୍ଟ ଏବଂ ବ୍ୟବହାର ସୂଚନା ─────────────────────────────
+  privacySection: "ଗୋପନୀୟତା",
+  crashReportsToggle: "କ୍ରାଶ ରିପୋର୍ଟ",
+  crashReportsDesc:
+    "ଚାଲୁ ଅଛି, ଯାହାଫଳରେ ଆପଣ କହିବା ପୂର୍ବରୁ ଆମେ ତ୍ରୁଟି ସୁଧାରି ପାରିବୁ। ଏହି ରିପୋର୍ଟରେ ଆପଣଙ୍କ ଫୋନ୍ ନମ୍ବର, ଇମେଲ୍, ପାସୱାର୍ଡ, ଟଙ୍କାର ହିସାବ କିମ୍ବା ଫାର୍ମ ରେକର୍ଡ ଯାଏ ନାହିଁ। ଆପଣ ଏହାକୁ ବନ୍ଦ କରିପାରିବେ।",
+  analyticsToggle: "ବ୍ୟବହାର ସୂଚନା",
+  analyticsToggleDesc:
+    "ଆପଣ ଚାଲୁ ନକଲା ପର୍ଯ୍ୟନ୍ତ ବନ୍ଦ ରହେ। କେଉଁ ସ୍କ୍ରିନ୍ ବ୍ୟବହାର ହେଉଛି ତାହା ଜଣାଏ, ଯାହାଫଳରେ ଆମେ ଠିକ୍ ଜିନିଷ ତିଆରି କରିପାରିବୁ। ଆପଣଙ୍କ ପୋଖରୀ, ଟଙ୍କା ଓ ଅମଳ ତଥ୍ୟ କେବେ ପଠାଯାଏ ନାହିଁ।",
+  analyticsPromptTitle: "ଆପଣ କେଉଁ ସ୍କ୍ରିନ୍ ବ୍ୟବହାର କରୁଛନ୍ତି ଆମେ ଦେଖିପାରିବୁ କି?",
+  analyticsPromptBody:
+    "କେଉଁଟା ବ୍ୟବହାର କରିବା କଠିନ ତାହା ସୁଧାରିବାରେ ଏହା ସାହାଯ୍ୟ କରେ। ଆମେ କେବଳ ସ୍କ୍ରିନର ନାମ ପଠାଇବୁ — ଆପଣଙ୍କ ପୋଖରୀ, ଟଙ୍କା କିମ୍ବା ଅମଳର ହିସାବ କେବେ ନୁହେଁ। ଆପଣ ଯାହା କୁହନ୍ତୁ, ଆପ୍‌ର ସବୁକିଛି ସମାନ ଭାବେ କାମ କରିବ।",
+  analyticsPromptAllow: "ହଁ, ଠିକ୍ ଅଛି",
+  analyticsPromptDecline: "ନା, ଧନ୍ୟବାଦ",
 };
 
 export default settings;

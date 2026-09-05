@@ -2,14 +2,15 @@ import { theme } from '../theme';
 import type { AlertSeverity, BriefingItem } from '../api/alertCenter';
 import type { Pond } from '../api/ponds';
 import type { PondContext } from '../api/pondContext';
+import { pondFreshness, type Freshness, type PondFreshness } from '../features/logProgress';
 
 /**
  * One pond's state as the redesign shows it: the strip of coloured bars on a
  * farm card, the left border on a pond row, the "2 act now" counts.
  *
- * Four states, not five, and deliberately so — the drawings legend them as
- * "Act now / Watch / Fine / Fallow". A pond either needs you today, needs
- * watching, is fine, or has nothing in it.
+ * Five states: the drawings legend them as "Act now / Watch / Fine / Fallow",
+ * plus `stale` — a pond either needs you today, needs watching, is fine, has
+ * nothing in it, or nobody has logged it recently enough to trust "fine".
  *
  * Severity comes from the alert engine's briefing rather than being re-derived
  * from raw DO and ammonia here. The engine already knows this farm's species,
@@ -17,19 +18,24 @@ import type { PondContext } from '../api/pondContext';
  * would eventually disagree with it, and the farmer would see one screen say
  * "act now" while another says everything is fine.
  */
-export type PondHealth = 'critical' | 'watch' | 'fine' | 'fallow';
+export type PondHealth = 'critical' | 'watch' | 'stale' | 'fine' | 'fallow';
 
 /** Worst first. Drives both the pond strip and the "worst pond first" list. */
 export const HEALTH_RANK: Record<PondHealth, number> = {
     critical: 0,
     watch: 1,
-    fine: 2,
-    fallow: 3,
+    stale: 2,
+    fine: 3,
+    fallow: 4,
 };
 
 export const HEALTH_COLOR: Record<PondHealth, string> = {
     critical: theme.roles.light.dangerBorder,
     watch: theme.roles.light.warningBorder,
+    // Slate, not amber. `stale` and `noData` share one colour because the bar
+    // answers "can I trust this", and the answer is the same for both; the age
+    // hint beside it is what distinguishes "8 d" from "never logged".
+    stale: theme.roles.light.staleBorder,
     fine: theme.roles.light.successBorder,
     // A fallow pond is not a problem, so it takes the neutral border rather
     // than any status colour — it reads as "empty", not "unknown".
@@ -40,6 +46,7 @@ export const HEALTH_COLOR: Record<PondHealth, string> = {
 export const HEALTH_TEXT: Record<PondHealth, string> = {
     critical: theme.roles.light.dangerText,
     watch: theme.roles.light.warningText,
+    stale: theme.roles.light.staleText,
     fine: theme.roles.light.textTertiary,
     fallow: theme.roles.light.textTertiary,
 };
@@ -63,10 +70,13 @@ const isFallow = (pond: Pick<Pond, 'status' | 'activeCycleId'>): boolean =>
 export const healthOf = (
     pond: Pick<Pond, 'status' | 'activeCycleId'>,
     severity?: AlertSeverity | null,
+    freshness?: Freshness,
 ): PondHealth => {
     if (isFallow(pond)) return 'fallow';
     if (severity === 'critical') return 'critical';
     if (severity === 'watch') return 'watch';
+    // A real alarm outranks silence; silence outranks a confident green.
+    if (freshness && freshness !== 'fresh') return 'stale';
     return 'fine';
 };
 
@@ -134,6 +144,7 @@ export interface PondWithHealth {
     /** The engine's one-line reason, when there is one. */
     reason: string | null;
     context: PondContext | null;
+    freshness: PondFreshness;
 }
 
 /** Worst first; ties broken by name so the order is stable between loads. */
@@ -155,6 +166,8 @@ export interface FarmRollup {
     biomassKg: number | null;
     actNow: number;
     watch: number;
+    /** Ponds whose colour is only "fine" because nobody has logged them. */
+    stale: number;
     /** One entry per pond, worst first — the strip on a farm card. */
     strip: PondHealth[];
 }
@@ -179,15 +192,20 @@ export const rollUpFarm = (rows: PondWithHealth[]): FarmRollup => {
             : null,
         actNow: rows.filter((r) => r.health === 'critical').length,
         watch: rows.filter((r) => r.health === 'watch').length,
+        stale: rows.filter((r) => r.health === 'stale').length,
         strip: sorted.map((r) => r.health),
     };
 };
 
-/** Join ponds, their contexts and the briefing into the shape the screens render. */
+/**
+ * Join ponds, their contexts and the briefing into the shape the screens
+ * render. Takes the clock so the whole thing stays pure and testable.
+ */
 export const buildPondRows = (
     ponds: Pond[],
     contexts: PondContext[],
     briefing: BriefingItem[],
+    now: Date = new Date(),
 ): PondWithHealth[] => {
     const severity = severityByPond(briefing);
     const reason = new Map(
@@ -196,14 +214,20 @@ export const buildPondRows = (
     const ctxById = new Map(contexts.map((c) => [c.pondId, c]));
 
     return ponds.map((pond) => {
-        const health = healthOf(pond, severity.get(pond.id));
+        const context = ctxById.get(pond.id) ?? null;
+        // No context at all is not evidence of freshness — treat it as unknown.
+        const freshness: PondFreshness = context
+            ? pondFreshness(context, now)
+            : { state: 'noData', asOf: null, ageMs: null };
+        const health = healthOf(pond, severity.get(pond.id), freshness.state);
         return {
             pond,
             health,
             // A pond that is fine has nothing to explain; showing the last
             // resolved alert there would read as a live problem.
             reason: health === 'critical' || health === 'watch' ? reason.get(pond.id) ?? null : null,
-            context: ctxById.get(pond.id) ?? null,
+            context,
+            freshness,
         };
     });
 };

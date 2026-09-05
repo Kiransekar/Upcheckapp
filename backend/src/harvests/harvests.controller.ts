@@ -22,34 +22,42 @@ export class HarvestsController {
 
   @Post()
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Crop', 'cropId', 'pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource('Crop', 'cropId', 'pond.farm.userId', 'RECORD_HARVEST')
   create(@Body() createDto: CreateHarvestDto, @CurrentUser() user) {
     return this.harvestsService.create(createDto, user.id);
   }
 
   @Get()
-  findAll(@Query('cropId') cropId: string, @CurrentUser() user) {
-    return this.harvestsService.findAll(user.id, cropId);
+  findAll(
+    @Query('cropId') cropId: string,
+    @Query('pondId') pondId: string,
+    @CurrentUser() user,
+  ) {
+    return this.harvestsService.findAll(user.id, cropId, pondId);
   }
 
   @Get(':id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
+  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'RECORD_HARVEST')
   findOne(@Param('id') id: string) {
     return this.harvestsService.findOne(id);
   }
 
   @Patch(':id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
-  update(@Param('id') id: string, @Body() dto: UpdateHarvestDto) {
-    return this.harvestsService.update(id, dto);
+  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'RECORD_HARVEST')
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateHarvestDto,
+    @CurrentUser() user,
+  ) {
+    return this.harvestsService.update(id, dto, user.id);
   }
 
   @Delete(':id')
   @UseGuards(OwnershipGuard)
-  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'WRITE_MANAGEMENT')
-  remove(@Param('id') id: string) {
-    return this.harvestsService.remove(id);
+  @OwnsResource('Harvest', 'id', 'crop.pond.farm.userId', 'RECORD_HARVEST')
+  remove(@Param('id') id: string, @CurrentUser() user) {
+    return this.harvestsService.remove(id, user.id);
   }
 }

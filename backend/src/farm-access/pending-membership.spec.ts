@@ -13,7 +13,7 @@
  */
 import { ForbiddenException } from '@nestjs/common';
 import { FarmAccessService } from './farm-access.service';
-import { FarmCapability } from './farm-capability';
+import { CapabilityOverrides, FarmCapability } from './farm-capability';
 
 const FARM = 'farm-1';
 const OWNER = 'user-owner';
@@ -41,6 +41,9 @@ const ALL_CAPABILITIES: FarmCapability[] = [
   'VIEW_FINANCIALS',
   'MANAGE_WORKERS',
   'OWNER_ONLY',
+  'RECORD_HARVEST',
+  'VIEW_INVENTORY',
+  'MANAGE_INVENTORY',
 ];
 
 /**
@@ -49,14 +52,17 @@ const ALL_CAPABILITIES: FarmCapability[] = [
  * forgets to pass one still finds the pending row — which is exactly the bug
  * these tests exist to catch.
  */
-function makeService(status: 'active' | 'pending', canViewFinancials: boolean | null = null) {
+function makeService(
+  status: 'active' | 'pending',
+  capabilityOverrides: CapabilityOverrides | null = null,
+) {
   const row = {
     id: 'm1',
     farmId: FARM,
     userId: JOINER,
     role: 'worker' as const,
     status,
-    canViewFinancials,
+    capabilityOverrides,
   };
   const matches = (where: any) =>
     (where.status === undefined || where.status === row.status) &&
@@ -155,16 +161,16 @@ describe('the same membership, once approved, works normally', () => {
   });
 });
 
-describe('W6 — per-farm financial grant', () => {
+describe('W6 — per-member capability overrides', () => {
   it('grants VIEW_FINANCIALS to a worker when the owner switches it on', async () => {
-    const svc = makeService('active', true);
+    const svc = makeService('active', { VIEW_FINANCIALS: true });
     await expect(
       svc.assertCanAccessFarm(JOINER, FARM, 'VIEW_FINANCIALS'),
     ).resolves.toBeDefined();
   });
 
   it('still denies everything else the role does not carry', async () => {
-    const svc = makeService('active', true);
+    const svc = makeService('active', { VIEW_FINANCIALS: true });
     await expect(
       svc.assertCanAccessFarm(JOINER, FARM, 'WRITE_MANAGEMENT'),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -172,7 +178,7 @@ describe('W6 — per-farm financial grant', () => {
 
   it('revokes VIEW_FINANCIALS from a role that would otherwise have it', async () => {
     // A manager whose owner has turned cost visibility off.
-    const svc = makeService('active', false);
+    const svc = makeService('active', { VIEW_FINANCIALS: false });
     (svc as any).membersRepo = undefined; // guard against accidental reuse
     const managerSvc = (() => {
       const row = {
@@ -180,7 +186,7 @@ describe('W6 — per-farm financial grant', () => {
         userId: JOINER,
         role: 'manager' as const,
         status: 'active' as const,
-        canViewFinancials: false,
+        capabilityOverrides: { VIEW_FINANCIALS: false },
       };
       const membersRepo = {
         findOne: jest.fn(async ({ where }: any) =>
@@ -211,7 +217,7 @@ describe('W6 — per-farm financial grant', () => {
       userId: OWNER,
       role: 'owner' as const,
       status: 'active' as const,
-      canViewFinancials: false,
+      capabilityOverrides: { VIEW_FINANCIALS: false },
     };
     const svc = new FarmAccessService(
       {

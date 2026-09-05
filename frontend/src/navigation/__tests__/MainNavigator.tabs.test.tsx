@@ -15,7 +15,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 // what they render, and the real screens fan out to a dozen APIs.
 jest.mock('../../screens/main/HomeScreen', () => ({ HomeScreen: () => null }));
 jest.mock('../../screens/farms/FarmsListScreen', () => ({ FarmsListScreen: () => null }));
-jest.mock('../../screens/main/ReportsScreen', () => ({ ReportsScreen: () => null }));
 jest.mock('../../screens/settings/SettingsScreen', () => ({ SettingsScreen: () => null }));
 jest.mock('../../screens/main/TeamScreen', () => ({ TeamScreen: () => null }));
 jest.mock('../../screens/finance/MoneyScreen', () => ({ MoneyScreen: () => null }));

@@ -15,7 +15,7 @@ const TEST_SAFE_AREA_METRICS = {
     insets: { top: 47, left: 0, right: 0, bottom: 34 },
 };
 
-const navigation = { replace: jest.fn() };
+const navigation = { navigate: jest.fn() };
 
 const renderScreen = () =>
     render(
@@ -56,7 +56,9 @@ describe('LanguageScreen — artboard 01', () => {
         const { getByText } = renderScreen();
         fireEvent.press(getByText('Continue'));
 
-        await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith('Welcome'));
+        // navigate, not replace: Welcome needs Language on the back stack so
+        // its own back arrow has somewhere to go (see WelcomeScreen).
+        await waitFor(() => expect(navigation.navigate).toHaveBeenCalledWith('Welcome'));
         expect(await hasChosenLanguage()).toBe(true);
     });
 });

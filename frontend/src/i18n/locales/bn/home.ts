@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, খাদ্য, অ্যামোনিয়া গণনা',
   moreSimulations: 'সিমুলেশন',
   moreSimulationsDesc: 'বৃদ্ধির সিমুলেশন চালান',
-  moreReports: 'প্রতিবেদন',
   moreReportsDesc: 'চক্র বিশ্লেষণ ও আর্থিক তথ্য',
   moreDiseaseEncyclopedia: 'রোগ বিশ্বকোষ',
   moreDiseaseEncyclopediaDesc: 'রোগের লাইব্রেরি ব্রাউজ ও অনুসন্ধান করুন',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'অ্যাপ সংস্করণ ও কৃতিত্ব',
 
   // ReportsScreen
-  reportsTitle: 'প্রতিবেদন',
   reportsSelectFarm: 'খামার বেছে নিন',
   reportsOverview: 'সারসংক্ষেপ',
   reportsFinancialSummary: 'আর্থিক সারসংক্ষেপ',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'দৈনিক রিডিং লিপিবদ্ধ করতে একটি খামার ও পুকুর তৈরি করুন।',
   quickLogCreateFarm: 'খামার তৈরি করুন',
   quickLogOpenPond: 'পুকুর খুলুন',
+  quickLogNoCycle: 'এই পুকুরে কোনো সাইকেল চলছে না',
+  quickLogNoCycleSub:
+    'খাবার, স্যাম্পলিং ও মাপ সাইকেলের হিসাবে গোনা হয়। একটি সাইকেল শুরু করুন, যাতে এই পুকুরের FCR, বৃদ্ধি আর লাভ ঠিকমতো যোগ হয়।',
+  quickLogStartCycle: 'সাইকেল শুরু করুন',
+  quickLogNeedsCycle: 'সাইকেল দরকার',
   farmerFallback: 'কৃষক',
   onboarding_languagePrompt: 'আপনার ভাষা নির্বাচন করুন',
   onboarding_title: 'Upcheck-এ স্বাগতম',
@@ -211,6 +214,9 @@ const home = {
   hideChecklistTitle: "সেটআপ তালিকা লুকাবেন?",
   hideChecklistBody: "এটি আর ফিরে আসবে না। পুকুর তৈরি, রিডিং নথিভুক্ত করা ও দলকে ডাকা খামার ও দল ট্যাব থেকে এখনও করা যাবে।",
   hideChecklistConfirm: "চিরতরে লুকান",
+
+  logProgressTitle: "লগ অগ্রগতি",
+  logProgressOutstanding: "এখনও লগ করা বাকি",
 };
 
 export default home;

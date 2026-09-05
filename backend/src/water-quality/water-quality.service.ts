@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, Not, IsNull, FindOptionsWhere } from 'typeorm';
 import { WaterQualityRecord } from './water-quality-record.entity';
 import { CreateWaterQualityRecordDto } from './dto/create-water-quality-record.dto';
 import { UpdateWaterQualityRecordDto } from './dto/update-water-quality-record.dto';
@@ -9,6 +9,7 @@ import { AlertsService } from '../alerts/alerts.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { PageMetaDto, PageDto } from '../common/dto/page.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { latestNonNull } from '../pond-context/pond-context.service';
 
 // Critical thresholds for water quality alerts
 const CRITICAL_THRESHOLDS = {
@@ -16,6 +17,31 @@ const CRITICAL_THRESHOLDS = {
   dissolvedOxygen: { min: 3.0 },
   ammonia: { max: 0.5 },
 };
+
+/**
+ * The weekly-chemistry parameters (test kit / lab), as opposed to the daily
+ * probe readings. A record "carries chemistry" when at least one is present.
+ */
+const CHEMISTRY_FIELDS = [
+  'ammonia',
+  'nitrite',
+  'nitrate',
+  'alkalinity',
+  'hardness',
+  'transparency',
+] as const;
+
+/** Every measured column `/latest` resolves independently. */
+const LATEST_FIELDS = [
+  'ph',
+  'temperature',
+  'dissolvedOxygen',
+  'salinity',
+  ...CHEMISTRY_FIELDS,
+] as const;
+
+/** Same window the engines use (pond-context.latestWaterQualityFor). */
+const LATEST_WINDOW = 60;
 
 @Injectable()
 export class WaterQualityService {
@@ -184,6 +210,7 @@ export class WaterQualityService {
     pondId: string,
     userId: string,
     pageOptionsDto?: PageOptionsDto,
+    chemistryOnly = false,
   ): Promise<PageDto<WaterQualityRecord>> {
     if (!pondId) {
       return new PageDto(
@@ -199,8 +226,17 @@ export class WaterQualityService {
     const take = pageOptionsDto?.take || 10;
     const order = pageOptionsDto?.order || 'DESC';
 
+    // An array of wheres is OR'd: "at least one chemistry column is set".
+    // Daily probe-only rows drop out, which is the whole point of the weekly
+    // chemistry history — it must not be padded with rows that have no
+    // chemistry in them.
+    const where: FindOptionsWhere<WaterQualityRecord>[] | FindOptionsWhere<WaterQualityRecord> =
+      chemistryOnly
+        ? CHEMISTRY_FIELDS.map((f) => ({ pondId, [f]: Not(IsNull()) }))
+        : { pondId };
+
     const [items, itemCount] = await this.recordsRepository.findAndCount({
-      where: { pondId },
+      where,
       order: { recordedAt: order },
       take,
       skip,
@@ -263,6 +299,35 @@ export class WaterQualityService {
   async remove(id: string, userId: string) {
     await this.findOne(id, userId); // Verify ownership
     return this.recordsRepository.delete(id);
+  }
+
+  /**
+   * Latest value of EACH column with its own `<field>AsOf` timestamp, so the
+   * log screen can decide freshness per field: a probe reading taken an hour
+   * ago and an alkalinity from last Tuesday come back in the same object,
+   * each honestly dated. `recordedAt` is the newest record's time.
+   */
+  async getLatestPerColumn(pondId: string, userId: string) {
+    await this.pondsService.verifyAccess(pondId, userId, 'READ');
+
+    const records = await this.recordsRepository.find({
+      where: { pondId },
+      order: { recordedAt: 'DESC' },
+      take: LATEST_WINDOW,
+    });
+
+    const out: Record<string, string | number | null> = {
+      pondId,
+      recordedAt: records.length
+        ? new Date(records[0].recordedAt).toISOString()
+        : null,
+    };
+    for (const field of LATEST_FIELDS) {
+      const { value, at } = latestNonNull(records, field);
+      out[field] = value;
+      out[`${field}AsOf`] = at;
+    }
+    return out;
   }
 
   async getLatestByPond(pondId: string, userId: string) {

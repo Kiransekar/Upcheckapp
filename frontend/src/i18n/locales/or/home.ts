@@ -56,7 +56,6 @@ const home = {
   moreCalculatorsDesc: 'FCR, ଖାଦ୍ୟ, ଅ୍ୟାମୋନିଆ ଗଣନା',
   moreSimulations: 'ସିମୁଲେସନ',
   moreSimulationsDesc: 'ବୃଦ୍ଧି ସିମୁଲେସନ ଚଲାନ୍ତୁ',
-  moreReports: 'ରିପୋର୍ଟ',
   moreReportsDesc: 'ଚକ୍ର ବିଶ୍ଳେଷଣ ଓ ଆର୍ଥିକ ବିବରଣୀ',
   moreDiseaseEncyclopedia: 'ରୋଗ ବିଶ୍ୱକୋଷ',
   moreDiseaseEncyclopediaDesc: 'ରୋଗ ଭଣ୍ଡାର ବ୍ରାଉଜ ଓ ଖୋଜ',
@@ -82,7 +81,6 @@ const home = {
   moreAboutDesc: 'ଆପ ସଂସ୍କରଣ ଓ କ୍ରେଡିଟ',
 
   // ReportsScreen
-  reportsTitle: 'ରିପୋର୍ଟ',
   reportsSelectFarm: 'ଫାର୍ମ ଚୟନ',
   reportsOverview: 'ଅବଲୋକନ',
   reportsFinancialSummary: 'ଆର୍ଥିକ ସାରାଂଶ',
@@ -114,6 +112,11 @@ const home = {
   quickLogNoPondsSub: 'ଦୈନିକ ରିଡିଂ ଲିପିବଦ୍ଧ କରିବାକୁ ଏକ ଫାର୍ମ ଓ ପୋଖରୀ ସୃଷ୍ଟି କରନ୍ତୁ।',
   quickLogCreateFarm: 'ଫାର୍ମ ସୃଷ୍ଟି କରନ୍ତୁ',
   quickLogOpenPond: 'ପୋଖରୀ ଖୋଲନ୍ତୁ',
+  quickLogNoCycle: 'ଏହି ପୋଖରୀରେ କୌଣସି ସାଇକଲ ଚାଲୁନାହିଁ',
+  quickLogNoCycleSub:
+    'ଖାଦ୍ୟ, ସାମ୍ପଲିଂ ଓ ମାପ ସବୁ ଗୋଟିଏ ସାଇକଲ ହିସାବରେ ଗଣାଯାଏ। ସାଇକଲ ଆରମ୍ଭ କରନ୍ତୁ, ତେବେ ଏହି ପୋଖରୀର FCR, ବୃଦ୍ଧି ଏବଂ ଲାଭ ଠିକ୍ ଭାବେ ଯୋଡ଼ିହେବ।',
+  quickLogStartCycle: 'ସାଇକଲ ଆରମ୍ଭ କରନ୍ତୁ',
+  quickLogNeedsCycle: 'ସାଇକଲ ଦରକାର',
   farmerFallback: 'କୃଷକ',
   onboarding_languagePrompt: 'ଆପଣଙ୍କ ଭାଷା ବାଛନ୍ତୁ',
   onboarding_title: 'Upcheck କୁ ସ୍ୱାଗତ',
@@ -211,6 +214,9 @@ const home = {
   hideChecklistTitle: "ସେଟଅପ ତାଲିକା ଲୁଚାଇବେ?",
   hideChecklistBody: "ଏହା ଆଉ ଫେରିବ ନାହିଁ। ପୋଖରୀ ତିଆରି, ରିଡିଂ ଲିପିବଦ୍ଧ ଓ ଦଳକୁ ଡାକିବା ଫାର୍ମ ଓ ଦଳ ଟ୍ୟାବରୁ ଏବେ ବି ହେବ।",
   hideChecklistConfirm: "ସବୁଦିନ ପାଇଁ ଲୁଚାନ୍ତୁ",
+
+  logProgressTitle: "ଲଗ୍ ପ୍ରଗତି",
+  logProgressOutstanding: "ଏବେ ବି ଲଗ୍ କରିବାକୁ ବାକି",
 };
 
 export default home;

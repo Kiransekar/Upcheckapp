@@ -11,6 +11,7 @@ import {
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { TransactionQueryDto } from './dto/money-query.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('transactions')
@@ -23,17 +24,17 @@ export class TransactionsController {
   }
 
   @Get()
-  findAll(
-    @CurrentUser() user,
-    @Query('farmId') farmId?: string,
-    @Query('type') type?: string,
-  ) {
-    return this.transactionsService.findAll(user.id, farmId, type);
+  findAll(@CurrentUser() user, @Query() q: TransactionQueryDto) {
+    return this.transactionsService.findAll(user.id, q);
   }
 
   @Get('farm/:farmId/summary')
-  getSummary(@CurrentUser() user, @Param('farmId') farmId: string) {
-    return this.transactionsService.getSummaryByFarm(farmId, user.id);
+  getSummary(
+    @CurrentUser() user,
+    @Param('farmId') farmId: string,
+    @Query() q: TransactionQueryDto,
+  ) {
+    return this.transactionsService.getSummaryByFarm(farmId, user.id, q);
   }
 
   @Get(':id')

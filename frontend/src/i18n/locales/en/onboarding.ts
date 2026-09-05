@@ -11,6 +11,7 @@ const onboarding = {
   joinFarmError: 'Could not join with that code. Check it and try again.',
 
   // First-run onboarding flow (docs/design/onboarding/*)
+  stepOf: "Step {{current}} of {{total}}",
   languageTitle: "Choose your language",
   welcomeTitle: "Welcome to Upcheck",
   welcomeSubtitle: "Your shrimp farm's daily assistant",

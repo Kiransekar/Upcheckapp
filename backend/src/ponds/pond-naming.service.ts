@@ -1,6 +1,6 @@
 import { Injectable, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { Pond } from './pond.entity';
 
 export interface GeneratedPondName {
@@ -37,8 +37,10 @@ export class PondNamingService {
    * Get the current count of ponds in a farm (excluding archived).
    */
   async getPondCount(farmId: string): Promise<number> {
+    // Archived ponds must not consume the 500-pond budget — the doc comment
+    // always said "excluding archived", the query never did.
     return this.pondsRepository.count({
-      where: { farmId },
+      where: { farmId, status: Not('archived') },
     });
   }
 

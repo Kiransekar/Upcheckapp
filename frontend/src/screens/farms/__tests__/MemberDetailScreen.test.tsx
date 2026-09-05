@@ -7,6 +7,7 @@ jest.mock('../../../api/farmMembers', () => ({
         changeRole: jest.fn(),
         setPondScope: jest.fn().mockResolvedValue({}),
         setFinancialAccess: jest.fn().mockResolvedValue({}),
+        setCapabilities: jest.fn().mockResolvedValue({}),
         removeMember: jest.fn(),
         transferOwnership: jest.fn(),
     },
@@ -26,8 +27,16 @@ let mockPerms: any;
 jest.mock('../../../hooks/usePermissions', () => ({
     usePermissions: () => mockPerms,
 }));
+// This screen is rendered directly (no NavigationContainer) — useFocusEffect
+// needs useNavigation(), which throws without one. Same convention as
+// FarmMembersScreen's tests: treat it as a plain mount effect here.
+jest.mock('@react-navigation/native', () => ({
+    ...jest.requireActual('@react-navigation/native'),
+    useFocusEffect: (cb: any) => require('react').useEffect(cb, [cb]),
+}));
 
 import React from 'react';
+import { Alert } from 'react-native';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -152,24 +161,26 @@ describe('MemberDetailScreen — capability gating', () => {
         mockPerms = OWNER;
     });
 
-    it('offers the financial grant to an owner, for someone whose role lacks it', async () => {
+    it('offers the permission grid to an owner', async () => {
         const { findByText } = renderScreen(worker());
-        expect(await findByText('Can see costs and money')).toBeTruthy();
+        // The lone money switch is now one row of six.
+        expect(await findByText('See costs and money')).toBeTruthy();
+        expect(await findByText('Record a harvest')).toBeTruthy();
     });
 
-    it('hides the financial grant from a manager — it is owner-only on the server', async () => {
+    it('hides the grid from a manager — granting is owner-only on the server', async () => {
         mockPerms = MANAGER;
         const { queryByText, findByText } = renderScreen(worker());
         await findByText('Role');
 
-        expect(queryByText('Can see costs and money')).toBeNull();
+        expect(queryByText('See costs and money')).toBeNull();
     });
 
-    it('hides it for a manager target too — their role already includes it', async () => {
-        const { queryByText, findByText } = renderScreen(worker({ role: 'manager' }));
-        await findByText('Role');
+    it('hides it when the target IS the owner — an owner is never reducible', async () => {
+        const { queryByText, findByText } = renderScreen(worker({ role: 'owner' }));
+        await findByText('Ravi Kumar');
 
-        expect(queryByText('Can see costs and money')).toBeNull();
+        expect(queryByText('See costs and money')).toBeNull();
     });
 
     it('gives a manager no way to promote someone to manager', async () => {
@@ -186,7 +197,34 @@ describe('MemberDetailScreen — capability gating', () => {
         const { queryByText, findByText } = renderScreen(worker({ role: 'manager' }));
         await findByText('Role');
 
-        expect(queryByText('Transfer')).toBeNull();
+        expect(queryByText('Transfer ownership')).toBeNull();
         expect(queryByText('Remove')).toBeNull();
+    });
+});
+
+describe('MemberDetailScreen — transfer of ownership', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockPerms = OWNER;
+    });
+
+    // These four keys existed in the code and in NO locale file, so the button
+    // and its confirmation both rendered the raw key ("members.transferCta")
+    // for the one action on this screen you cannot undo.
+    it('labels the button and the confirmation in words, not key names', async () => {
+        const spy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        const { findByText } = renderScreen(worker());
+
+        fireEvent.press(await findByText('Transfer ownership'));
+
+        expect(spy).toHaveBeenCalledWith(
+            'Transfer ownership?',
+            expect.stringContaining('Ravi Kumar'),
+            expect.any(Array),
+        );
+        // The copy must say it is irreversible — handing over the farm is not
+        // something an owner can take back from the app.
+        expect(spy.mock.calls[0][1]).toContain('cannot be undone');
+        spy.mockRestore();
     });
 });

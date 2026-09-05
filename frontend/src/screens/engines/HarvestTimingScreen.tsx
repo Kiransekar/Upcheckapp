@@ -18,6 +18,7 @@ import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { LineChart } from '../../components/charts/LineChart';
 import { theme } from '../../theme';
 import { harvestTimingApi, type HarvestTimingResult } from '../../api/harvestTiming';
+import { apiErrorMessage } from '../../api/errors';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -80,7 +81,7 @@ export const HarvestTimingScreen = ({ route }: any) => {
       });
       setResult(data);
     } catch (e: any) {
-      Alert.alert(t('engines.common.couldNotCompute'), e?.response?.data?.message ?? t('engines.common.tryAgain'));
+      Alert.alert(t('engines.common.couldNotCompute'), apiErrorMessage(e, t('engines.common.tryAgain')));
     } finally {
       setLoading(false);
     }

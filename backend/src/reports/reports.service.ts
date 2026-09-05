@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PondsService } from '../ponds/ponds.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { FeedRecordsService } from '../feed-records/feed-records.service';
@@ -10,6 +10,10 @@ import { FarmAccessService } from '../farm-access/farm-access.service';
 import { PageOptionsDto } from '../common/dto/page-options.dto';
 import { toIstDateString } from '../common/ist-date';
 import { TransactionsService } from '../transactions/transactions.service';
+import {
+  FinancialReportQueryDto,
+  dateRangeWhere,
+} from '../transactions/dto/money-query.dto';
 
 // Farms are hard-capped at 500 ponds (PondNamingService.MAX_PONDS_PER_FARM).
 // A page size well above that is effectively "no limit" for pondsService.findAll,
@@ -18,6 +22,8 @@ const ALL_PONDS_PAGE = { skip: 0, take: 10000 } as PageOptionsDto;
 
 @Injectable()
 export class ReportsService {
+  private readonly logger = new Logger(ReportsService.name);
+
   constructor(
     private readonly pondsService: PondsService,
     private readonly inventoryService: InventoryService,
@@ -126,19 +132,32 @@ export class ReportsService {
     };
   }
 
-  async getFinancialReport(farmId: string, userId: string) {
+  async getFinancialReport(
+    farmId: string,
+    userId: string,
+    q: Partial<FinancialReportQueryDto> = {},
+  ) {
     // Financial report is owner/manager only (VIEW_FINANCIALS).
     await this.farmAccess.assertCanAccessFarm(
       userId,
       farmId,
       'VIEW_FINANCIALS',
     );
+    // 400 on an inverted range before any of the fan-out below runs.
+    dateRangeWhere(q);
+
+    // D3: archived ponds are INCLUDED by default. `pondsService.findAll`
+    // excludes `status = 'archived'` when neither `status` nor
+    // `includeArchived` is given, so passing nothing here made archiving a
+    // pond erase its whole cost/revenue history from the Money tab. The client
+    // colours the archived rows differently rather than losing the money.
+    const includeArchived = q.includeArchivedPonds !== false;
     // Find all ponds in the farm — an explicit large page, not the default
     // take=50, or a large farm's report silently drops ponds past #50.
     const pondsPage = await this.pondsService.findAll(
       farmId,
       userId,
-      undefined,
+      { includeArchived },
       ALL_PONDS_PAGE,
     );
 
@@ -151,21 +170,63 @@ export class ReportsService {
     // Per-pond and per-crop fan-out is parallelized (was a sequential N+1);
     // Promise.all preserves array order, so the summation order below —
     // and therefore the arithmetic result — is unchanged.
+    //
+    // Resilience is load-bearing, not defensive padding. Every one of these
+    // calls used to reject straight out of `Promise.all`, and the Money tab's
+    // batching layer catches a failed report by DROPPING THE FARM — so one bad
+    // pond or one bad cycle made a whole farm silently vanish from the tab.
+    // Degrade the crop, never the farm, and never silently.
+    //
+    // `findAllAccessible`, not `findByPond`: the latter goes through
+    // `verifyOwner`, which is OWNER-ONLY, so a manager holding VIEW_FINANCIALS
+    // 403'd here and lost the farm. This is not a loosening — the farm-level
+    // VIEW_FINANCIALS assert above already gated this whole method, and
+    // `getCycleFinancials` re-asserts VIEW_FINANCIALS per crop below. Only the
+    // listing of which cycles exist moved to the member-aware read.
     const perPondCropFinancials = await Promise.all(
       pondsPage.data.map(async (pond) => {
-        const crops = await this.cropsService.findByPond(pond.id, userId);
+        const crops = await this.cropsService
+          .findAllAccessible(pond.id, userId)
+          .catch((err) => {
+            this.logger.warn(
+              `Financial report ${farmId}: skipping pond ${pond.id} — ${err?.message ?? err}`,
+            );
+            return [] as { id: string }[];
+          });
         return Promise.all(
           crops.map((crop) =>
-            this.expensesService.getCycleFinancials(crop.id, userId),
+            this.expensesService
+              .getCycleFinancials(crop.id, userId, q)
+              .catch((err) => {
+                this.logger.warn(
+                  `Financial report ${farmId}: skipping cycle ${crop.id} — ${err?.message ?? err}`,
+                );
+                return null;
+              }),
           ),
         );
       }),
     );
 
-    for (const cropFinancials of perPondCropFinancials) {
+    // Per-pond rows, in the same order as `pondsPage.data`, each tagged with
+    // whether the pond is archived so the client can colour it differently
+    // (D3) — and so a farmer can see WHICH money came from a retired pond.
+    const ponds: {
+      pondId: string;
+      name: string | null;
+      archived: boolean;
+      revenue: number;
+      expenses: number;
+    }[] = [];
+
+    perPondCropFinancials.forEach((cropFinancials, i) => {
+      const pond: any = pondsPage.data[i];
+      let pondRevenue = 0;
+      let pondExpenses = 0;
       for (const financials of cropFinancials) {
-        totalRevenue += financials.totalRevenue;
-        totalExpenses += financials.totalExpenses;
+        if (!financials) continue; // skipped above, already logged
+        pondRevenue += financials.totalRevenue;
+        pondExpenses += financials.totalExpenses;
         for (const [category, amount] of Object.entries(
           financials.expensesByCategory,
         )) {
@@ -173,7 +234,16 @@ export class ReportsService {
             (expensesByCategory[category] || 0) + Number(amount);
         }
       }
-    }
+      totalRevenue += pondRevenue;
+      totalExpenses += pondExpenses;
+      ponds.push({
+        pondId: pond?.id,
+        name: pond?.displayName ?? pond?.name ?? null,
+        archived: pond?.status === 'archived',
+        revenue: pondRevenue,
+        expenses: pondExpenses,
+      });
+    });
 
     // Farm-level transactions, on top of the per-cycle ledger above.
     //
@@ -184,14 +254,25 @@ export class ReportsService {
     // written by different screens — nothing writes both from one action — so
     // adding them is a sum, not a double count.
     const transactions = await this.transactionsService
-      .findAll(userId, farmId)
+      .findAll(userId, {
+        farmId,
+        startDate: q.startDate,
+        endDate: q.endDate,
+        includeInventoryPurchases: q.includeInventoryPurchases,
+      })
       .catch(() => []);
+    // The slice of `totalExpenses` that came from inventory purchases (D2), so
+    // the client can show "of which inventory: ₹X" without a second request.
+    // Necessarily 0 when `includeInventoryPurchases=false` — those rows are
+    // then not in `totalExpenses` either.
+    let inventoryExpenses = 0;
     for (const tx of transactions) {
       const amount = Number(tx.amount) || 0;
       if (tx.type === 'income') {
         totalRevenue += amount;
       } else {
         totalExpenses += amount;
+        if (tx.inventoryItemId) inventoryExpenses += amount;
         const category = tx.category || 'Other';
         expensesByCategory[category] =
           (expensesByCategory[category] || 0) + amount;
@@ -210,6 +291,9 @@ export class ReportsService {
       totalExpenses,
       profit: totalRevenue - totalExpenses,
       expensesByCategory: expensesByCategoryArray,
+      inventoryExpenses,
+      ponds,
+      includedArchivedPonds: includeArchived,
     };
   }
 }

@@ -3,6 +3,12 @@ import { FarmsService } from '../farms/farms.service';
 import { ReportsService } from '../reports/reports.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreditService } from '../credit/credit.service';
+import { HarvestsService } from '../harvests/harvests.service';
+import {
+  MoneyOverviewQueryDto,
+  dateRangeWhere,
+  inDateRange,
+} from '../transactions/dto/money-query.dto';
 
 /**
  * Everything the Money tab renders, in ONE request.
@@ -28,16 +34,22 @@ export class MoneyOverviewService {
     private readonly reports: ReportsService,
     private readonly transactions: TransactionsService,
     private readonly credit: CreditService,
+    private readonly harvests: HarvestsService,
   ) {}
 
-  async forUser(userId: string) {
+  async forUser(userId: string, q: Partial<MoneyOverviewQueryDto> = {}) {
+    // Validated HERE, not only inside the services below: every fan-out call
+    // is wrapped in `.catch()`, which would swallow the 400 into an empty tab.
+    dateRangeWhere(q);
+
     const farms = await this.farms.findAll(userId);
 
-    const [reportPairs, allEntries, creditRows] = await Promise.all([
+    // prettier-ignore
+    const [reportPairs, transactionRows, creditRows, harvestRows] = await Promise.all([
       Promise.all(
         farms.map((farm: { id: string }) =>
           this.reports
-            .getFinancialReport(farm.id, userId)
+            .getFinancialReport(farm.id, userId, q)
             .then((report) => [farm.id, report] as const)
             // A worker or viewer without VIEW_FINANCIALS gets a 403 here. That
             // is a legitimate outcome, not an error: their Money tab shows the
@@ -48,15 +60,45 @@ export class MoneyOverviewService {
       ),
       // No farmId — already scoped to the farms where the caller may view
       // financials, so one call covers every farm.
-      this.transactions.findAll(userId).catch(() => []),
+      this.transactions.findAll(userId, q).catch(() => []),
       // A separate ledger that simply may not exist for a farmer who buys
       // nothing on account.
       this.credit.list(userId).catch(() => []),
+      // Harvest sales, projected read-only into entry shape. See
+      // HarvestsService.findMoneyEntries: a harvest already moves the headline
+      // (the report sums salePriceTotal) but wrote no row the farmer could
+      // point at. Merging here rather than writing a Transaction on harvest
+      // create is what keeps revenue from being counted twice.
+      this.harvests.findMoneyEntries(userId).catch(() => []),
     ]);
 
     const reports: Record<string, unknown> = {};
-    for (const pair of reportPairs) if (pair) reports[pair[0]] = pair[1];
+    let inventoryExpenses = 0;
+    for (const pair of reportPairs) {
+      if (!pair) continue;
+      reports[pair[0]] = pair[1];
+      inventoryExpenses += Number((pair[1] as any)?.inventoryExpenses || 0);
+    }
 
-    return { farms, reports, allEntries, credit: creditRows };
+    // Harvest rows are filtered here rather than in the query: HarvestsService
+    // belongs to another module and takes no date filter. Its read is capped
+    // at 500 rows, so this stays cheap.
+    const harvestsInRange = (harvestRows as any[]).filter((e) =>
+      inDateRange(e?.transactionDate, q),
+    );
+
+    // One list, newest first, so a harvest sits among the entries the farmer
+    // typed on the same day instead of in a section of its own.
+    // `transactionDate` is a `YYYY-MM-DD` string on both sides; normalise a
+    // Date defensively so a driver that hydrates one doesn't scramble the order.
+    const sortKey = (e: { transactionDate: unknown }) =>
+      e.transactionDate instanceof Date
+        ? e.transactionDate.toISOString()
+        : String(e.transactionDate ?? '');
+    const allEntries = [...transactionRows, ...harvestsInRange].sort((a, b) =>
+      sortKey(b).localeCompare(sortKey(a)),
+    );
+
+    return { farms, reports, allEntries, credit: creditRows, inventoryExpenses };
   }
 }

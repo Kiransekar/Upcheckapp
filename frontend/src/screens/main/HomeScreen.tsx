@@ -19,6 +19,7 @@ import { TodayStats } from '../../components/dashboard/TodayStats';
 import { GettingStarted } from '../../components/dashboard/GettingStarted';
 import { LunarRow } from '../../components/dashboard/LunarRow';
 import { FarmOverview } from '../../components/dashboard/FarmOverview';
+import { LogProgressCard } from '../../components/today/LogProgressCard';
 import { buildPondRows, mergeBriefings } from '../../utils/pondHealth';
 import type { PondContext } from '../../api/pondContext';
 import { ScreenHeader } from '../../components/ui/ScreenHeader';
@@ -37,7 +38,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { fetchTodaySnapshot } from '../../api/todaySnapshot';
 import { farmMembersApi } from '../../api/farmMembers';
-import { type Task } from '../../api/tasks';
+import { splitTasks, type Task } from '../../api/tasks';
 import { fetchTeamOverview } from '../../api/teamOverview';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
@@ -262,6 +263,17 @@ export const HomeScreen = ({ navigation }: any) => {
         const stamps = [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt].filter(Boolean);
         return stamps.length ? Math.min(...stamps) : 0;
     }, [farmsQuery.dataUpdatedAt, alertsQuery.dataUpdatedAt]);
+
+    /** Name lookups for the log progress card — no request of its own, the
+     * farm and pond lists are already loaded above. */
+    const farmNamesById = React.useMemo(
+        () => Object.fromEntries(farms.map((f) => [f.id, f.name])),
+        [farms],
+    );
+    const pondNamesById = React.useMemo(
+        () => Object.fromEntries(ponds.map((p) => [p.id, p.displayName || p.name])),
+        [ponds],
+    );
 
     const bandReady = !!alertsQuery.data && !alertsQuery.isError;
 
@@ -609,11 +621,17 @@ export const HomeScreen = ({ navigation }: any) => {
      *
      *  is excluded but  is NOT — a finished task waiting on a
      * verifier is precisely what 1b's "Verify" button is for.
+     *
+     * "Mine" is the same rule the Team tab's "Your tasks" uses — assigned to
+     * me, unassigned in my scope (everyone means me), or my own personal task.
+     * It used to be `assignedToId === me` alone, which missed both of the
+     * other two: a farm-wide task and a note a farmer wrote themselves both
+     * failed to reach Today at all.
      */
     const myOpenTasks = React.useMemo(() => {
         if (!user?.id || !teamQuery.data || teamQuery.isError) return null;
-        return (teamQuery.data.tasks ?? []).filter(
-            (task: any) => task.assignedToId === user.id && task.status !== 'verified',
+        return splitTasks(teamQuery.data.tasks ?? [], user.id).mine.filter(
+            (task) => task.status !== 'verified',
         );
     }, [teamQuery.data, teamQuery.isError, user?.id]);
 
@@ -758,6 +776,17 @@ export const HomeScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <>
+                    {/* Overall / per farm / per pond log progress for the
+                        current slot — reads the contexts this screen already
+                        fetched, no new request. See LogProgressCard.tsx. */}
+                    {bandReady && (
+                        <LogProgressCard
+                            contexts={contexts}
+                            farmNames={farmNamesById}
+                            pondNames={pondNamesById}
+                        />
+                    )}
+
                     {/* Worker first-run interstitial (onboarding-plan Phase 1):
                         a worker previously got zero explanation of their role or
                         which farm they had joined on their very first app-open.
@@ -863,6 +892,7 @@ export const HomeScreen = ({ navigation }: any) => {
                     {/* "My tasks" — mine only. The Team tab shows the whole team's. */}
                     <MyTasksList
                         tasks={myOpenTasks ?? []}
+                        userId={user?.id}
                         farmNameForTask={(task) => farms.find((f) => f.id === task.farmId)?.name}
                         // The whole board, not just mine — an owner who has
                         // handed every task to someone else still has to see

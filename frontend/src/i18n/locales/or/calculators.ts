@@ -56,6 +56,13 @@ const calculators = {
     errorArea: 'ପୋଖରୀ କ୍ଷେତ୍ରଫଳ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders (QA BUG-013)
+    phTotalSeed: 'ଉଦା. ୫୦୦୦୦୦',
+    phDecimal: '୦.୦',
+    phDaysOfCulture: 'ଉଦା. ୧୨୦',
+    phFinalMbw: 'ଉଦା. ୨୫.୦',
+    phFinalSr: 'ଉଦା. ୮୫',
   },
 
   // ── DailyFeedCalculatorScreen ─────────────────────────────────────────────
@@ -76,8 +83,8 @@ const calculators = {
     colRateBw: 'ହାର (% BW)',
     errorMbw: 'MBW ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorSr: 'ବଞ୍ଚିବା ହାର ୦ ଓ ୧୦୦ ମଧ୍ୟରେ ହେବା ଦରକାର',
-    errorCount: 'ପ୍ରାଥମିକ ସଂଖ୍ୟା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
-    errorFeedingRate: 'ଖାଦ୍ୟ ହାର ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
+    errorCount: 'ଷ୍ଟକ ସଂଖ୍ୟା ୧ ଓ ୧୦,୦୦,୦୦,୦୦୦ ମଧ୍ୟରେ ହେବା ଦରକାର।',
+    errorFeedingRate: 'ଖାଦ୍ୟ ହାର ୦ ଓ ୧୦୦% ମଧ୍ୟରେ ହେବା ଦରକାର।',
     errorBiomassZero: 'ଗଣିତ ବାୟୋମାସ ଶୂନ ବା ଋଣ। ଇନ୍‌ପୁଟ ଯାଞ୍ଚ କରନ୍ତୁ।',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
@@ -96,6 +103,12 @@ const calculators = {
     perMealKg: "ପ୍ରତି ଭୋଜନ କିଗ୍ରା",
     meals: "ଭୋଜନ",
     logThisAmount: "{{kg}} କିଗ୍ରା ଲିପିବଦ୍ଧ କରନ୍ତୁ",
+
+    // placeholders (QA BUG-013)
+    phMbw: '୧୮.୪',
+    phSr: '୭୮',
+    phCount: '୨୮୭୦୦',
+    phFeedingRate: '୩.୨',
   },
 
   // ── ProductAmountScreen ───────────────────────────────────────────────────
@@ -111,12 +124,21 @@ const calculators = {
     pondVolume: 'ପୋଖରୀ ଆୟତନ',
     requiredAmount: 'ଆବଶ୍ୟକ ଉତ୍ପାଦ ପରିମାଣ',
     withConcentration: '{{conc}}% ଗାଢ଼ତ୍ୱ ସହ:',
+    activeIngredientBasis: '100% ସକ୍ରିୟ-ଉପାଦାନ ଆଧାରରେ:',
     errorArea: 'ପୋଖରୀ କ୍ଷେତ୍ରଫଳ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorDepth: 'ଜଳ ଗଭୀରତା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorPpm: 'ଲକ୍ଷ୍ୟ ppm ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorConc: 'ଗାଢ଼ତ୍ୱ ୦ ଓ ୧୦୦ ମଧ୍ୟରେ ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phPondArea: 'ଉଦା. ୫୦୦୦',
+    phWaterDepth: 'ଉଦା. ୧.୨',
+    phTargetConc: 'ଉଦା. ୫.୦',
+    phProductConc: 'ଉଦା. ୧୦୦ (ଡିଫଲ୍ଟ)',
+    unitM3: 'm³',
+    unitKg: 'kg',
   },
 
   // ── FreeAmmoniaScreen ─────────────────────────────────────────────────────
@@ -127,13 +149,13 @@ const calculators = {
     labelPh: 'pH',
     labelTemp: 'ତାପମାତ୍ରା (°C)',
     labelSalinity: 'ଲବଣତ (ppt)',
-    hintSalinity: 'କେବଳ ସନ୍ଦର୍ଭ ପାଇଁ',
+    hintSalinity: 'ଫଳାଫଳକୁ ପ୍ରଭାବିତ କରେ — ମିଠା ପାଣି ପୋଖରୀ ପାଇଁ 0 ଲେଖନ୍ତୁ',
     calculateBtn: 'NH₃ ଗଣନା',
     resultLabel: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ (NH₃)',
     serverSuffix: ' (ସର୍ଭର)',
     toxicityTitle: 'ବିଷ ମାପ',
     safeLabel: 'ସୁରକ୍ଷିତ',
-    safeMessage: 'NH₃ ସ୍ତର ସୁରକ୍ଷିତ ସୀମାରେ (< 0.1 ppm)। କୌଣସି ପଦକ୍ଷେପ ଆବଶ୍ୟକ ନାହିଁ।',
+    safeMessage: 'NH₃ ସ୍ତର ସୁରକ୍ଷିତ ସୀମାରେ (0.1 ppm ରୁ କମ୍)। କୌଣସି ପଦକ୍ଷେପ ଆବଶ୍ୟକ ନାହିଁ।',
     warningLabel: 'ସଂଘଟନ',
     warningMessage: 'NH₃ ସ୍ତର ଅଧିକ (0.1–0.5 ppm)। ଖାଦ୍ୟ ହ୍ରାସ ବା ଆଂଶିକ ଜଳ ବଦଳ ଭାବନ୍ତୁ।',
     criticalLabel: 'ଗମ୍ଭୀର',
@@ -144,8 +166,19 @@ const calculators = {
     errorTan: 'TAN ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorPh: 'pH ୦ ଓ ୧୪ ମଧ୍ୟରେ ହେବା ଦରକାର',
     errorTemp: 'ତାପମାତ୍ରା ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
+    errorSalinity: 'ଲବଣତ ଏକ ବୈଧ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ମୁକ୍ତ ଅ୍ୟାମୋନିଆ ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phTan: 'ଉଦା. ୧.୫',
+    phPh: 'ଉଦା. ୮.୨',
+    phTemp: 'ଉଦା. ୨୯',
+    phSalinity: 'ଉଦା. ୧୫',
+    unitPpmMgL: 'ppm / mg/L',
+    rangeSafe: '< 0.1 ppm',
+    rangeWarning: '0.1 – 0.5 ppm',
+    rangeCritical: '> 0.5 ppm',
   },
 
   // ── GrowthAndHarvestScreen ────────────────────────────────────────────────
@@ -190,6 +223,19 @@ const calculators = {
     errorAverageWeight: 'ହାରାହାରି ଓଜନ ଏକ ଧନାତ୍ମକ ସଂଖ୍ୟା ହେବା ଦରକାର',
     errorCalc: 'ଗଣନା ବିଫଳ',
     validationTitle: 'ଯୋଗ୍ୟତା ତ୍ରୁଟି',
+
+    // placeholders and units (QA BUG-013)
+    phStockingCount: 'ଉଦା. ୫୦୦୦୦୦',
+    phSurvivalRate: 'ଉଦା. ୮୦',
+    phTargetWeight: 'ଉଦା. ୨୦',
+    phCurrentWeight: 'ଉଦା. ୫.୦',
+    phAdg: 'ଉଦା. ୦.୨',
+    phDaysToProject: 'ଉଦା. ୩୦',
+    phStockCount: 'ଉଦା. ୪୦୦୦୦୦',
+    phAverageWeight: 'ଉଦା. ୧୨.୫',
+    phAverageWeightRfr: 'ଉଦା. ୮.୦',
+    unitKg: 'kg',
+    unitG: 'g',
   },
 
   // Pond picker — artboard p2

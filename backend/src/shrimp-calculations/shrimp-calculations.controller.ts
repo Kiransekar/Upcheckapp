@@ -135,15 +135,21 @@ export class ShrimpCalculationsController {
 
   @Get('recommended-feeding-rate')
   getRecommendedFeedingRate(
-    @Query('averageWeightG') averageWeightG: number,
+    @Query('averageWeightG') averageWeightG: string,
     @Query('species') species?: string,
   ) {
+    // Nest hands query params through as strings, so the old `: number` type was
+    // decorative: Number('abc') is NaN, every `<` rung in the step table is
+    // false, and control fell to the unconditional tail `return 1.8`. Empty
+    // string became 0 and matched the post-larvae bucket. Both were returned as
+    // confident advice (QA BUG-004). Mirrors the biomass handler above.
+    const weight = Number(averageWeightG);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      throw new BadRequestException('averageWeightG must be a positive number');
+    }
     return {
       recommendedFeedingRatePercent:
-        this.calculationsService.getRecommendedFeedingRate(
-          Number(averageWeightG),
-          species,
-        ),
+        this.calculationsService.getRecommendedFeedingRate(weight, species),
     };
   }
 }

@@ -29,8 +29,12 @@ import onboarding from './onboarding';
 import leave from './leave';
 import attendance from './attendance';
 import team from './team';
+import tasks from './tasks';
 import feedback from './feedback';
 import sync from './sync';
+import notifications from './notifications';
+import whatsNew from './whatsNew';
+import activity from './activity';
 
 export default {
   common,
@@ -58,6 +62,10 @@ export default {
   leave,
   attendance,
   team,
+  tasks,
   feedback,
   sync,
+  notifications,
+  whatsNew,
+  activity,
 };

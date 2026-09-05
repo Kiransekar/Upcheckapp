@@ -20,6 +20,7 @@ import { Input } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { harvestPlansApi, HarvestPlan } from '../../api/harvestPlans';
+import { apiErrorMessage } from '../../api/errors';
 import { todayLocalISODate, toLocalISODate } from '../../utils/localDate';
 
 // ---------------------------------------------------------------------------
@@ -209,7 +210,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
         } catch (err: any) {
             Alert.alert(
                 t('common.error', 'Error'),
-                err?.response?.data?.message ?? t('harvestPlans.loadFailed', 'Failed to load harvest plans'),
+                apiErrorMessage(err, t('harvestPlans.loadFailed', 'Failed to load harvest plans')),
             );
         } finally {
             setIsLoading(false);
@@ -265,7 +266,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
             .catch((err: any) =>
                 Alert.alert(
                     t('common.error', 'Error'),
-                    err?.response?.data?.message ?? t('harvestPlans.completeFailed', 'Failed to complete harvest plan'),
+                    apiErrorMessage(err, t('harvestPlans.completeFailed', 'Failed to complete harvest plan')),
                 ),
             )
             .finally(() => setActioningId(null));
@@ -295,7 +296,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
                             .catch((err: any) =>
                                 Alert.alert(
                                     t('common.error', 'Error'),
-                                    err?.response?.data?.message ?? t('harvestPlans.deleteFailed', 'Failed to delete harvest plan'),
+                                    apiErrorMessage(err, t('harvestPlans.deleteFailed', 'Failed to delete harvest plan')),
                                 ),
                             )
                             .finally(() => setActioningId(null));
@@ -338,7 +339,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
         } catch (err: any) {
             Alert.alert(
                 t('common.error', 'Error'),
-                err?.response?.data?.message ?? t('harvestPlans.createFailed', 'Failed to create harvest plan'),
+                apiErrorMessage(err, t('harvestPlans.createFailed', 'Failed to create harvest plan')),
             );
         } finally {
             setIsSubmitting(false);
@@ -402,6 +403,7 @@ export const HarvestPlansScreen = ({ route, navigation }: any) => {
             ) : (
                 <FlatList
                     data={plans}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item.id}
                     renderItem={renderPlan}
                     contentContainerStyle={styles.listContent}

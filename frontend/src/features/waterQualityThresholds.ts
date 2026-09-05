@@ -1,7 +1,8 @@
 /**
  * Per-species five-zone water-quality thresholds (spec Requirement 10).
  *
- * Upgrades the single optimal/out-of-range band in `constants/ranges.ts` to a
+ * Supersedes the old single optimal/out-of-range band from `constants/ranges.ts`
+ * (deleted — this is now the only threshold table and status function) with a
  * five-zone model — critical-low, caution-low, optimal, caution-high,
  * critical-high — with distinct boundaries per cultured species. One-sided
  * parameters (e.g. dissolved oxygen has no upper concern; ammonia no lower) leave
@@ -30,6 +31,7 @@ export type ThresholdParam =
   | 'nitrite'
   | 'nitrate'
   | 'transparency'
+  | 'hardness'
 
 export type Zone =
   | 'critical-low'
@@ -38,7 +40,7 @@ export type Zone =
   | 'caution-high'
   | 'critical-high'
 
-/** Traffic-light status used by the existing UI (mirrors constants/ranges). */
+/** Traffic-light status used by the UI — the only ParameterStatus in the app. */
 export type ParameterStatus = 'safe' | 'warning' | 'critical' | 'none'
 
 export interface FiveZoneThreshold {
@@ -63,6 +65,10 @@ const VANNAMEI: Record<ThresholdParam, FiveZoneThreshold> = {
   nitrite: { criticalLow: null, cautionLow: null, cautionHigh: 1.0, criticalHigh: 4.0 },
   nitrate: { criticalLow: null, cautionLow: null, cautionHigh: 60, criticalHigh: 200 },
   transparency: { criticalLow: 20, cautionLow: 30, cautionHigh: 45, criticalHigh: 60 },
+  // Moved from the now-deleted constants/ranges.ts, which had no critical band
+  // for hardness either — only ever safe/warning. No agronomist-confirmed
+  // source yet (commonly-cited shrimp-pond ideal, 20-150mg/L CaCO3).
+  hardness: { criticalLow: null, cautionLow: 20, cautionHigh: 150, criticalHigh: null },
 }
 
 function withOverrides(
@@ -94,15 +100,28 @@ export const THRESHOLDS: Record<
   }),
 }
 
-/** Coerce a free-text species string to a supported ThresholdSpecies. */
-export function toThresholdSpecies(raw: string | null | undefined): ThresholdSpecies {
+/**
+ * Coerce a free-text species string to a supported ThresholdSpecies, or `null`
+ * when it matches nothing.
+ *
+ * It used to answer 'vannamei' for anything it did not recognise, so a typo
+ * ('VannameiVannamei' is in production) silently evaluated a tiger-prawn pond
+ * against vannamei bands and raised the wrong alerts with nothing to say why.
+ * Null makes the caller choose its fallback out loud. Cycles created from now
+ * on pick from CANONICAL_SPECIES (features/species.ts), so this only has to
+ * cope with the free-text backlog.
+ */
+export function toThresholdSpecies(
+  raw: string | null | undefined,
+): ThresholdSpecies | null {
   const s = (raw ?? '').toLowerCase()
   if (s.includes('monodon') || s.includes('tiger') || s.includes('black')) return 'monodon'
   if (s.includes('indicus')) return 'indicus'
   if (s.includes('scampi') || s.includes('macrobrachium') || s.includes('rosenbergii')) {
     return 'scampi'
   }
-  return 'vannamei'
+  if (s.includes('vannamei')) return 'vannamei'
+  return null
 }
 
 /** Get the threshold record for a (species, parameter), defaulting to vannamei. */
@@ -163,6 +182,37 @@ export function nighttimeDoAlarm(params: {
   return isNight && t.cautionLow != null && dissolvedOxygen < t.cautionLow
 }
 
+/**
+ * Compact, language-neutral "ideal range" hint for a parameter, e.g. "7.5–8.5",
+ * "≥ 4", "≤ 0.1" — the optimal-zone edges (cautionLow/cautionHigh), which is
+ * exactly what constants/ranges.ts's min/max meant before it was merged in here.
+ */
+export function getParameterRangeHint(
+  species: ThresholdSpecies,
+  parameter?: ThresholdParam,
+): string | null {
+  if (!parameter) return null
+  const { cautionLow, cautionHigh } = getThreshold(species, parameter)
+  if (cautionLow != null && cautionHigh != null) return `${cautionLow}–${cautionHigh}`
+  if (cautionLow != null) return `≥ ${cautionLow}`
+  if (cautionHigh != null) return `≤ ${cautionHigh}`
+  return null
+}
+
+/** Traffic-light color for a status, moved from constants/ranges.ts. */
+export function getStatusColor(status: ParameterStatus): string {
+  switch (status) {
+    case 'safe':
+      return '#4CAF50'
+    case 'warning':
+      return '#FFC107'
+    case 'critical':
+      return '#F44336'
+    default:
+      return '#E0E0E0'
+  }
+}
+
 export default {
   THRESHOLDS,
   toThresholdSpecies,
@@ -171,4 +221,6 @@ export default {
   zoneStatus,
   evaluateParameter,
   nighttimeDoAlarm,
+  getParameterRangeHint,
+  getStatusColor,
 }

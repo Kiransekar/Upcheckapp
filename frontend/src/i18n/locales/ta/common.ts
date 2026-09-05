@@ -44,7 +44,6 @@ const common = {
   tabSettings: 'அமைப்புகள்',
   tabDashboard: 'டாஷ்போர்டு',
   tabFarms: 'பண்ணைகள்',
-  tabReports: 'அறிக்கைகள்',
   tabMore: 'மேலும்',
   savedSuccess: 'சேமிக்கப்பட்டது',
   networkError: 'சர்வரை அணுக முடியவில்லை. உங்கள் இணைய இணைப்பைச் சரிபார்த்து மீண்டும் முயற்சிக்கவும்.',
@@ -63,5 +62,14 @@ const common = {
 
   // Shared onboarding action (artboards 01, 03, 05)
   continue: "தொடர்க",
+
+  // Asked before overwriting a record that already exists — see utils/confirm.ts
+  confirmEditTitle: "இந்த மாற்றங்களைச் சேமிக்கவா?",
+  confirmEditMessage: "இது முன்பு சேமித்ததை மாற்றிவிடும்.",
+
+  ageJustNow: "<1 ம",
+  ageHours: "{{count}} ம",
+  ageDays: "{{count}} நா",
+  ageNever: "இல்லை",
 };
 export default common;

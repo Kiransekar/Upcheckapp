@@ -225,6 +225,29 @@ describe('NewsIngestionService', () => {
       expect(stats.persisted).toBeGreaterThan(0);
     });
 
+    it('keeps polling later sources after an unexpected, non-fetch failure in an earlier one', async () => {
+      // ingestSource already isolates fetch errors internally; this proves
+      // `run()` isolates everything else too — a persist() error that is not
+      // a duplicate-key race (23505) rethrows out of ingestSource, and must
+      // not abort the sources still waiting in the loop.
+      sources.find.mockResolvedValue([
+        source({ id: 's1', name: 'Bad' }),
+        source({ id: 's2', name: 'Good' }),
+      ]);
+      articles.save.mockImplementationOnce(() => {
+        throw Object.assign(new Error('connection terminated'), {
+          code: '57P01',
+        });
+      });
+
+      const result = await service.run();
+
+      expect(result.sources.map((s) => s.name)).toEqual(['Bad', 'Good']);
+      expect(result.sources[0].error).toContain('connection terminated');
+      expect(result.sources[1].persisted).toBeGreaterThan(0);
+      expect(result.failed).toBe(1);
+    });
+
     it('honours the per-source hourly lock rather than polling again', async () => {
       redis.get.mockResolvedValue('1');
 
@@ -234,13 +257,15 @@ describe('NewsIngestionService', () => {
       expect(stats).toMatchObject({ fetched: 0, persisted: 0 });
     });
 
-    it('identifies itself and gives up after ten seconds', async () => {
+    it('identifies itself and gives up after thirty seconds', async () => {
       await service.ingestSource(source());
 
+      // mpeda.gov.in is slow even when reachable — 10s was timing out a live
+      // feed, not just a dead one.
       expect(mockedAxios.get).toHaveBeenCalledWith(
         source().feedUrl,
         expect.objectContaining({
-          timeout: 10_000,
+          timeout: 30_000,
           headers: expect.objectContaining({
             'User-Agent': expect.stringContaining('UpcheckBot/1.0'),
           }),

@@ -1,0 +1,36 @@
+# Files excluded from the expo-updates fingerprint (runtimeVersion policy
+# "fingerprint"). Patterns are minimatch, relative to this directory.
+#
+# Everything here is excluded for the same reason: EAS Build REWRITES the file
+# during the build, before it computes the fingerprint on its side. The local
+# machine hashes the file as committed, EAS hashes its own rewritten version,
+# the two runtime versions disagree, and the build dies in "Configure
+# expo-updates" with:
+#
+#   Runtime version calculated on local machine not equal to runtime version
+#   calculated during build.
+
+# Carries versionCode/versionName, rewritten by the "Configure Android version"
+# phase. A version bump is not a native-runtime change and must not invalidate
+# OTA compatibility for binaries that are otherwise identical.
+android/app/build.gradle
+
+# THE CIRCULAR ONE. strings.xml holds `expo_runtime_version`, which for the
+# fingerprint policy is the fingerprint itself (`file:fingerprint`). Hashing it
+# means the fingerprint depends on a file that contains the fingerprint, so any
+# rewrite of that value by EAS changes the hash that the value is derived from.
+#
+# Proven, not assumed: flipping expo_runtime_version from `file:fingerprint` to
+# `1.0.0` moved the android/ directory hash from 3015d945… to 602f8235…, and
+# EAS reported its own android/ hash as 2e7f376a… against our 3015d945…
+#
+# Cost of ignoring it: a change to app_name or the splash resize mode no longer
+# bumps the runtime version. That is acceptable — neither alters the native
+# interface an OTA bundle links against, which is the only thing runtimeVersion
+# exists to protect.
+android/app/src/main/res/values/strings.xml
+
+# NOTE: runtimeVersion is currently the literal "2.0.0" (app.config.ts), not
+# { policy: "fingerprint" }, so nothing here is in force today. Kept because it
+# records two confirmed causes of local-vs-EAS fingerprint divergence, which is
+# exactly what anyone re-attempting the fingerprint policy needs to know first.

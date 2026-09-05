@@ -1,14 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, TextInput } from 'react-native';
 import { theme } from '../../theme';
-import { getParameterStatus, getParameterRangeHint, ParameterStatus } from '../../constants/ranges';
+import { evaluateParameter, getParameterRangeHint, ParameterStatus, ThresholdParam } from '../../features/waterQualityThresholds';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 interface ParameterInputProps {
     label: string;
     value: string;
     onChangeText: (text: string) => void;
-    parameterKey?: Parameters<typeof getParameterStatus>[0];
+    parameterKey?: ThresholdParam;
     placeholder?: string;
     unit?: string;
     required?: boolean;
@@ -24,8 +24,14 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
     required
 }) => {
     const numValue = value ? parseFloat(value) : undefined;
-    const status: ParameterStatus = parameterKey ? getParameterStatus(parameterKey, numValue) : 'none';
-    const rangeHint = getParameterRangeHint(parameterKey);
+    // No crop/pond context reaches this shared input, so species defaults to
+    // vannamei — the same fallback used everywhere else a species can't be
+    // resolved (see toThresholdSpecies), and it's what constants/ranges.ts's
+    // now-deleted flat table effectively assumed anyway.
+    const status: ParameterStatus = parameterKey
+        ? evaluateParameter('vannamei', parameterKey, numValue).status
+        : 'none';
+    const rangeHint = getParameterRangeHint('vannamei', parameterKey);
 
     const getStatusColor = () => {
         switch (status) {

@@ -152,6 +152,37 @@ const settings = {
   signOutConfirm: "क्या इस डिवाइस पर अपचेक से साइन आउट करें?",
   toolsSection: "उपकरण",
   farmSection: "फ़ार्म",
+
+  // ── रिमाइंडर का समय (स्मार्ट रिमाइंडर) ──────────────────────────────────
+  reminderTimes: "रिमाइंडर का समय",
+  reminderTimesDesc: "तय करें कि Upcheck आपको पानी की गुणवत्ता दर्ज करने के लिए कब याद दिलाए।",
+  reminderMorning: "सुबह की जांच",
+  reminderAfternoon: "दोपहर की जांच",
+  reminderEvening: "शाम की जांच",
+  reminderChemistry: "साप्ताहिक रसायन जांच",
+  reminderHourLabel: "घंटा",
+  reminderMinuteLabel: "मिनट",
+  reminderStatusOn: "रिमाइंडर चालू हैं। अगला: {{when}}",
+  reminderStatusOff: "अभी कोई रिमाइंडर सेट नहीं है। एक तालाब जोड़ें, फिर Upcheck एक बार खोलें — रिमाइंडर लग जाएंगे।",
+  reminderStatusBlocked: "इस फ़ोन पर Upcheck सूचनाएँ नहीं दिखा सकता, इसलिए रिमाइंडर नहीं आएंगे।",
+  reminderStatusOpenSettings: "फ़ोन सेटिंग्स खोलें",
+  reminderWhenToday: "आज {{time}} बजे",
+  reminderWhenTomorrow: "कल {{time}} बजे",
+  reminderWhenOn: "{{date}} को {{time}} बजे",
+
+  // ── गोपनीयता: क्रैश रिपोर्ट और एनालिटिक्स ─────────────────────────────────
+  privacySection: "गोपनीयता",
+  crashReportsToggle: "क्रैश रिपोर्ट",
+  crashReportsDesc:
+    "चालू है, ताकि आपको बताने से पहले ही हम खराबी ठीक कर सकें। इन रिपोर्ट में आपका फ़ोन नंबर, ईमेल, पासवर्ड, पैसों के आंकड़े या खेत का रिकॉर्ड नहीं जाता। आप इसे बंद कर सकते हैं।",
+  analyticsToggle: "उपयोग की जानकारी",
+  analyticsToggleDesc:
+    "जब तक आप चालू न करें, बंद रहती है। इससे पता चलता है कि कौन-सी स्क्रीन इस्तेमाल होती हैं, ताकि हम सही चीज़ें बनाएँ। आपके तालाब, पैसे और फ़सल के आंकड़े कभी नहीं भेजे जाते।",
+  analyticsPromptTitle: "क्या हम देख सकते हैं कि आप कौन-सी स्क्रीन इस्तेमाल करते हैं?",
+  analyticsPromptBody:
+    "इससे हमें यह ठीक करने में मदद मिलती है कि क्या इस्तेमाल करना मुश्किल है। हम सिर्फ़ स्क्रीन का नाम भेजेंगे — आपके तालाब, पैसे या फ़सल के आंकड़े कभी नहीं। आपके जवाब से ऐप में कुछ भी कम नहीं होगा।",
+  analyticsPromptAllow: "हाँ, ठीक है",
+  analyticsPromptDecline: "नहीं, धन्यवाद",
 };
 
 export default settings;

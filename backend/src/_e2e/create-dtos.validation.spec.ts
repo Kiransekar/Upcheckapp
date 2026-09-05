@@ -72,7 +72,7 @@ describe('Create-DTO acceptance through the global ValidationPipe', () => {
       name: 'Crop 1',
       cropCode: 'C-01',
       speciesType: 'Vannamei',
-      seedType: 'net',
+      seedType: 'PL-10',
       stockingDensity: 80,
       stockingCount: 400000,
       stockingDate: '2026-06-01',
@@ -90,6 +90,39 @@ describe('Create-DTO acceptance through the global ValidationPipe', () => {
     const out = await run(CreateCropDto, { ...payload });
     expect(out).toMatchObject(payload);
     for (const k of Object.keys(payload)) expect(out).toHaveProperty(k); // nothing dropped
+  });
+
+  // Species/seed are closed lists: prod picked up a crop with
+  // speciesType 'VannameiVannamei' from the old free-text field, which broke
+  // threshold lookup. Both stay optional.
+  it('Crop: rejects a species outside the canonical list', async () => {
+    await expect(
+      run(CreateCropDto, {
+        pondId: UUID,
+        name: 'Crop 1',
+        speciesType: 'VannameiVannamei',
+      }),
+    ).rejects.toBeDefined();
+  });
+
+  it('Crop: rejects a seed type outside the list', async () => {
+    await expect(
+      run(CreateCropDto, { pondId: UUID, name: 'Crop 1', seedType: 'net' }),
+    ).rejects.toBeDefined();
+  });
+
+  it('Crop: accepts a canonical species and seed type, and omitting both', async () => {
+    await expect(
+      run(CreateCropDto, {
+        pondId: UUID,
+        name: 'Crop 1',
+        speciesType: 'Vannamei',
+        seedType: 'PL-10',
+      }),
+    ).resolves.toMatchObject({ speciesType: 'Vannamei', seedType: 'PL-10' });
+    await expect(
+      run(CreateCropDto, { pondId: UUID, name: 'Crop 1' }),
+    ).resolves.toMatchObject({ name: 'Crop 1' });
   });
 
   it('rejects an invalid field value (validation actually runs)', async () => {

@@ -11,6 +11,7 @@ import { ChipGroup } from '../../components/ui/ChipGroup';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { theme } from '../../theme';
 import { feedingTrayApi, type FeedingTrayCheck, type TrayResidue } from '../../api/feedingTray';
+import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { toLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
@@ -64,7 +65,7 @@ export const FeedingTrayChecksScreen = ({ route, navigation }: any) => {
             // let the next focus/reconnect pick up the real list.
             if (!res.queued) load();
         } catch (e: any) {
-            Alert.alert(t('common.error'), e?.response?.data?.message || t('logs.feedingTray_errorSave', 'Could not save tray check'));
+            Alert.alert(t('common.error'), apiErrorMessage(e, t('logs.feedingTray_errorSave', 'Could not save tray check')));
         } finally {
             setSaving(false);
         }

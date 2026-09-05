@@ -9,10 +9,17 @@ const cycles = {
   placeholderStockingCount: 'e.g. 500000',
   fieldSpeciesType: 'Species Type',
   placeholderSpeciesType: 'e.g. Vannamei',
-  fieldSeedType: 'Seed Type (Optional)',
-  placeholderSeedType: 'e.g. PL-10',
+  fieldSeedType: 'Seed Type',
+  placeholderSeedType: 'Pick the seed grade',
+  // Species labels pair the trade name with the Latin one, which is what the
+  // hatchery invoice says.
+  species_Vannamei: 'Vannamei (L. vannamei)',
+  species_Monodon: 'Tiger prawn (P. monodon)',
+  species_Indicus: 'Indian white prawn (P. indicus)',
+  species_Scampi: 'Scampi (M. rosenbergii)',
   startCycle: 'Start Production Cycle',
   errorCycleNameRequired: 'Cycle name is required',
+  errorSeedTypeRequired: 'Choose the seed type',
   errorStockingCountRequired: 'Valid stocking count is required',
   errorStartCycle: 'Failed to start cycle',
 
@@ -48,5 +55,36 @@ const cycles = {
   fieldTargetDays: 'Target days',
   fieldTargetSize: 'Target size (count)',
   fieldTargetSr: 'Target survival (%)',
+
+  // CycleListScreen
+  listTitle: 'Cycle history',
+  listStocked: 'Stocked',
+  listHarvested: 'Harvested',
+  listRevenue: 'Revenue',
+  listKg: '{{amount}} kg',
+  currency: '₹{{amount}}',
+  listEmptyTitle: 'No cycles yet',
+  listEmptyText: 'Cycles you start here will be listed with their stocking, harvest and result.',
+  listErrorTitle: "Couldn't load cycle history",
+  status_active: 'Active',
+  status_completed: 'Completed',
+  status_cancelled: 'Cancelled',
+
+  // Cycle detail P&L + edit
+  errorLoadTitle: "Couldn't load this cycle",
+  sectionPnl: 'Profit & loss',
+  pnlRevenue: 'Revenue',
+  pnlCost: 'Cost',
+  pnlProfit: 'Profit',
+  pnlBiomass: 'Harvested',
+  pnlProvisional: 'Provisional — this cycle is not fully harvested yet.',
+  editTitle: 'Edit cycle',
+  editConfirmTitle: 'Save these changes?',
+  editConfirmMessage: 'You are changing {{fields}}. This re-dates the cycle and changes the targets the alerts are judged against.',
+  editField_stockingDate: 'stocking date',
+  editField_stockingCount: 'stocking count',
+  editField_speciesType: 'species',
+  editField_seedType: 'seed type',
+  errorEditCycle: 'Failed to save the cycle',
 };
 export default cycles;

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Animated, Share, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +17,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
 import { profilesApi, ProfileCompat, CompatUpdateProfileDto } from '../../api/profiles';
 import { authApi } from '../../api/auth';
+import { apiErrorMessage } from '../../api/errors';
 import { TruecallerAuth } from '../../native/TruecallerAuth';
 
 export const ProfileScreen = ({ navigation }: any) => {
@@ -81,7 +83,8 @@ export const ProfileScreen = ({ navigation }: any) => {
             });
         } catch (err: any) {
             const status = err?.response?.status;
-            const serverMsg = err?.response?.data?.message;
+            // '' so the `serverMsg || t(…)` fallback below still applies.
+            const serverMsg = apiErrorMessage(err, '');
             if (status === 409) {
                 showToast({
                     message:
@@ -159,9 +162,12 @@ export const ProfileScreen = ({ navigation }: any) => {
         }
     }, [fadeIn]);
 
-    useEffect(() => {
-        fetchProfile();
-    }, []);
+    // React Navigation keeps this screen mounted, so a mount-only fetch never
+    // re-ran on return — this is the direct write path CreateFarmScreen's
+    // sibling, ProfileScreen's own `handleSave` (line ~180 below), used to
+    // bypass entirely: the interceptor now invalidates nothing for /profiles
+    // (see query/client.ts), so this screen must ask again itself on focus.
+    useFocusEffect(useCallback(() => { fetchProfile(); }, [fetchProfile]));
 
     const handleRetry = useCallback(() => {
         setIsLoading(true);
@@ -182,7 +188,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             setIsEditing(false);
             Alert.alert(t('common.ok'), t('settings.profileUpdated'));
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('settings.profileUpdateFailed'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('settings.profileUpdateFailed')));
         } finally {
             setIsSaving(false);
         }
@@ -279,7 +285,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             </View>
 
             <Animated.View style={{ opacity: fadeAnim }}>
-                <ScrollView contentContainerStyle={styles.content}>
+                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                     {isEditing ? (
                         <Card style={styles.editCard}>
                             <Text style={styles.editTitle}>{t('settings.editProfile')}</Text>

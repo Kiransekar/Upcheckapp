@@ -11,7 +11,7 @@
  * now labelled tiles. They were the most-missed controls on this screen.
  */
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -24,9 +24,19 @@ import { Icon, type IconName } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
+import { SessionHint, AgeHint } from '../../components/ui/SessionHint';
+import { SectionHeader } from '../../components/ui/SectionHeader';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ChipGroup } from '../../components/ui/ChipGroup';
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { Button } from '../../components/ui/Button';
+import { FirstUseHint } from '../../components/ui/FirstUseHint';
+import { confirm } from '../../utils/confirm';
+import { formatAge } from '../../utils/formatDate';
+import { apiErrorMessage } from '../../api/errors';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
-import { farmsApi, type Farm } from '../../api/farms';
+import { farmsApi, isHistoryConflict, type Farm } from '../../api/farms';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -50,16 +60,6 @@ const VISIBLE_PONDS = 5;
 
 const kg = (n: number) => n.toLocaleString('en-IN');
 
-const timeAgo = (iso?: string | null): string | null => {
-    if (!iso) return null;
-    const ms = Date.now() - Date.parse(iso);
-    if (Number.isNaN(ms) || ms < 0) return null;
-    const h = Math.floor(ms / 3_600_000);
-    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
-    if (h < 24) return `${h}h`;
-    return `${Math.floor(h / 24)}d`;
-};
-
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params;
@@ -69,6 +69,11 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     const perms = usePermissions(farmId);
 
     const [expanded, setExpanded] = useState(false);
+    /** Archived ponds are a separate, opt-in read — off by default. */
+    const [showArchivedPonds, setShowArchivedPonds] = useState(false);
+    const [busy, setBusy] = useState(false);
+    /** Set when the server refused a delete because the farm holds records. */
+    const [deleteBlocked, setDeleteBlocked] = useState(false);
 
     // #37: Home's summary reads the active farm, so opening a specific farm has
     // to sync it — otherwise a multi-farm owner returns to Home still seeing the
@@ -84,7 +89,13 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         queryKey: qk.farm(farmId),
         queryFn: async () => {
             const [pondsRes, ctxRes, briefingRes, farmRes] = await Promise.all([
-                pondsApi.getAll(farmId, { take: 100 }),
+                // Archived ponds ride along on the SAME read and are split out
+                // below. They used to be a second, opt-in query that only ran
+                // once the toggle was pressed, which meant the screen could not
+                // say whether this farm HAS any archived ponds until after the
+                // farmer had gone looking for them — and an empty result was
+                // indistinguishable from a broken toggle.
+                pondsApi.getAll(farmId, { take: 100, includeArchived: true }),
                 // One request for every pond's snapshot — see pondContextApi.forFarm.
                 pondContextApi.forFarm(farmId).catch(() => ({ data: [] as PondContext[] })),
                 // LIVE, merged with the persisted stream — not persisted alone.
@@ -101,8 +112,12 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 farmsApi.getById(farmId).catch(() => ({ data: null as Farm | null })),
             ]);
             const result: any = pondsRes.data;
+            const all = (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[];
             return {
-                ponds: (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[],
+                // Archived ponds must never reach a roll-up, a total or the
+                // pond table — they are split off here, once.
+                ponds: all.filter((p) => p.status !== 'archived'),
+                archivedPonds: all.filter((p) => p.status === 'archived'),
                 contexts: ctxRes.data,
                 briefing: briefingRes.data,
                 farm: farmRes.data,
@@ -113,6 +128,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
 
     const farm = query.data?.farm ?? null;
     const ponds = query.data?.ponds ?? [];
+    const archivedPonds = query.data?.archivedPonds ?? [];
     const contexts = query.data?.contexts ?? [];
     const briefing = query.data?.briefing ?? [];
     // "Failed" and "this farm has no ponds" are different answers — never let a
@@ -128,7 +144,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
     );
 
     const rows = useMemo(
-        () => sortByHealth(buildPondRows(ponds, contexts, briefing)),
+        () => sortByHealth(buildPondRows(ponds, contexts, briefing, new Date())),
         [ponds, contexts, briefing],
     );
     const roll = useMemo(() => rollUpFarm(rows), [rows]);
@@ -162,12 +178,109 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         return {
             fcr: fcrs.length ? (fcrs.reduce((a, b) => a + b, 0) / fcrs.length).toFixed(2) : null,
             ponds: fcrs.length,
-            lastFedAgo: timeAgo(lastFed as string | undefined),
+            // One definition of "how old" for the whole app — the local copy
+            // this file used to keep said "6h" where every other screen said
+            // "6 h", and rounded differently.
+            lastFedAgo: lastFed ? formatAge(lastFed as string) : null,
         };
     }, [rows]);
 
     const visible = expanded ? rows : rows.slice(0, VISIBLE_PONDS);
     const hidden = rows.length - visible.length;
+
+    /**
+     * Does this farm hold cycle records? Read off the snapshot this screen has
+     * already fetched, so it costs no request.
+     *
+     * ponytail: deliberate simplification. The spec's "first save locks
+     * deletion" wanted the hint on the farmer's FIRST write, but `saveRecord`
+     * (src/sync/recordSync.ts) carries no farmId and is shared by every log
+     * screen, so hooking it is a wide, high-risk change for a one-time hint.
+     * This sees only a CURRENT cycle — a farm whose only cycles are closed
+     * reads as history-free here and the farmer learns the rule from the delete
+     * refusal instead. Upgrade path: give `saveRecord` the farmId and set the
+     * flag on the first write.
+     */
+    const hasCycleHistory = useMemo(
+        () => contexts.some((c) => c.cropId != null) || ponds.some((p) => !!p.activeCycleId),
+        [contexts, ponds],
+    );
+
+    const archived = !!farm?.archivedAt;
+
+    const runLifecycle = async (action: () => Promise<unknown>, fallbackKey: string) => {
+        setBusy(true);
+        try {
+            await action();
+            await query.refetch();
+        } catch (e) {
+            Alert.alert(t('common.error'), apiErrorMessage(e, t(fallbackKey)));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const onArchive = async () => {
+        const ok = await confirm({
+            title: t('farms.archiveConfirmTitle'),
+            message: t('farms.archiveConfirmBody'),
+            confirmLabel: t('farms.archiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        setDeleteBlocked(false);
+        await runLifecycle(() => farmsApi.archive(farmId), 'farms.errorArchiveFarm');
+    };
+
+    const onUnarchive = async () => {
+        const ok = await confirm({
+            title: t('farms.unarchiveConfirmTitle'),
+            message: t('farms.unarchiveConfirmBody'),
+            confirmLabel: t('farms.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        await runLifecycle(() => farmsApi.unarchive(farmId), 'farms.errorUnarchiveFarm');
+    };
+
+    /**
+     * Bring one archived pond back. Archiving a pond was a one-way door until
+     * Phase 2 added `PATCH /ponds/:id/unarchive` — the list below could show
+     * them but offered no way out.
+     */
+    const onUnarchivePond = async (pondId: string) => {
+        const ok = await confirm({
+            title: t('ponds.unarchiveConfirmTitle'),
+            message: t('ponds.unarchiveConfirmBody'),
+            confirmLabel: t('ponds.unarchiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        await runLifecycle(() => pondsApi.unarchive(pondId), 'ponds.errorUnarchivePond');
+    };
+
+    const onDelete = async () => {
+        const ok = await confirm({
+            title: t('farms.deleteConfirmTitle'),
+            message: t('farms.deleteConfirmBody'),
+            confirmLabel: t('farms.deleteConfirmCta'),
+            cancelLabel: t('common.cancel'),
+            destructive: true,
+        });
+        if (!ok) return;
+        setBusy(true);
+        try {
+            await farmsApi.delete(farmId);
+            navigation.goBack();
+        } catch (e) {
+            // A refusal here is the farm's own history talking, not a fault.
+            // The farmer is offered the action that DOES work, right here.
+            if (isHistoryConflict(e)) setDeleteBlocked(true);
+            else Alert.alert(t('common.error'), apiErrorMessage(e, t('farms.errorDeleteFarm')));
+        } finally {
+            setBusy(false);
+        }
+    };
 
     const header = (
         <ScreenHeader
@@ -222,6 +335,18 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     />
                 }
             >
+                {archived && (
+                    <View style={styles.bannerWrap}>
+                        <AlertBanner type="info" title={t('farms.archivedNoticeTitle')} message={t('farms.archivedNoticeBody')} />
+                    </View>
+                )}
+
+                {perms.canOwnerActions && hasCycleHistory && !archived && (
+                    <View style={styles.bannerWrap}>
+                        <FirstUseHint flagKey={`farm-delete-lock:${farmId}`} message={t('farms.deleteLockHint')} />
+                    </View>
+                )}
+
                 <StatRow
                     size="lg"
                     divider
@@ -237,6 +362,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 <View style={styles.tiles}>
                     <Tile icon="checklist" label={t('farms.tasks')} onPress={() => navigation.navigate('TaskList', { farmId, farmName })} />
                     <Tile icon="groups" label={t('farms.members')} onPress={() => navigation.navigate('FarmMembers', { farmId, farmName })} />
+                    {/* Every cycle across every pond on this farm — the season
+                        view the per-pond dashboards cannot give. */}
+                    <Tile icon="history" label={t('cycles.listTitle')} onPress={() => navigation.navigate('CycleList', { farmId, farmName })} />
                     {perms.canViewFinancials && (
                         <Tile icon="currency_rupee" label={t('farms.money')} onPress={() => navigation.navigate('Transactions', { farmId, farmName })} />
                     )}
@@ -273,6 +401,31 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                         )}
                     </>
                 )}
+
+                {/*
+                  * The archived-ponds toggle sits WITH the pond list, not at
+                  * the bottom of the screen. Below the table, the tiles and the
+                  * farm-lifecycle block it was three screens down on any farm
+                  * with ponds, which is why a farmer who archived a pond could
+                  * not find it again. The count is on the chip so an empty
+                  * result is distinguishable from a toggle that does nothing.
+                  */}
+                <View style={styles.archivedToggle}>
+                    <ChipGroup
+                        options={[
+                            {
+                                value: 'archived',
+                                label: archivedPonds.length
+                                    ? t('farms.includeArchivedPondsCount', { n: archivedPonds.length })
+                                    : t('farms.includeArchivedPonds'),
+                                icon: 'archive-outline',
+                            },
+                        ]}
+                        value={showArchivedPonds ? ['archived'] : []}
+                        multiple
+                        onChange={(v: string[]) => setShowArchivedPonds(v.includes('archived'))}
+                    />
+                </View>
 
                 {!rows.length ? (
                     <EmptyState
@@ -319,6 +472,76 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                         )}
                     </>
                 )}
+
+                {/* The archived ponds themselves, directly under the table they
+                    belong to — never as a separate section at page bottom. */}
+                {showArchivedPonds && (
+                    <View style={styles.section}>
+                        {query.isError && !hasData ? (
+                            // "Couldn't load" and "this farm has no archived
+                            // ponds" are different answers and must read
+                            // differently, or an outage looks like an empty
+                            // archive and the farmer stops looking.
+                            <Text style={styles.mutedNote}>{t('farms.archivedPondsError')}</Text>
+                        ) : !archivedPonds.length ? (
+                            <Text style={styles.mutedNote}>{t('farms.archivedPondsEmpty')}</Text>
+                        ) : (
+                            <>
+                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedPonds.length} />
+                                {archivedPonds.map((p) => (
+                                    <View key={p.id} style={styles.archivedRow}>
+                                        <Text style={styles.archivedName} numberOfLines={1}>
+                                            {pondLabel(p)}
+                                        </Text>
+                                        <StatusBadge status="idle" label={t('farms.archivedBadge')} />
+                                        {perms.canManageOperations && (
+                                            <TouchableOpacity
+                                                onPress={() => onUnarchivePond(p.id)}
+                                                disabled={busy}
+                                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                                accessibilityRole="button"
+                                                accessibilityLabel={t('ponds.unarchivePond')}
+                                            >
+                                                <Text style={styles.unarchiveLink}>{t('ponds.unarchivePond')}</Text>
+                                            </TouchableOpacity>
+                                        )}
+                                    </View>
+                                ))}
+                            </>
+                        )}
+                    </View>
+                )}
+
+                {/* Farm lifecycle. Owner only — the same capability the server
+                    guards these three routes with. */}
+                {perms.canOwnerActions && (
+                    <View style={styles.section}>
+                        <SectionHeader label={t('farms.manageFarm')} />
+                        {deleteBlocked && (
+                            <AlertBanner
+                                type="warning"
+                                title={t('farms.deleteBlockedTitle')}
+                                message={t('farms.deleteBlockedBody')}
+                                style={{ marginBottom: theme.spacing[3] }}
+                            />
+                        )}
+                        {archived ? (
+                            <Button title={t('farms.unarchiveFarm')} variant="outlined" loading={busy} onPress={onUnarchive} />
+                        ) : (
+                            <>
+                                <Button title={t('farms.archiveFarm')} variant="outlined" loading={busy} onPress={onArchive} />
+                                <Button
+                                    title={t('farms.deleteFarm')}
+                                    variant="text"
+                                    disabled={busy}
+                                    onPress={onDelete}
+                                    textStyle={{ color: theme.roles.light.dangerText }}
+                                    style={{ marginTop: theme.spacing[2] }}
+                                />
+                            </>
+                        )}
+                    </View>
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
@@ -349,7 +572,7 @@ const PondRow: React.FC<{
     onStartCycle: () => void;
 }> = ({ row, canStartCycle, onOpen, onStartCycle }) => {
     const { t } = useTranslation();
-    const { pond, health, reason, context } = row;
+    const { pond, health, reason, context, freshness } = row;
     const doValue = context?.waterQuality?.dissolvedOxygen;
 
     if (health === 'fallow') {
@@ -390,6 +613,21 @@ const PondRow: React.FC<{
                 <Text style={[styles.pondReason, { color: HEALTH_TEXT[health] }]} numberOfLines={1}>
                     {reason ?? t('farms.pondActive')}
                 </Text>
+                {/* Logged / fed this session — same rule as the reminders and
+                    the Today progress card (features/logProgress.ts) — then how
+                    long since each, ALWAYS. The age used to appear only once a
+                    pond had already gone stale, so "logged this morning" and
+                    "logged 40 hours ago" were the same row. */}
+                {!!context && (
+                    <View style={styles.sessionHint}>
+                        <SessionHint ctx={context} />
+                        <AgeHint
+                            loggedAt={freshness.asOf}
+                            fedAt={context.lastFeedAt}
+                            stale={freshness.state !== 'fresh'}
+                        />
+                    </View>
+                )}
             </View>
             <Text style={[styles.cell, styles.colDay]}>{context?.doc ?? '—'}</Text>
             <Text
@@ -412,6 +650,36 @@ const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
 
 const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
+    bannerWrap: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
+    section: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[5] },
+    archivedToggle: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
+    mutedNote: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        paddingBottom: theme.spacing[2],
+    },
+    unarchiveLink: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        paddingVertical: theme.spacing[2],
+        paddingLeft: theme.spacing[3],
+    },
+    archivedRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.surfaceVariant,
+        paddingVertical: theme.spacing[3],
+        minHeight: 44,
+    },
+    archivedName: {
+        ...theme.typeScale.labelLarge,
+        fontSize: 15,
+        flex: 1,
+        minWidth: 0,
+        color: theme.roles.light.textTertiary,
+    },
     tiles: {
         flexDirection: 'row',
         gap: theme.spacing[1.5],
@@ -481,6 +749,7 @@ const styles = StyleSheet.create({
         lineHeight: 16,
         color: theme.roles.light.textTertiary,
     },
+    sessionHint: { marginTop: theme.spacing[1], gap: 2 },
     cell: {
         fontFamily: 'DMMono-Regular',
         fontSize: 15,

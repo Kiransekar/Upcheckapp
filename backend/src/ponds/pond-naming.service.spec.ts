@@ -2,6 +2,7 @@ import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException } from '@nestjs/common';
+import { Not } from 'typeorm';
 import { PondNamingService } from './pond-naming.service';
 import { Pond } from './pond.entity';
 
@@ -121,6 +122,18 @@ describe('PondNamingService', () => {
       await expect(
         service.generateBatchNames('farm-1', 'F001', 'A', 0),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  // ── getPondCount ───────────────────────────────────────────
+
+  describe('getPondCount', () => {
+    it('excludes archived ponds from the farm cap count', async () => {
+      mockRepository.count.mockResolvedValue(3);
+      await service.getPondCount('farm-1');
+      expect(mockRepository.count).toHaveBeenCalledWith({
+        where: { farmId: 'farm-1', status: Not('archived') },
+      });
     });
   });
 

@@ -49,8 +49,9 @@ function makeService(over: {
   farm?: Partial<Farm> | null;
   existingMember?: any;
   callerRole?: string | null;
+  managers?: any[];
 } = {}) {
-  const farm = over.farm === null ? null : { id: FARM, name: 'Kakinada East', userId: OWNER, deletedAt: null, ...(over.farm ?? {}) };
+  const farm = over.farm === null ? null : { id: FARM, name: 'Kakinada East', userId: OWNER, deletedAt: null, joinApprover: 'managers', ...(over.farm ?? {}) };
 
   const invitesRepo = {
     findOne: jest.fn().mockResolvedValue(null), // no code collisions
@@ -59,8 +60,15 @@ function makeService(over: {
     save: jest.fn().mockImplementation(async (d) => d),
     update: jest.fn().mockResolvedValue(undefined),
   };
-  const membersRepo = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn() };
+  const membersRepo = {
+    findOne: jest.fn().mockResolvedValue(null),
+    save: jest.fn(),
+    find: jest.fn().mockResolvedValue(over.managers ?? [{ userId: 'manager-1' }]),
+  };
   const farmsRepo = { findOne: jest.fn().mockResolvedValue(farm) };
+  const usersRepo = {
+    findOne: jest.fn().mockResolvedValue({ id: JOINER, firstName: 'Joiner', lastName: 'User', username: 'joiner' }),
+  };
 
   const farmAccess = {
     assertCanAccessFarm: jest.fn().mockResolvedValue(farm),
@@ -82,15 +90,18 @@ function makeService(over: {
   const dataSource = {
     transaction: jest.fn().mockImplementation(async (cb: any) => cb(manager)),
   };
+  const push = { sendToUser: jest.fn().mockResolvedValue(true) };
 
   const service = new FarmInvitesService(
     invitesRepo as any,
     membersRepo as any,
     farmsRepo as any,
+    usersRepo as any,
     farmAccess as any,
     dataSource as any,
+    push as any,
   );
-  return { service, invitesRepo, membersRepo, farmAccess, manager, dataSource };
+  return { service, invitesRepo, membersRepo, farmAccess, manager, dataSource, push, usersRepo };
 }
 
 describe('inviteRejection (pure)', () => {
@@ -285,6 +296,74 @@ describe('FarmInvitesService.join', () => {
       manager.findOne.mockImplementation(async () => null);
       await expect(service.join(JOINER, { code: 'ABCD2345' })).rejects.toBeInstanceOf(NotFoundException);
     });
+  });
+});
+
+describe('push on pending join', () => {
+  it('notifies the owner and the managers when joinApprover is managers', async () => {
+    const { service, push } = makeService({
+      farm: { joinApprover: 'managers' },
+      managers: [{ userId: 'manager-1' }],
+    });
+    await service.join(JOINER, { code: 'ABCD2345' });
+    expect(push.sendToUser).toHaveBeenCalledWith(OWNER, expect.anything());
+    expect(push.sendToUser).toHaveBeenCalledWith('manager-1', expect.anything());
+  });
+
+  it('notifies only the owner when joinApprover is owner', async () => {
+    const { service, push } = makeService({ farm: { joinApprover: 'owner' } });
+    await service.join(JOINER, { code: 'ABCD2345' });
+    expect(push.sendToUser).toHaveBeenCalledTimes(1);
+    expect(push.sendToUser).toHaveBeenCalledWith(OWNER, expect.anything());
+  });
+
+  it('sends nothing when the farm auto-approves — there is nothing to approve', async () => {
+    const { service, push } = makeService({ farm: { joinApproval: 'auto' } });
+    await service.join(JOINER, { code: 'ABCD2345' });
+    expect(push.sendToUser).not.toHaveBeenCalled();
+  });
+
+  it('also fires on the legacy farm-code fallback path', async () => {
+    // The fallback is the one that silently sends nothing if forgotten.
+    const { service, manager, push } = makeService({ invite: null });
+    await service.join(JOINER, { code: 'ABCD2345' });
+    expect(manager.save).toHaveBeenCalled();
+    expect(push.sendToUser).toHaveBeenCalled();
+  });
+
+  it('fires only after the transaction has committed, never inside it', async () => {
+    const { service, manager, push } = makeService();
+    const order: string[] = [];
+    // Swap in an instrumented dataSource that still delegates to the same
+    // manager makeService() wired up, so the transaction body runs unchanged.
+    (service as any).dataSource = {
+      transaction: jest.fn().mockImplementation(async (cb: any) => {
+        const result = await cb(manager);
+        order.push('transaction-committed');
+        return result;
+      }),
+    };
+    push.sendToUser.mockImplementation(async () => {
+      order.push('push-sent');
+      return true;
+    });
+    await service.join(JOINER, { code: 'ABCD2345' });
+    // Default makeService() farm has an owner + one manager, so two pushes
+    // fire — both must come strictly after the commit.
+    expect(order[0]).toBe('transaction-committed');
+    expect(order.slice(1)).toEqual(['push-sent', 'push-sent']);
+  });
+
+  it('does not fail the join when the push fails', async () => {
+    const { service, push } = makeService();
+    push.sendToUser.mockResolvedValue(false);
+    await expect(service.join(JOINER, { code: 'ABCD2345' })).resolves.toBeDefined();
+  });
+
+  it('does not fail the join when resolving recipients throws', async () => {
+    const { service, membersRepo } = makeService();
+    membersRepo.find.mockRejectedValue(new Error('db down'));
+    await expect(service.join(JOINER, { code: 'ABCD2345' })).resolves.toBeDefined();
   });
 });
 

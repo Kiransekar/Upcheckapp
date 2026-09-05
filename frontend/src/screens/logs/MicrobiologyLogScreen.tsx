@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { logResourcesApi } from '../../api/logResources';
+import { apiErrorMessage } from '../../api/errors';
 import { useUIStore } from '../../store/uiStore';
 import { todayLocalISODate } from '../../utils/localDate';
 import { saveRecord } from '../../sync/recordSync';
@@ -61,7 +62,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.microbiology_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.microbiology_errorSave')));
         } finally {
             setIsLoading(false);
         }
@@ -77,7 +78,7 @@ export const MicrobiologyLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 <Card style={styles.card}>

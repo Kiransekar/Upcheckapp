@@ -15,8 +15,11 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { PondPicker } from '../../components/ui/PondPicker';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
+import { pondLabel } from '../../utils/pondHealth';
+import { requiresActiveCycle } from '../../features/cycleRequirement';
 
 type Action = {
     route: string;
@@ -33,8 +36,6 @@ const ACTIONS: Action[] = [
     { route: 'Measurements', labelKey: 'ponds.actionMeasurements', icon: 'chart-line', tint: theme.roles.light.primary },
     { route: 'PondDashboard', labelKey: 'home.quickLogOpenPond', icon: 'view-dashboard-outline', tint: '#7C4DFF' },
 ];
-
-const pondLabel = (p: Pond) => p.displayName || p.name;
 
 export const QuickLogScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
@@ -62,13 +63,27 @@ export const QuickLogScreen = ({ navigation }: any) => {
 
     const selected = ponds.find((p) => p.id === selectedId) ?? ponds[0] ?? null;
 
+    /**
+     * A pond with no running cycle can still take a water-quality reading, but
+     * not a feed or sampling log — those rows key off `crop_id`, and saving one
+     * with no crop stores a record that every cycle figure then ignores. See
+     * features/cycleRequirement.ts.
+     */
+    const hasCycle = !!selected?.activeCycleId;
+    const blocked = (route: string) => !hasCycle && requiresActiveCycle(route);
+
     const go = (route: string) => {
-        if (!selected) return;
+        if (!selected || blocked(route)) return;
         navigation.navigate(route, {
             pondId: selected.id,
             pondName: pondLabel(selected),
             cropId: selected.activeCycleId ?? undefined,
         });
+    };
+
+    const startCycle = () => {
+        if (!selected) return;
+        navigation.navigate('CreateCycle', { pondId: selected.id });
     };
 
     return (
@@ -104,33 +119,19 @@ export const QuickLogScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <ScrollView showsVerticalScrollIndicator={false}>
-                    {/* Pond picker — only when there's a choice to make. */}
+                    {/*
+                        Pond picker — only when there's a choice to make. The
+                        shared PondPicker carries the farm grouping and the
+                        search field, so a farmer with three farms and thirty
+                        ponds gets the same picker here as everywhere else
+                        (spec §4.8). No context fetch: this screen only routes.
+                    */}
                     {ponds.length > 1 && (
-                        <>
-                            <Text style={styles.pickLabel}>{t('home.quickLogPickPond')}</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pondRow}>
-                                {ponds.map((p) => {
-                                    const active = p.id === selected?.id;
-                                    return (
-                                        <TouchableOpacity
-                                            key={p.id}
-                                            style={[styles.pondChip, active && styles.pondChipActive]}
-                                            onPress={() => setSelectedId(p.id)}
-                                            activeOpacity={0.8}
-                                        >
-                                            <MaterialCommunityIcons
-                                                name="water"
-                                                size={16}
-                                                color={active ? theme.roles.light.primary : theme.roles.light.textSecondary}
-                                            />
-                                            <Text numberOfLines={1} style={[styles.pondChipText, active && { color: theme.roles.light.primary }]}>
-                                                {pondLabel(p)}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-                        </>
+                        <PondPicker
+                            pondId={selected?.id ?? null}
+                            onChange={(id) => setSelectedId(id)}
+                            fetchContext={false}
+                        />
                     )}
 
                     {selected && (
@@ -139,17 +140,66 @@ export const QuickLogScreen = ({ navigation }: any) => {
                         </Text>
                     )}
 
+                    {/*
+                        No cycle running. Say so once, up front, and offer the
+                        way out — rather than letting the farmer tap a tile and
+                        get nothing, or worse, save a record that never counts.
+                    */}
+                    {selected && !hasCycle && (
+                        <Card style={styles.noCycleCard}>
+                            <View style={styles.noCycleHead}>
+                                <MaterialCommunityIcons name="information-outline" size={20} color={theme.roles.light.primary} />
+                                <Text style={styles.noCycleTitle}>{t('home.quickLogNoCycle')}</Text>
+                            </View>
+                            <Text style={styles.noCycleSub}>{t('home.quickLogNoCycleSub')}</Text>
+                            <Button title={t('home.quickLogStartCycle')} onPress={startCycle} style={styles.noCycleBtn} />
+                        </Card>
+                    )}
+
                     <View style={styles.grid}>
-                        {ACTIONS.map((a) => (
-                            <TouchableOpacity key={a.route} style={styles.tile} activeOpacity={0.85} onPress={() => go(a.route)}>
-                                <Card style={styles.tileCard}>
-                                    <View style={[styles.iconWrap, { backgroundColor: a.tint + '1A' }]}>
-                                        <MaterialCommunityIcons name={a.icon} size={26} color={a.tint} />
-                                    </View>
-                                    <Text style={styles.tileLabel} numberOfLines={2}>{t(a.labelKey)}</Text>
-                                </Card>
-                            </TouchableOpacity>
-                        ))}
+                        {ACTIONS.map((a) => {
+                            const isBlocked = blocked(a.route);
+                            return (
+                                <TouchableOpacity
+                                    key={a.route}
+                                    style={styles.tile}
+                                    activeOpacity={0.85}
+                                    onPress={() => (isBlocked ? startCycle() : go(a.route))}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={
+                                        isBlocked
+                                            ? `${t(a.labelKey)} — ${t('home.quickLogNeedsCycle')}. ${t('home.quickLogStartCycle')}`
+                                            : t(a.labelKey)
+                                    }
+                                    /*
+                                     * Deliberately NOT accessibilityState={{ disabled }}.
+                                     * A locked tile still acts — it opens CreateCycle —
+                                     * and announcing it as disabled would tell a screen
+                                     * reader user not to try the one control that lifts
+                                     * the lock. The label carries the state instead.
+                                     */
+                                >
+                                    <Card style={[styles.tileCard, isBlocked && styles.tileCardBlocked]}>
+                                        <View style={[styles.iconWrap, { backgroundColor: a.tint + '1A' }]}>
+                                            <MaterialCommunityIcons
+                                                name={isBlocked ? 'lock-outline' : a.icon}
+                                                size={26}
+                                                color={isBlocked ? theme.roles.light.textTertiary : a.tint}
+                                            />
+                                        </View>
+                                        <Text style={[styles.tileLabel, isBlocked && styles.tileLabelBlocked]} numberOfLines={2}>
+                                            {t(a.labelKey)}
+                                        </Text>
+                                        {/* Not colour alone — the reason is spelled out. */}
+                                        {isBlocked && (
+                                            <Text style={styles.tileBlockedHint} numberOfLines={2}>
+                                                {t('home.quickLogNeedsCycle')}
+                                            </Text>
+                                        )}
+                                    </Card>
+                                </TouchableOpacity>
+                            );
+                        })}
                     </View>
                 </ScrollView>
             )}
@@ -163,19 +213,26 @@ const styles = StyleSheet.create({
     subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     createBtn: { alignSelf: 'stretch', marginTop: theme.spacing[4] },
-    pickLabel: { ...theme.typeScale.overline, color: theme.roles.light.textTertiary, marginBottom: theme.spacing[2] },
-    pondRow: { gap: theme.spacing[2], paddingBottom: theme.spacing[3] },
-    pondChip: {
-        flexDirection: 'row', alignItems: 'center', gap: theme.spacing[1],
-        paddingVertical: theme.spacing[2], paddingHorizontal: theme.spacing[3],
-        borderRadius: theme.radius.full, borderWidth: 1, borderColor: theme.roles.light.borderDefault,
-    },
-    pondChipActive: { borderColor: theme.roles.light.primary, backgroundColor: theme.roles.light.surfaceOverlay },
-    pondChipText: { ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary, maxWidth: 140 },
     forPond: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[3] },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[3] },
     tile: { width: '47%' },
     tileCard: { padding: theme.spacing[4], alignItems: 'center', gap: theme.spacing[2] },
+    tileCardBlocked: { backgroundColor: theme.roles.light.surfaceOverlay },
+    tileLabelBlocked: { color: theme.roles.light.textTertiary },
+    tileBlockedHint: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+        textAlign: 'center',
+    },
+    noCycleCard: {
+        padding: theme.spacing[4],
+        gap: theme.spacing[2],
+        marginBottom: theme.spacing[4],
+    },
+    noCycleHead: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[2] },
+    noCycleTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary, flex: 1 },
+    noCycleSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
+    noCycleBtn: { alignSelf: 'flex-start', marginTop: theme.spacing[1] },
     iconWrap: { width: 48, height: 48, borderRadius: theme.radius.md, alignItems: 'center', justifyContent: 'center' },
     tileLabel: { ...theme.typeScale.labelMedium, color: theme.roles.light.textPrimary, textAlign: 'center' },
 });

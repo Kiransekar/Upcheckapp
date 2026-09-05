@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { Icon } from '../ui/Icon';
 import { SectionHeader } from '../ui/SectionHeader';
+import { FarmAgeHint } from '../ui/SessionHint';
 import {
     HEALTH_COLOR,
     rollUpFarm,
@@ -89,6 +90,11 @@ export const FarmOverview: React.FC<FarmOverviewProps> = ({
                                     .filter(Boolean)
                                     .join(' · ')}
                             </Text>
+                            {/* The freshness this component already receives on
+                                every row and used to throw away — how long the
+                                worst pond on this farm has gone unlogged and
+                                unfed, in one line. */}
+                            <FarmAgeHint rows={farm.rows} />
                             <PondStrip strip={roll.strip} />
                         </View>
 

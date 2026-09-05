@@ -2,7 +2,10 @@ import * as Crypto from 'expo-crypto';
 import apiClient from '../api/client';
 import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
-import { invalidateForEntity } from '../query/client';
+import { invalidateForEntity, queryClient, qk } from '../query/client';
+import type { TodaySnapshot } from '../api/todaySnapshot';
+import { syncReminders } from '../utils/notifications';
+import { loadReminderTimes } from '../features/reminderTimes';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -14,12 +17,12 @@ import { invalidateForEntity } from '../query/client';
  * Offline → queue immediately and return optimistically ("saved, will sync").
  * A server rejection (4xx/5xx with a response) is a real error and is thrown.
  *
- * This is also where FRESHNESS-AFTER-YOUR-OWN-WRITE is enforced. All sixteen
- * log screens save through here and every one already passes `entity`, so a
- * single `invalidateForEntity()` call on the success path (and on a landed
- * drain) refreshes every cached read that write could have moved — without any
- * screen having to know about it. The farmer complained once about having to
- * refresh manually after logging; do not trade that back for a smaller diff.
+ * FRESHNESS-AFTER-YOUR-OWN-WRITE is enforced by the axios response
+ * interceptor now (src/api/client.ts), which invalidates on every successful
+ * write by matching the request URL — this function no longer calls
+ * `invalidateForEntity()` itself on the success path; the interceptor already
+ * saw the same POST and owns it. Do not add it back here — that would
+ * invalidate the same keys twice for one save.
  *
  * NOTE for whoever adds the seventeenth endpoint: the backend's ValidationPipe
  * runs with `whitelist: true` (backend/src/main.ts), so a DTO that forgets to
@@ -62,8 +65,39 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
 
     try {
         const { data } = await apiClient.post(endpoint, body);
-        // The server now has it — every cached read this record moves is stale.
-        invalidateForEntity(entity);
+        // The server now has it. The response interceptor (api/client.ts) has
+        // already invalidated every cached read this record moves — do not
+        // call invalidateForEntity() here too, see the comment above.
+        // Re-arm reminders from the contexts already sitting in the Today
+        // screen's cache — best-effort, not awaited (a slow read must never
+        // delay the save the farmer is waiting on) and never allowed to turn
+        // a successful save into a queued/failed one if it throws. See
+        // syncReminders in utils/notifications.ts.
+        //
+        // Deliberately NOT a call to alertCenterApi.today(): that endpoint
+        // builds every pond's context server-side — the same expensive
+        // composite read the Today screen exists to avoid paying for
+        // repeatedly (see query/client.ts). Firing it on every save
+        // reintroduced a full round trip of real server work per save on a
+        // rural connection, just to hand fresh contexts to syncReminders.
+        // If nothing is cached yet, the interceptor's invalidation above
+        // already marked it stale, so the Today screen refetches on its own
+        // and the next app-foreground re-arms from fresh data instead.
+        //
+        // `loadReminderTimes()` is read here rather than passing the default:
+        // scheduling against 06:30/13:00/18:00 when the farmer had chosen
+        // 05:00 meant every save quietly overwrote their own choice until the
+        // next visit to Settings.
+        try {
+            const cached = queryClient.getQueryData<TodaySnapshot>([...qk.briefing(), 'home']);
+            if (cached?.contexts?.length) {
+                loadReminderTimes()
+                    .then((times) => syncReminders(cached.contexts, times))
+                    .catch((e) => console.warn('[Notifications] Could not re-arm after save', e));
+            }
+        } catch (e) {
+            console.warn('[Notifications] Could not re-arm after save', e);
+        }
         return { id, queued: false, data };
     } catch (err) {
         if (isNetworkError(err)) {

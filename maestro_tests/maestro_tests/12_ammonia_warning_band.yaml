@@ -1,5 +1,6 @@
 # FEATURE: Free Ammonia - WARNING band
-# INPUTS: TAN=1.5 ppm, pH=8.2, Temp=29 C, Salinity=15 ppt (screen default)
+# INPUTS: TAN=1.5 ppm, pH=8.2, Temp=29 C, Salinity=15 ppt (entered explicitly,
+#         NOT the screen default - BUG-002 removes that default)
 # EXPECTED: pKa(Bower&Bidwell) -> NH3 = 0.1453 ppm -> band WARNING (0.1-0.5)
 appId: com.upcheck.app
 ---
@@ -14,6 +15,9 @@ appId: com.upcheck.app
 - hideKeyboard
 - tapOn: 'e.g. 29'
 - inputText: "29"
+- hideKeyboard
+- tapOn: 'e.g. 15'
+- inputText: '15'
 - hideKeyboard
 - tapOn: 'Calculate NH.*'
 - assertVisible: '.*0\.1453.*'

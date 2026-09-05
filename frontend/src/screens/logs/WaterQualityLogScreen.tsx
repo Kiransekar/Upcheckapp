@@ -10,14 +10,15 @@ import { ParameterInput } from '../../components/forms/ParameterInput';
 import { theme } from '../../theme';
 import { saveRecord } from '../../sync/recordSync';
 import { useUIStore } from '../../store/uiStore';
-import { waterQualityApi } from '../../api/waterQuality';
-
-// Fields that drift slowly (pond chemistry/geometry-driven, not day-to-day),
-// so pre-filling them from the last logged reading saves a farmer re-typing
-// the same number every visit — they only need to correct it when it
-// actually changed. pH/DO/temperature are deliberately NOT pre-filled: they
-// are the reason the farmer opened this screen and must be a fresh reading.
-const SLOW_CHANGING_PREFILL_FIELDS = ['salinity', 'alkalinity', 'hardness', 'transparency'] as const;
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
+import {
+    waterQualityApi,
+    prefillCandidates,
+    PrefillCandidate,
+    SlowChangingField,
+} from '../../api/waterQuality';
+import { apiErrorMessage } from '../../api/errors';
 
 export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
@@ -44,36 +45,40 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
     // Editing an existing record starts expanded — the farmer came here to
     // correct a specific value and needs to see everything they logged.
     const [showMore, setShowMore] = useState(isEditing);
+    // Fields carried over from a reading younger than 12 h and not yet touched
+    // or confirmed by the farmer. Emptying it is what clears the warning.
     const [prefilledFields, setPrefilledFields] = useState<Set<string>>(new Set());
+    // Readings 12 h or older: never written silently, only offered.
+    const [staleOffers, setStaleOffers] = useState<PrefillCandidate[]>([]);
+    const [anyPrefilled, setAnyPrefilled] = useState(false);
+
+    const SETTERS: Record<SlowChangingField, (v: string) => void> = {
+        salinity: setSalinity,
+        alkalinity: setAlkalinity,
+        hardness: setHardness,
+        transparency: setTransparency,
+    };
 
     useEffect(() => {
         if (isEditing) return; // editing an exact past record — never overwrite with "latest"
         let cancelled = false;
         waterQualityApi
-            .getLatest(pondId)
+            .getLatestPerColumn(pondId)
             .then(({ data }) => {
                 if (cancelled || !data) return;
+                // The age test is per FIELD, against that field's own `<field>AsOf`:
+                // one pond can have a salinity from an hour ago and an alkalinity
+                // from last week, and only the first may be filled in silently.
+                const candidates = prefillCandidates(data);
                 const filled = new Set<string>();
-                const setters: Record<string, (v: string) => void> = {
-                    salinity: setSalinity,
-                    alkalinity: setAlkalinity,
-                    hardness: setHardness,
-                    transparency: setTransparency,
-                };
-                SLOW_CHANGING_PREFILL_FIELDS.forEach((key) => {
-                    const value = (data as any)[key];
-                    if (value != null) {
-                        setters[key](String(value));
-                        filled.add(key);
-                    }
+                candidates.forEach((c) => {
+                    if (!c.fresh) return;
+                    SETTERS[c.field](String(c.value));
+                    filled.add(c.field);
                 });
-                if (filled.size > 0) {
-                    setPrefilledFields(filled);
-                    // Deliberately left collapsed: the carried-over values are
-                    // already in state and will be saved as-is if the farmer
-                    // never opens "more readings" — that's the point of
-                    // pre-filling. Expanding is only needed to check or edit them.
-                }
+                setPrefilledFields(filled);
+                setAnyPrefilled(filled.size > 0);
+                setStaleOffers(candidates.filter((c) => !c.fresh));
             })
             .catch(() => {
                 // No prior reading (new pond) or offline — quietly start blank,
@@ -83,6 +88,41 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             cancelled = true;
         };
     }, [pondId, isEditing]);
+
+    /** Typing in a carried-over field is the farmer checking it — warning clears. */
+    const touch = (field: SlowChangingField, setter: (v: string) => void) => (v: string) => {
+        setter(v);
+        setPrefilledFields((prev) => {
+            if (!prev.has(field)) return prev;
+            const next = new Set(prev);
+            next.delete(field);
+            return next;
+        });
+    };
+
+    const useLastReading = (c: PrefillCandidate) => {
+        SETTERS[c.field](String(c.value));
+        setStaleOffers((prev) => prev.filter((o) => o.field !== c.field));
+        setShowMore(true); // so the farmer can see where the value landed
+    };
+
+    const ageLabel = (hours: number) =>
+        hours < 24
+            ? t('logs.waterQuality_ageHours', { hours: Math.max(1, Math.round(hours)) })
+            : t('logs.waterQuality_ageDays', { days: Math.round(hours / 24) });
+
+    const fieldLabel: Record<SlowChangingField, string> = {
+        salinity: t('logs.waterQuality_labelSalinity'),
+        alkalinity: t('logs.waterQuality_labelAlkalinity'),
+        hardness: t('logs.waterQuality_labelHardness'),
+        transparency: t('logs.waterQuality_labelTransparency'),
+    };
+
+    /** Caption under a field the value was carried into, so it is never invisible. */
+    const carriedOver = (field: SlowChangingField) =>
+        prefilledFields.has(field) ? (
+            <Text style={styles.carriedOver}>{t('logs.waterQuality_carriedOver')}</Text>
+        ) : null;
 
     const handleSave = async () => {
         setIsLoading(true);
@@ -124,7 +164,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             }
             navigation.goBack();
         } catch (error: any) {
-            Alert.alert(t('common.error'), error.response?.data?.message || t('logs.waterQuality_errorSave'));
+            Alert.alert(t('common.error'), apiErrorMessage(error, t('logs.waterQuality_errorSave')));
         } finally {
             setIsLoading(false);
         }
@@ -140,7 +180,7 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Text style={styles.subtitle}>{t('logs.loggingFor', { pondName })}</Text>
 
                 {/* Quick mode: the 3 readings a farmer logs every visit, front and
@@ -159,6 +199,35 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     </View>
                 </Card>
 
+                {/* Both of these sit OUTSIDE "more readings": a carried-over value
+                    the farmer never sees is a wrong reading waiting to be saved. */}
+                {anyPrefilled && <PrefilledBanner />}
+
+                {staleOffers.length > 0 && (
+                    <Card style={styles.card}>
+                        <Text style={styles.sectionTitle}>{t('logs.waterQuality_lastReadingTitle')}</Text>
+                        <Text style={styles.offerIntro}>{t('logs.waterQuality_lastReadingIntro')}</Text>
+                        {staleOffers.map((o) => (
+                            <TouchableOpacity
+                                key={o.field}
+                                style={styles.offerRow}
+                                onPress={() => useLastReading(o)}
+                                activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel={`${t('logs.waterQuality_useLastReading')} — ${fieldLabel[o.field]} ${o.value}`}
+                            >
+                                <View style={styles.offerText}>
+                                    <Text style={styles.offerField}>{fieldLabel[o.field]}</Text>
+                                    <Text style={styles.offerMeta}>
+                                        {o.value} · {ageLabel(o.ageHours)}
+                                    </Text>
+                                </View>
+                                <Text style={styles.offerAction}>{t('logs.waterQuality_useLastReading')}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </Card>
+                )}
+
                 <TouchableOpacity
                     style={styles.moreToggle}
                     onPress={() => setShowMore((v) => !v)}
@@ -176,20 +245,18 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
 
                 {showMore && (
                     <>
-                        {prefilledFields.size > 0 && (
-                            <Text style={styles.prefillHint}>
-                                {t(
-                                    'logs.waterQuality_prefillHint',
-                                    'Salinity, alkalinity, hardness & transparency are carried over from your last reading — edit any that changed.',
-                                )}
-                            </Text>
-                        )}
                         <Card style={styles.card}>
                             <Text style={styles.sectionTitle}>{t('logs.waterQuality_sectionPhysical')}</Text>
                             <View style={styles.row}>
-                                <ParameterInput label={t('logs.waterQuality_labelTransparency')} unit="cm" value={transparency} onChangeText={setTransparency} parameterKey="transparency" />
+                                <View style={styles.halfCol}>
+                                    <ParameterInput label={t('logs.waterQuality_labelTransparency')} unit="cm" value={transparency} onChangeText={touch('transparency', setTransparency)} parameterKey="transparency" />
+                                    {carriedOver('transparency')}
+                                </View>
                                 <View style={styles.spacer} />
-                                <ParameterInput label={t('logs.waterQuality_labelSalinity')} unit="ppt" value={salinity} onChangeText={setSalinity} parameterKey="salinity" />
+                                <View style={styles.halfCol}>
+                                    <ParameterInput label={t('logs.waterQuality_labelSalinity')} unit="ppt" value={salinity} onChangeText={touch('salinity', setSalinity)} parameterKey="salinity" />
+                                    {carriedOver('salinity')}
+                                </View>
                             </View>
                         </Card>
 
@@ -201,12 +268,18 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                                 <ParameterInput label={t('logs.waterQuality_labelNitrite')} unit="mg/L" value={nitrite} onChangeText={setNitrite} parameterKey="nitrite" />
                             </View>
                             <View style={styles.row}>
-                                <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={setAlkalinity} parameterKey="alkalinity" />
+                                <View style={styles.halfCol}>
+                                    <ParameterInput label={t('logs.waterQuality_labelAlkalinity')} unit="mg/L" value={alkalinity} onChangeText={touch('alkalinity', setAlkalinity)} parameterKey="alkalinity" />
+                                    {carriedOver('alkalinity')}
+                                </View>
                                 <View style={styles.spacer} />
                                 <ParameterInput label={t('logs.waterQuality_labelNitrate')} unit="mg/L" value={nitrate} onChangeText={setNitrate} parameterKey="nitrate" />
                             </View>
                             <View style={styles.row}>
-                                <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={setHardness} parameterKey="hardness" />
+                                <View style={styles.halfCol}>
+                                    <ParameterInput label={t('logs.waterQuality_labelHardness')} unit="mg/L" value={hardness} onChangeText={touch('hardness', setHardness)} parameterKey="hardness" />
+                                    {carriedOver('hardness')}
+                                </View>
                                 <View style={styles.spacer} />
                                 <View style={styles.halfCol} />
                             </View>
@@ -225,6 +298,29 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                         style={styles.textArea}
                     />
                 </Card>
+
+                {/* Persistent until every carried-over field has been typed in or
+                    confirmed — saving someone else's numbers as today's reading
+                    is the failure this whole screen exists to avoid. */}
+                {prefilledFields.size > 0 && (
+                    <>
+                        <AlertBanner
+                            type="warning"
+                            title={t('logs.waterQuality_unconfirmedTitle')}
+                            message={t('logs.waterQuality_unconfirmedMsg', {
+                                fields: [...prefilledFields]
+                                    .map((f) => fieldLabel[f as SlowChangingField])
+                                    .join(', '),
+                            })}
+                        />
+                        <Button
+                            title={t('logs.waterQuality_confirmCarried')}
+                            variant="outlined"
+                            onPress={() => setPrefilledFields(new Set())}
+                            style={styles.confirmBtn}
+                        />
+                    </>
+                )}
 
                 <Button
                     title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.waterQuality_saveBtn')}
@@ -293,11 +389,33 @@ const styles = StyleSheet.create({
         color: theme.roles.light.primary,
         fontWeight: '600',
     },
-    prefillHint: {
+    carriedOver: {
         ...theme.typeScale.caption,
+        color: theme.roles.light.infoText,
+        marginTop: -theme.spacing[3],
+        marginBottom: theme.spacing[3],
+    },
+    offerIntro: {
+        ...theme.typeScale.bodySmall,
         color: theme.roles.light.textSecondary,
         marginBottom: theme.spacing[3],
-        fontStyle: 'italic',
+    },
+    offerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: theme.spacing[3],
+        minHeight: 48,
+        paddingVertical: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
+    },
+    offerText: { flex: 1 },
+    offerField: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textPrimary, fontWeight: '600' },
+    offerMeta: { ...theme.typeScale.caption, color: theme.roles.light.textSecondary },
+    offerAction: { ...theme.typeScale.labelMedium, color: theme.roles.light.primary, fontWeight: '600' },
+    confirmBtn: {
+        marginTop: theme.spacing[3],
     },
     textArea: {
         minHeight: 80,

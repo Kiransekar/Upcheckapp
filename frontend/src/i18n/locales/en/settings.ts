@@ -155,6 +155,38 @@ const settings = {
   signOutConfirm: "Sign out of Upcheck on this device?",
   toolsSection: "Tools",
   farmSection: "Farm",
+
+  // ── Reminder times (smart reminders) ──────────────────────────────────────
+  reminderTimes: "Reminder times",
+  reminderTimesDesc: "Choose when Upcheck reminds you to log water quality.",
+  reminderMorning: "Morning check",
+  reminderAfternoon: "Afternoon check",
+  reminderEvening: "Evening check",
+  reminderChemistry: "Weekly chemistry check",
+  reminderHourLabel: "Hour",
+  reminderMinuteLabel: "Minute",
+  // The armed-state readout — read back from the phone, not assumed.
+  reminderStatusOn: "Reminders are on. Next: {{when}}",
+  reminderStatusOff: "No reminders are set right now. Add a pond, then open Upcheck once and they will be armed.",
+  reminderStatusBlocked: "Upcheck cannot show notifications on this phone, so reminders will not appear.",
+  reminderStatusOpenSettings: "Open phone settings",
+  reminderWhenToday: "today at {{time}}",
+  reminderWhenTomorrow: "tomorrow at {{time}}",
+  reminderWhenOn: "{{date}} at {{time}}",
+
+  // ── Privacy: crash reports and analytics (Privacy Policy section 6) ───────
+  privacySection: "Privacy",
+  crashReportsToggle: "Crash reports",
+  crashReportsDesc:
+    "On, so we can fix faults before you have to report them. Reports carry no phone number, email, password, money figures or farm records. You can switch this off.",
+  analyticsToggle: "Product analytics",
+  analyticsToggleDesc:
+    "Off unless you turn it on. Tells us which screens are used, so we build the right things. Your farm, money and harvest data are never sent.",
+  analyticsPromptTitle: "May we see which screens you use?",
+  analyticsPromptBody:
+    "It helps us fix what is hard to use. We would send only the name of the screen — never your ponds, money or harvest figures. Everything in the app works the same either way.",
+  analyticsPromptAllow: "Yes, that's fine",
+  analyticsPromptDecline: "No thanks",
 };
 
 export default settings;

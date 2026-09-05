@@ -1,5 +1,6 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, Get, Query, Req } from '@nestjs/common';
 import { MoneyOverviewService } from './money-overview.service';
+import { MoneyOverviewQueryDto } from '../transactions/dto/money-query.dto';
 
 /**
  * `GET /money/overview` — the whole Money tab in one request.
@@ -13,7 +14,7 @@ export class MoneyOverviewController {
   constructor(private readonly overview: MoneyOverviewService) {}
 
   @Get('overview')
-  async get(@Req() req: any) {
-    return this.overview.forUser(req.user.id);
+  async get(@Req() req: any, @Query() q: MoneyOverviewQueryDto) {
+    return this.overview.forUser(req.user.id, q);
   }
 }

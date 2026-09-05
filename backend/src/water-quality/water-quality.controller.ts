@@ -37,11 +37,31 @@ export class WaterQualityController {
     @Query('pondId') pondId: string,
     @CurrentUser() user,
     @Query() pageOptionsDto?: PageOptionsDto,
+    @Query('chemistryOnly') chemistryOnly?: string,
   ) {
     if (!pondId) {
       throw new BadRequestException('pondId query parameter is required');
     }
-    return this.waterQualityService.findAll(pondId, user.id, pageOptionsDto);
+    return this.waterQualityService.findAll(
+      pondId,
+      user.id,
+      pageOptionsDto,
+      chemistryOnly === 'true',
+    );
+  }
+
+  /**
+   * Per-column latest for prefill. Declared BEFORE `:id` — Nest matches in
+   * declaration order and `latest` would otherwise be read as a record id.
+   */
+  @Get('latest')
+  @UseGuards(OwnershipGuard)
+  @OwnsResource('Pond', 'pondId', 'farm.userId', 'READ')
+  getLatestPerColumn(@Query('pondId') pondId: string, @CurrentUser() user) {
+    if (!pondId) {
+      throw new BadRequestException('pondId query parameter is required');
+    }
+    return this.waterQualityService.getLatestPerColumn(pondId, user.id);
   }
 
   @Get('pond/:pondId/latest')

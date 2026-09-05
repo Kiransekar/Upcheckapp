@@ -10,6 +10,7 @@ import {
   DeleteDateColumn,
 } from 'typeorm';
 import { User } from '../auth/user.entity';
+import type { RolePolicy } from '../farm-access/farm-capability';
 
 // Valid values: 'tidal' | 'river' | 'borehole' | 'reservoir' | 'recycled'
 export type WaterSourceType = string;
@@ -113,6 +114,17 @@ export class Farm {
   boundary: { latitude: number; longitude: number }[];
 
   /**
+   * Per-role capability defaults for THIS farm, e.g.
+   * `{ worker: { RECORD_HARVEST: true } }`. null = the built-in matrix.
+   *
+   * A per-member override (farm_members.capability_overrides) wins over this;
+   * this wins over the matrix. Owner-settable only, and the `owner` role is not
+   * expressible here — an owner is never reducible.
+   */
+  @Column({ name: 'role_policy', type: 'jsonb', nullable: true })
+  rolePolicy: RolePolicy | null;
+
+  /**
    * Nominated recovery contact — a member who may claim ownership if the owner
    * account is lost (phone lost, number changed, person leaves).
    *
@@ -139,6 +151,19 @@ export class Farm {
     nullable: true,
   })
   recoveryClaimStartedAt: Date | null;
+
+  /**
+   * Put away, not deleted. An archived farm stays fully readable and its
+   * history intact; it just drops out of the default listings until the owner
+   * unarchives it. Distinct from `deletedAt`, which is the DELETE tombstone —
+   * a soft-deleted farm 404s everywhere.
+   */
+  @Column({
+    name: 'archived_at',
+    type: 'timestamp with time zone',
+    nullable: true,
+  })
+  archivedAt: Date | null;
 
   @DeleteDateColumn({
     name: 'deleted_at',

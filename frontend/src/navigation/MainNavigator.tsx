@@ -8,11 +8,14 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../theme';
 import { Icon } from '../components/ui/Icon';
 import { usePermissions } from '../hooks/usePermissions';
+import { useMembershipStore } from '../store/membershipStore';
+import { canDecideOnTeam, fetchTeamOverview, teamBadgeCount } from '../api/teamOverview';
+import { qk } from '../query/client';
+import { useAppQuery } from '../query/hooks';
 
 // Import screens
 import { HomeScreen } from '../screens/main/HomeScreen';
 import { FarmsListScreen } from '../screens/farms/FarmsListScreen';
-import { ReportsScreen } from '../screens/main/ReportsScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { TeamScreen } from '../screens/main/TeamScreen';
 import { MoneyScreen } from '../screens/finance/MoneyScreen';
@@ -64,6 +67,27 @@ export const MainNavigator = () => {
     // Hidden, not disabled: a tab a worker may not open should not be there.
     const perms = usePermissions();
 
+    /**
+     * The Team tab's badge.
+     *
+     * It reads `qk.team('all')` — the SAME cached query the Team tab and the
+     * roster use — so it costs one request for the whole app, shared, and a tab
+     * re-render is a cache read rather than a fetch. There is deliberately no
+     * new endpoint: the two numbers were added to `team-overview` for this.
+     *
+     * Whether you are shown the QUEUE (joins + leave awaiting your decision) or
+     * your OWN pending leave is a bare-role question spanning every farm, so it
+     * comes from the membership list rather than `usePermissions`, which
+     * resolves the one active farm.
+     */
+    const memberships = useMembershipStore((s) => s.memberships);
+    const canApprove = memberships.some((m) => canDecideOnTeam(m.role));
+    const team = useAppQuery({
+        queryKey: qk.team('all'),
+        queryFn: () => fetchTeamOverview('all'),
+    });
+    const badge = teamBadgeCount(team.data, canApprove);
+
     return (
         <Tab.Navigator
             screenOptions={{
@@ -107,6 +131,8 @@ export const MainNavigator = () => {
                 options={{
                     tabBarLabel: t('common.tabTeam'),
                     tabBarIcon: ({ color }) => <Icon name="groups" color={color} size={22} />,
+                    // ABSENT at zero, not a "0" — an empty queue is not news.
+                    tabBarBadge: badge > 0 ? badge : undefined,
                 }}
             />
             {/* Center quick-log action — opens the Quick Log modal, never a tab.

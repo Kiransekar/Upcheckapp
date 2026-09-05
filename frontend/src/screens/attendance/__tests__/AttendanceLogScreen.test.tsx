@@ -27,9 +27,10 @@ import {
     monthBounds,
     monthGrid,
     shiftHours,
-    toCsv,
+    csvRows,
     type LogRow,
 } from '../AttendanceLogScreen';
+import { toCsv } from '../../../utils/csv';
 import { attendanceApi } from '../../../api/attendance';
 import { farmMembersApi } from '../../../api/farmMembers';
 
@@ -99,7 +100,7 @@ describe('pure helpers', () => {
             day: '2026-06-03',
             hours: 6,
         };
-        const csv = toCsv([row], ['Date', 'Name', 'In', 'Out', 'Hours']);
+        const csv = toCsv(csvRows([row]), ['Date', 'Name', 'In', 'Out', 'Hours']);
         expect(csv.split('\n')[1]).toContain('"Rao, Anita"');
         expect(csv.split('\n')[1]).toContain('2026-06-03');
         expect(csv.split('\n')[1].endsWith(',6')).toBe(true);

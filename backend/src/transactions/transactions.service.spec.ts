@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { Transaction } from './transaction.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
@@ -85,9 +86,17 @@ describe('TransactionsService', () => {
         'farm-1',
         'VIEW_FINANCIALS',
       );
-      expect(mockRepository.create).toHaveBeenCalledWith(createDto);
+      // Money rows carry the actor who entered them.
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        ...createDto,
+        createdById: USER_ID,
+        updatedById: USER_ID,
+      });
       expect(mockRepository.save).toHaveBeenCalled();
       expect(result).toEqual(expect.objectContaining(createDto));
+      expect(result).toEqual(
+        expect.objectContaining({ createdById: USER_ID }),
+      );
     });
 
     it('is idempotent: a replayed client id returns the existing row without re-inserting', async () => {
@@ -122,12 +131,15 @@ describe('TransactionsService', () => {
         'VIEW_FINANCIALS',
       );
       expect(mockRepository.find).toHaveBeenCalled();
-      expect(result).toEqual(mockTransactions);
+      // Same rows, plus the two flags every money row now carries.
+      expect(result).toEqual([
+        { id: '1', amount: 100, inventoryPurchase: false, archived: false },
+      ]);
     });
 
     it('filters by farmId after a VIEW_FINANCIALS check', async () => {
       const farmId = 'farm-1';
-      await service.findAll(USER_ID, farmId);
+      await service.findAll(USER_ID, { farmId });
 
       expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
         USER_ID,
@@ -138,6 +150,140 @@ describe('TransactionsService', () => {
         where: { farmId },
         order: { transactionDate: 'DESC' },
       });
+    });
+  });
+
+  /**
+   * The money screen had no date filter at all. These pin the contract the
+   * frontend builds against: inclusive on BOTH bounds, and a 400 rather than
+   * an empty list when the range is backwards.
+   */
+  describe('findAll — date range', () => {
+    const tx = (id: string, transactionDate: string) => ({
+      id,
+      farmId: 'farm-1',
+      transactionDate,
+    });
+
+    // `find` is mocked, so run the where-clause the service built against real
+    // rows rather than trusting a shape assertion.
+    const applyWhere = (rows: any[], where: any) =>
+      rows.filter((r) => {
+        const d = where.transactionDate;
+        if (!d) return true;
+        const at = new Date(r.transactionDate).getTime();
+        const ms = (v: any) => new Date(v).getTime();
+        if (d.type === 'between') {
+          const [from, to] = d.value as [Date, Date];
+          return at >= ms(from) && at <= ms(to);
+        }
+        if (d.type === 'moreThanOrEqual') return at >= ms(d.value);
+        return at <= ms(d.value);
+      });
+
+    /**
+     * The bounds are IST calendar days, NOT UTC days. Every user of this app
+     * is in IST, so "this month" bucketed in UTC would hide the first
+     * morning's entries and show five and a half hours of next month's spend
+     * — a wrong number on the screen the farmer trusts most.
+     */
+    it('is inclusive on both IST-local bounds and drops rows outside them', async () => {
+      const rows = [
+        // 2026-01-31 17:30 IST — genuinely before the range.
+        tx('before', '2026-01-31T12:00:00.000Z'),
+        // 2026-02-01 01:30 IST — the FIRST day, pre-dawn. UTC bucketing files
+        // this under January and loses it.
+        tx('ist-first-morning', '2026-01-31T20:00:00.000Z'),
+        tx('middle', '2026-02-15T09:00:00.000Z'),
+        // 2026-02-28 23:30 IST — late on the LAST day, must be kept.
+        tx('ist-last-night', '2026-02-28T18:00:00.000Z'),
+        // 2026-03-01 01:30 IST — March. A UTC end-of-day bound leaks it in.
+        tx('ist-next-month', '2026-02-28T20:00:00.000Z'),
+      ];
+      mockRepository.find.mockImplementation(({ where }: any) =>
+        Promise.resolve(applyWhere(rows, where)),
+      );
+
+      const result = await service.findAll(USER_ID, {
+        farmId: 'farm-1',
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
+
+      expect((result as any[]).map((r) => r.id)).toEqual([
+        'ist-first-morning',
+        'middle',
+        'ist-last-night',
+      ]);
+    });
+
+    it('rejects an inverted range with 400 instead of returning nothing', async () => {
+      await expect(
+        service.findAll(USER_ID, {
+          farmId: 'farm-1',
+          startDate: '2026-03-01',
+          endDate: '2026-02-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('applies no date filter when neither bound is given', async () => {
+      await service.findAll(USER_ID, { farmId: 'farm-1' });
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { farmId: 'farm-1' },
+        order: { transactionDate: 'DESC' },
+      });
+    });
+  });
+
+  /**
+   * D2 — an inventory purchase writes a transaction with `inventoryItemId`
+   * set. The farmer chooses whether the totals describe those; default ON, so
+   * an unset param never silently drops money.
+   */
+  describe('findAll — includeInventoryPurchases', () => {
+    it('keeps inventory purchases by default', async () => {
+      await service.findAll(USER_ID, { farmId: 'farm-1' });
+      const { where } = mockRepository.find.mock.calls[0][0];
+      expect(where).not.toHaveProperty('inventoryItemId');
+    });
+
+    it('excludes rows with an inventoryItemId when false', async () => {
+      await service.findAll(USER_ID, {
+        farmId: 'farm-1',
+        includeInventoryPurchases: false,
+      });
+      const { where } = mockRepository.find.mock.calls[0][0];
+      // IsNull() — the SQL is `inventory_item_id IS NULL`.
+      expect(where.inventoryItemId).toEqual(IsNull());
+    });
+  });
+
+  /**
+   * Row flags the Money screen renders directly — without them the entries
+   * list cannot colour or label anything.
+   */
+  describe('findAll — row flags', () => {
+    it('flags inventory purchases per row', async () => {
+      mockRepository.find.mockResolvedValue([
+        { id: 'bought-feed', inventoryItemId: 'item-1' },
+        { id: 'paid-labour', inventoryItemId: null },
+      ]);
+
+      const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
+
+      expect(rows.map((r) => r.inventoryPurchase)).toEqual([true, false]);
+    });
+
+    it('reports archived=false on every transaction — they hang off a farm, not a pond', async () => {
+      mockRepository.find.mockResolvedValue([{ id: 't1' }]);
+
+      const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
+
+      // Documented, not derived: `transactions` has no pond column, so there
+      // is no pond whose archived status could be read.
+      expect(rows[0].archived).toBe(false);
     });
   });
 
@@ -204,11 +350,30 @@ describe('TransactionsService', () => {
         USER_ID,
       );
 
-      expect(mockRepository.update).toHaveBeenCalledWith(
-        transactionId,
-        updateDto,
-      );
+      // The editor is stamped on every money edit.
+      expect(mockRepository.update).toHaveBeenCalledWith(transactionId, {
+        ...updateDto,
+        updatedById: USER_ID,
+      });
       expect(result).toEqual(updatedTransaction);
+    });
+
+    it('never lets a client-supplied id reassign the primary key', async () => {
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'trans-1',
+        farmId: 'farm-1',
+      });
+
+      await service.update(
+        'trans-1',
+        { id: 'other-id', amount: 5 } as any,
+        USER_ID,
+      );
+
+      expect(mockRepository.update).toHaveBeenCalledWith('trans-1', {
+        amount: 5,
+        updatedById: USER_ID,
+      });
     });
   });
 
@@ -227,38 +392,107 @@ describe('TransactionsService', () => {
     });
   });
 
+  it('refuses to edit or delete a transaction on read-only financial access', async () => {
+    // VIEW_FINANCIALS is the capability for SEEING the money. Rewriting or
+    // erasing it is a write, and was running on the same key.
+    mockRepository.findOneBy.mockResolvedValue({
+      id: 't1',
+      farmId: 'farm-1',
+    });
+    mockFarmAccess.assertCanAccessFarm.mockRejectedValue(
+      new ForbiddenException(),
+    );
+    await expect(
+      service.update('t1', { amount: 1 } as any, 'user-1'),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(service.remove('t1', 'user-1')).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
+      'user-1',
+      expect.any(String),
+      'WRITE_MANAGEMENT',
+    );
+  });
+
   describe('getSummaryByFarm', () => {
+    // One conditional-aggregate query now, not one per bucket. Records the
+    // `andWhere` fragments so the date/inventory bounds can be asserted.
+    const stubQb = (raw: any) => {
+      const andWhere = jest.fn().mockReturnThis();
+      const qb = {
+        select: jest.fn().mockReturnThis(),
+        addSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere,
+        getRawOne: jest.fn().mockResolvedValue(raw),
+      };
+      mockRepository.createQueryBuilder.mockReturnValue(qb);
+      return qb;
+    };
+
     it('returns a summary after a VIEW_FINANCIALS check', async () => {
-      const farmId = 'farm-1';
-      const mockIncome = { total: '1500' };
-      const mockExpense = { total: '800' };
+      stubQb({ income: '1500', expense: '800', inventory: '300' });
 
-      mockRepository.createQueryBuilder
-        .mockReturnValueOnce({
-          select: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue(mockIncome),
-        })
-        .mockReturnValueOnce({
-          select: jest.fn().mockReturnThis(),
-          where: jest.fn().mockReturnThis(),
-          andWhere: jest.fn().mockReturnThis(),
-          getRawOne: jest.fn().mockResolvedValue(mockExpense),
-        });
-
-      const result = await service.getSummaryByFarm(farmId, USER_ID);
+      const result = await service.getSummaryByFarm('farm-1', USER_ID);
 
       expect(mockFarmAccess.assertCanAccessFarm).toHaveBeenCalledWith(
         USER_ID,
-        farmId,
+        'farm-1',
         'VIEW_FINANCIALS',
       );
       expect(result).toEqual({
         totalIncome: 1500,
         totalExpense: 800,
         netProfit: 700,
+        // The slice of totalExpense that came from inventory purchases, so the
+        // client renders "of which inventory: ₹300" without a second request.
+        inventoryExpense: 300,
       });
+    });
+
+    it('bounds the aggregate by the date range, end of the last day included', async () => {
+      const qb = stubQb({ income: '0', expense: '0', inventory: '0' });
+
+      await service.getSummaryByFarm('farm-1', USER_ID, {
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
+
+      // IST-local day boundaries: 00:00 IST on the 1st is 18:30Z on Jan 31,
+      // and the range ends at 18:29:59.999Z on the 28th. A UTC bound would
+      // both hide the first morning and leak 5.5h of March.
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('>= :startDate'),
+        { startDate: new Date('2026-01-31T18:30:00.000Z') },
+      );
+      expect(qb.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('<= :endDate'),
+        { endDate: new Date('2026-02-28T18:29:59.999Z') },
+      );
+    });
+
+    it('rejects an inverted range with 400', async () => {
+      stubQb({ income: '0', expense: '0', inventory: '0' });
+      await expect(
+        service.getSummaryByFarm('farm-1', USER_ID, {
+          startDate: '2026-03-01',
+          endDate: '2026-02-01',
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('drops inventory purchases and zeroes the subtotal when excluded', async () => {
+      const qb = stubQb({ income: '1500', expense: '500', inventory: '300' });
+
+      const result = await service.getSummaryByFarm('farm-1', USER_ID, {
+        includeInventoryPurchases: false,
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledWith('t.inventoryItemId IS NULL');
+      // The subtotal describes what is INSIDE totalExpense — nothing, here.
+      expect(result.inventoryExpense).toBe(0);
+      expect(result.totalExpense).toBe(500);
     });
   });
 });

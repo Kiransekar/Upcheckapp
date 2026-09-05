@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { authApi } from '../api/auth';
+import { apiErrorMessage } from '../api/errors';
 import { profilesApi } from '../api/profiles';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
@@ -44,7 +45,15 @@ interface AuthState {
     status: AuthStatus;
     user: AuthUser | null;
     session: Session | null;
-    isLoading: boolean; // Retained for compatibility with existing UI
+    isLoading: boolean; // Per-request flag: an auth call is in flight (button spinners)
+
+    // ── Startup only ──
+    // True until initialize() has finished deciding whether there is a session.
+    // NOTHING else may set it: it gates the whole navigator, so flipping it back
+    // to true unmounts <Stack.Navigator> and destroys all navigation state. That
+    // is exactly what `isLoading` used to do on every failed login — the user was
+    // thrown back to the first onboarding screen instead of seeing the error.
+    isBootstrapping: boolean;
 
     // ── Derived (computed from session) ──
     accessToken: string | null;
@@ -151,6 +160,7 @@ export const useAuthStore = create<AuthState>()(
             // Initial state
             status: 'initializing',
             isLoading: true,
+            isBootstrapping: true,
             user: null,
             session: null,
             accessToken: null,
@@ -295,7 +305,7 @@ export const useAuthStore = create<AuthState>()(
                 const refreshToken = state.refreshToken;
 
                 if (!refreshToken) {
-                    set({ status: 'unauthenticated', isLoading: false });
+                    set({ status: 'unauthenticated', isLoading: false, isBootstrapping: false });
                     return;
                 }
 
@@ -323,6 +333,9 @@ export const useAuthStore = create<AuthState>()(
                     // from the persisted identity so the app is usable against cached
                     // data; recoverSession() re-attempts a real refresh on reconnect.
                     get().enterOfflineSession();
+                } finally {
+                    // Whatever we decided, startup is over — set exactly once.
+                    set({ isBootstrapping: false });
                 }
             },
 
@@ -398,7 +411,17 @@ export const useAuthStore = create<AuthState>()(
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Login failed';
+                    const message = apiErrorMessage(err, err.message || 'Login failed');
+                    // An unverified account is a DEAD END unless we re-arm the
+                    // resend banner. `pendingVerificationEmail` was only ever set
+                    // during signup, and it does not survive leaving the app — so
+                    // someone who closed the app before clicking the link came
+                    // back, got "email not confirmed", and had no way to ask for
+                    // another one. Their account was unusable and unrecoverable
+                    // from inside the app.
+                    if (/email\s*not\s*confirmed|not\s*verified|confirm.*email/i.test(message)) {
+                        get().setPendingVerification(email);
+                    }
                     get().setError(message);
                     throw new Error(message);
                 }
@@ -421,7 +444,7 @@ export const useAuthStore = create<AuthState>()(
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Google sign in failed';
+                    const message = apiErrorMessage(err, err.message || 'Google sign in failed');
                     get().setError(message);
                     return { requires2FA: false };
                 }
@@ -453,7 +476,7 @@ export const useAuthStore = create<AuthState>()(
                         get().setPendingVerification(email);
                     }
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Registration failed';
+                    const message = apiErrorMessage(err, err.message || 'Registration failed');
                     get().setError(message);
                     throw new Error(message);
                 }
@@ -507,7 +530,7 @@ export const useAuthStore = create<AuthState>()(
                     await authApi.forgotPassword(email);
                     set({ isLoading: false });
                 } catch (err: any) {
-                    const message = err.response?.data?.message || err.message || 'Failed to send reset email';
+                    const message = apiErrorMessage(err, err.message || 'Failed to send reset email');
                     get().setError(message);
                     throw new Error(message);
                 }

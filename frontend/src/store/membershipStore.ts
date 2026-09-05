@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { farmMembersApi, type MyMembership, type FarmRole } from '../api/farmMembers';
+import type { CapabilityOverrides, RolePolicy } from '../permissions/capabilities';
 import { useAuthStore } from './authStore';
+
+/** Everything one capability decision on one farm needs, resolved together. */
+export interface MembershipGrant {
+    role: FarmRole | null;
+    overrides: CapabilityOverrides | null;
+    policy: RolePolicy | null;
+}
 
 interface MembershipState {
     memberships: MyMembership[];
@@ -10,6 +18,8 @@ interface MembershipState {
     /** Role on a farm, or null if not a member. Owner is the safe default for
      *  the legacy single-user case (a farm the user created but has no row yet). */
     roleForFarm: (farmId?: string) => FarmRole | null;
+    /** Role plus the member override and farm policy that bend it. */
+    grantForFarm: (farmId?: string) => MembershipGrant;
     isWorker: (farmId?: string) => boolean;
     reset: () => void;
 }
@@ -39,6 +49,15 @@ export const useMembershipStore = create<MembershipState>((set, get) => ({
         if (!farmId) return null;
         const m = get().memberships.find((x) => x.farmId === farmId);
         return m ? m.role : null;
+    },
+
+    grantForFarm: (farmId) => {
+        const m = farmId ? get().memberships.find((x) => x.farmId === farmId) : undefined;
+        return {
+            role: m ? m.role : null,
+            overrides: m?.capabilityOverrides ?? null,
+            policy: m?.rolePolicy ?? null,
+        };
     },
 
     isWorker: (farmId) => get().roleForFarm(farmId) === 'worker',

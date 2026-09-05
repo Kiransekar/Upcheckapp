@@ -9,8 +9,14 @@ import { Icon } from '../../components/ui/Icon';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { AlertBanner } from '../../components/ui/AlertBanner';
+import { SectionHeader } from '../../components/ui/SectionHeader';
 import { theme } from '../../theme';
 import { pondsApi } from '../../api/ponds';
+import { isHistoryConflict } from '../../api/farms';
+import { apiErrorMessage } from '../../api/errors';
+import { confirm } from '../../utils/confirm';
+import { usePermissions } from '../../hooks/usePermissions';
 
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
@@ -42,6 +48,9 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName, pondCount, editPondId } = route.params;
     const isEdit = !!editPondId;
+    // Archive and delete are OWNER_ONLY — the same capability the server guards
+    // PATCH /ponds/:id/archive and DELETE /ponds/:id with.
+    const perms = usePermissions(farmId);
 
     // Per-farm draft key so an interrupted farmer (call, app kill, network drop)
     // doesn't lose their in-progress pond. Only plain text/selection fields are
@@ -76,6 +85,11 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
     const [isHydrating, setIsHydrating] = useState(isEdit);
     /** Set while editing a pond that currently holds a cycle. */
     const [hasActiveCycle, setHasActiveCycle] = useState(false);
+    /** Already archived — the pond can then only be deleted, not re-archived. */
+    const [isArchived, setIsArchived] = useState(false);
+    const [lifecycleBusy, setLifecycleBusy] = useState(false);
+    /** Set when the server refused a delete because the pond holds records. */
+    const [deleteBlocked, setDeleteBlocked] = useState(false);
     /** The dimensions as loaded, to tell a real change from a re-render. */
     const [original, setOriginal] = useState<Record<string, string> | null>(null);
 
@@ -99,6 +113,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 setOverrideAreaM2(num(data.overrideAreaM2));
                 if (data.overrideAreaM2) setShowOverride(true);
                 setHasActiveCycle(!!data.activeCycleId);
+                setIsArchived(data.status === 'archived');
                 setOriginal({
                     lengthM: num(data.lengthM),
                     widthM: num(data.widthM),
@@ -200,6 +215,54 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
             original.depthM !== depthM ||
             original.overrideAreaM2 !== overrideAreaM2);
 
+    const handleArchive = async () => {
+        const ok = await confirm({
+            title: t('ponds.archiveConfirmTitle'),
+            message: t('ponds.archiveConfirmBody'),
+            confirmLabel: t('ponds.archiveConfirmCta'),
+            cancelLabel: t('common.cancel'),
+        });
+        if (!ok) return;
+        setLifecycleBusy(true);
+        try {
+            await pondsApi.archive(editPondId);
+            navigation.goBack();
+        } catch (e) {
+            // The one refusal worth translating: a pond still running a cycle.
+            Alert.alert(
+                t('common.error'),
+                isHistoryConflict(e)
+                    ? t('ponds.errorArchiveActiveCycle')
+                    : apiErrorMessage(e, t('ponds.errorArchivePond')),
+            );
+        } finally {
+            setLifecycleBusy(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        const ok = await confirm({
+            title: t('ponds.deleteConfirmTitle'),
+            message: t('ponds.deleteConfirmBody'),
+            confirmLabel: t('ponds.deleteConfirmCta'),
+            cancelLabel: t('common.cancel'),
+            destructive: true,
+        });
+        if (!ok) return;
+        setLifecycleBusy(true);
+        try {
+            await pondsApi.delete(editPondId);
+            navigation.goBack();
+        } catch (e) {
+            // Records exist, so the pond stays. Say that in words the farmer
+            // can act on, and put Archive right underneath it.
+            if (isHistoryConflict(e)) setDeleteBlocked(true);
+            else Alert.alert(t('common.error'), apiErrorMessage(e, t('ponds.errorDeletePond')));
+        } finally {
+            setLifecycleBusy(false);
+        }
+    };
+
     const handleSave = async () => {
         const newErrors: { displayName?: string; depthM?: string } = {};
         if (!displayName.trim()) {
@@ -235,12 +298,17 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         // a dimension history with a reason; this is where the reason comes
         // from, and it is a confirmation rather than a block because a mis-typed
         // depth is exactly the thing a farmer needs to be able to correct.
-        if (isEdit && hasActiveCycle && dimensionsChanged) {
-            const confirmed = await new Promise<boolean>((resolve) => {
-                Alert.alert(t('ponds.resizeStockedTitle'), t('ponds.resizeStockedBody'), [
-                    { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-                    { text: t('ponds.resizeStockedConfirm'), onPress: () => resolve(true) },
-                ]);
+        //
+        // Every other edit still gets the general confirmation — a pond's
+        // shape, aeration and name are read by half the app — but creating a
+        // pond asks nothing, because there is nothing yet to overwrite.
+        if (isEdit) {
+            const strict = hasActiveCycle && dimensionsChanged;
+            const confirmed = await confirm({
+                title: strict ? t('ponds.resizeStockedTitle') : t('common.confirmEditTitle'),
+                message: strict ? t('ponds.resizeStockedBody') : t('common.confirmEditMessage'),
+                confirmLabel: strict ? t('ponds.resizeStockedConfirm') : t('common.save'),
+                cancelLabel: t('common.cancel'),
             });
             if (!confirmed) return;
         }
@@ -266,8 +334,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
         } catch (error: any) {
             Alert.alert(
                 t('common.error'),
-                error.response?.data?.message ||
-                    t(isEdit ? 'ponds.errorSavePond' : 'ponds.errorCreatePond'),
+                apiErrorMessage(error, t(isEdit ? 'ponds.errorSavePond' : 'ponds.errorCreatePond')),
             );
         } finally {
             setIsLoading(false);
@@ -293,7 +360,7 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                     <ActivityIndicator color={theme.roles.light.primary} />
                 </View>
             ) : (<>
-            <ScrollView contentContainerStyle={styles.content}>
+            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                 <Input
                     label={t('ponds.fieldDisplayName')}
                     value={displayName}
@@ -482,6 +549,45 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                         <Icon name="chevron_right" size={22} color={theme.roles.light.textDisabled} />
                     </TouchableOpacity>
                 )}
+
+                {/* Pond lifecycle — edit mode, owner only. A pond running a
+                    cycle can be neither archived nor deleted, so it is told
+                    that once instead of being offered two actions that fail. */}
+                {isEdit && perms.canOwnerActions && (
+                    <View style={styles.manage}>
+                        <SectionHeader label={t('ponds.managePond')} />
+                        {deleteBlocked && (
+                            <AlertBanner
+                                type="warning"
+                                title={t('ponds.deleteBlockedTitle')}
+                                message={t('ponds.deleteBlockedBody')}
+                                style={{ marginBottom: theme.spacing[3] }}
+                            />
+                        )}
+                        {hasActiveCycle ? (
+                            <Text style={styles.manageNote}>{t('ponds.manageNeedsCycleEnd')}</Text>
+                        ) : (
+                            <>
+                                {!isArchived && (
+                                    <Button
+                                        title={t('ponds.archivePond')}
+                                        variant="outlined"
+                                        loading={lifecycleBusy}
+                                        onPress={handleArchive}
+                                    />
+                                )}
+                                <Button
+                                    title={t('ponds.deletePond')}
+                                    variant="text"
+                                    disabled={lifecycleBusy}
+                                    onPress={handleDelete}
+                                    textStyle={{ color: theme.roles.light.dangerText }}
+                                    style={{ marginTop: theme.spacing[2] }}
+                                />
+                            </>
+                        )}
+                    </View>
+                )}
             </ScrollView>
 
             {/* The design pins Create pond to the bottom: the form is longer
@@ -501,6 +607,11 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
     hydrating: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    manage: { marginTop: theme.spacing[6] },
+    manageNote: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textTertiary,
+    },
     metricBand: {
         flexDirection: 'row', gap: theme.spacing[4],
         padding: theme.spacing[4], borderRadius: theme.radius.md,

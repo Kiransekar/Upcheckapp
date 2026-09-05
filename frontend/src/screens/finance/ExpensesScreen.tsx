@@ -27,6 +27,7 @@ import {
     ExpenseCategory,
 } from '../../api/expenses';
 import { cropsApi } from '../../api/crops';
+import { apiErrorMessage } from '../../api/errors';
 
 const CATEGORY_OPTIONS = Object.values(ExpenseCategory);
 
@@ -73,7 +74,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             setFinancials(financialsRes.data);
             setPondId(cropRes.data.pondId);
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Failed to load expenses');
+            setError(apiErrorMessage(err, 'Failed to load expenses'));
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
@@ -125,7 +126,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             // Refresh data
             void loadData(true);
         } catch (err: any) {
-            Alert.alert(t('common.error'), err?.response?.data?.message || t('finance.saveError'));
+            Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.saveError')));
         } finally {
             setIsSaving(false);
         }
@@ -380,6 +381,7 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
             ) : (
                 <FlatList
                     data={expenses}
+                    keyboardShouldPersistTaps="handled"
                     keyExtractor={(item) => item.id}
                     renderItem={renderExpenseItem}
                     contentContainerStyle={styles.listContent}

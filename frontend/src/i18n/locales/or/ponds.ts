@@ -124,5 +124,55 @@ const ponds = {
   fieldSurveyedArea: "ସର୍ଭେ କରାଯାଇଥିବା କ୍ଷେତ୍ର (m²)",
   surveyedDifferent: "ସର୍ଭେ କ୍ଷେତ୍ର ଅଲଗା",
   surveyedDifferentSub: "ଗଣନା କରାଯାଇଥିବା କ୍ଷେତ୍ର ବଦଳାନ୍ତୁ",
+
+  sessionHintLogged: "ଲଗ୍ ହେଲା",
+  sessionHintFed: "ଖୁଆଯାଇଛି",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "ଆଜି ଏହି ପୋଖରୀରେ",
+  todayEmpty: "ଆଜି ଏପର୍ଯ୍ୟନ୍ତ କିଛି ଲଗ୍ ହୋଇନାହିଁ।",
+  modeHintLog: "ନୂଆ ଏଣ୍ଟ୍ରି ଲେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  modeHintHistory: "ପୁରୁଣା ଏଣ୍ଟ୍ରି ଦେଖିବାକୁ କାର୍ଡ ଦବାନ୍ତୁ",
+  tileDone: "ଏହି ସେସନ୍‌ରେ ହୋଇଛି",
+  tilePending: "ଏବେ ବି ହୋଇନାହିଁ",
+  tileNeedsCycle: "ଏକ ଚକ୍ର ଦରକାର",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "ଟଙ୍କା — ସମାପ୍ତ ଚକ୍ର",
+  metricRevenue: "ଆୟ",
+  metricProfit: "ଲାଭ",
+  metricLoss: "କ୍ଷତି",
+  metricMargin: "ମାର୍ଜିନ୍",
+
+  // Archive and delete — spec §4.1
+  managePond: "ପୋଖରୀ ପରିଚାଳନା",
+  archivePond: "ପୋଖରୀ ସଂରକ୍ଷଣ କରନ୍ତୁ",
+  deletePond: "ପୋଖରୀ ଡିଲିଟ୍ କରନ୍ତୁ",
+  archiveConfirmTitle: "ଏହି ପୋଖରୀ ସଂରକ୍ଷଣ କରିବେ?",
+  archiveConfirmBody: "ଏହା ପୋଖରୀ ତାଲିକା ଓ ସବୁ ହିସାବରୁ ବାହାରିଯିବ, ଆଉ ସଂରକ୍ଷିତ ଥିବା ସମୟରେ ଏଥିରେ ଚାରା ଛଡ଼ାଯାଇପାରିବ ନାହିଁ। ଏହାର ସବୁ ରେକର୍ଡ ରହିବ।",
+  archiveConfirmCta: "ସଂରକ୍ଷଣ କରନ୍ତୁ",
+  deleteConfirmTitle: "ଏହି ପୋଖରୀ ଡିଲିଟ୍ କରିବେ?",
+  deleteConfirmBody: "ପୋଖରୀଟି ସବୁଦିନ ପାଇଁ ଚାଲିଯିବ। ଏହା ଆଉ ଫେରାଯାଇପାରିବ ନାହିଁ।",
+  deleteConfirmCta: "ଡିଲିଟ୍ କରନ୍ତୁ",
+  deleteBlockedTitle: "ଏହି ପୋଖରୀରେ ଚକ୍ରର ରେକର୍ଡ ଅଛି",
+  deleteBlockedBody: "ତେଣୁ ଏହା ଡିଲିଟ୍ ହୋଇପାରିବ ନାହିଁ — ଏଥିରେ ହିଁ ଆପଣଙ୍କ ହିସାବ ସୁରକ୍ଷିତ ରହେ। ବଦଳରେ ସଂରକ୍ଷଣ କରନ୍ତୁ: ଏହା ତାଲିକାରୁ ବାହାରିଯିବ, କିନ୍ତୁ ପ୍ରତ୍ୟେକ ରେକର୍ଡ ରହିବ।",
+  manageNeedsCycleEnd: "ଯେଉଁ ପୋଖରୀରେ ଚକ୍ର ଚାଲିଛି ତାହା ସଂରକ୍ଷଣ କିମ୍ବା ଡିଲିଟ୍ ହୋଇପାରିବ ନାହିଁ। ପ୍ରଥମେ ଚକ୍ରଟି ବନ୍ଦ କରନ୍ତୁ।",
+  errorArchivePond: "ପୋଖରୀ ସଂରକ୍ଷଣ ହୋଇପାରିଲା ନାହିଁ।",
+  unarchivePond: "ଫେରାଇ ଆଣନ୍ତୁ",
+  unarchiveConfirmTitle: "ଏହି ପୋଖରୀକୁ ଫେରାଇ ଆଣିବେ?",
+  unarchiveConfirmBody: "ଏହା ଆପଣଙ୍କ ପୋଖରୀ ତାଲିକାକୁ ଫେରିଆସିବ ଏବଂ ଫାର୍ମ ମୋଟରେ ପୁଣି ଗଣାଯିବ।",
+  unarchiveConfirmCta: "ଫେରାଇ ଆଣନ୍ତୁ",
+  errorUnarchivePond: "ପୋଖରୀକୁ ଫେରାଇ ଆଣି ହେଲା ନାହିଁ।",
+  errorArchiveActiveCycle: "ଏହି ପୋଖରୀରେ ଚକ୍ର ଚାଲିଛି, ତେଣୁ ସଂରକ୍ଷଣ ହୋଇପାରିବ ନାହିଁ। ପ୍ରଥମେ ଚକ୍ରଟି ବନ୍ଦ କରନ୍ତୁ।",
+  errorDeletePond: "ପୋଖରୀ ଡିଲିଟ୍ ହୋଇପାରିଲା ନାହିଁ।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "ଶେଷ ଲଗ୍ {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "ଲଗ୍ {{age}} ପୂର୍ବେ",
+  ageFed: "ଖାଦ୍ୟ {{age}} ପୂର୍ବେ",
+  ageNeverLogged: "କେବେ ଲଗ୍ ହୋଇନାହିଁ",
+  ageNeverFed: "କେବେ ଖାଦ୍ୟ ଦିଆଯାଇନାହିଁ",
 };
 export default ponds;

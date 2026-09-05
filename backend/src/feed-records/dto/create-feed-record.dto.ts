@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsUUID,
   IsBoolean,
+  IsDateString,
   Min,
   Max,
 } from 'class-validator';
@@ -16,6 +17,12 @@ export class CreateFeedRecordDto {
 
   @IsUUID()
   pondId: string;
+
+  // When the feeding actually happened. Offline-queued logs send it so the row
+  // is not stamped with sync time; omitted → DB default (now).
+  @IsDateString()
+  @IsOptional()
+  recordedAt?: string;
 
   @IsString()
   feedType: string;

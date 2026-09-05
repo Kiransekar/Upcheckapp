@@ -124,5 +124,55 @@ const ponds = {
   fieldSurveyedArea: "सर्वे किया क्षेत्र (m²)",
   surveyedDifferent: "सर्वे किया क्षेत्र अलग है",
   surveyedDifferentSub: "गणना किए क्षेत्र को बदलें",
+
+  sessionHintLogged: "दर्ज",
+  sessionHintFed: "खिलाया",
+
+  // Today list + tile ticks + mode hint — see PondDashboardScreen.
+  todayTitle: "आज इस तालाब पर",
+  todayEmpty: "आज अभी तक कुछ दर्ज नहीं हुआ।",
+  modeHintLog: "नई प्रविष्टि दर्ज करने के लिए कार्ड दबाएँ",
+  modeHintHistory: "पुरानी प्रविष्टियाँ देखने के लिए कार्ड दबाएँ",
+  tileDone: "इस सत्र में हो गया",
+  tilePending: "अभी बाकी है",
+  tileNeedsCycle: "चक्र चाहिए",
+
+  // Pond money — revenue/profit/margin, incl. the finished cycle.
+  moneyLastCycle: "पैसा — पूरा हुआ चक्र",
+  metricRevenue: "आमदनी",
+  metricProfit: "मुनाफ़ा",
+  metricLoss: "नुकसान",
+  metricMargin: "मार्जिन",
+
+  // Archive and delete — spec §4.1
+  managePond: "तालाब प्रबंधन",
+  archivePond: "तालाब संग्रहित करें",
+  deletePond: "तालाब हटाएँ",
+  archiveConfirmTitle: "इस तालाब को संग्रहित करें?",
+  archiveConfirmBody: "यह तालाब सूची और हर जोड़ से हट जाएगा, और संग्रहित रहते हुए इसमें स्टॉकिंग नहीं हो सकती। इसके सारे रिकॉर्ड बने रहेंगे।",
+  archiveConfirmCta: "संग्रहित करें",
+  deleteConfirmTitle: "इस तालाब को हटाएँ?",
+  deleteConfirmBody: "तालाब हमेशा के लिए चला जाएगा। यह वापस नहीं हो सकता।",
+  deleteConfirmCta: "हटाएँ",
+  deleteBlockedTitle: "इस तालाब में चक्र के रिकॉर्ड हैं",
+  deleteBlockedBody: "इसलिए इसे हटाया नहीं जा सकता — इसी से आपका ब्यौरा सुरक्षित रहता है। इसके बजाय संग्रहित करें: यह सूची से हट जाएगा पर हर रिकॉर्ड बना रहेगा।",
+  manageNeedsCycleEnd: "जिस तालाब में चक्र चल रहा है उसे न संग्रहित किया जा सकता है, न हटाया। पहले चक्र बंद करें।",
+  errorArchivePond: "तालाब संग्रहित नहीं हो सका।",
+  unarchivePond: "वापस लाएँ",
+  unarchiveConfirmTitle: "इस तालाब को वापस लाएँ?",
+  unarchiveConfirmBody: "यह आपकी तालाब सूची में लौट आएगा और फ़ार्म के कुल में फिर से गिना जाएगा।",
+  unarchiveConfirmCta: "वापस लाएँ",
+  errorUnarchivePond: "तालाब वापस नहीं लाया जा सका।",
+  errorArchiveActiveCycle: "इस तालाब में चक्र चल रहा है, इसलिए यह संग्रहित नहीं हो सकता। पहले चक्र बंद करें।",
+  errorDeletePond: "तालाब हटाया नहीं जा सका।",
+
+  // Age chip — how old the data behind a pond row's colour is.
+  lastLog: "अंतिम लॉग {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "लॉग {{age}} पहले",
+  ageFed: "चारा {{age}} पहले",
+  ageNeverLogged: "कभी लॉग नहीं",
+  ageNeverFed: "कभी चारा नहीं",
 };
 export default ponds;

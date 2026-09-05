@@ -40,7 +40,12 @@ export type IconName =
     | 'translate' | 'home_work' | 'engineering' | 'visibility' | 'location_on'
     | 'qr_code_scanner'
     // farmer feedback / issue reports
-    | 'feedback' | 'add_a_photo' | 'send' | 'mark_chat_unread';
+    | 'feedback' | 'add_a_photo' | 'send' | 'mark_chat_unread'
+    // Phase 2 — the activity timeline, cycle history and archive lifecycle
+    | 'history' | 'search' | 'archive' | 'unarchive'
+    // Phase 3 polish — telling the daily chemical log and weekly chemistry
+    // panel tiles apart; both used to render 'science'.
+    | 'calendar_month';
 
 export interface IconProps {
     name: IconName;

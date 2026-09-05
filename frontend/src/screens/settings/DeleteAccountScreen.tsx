@@ -8,6 +8,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { useAuthStore } from '../../store/authStore';
+import { apiErrorMessage } from '../../api/errors';
 
 // A deliberately high-friction, strict confirmation for the single most
 // destructive action in the app. The old flow was one native Alert with a
@@ -62,7 +63,7 @@ export const DeleteAccountScreen = ({ navigation }: any) => {
             setError(
                 status === 401
                     ? t('settings.deleteAccountWrongPassword')
-                    : err?.response?.data?.message || t('settings.deleteAccountError'),
+                    : apiErrorMessage(err, t('settings.deleteAccountError')),
             );
             setIsDeleting(false);
         }

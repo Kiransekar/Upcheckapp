@@ -32,6 +32,8 @@ import { CreatePondScreen } from '../screens/ponds/CreatePondScreen';
 import { PondDashboardScreen } from '../screens/ponds/PondDashboardScreen';
 import { CreateCycleScreen } from '../screens/cycles/CreateCycleScreen';
 import { CycleDetailScreen } from '../screens/cycles/CycleDetailScreen';
+import { CycleListScreen } from '../screens/cycles/CycleListScreen';
+import { ActivityScreen } from '../screens/activity/ActivityScreen';
 import { PondDimensionHistoryScreen } from '../screens/ponds/PondDimensionHistoryScreen';
 import { CycleAnalysisScreen } from '../screens/reports/CycleAnalysisScreen';
 
@@ -73,6 +75,7 @@ import { MortalityHistoryScreen } from '../screens/logs/History/MortalityHistory
 import { MeasurementsScreen } from '../screens/measurements/MeasurementsScreen';
 import { DailyRoutineScreen } from '../screens/engines/DailyRoutineScreen';
 import { WeeklyChemistryScreen } from '../screens/logs/WeeklyChemistryScreen';
+import { WeeklyChemistryHistoryScreen } from '../screens/logs/History/WeeklyChemistryHistoryScreen';
 import { EnginesHubScreen } from '../screens/engines/EnginesHubScreen';
 import { FeedAdvisorScreen } from '../screens/engines/FeedAdvisorScreen';
 import { HarvestTimingScreen } from '../screens/engines/HarvestTimingScreen';
@@ -92,6 +95,7 @@ import { FeedbackDetailScreen } from '../screens/settings/FeedbackDetailScreen';
 import { AboutScreen } from '../screens/settings/AboutScreen';
 import { InventoryListScreen } from '../screens/inventory/InventoryListScreen';
 import { InventoryDetailScreen } from '../screens/inventory/InventoryDetailScreen';
+import { InventoryFormScreen } from '../screens/inventory/InventoryFormScreen';
 
 // Disease Encyclopedia
 import { DiseaseListScreen } from '../screens/diseases/DiseaseListScreen';
@@ -100,6 +104,8 @@ import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
 
 // Tasks
 import { TaskListScreen } from '../screens/tasks/TaskListScreen';
+import { TaskComposerScreen } from '../screens/tasks/TaskComposerScreen';
+import { RecurringTasksScreen } from '../screens/tasks/RecurringTasksScreen';
 import { LeaveRequestsScreen } from '../screens/leave/LeaveRequestsScreen';
 import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
 import { AttendanceLogScreen } from '../screens/attendance/AttendanceLogScreen';
@@ -163,6 +169,11 @@ export type RootStackParamList = {
     CycleAnalysis: { cycleId: string; cycleName?: string };
     CreateCycle: { pondId: string };
     CycleDetail: { cycleId: string };
+    // Cycle history: per pond (from the dashboard) or per farm (from farm detail).
+    CycleList: { pondId?: string; pondName?: string; farmId?: string; farmName?: string } | undefined;
+
+    // The cross-table timeline (GET /activity). No scope = every accessible farm.
+    Activity: { farmId?: string; farmName?: string; pondId?: string; pondName?: string } | undefined;
 
     // Phase 3
     WaterQualityLog: { pondId: string; pondName?: string; cropId?: string };
@@ -203,7 +214,8 @@ export type RootStackParamList = {
     Measurements: { pondId: string; pondName?: string; cropId?: string };
 
     // Decision engines (PRD P2)
-    WeeklyChemistry: { pondId: string; pondName?: string; cropId?: string };
+    WeeklyChemistry: { pondId: string; pondName?: string };
+    WeeklyChemistryHistory: { pondId: string; pondName?: string; cropId?: string };
     DailyRoutine: { pondId: string; pondName?: string; cropId?: string };
     EnginesHub: { pondId?: string; pondName?: string; cropId?: string };
     FeedAdvisor: { pondId?: string; pondName?: string; cropId?: string };
@@ -223,6 +235,9 @@ export type RootStackParamList = {
     About: undefined;
     Inventory: undefined;
     InventoryDetail: { inventoryId: string; itemName?: string };
+    // Create (no itemId) and edit (itemId) share one form, so the category
+    // chips, unit dropdown and icon picker cannot drift between them (D4).
+    InventoryForm: { farmId?: string; itemId?: string } | undefined;
 
     // Disease Encyclopedia
     DiseaseList: undefined;
@@ -231,6 +246,8 @@ export type RootStackParamList = {
 
     // Tasks
     TaskList: { farmId: string; farmName?: string };
+    TaskCompose: { farmId: string; farmName?: string; scope?: 'farm' | 'personal' };
+    RecurringTasks: { farmId: string; farmName?: string };
 
     // Leave requests
     LeaveRequests: { farmId: string; farmName?: string };
@@ -258,7 +275,8 @@ export type RootStackParamList = {
     Intent: undefined;
     PondSetup: { farmId: string; totalPonds: number };
     PondNames: { farm: CreateFarmDto; pondCount: number };
-    JoinFarm: undefined;
+    // code: from the upcheckapp://join/<CODE> deep link (linking.ts).
+    JoinFarm: { code?: string } | undefined;
     JoinedFarm: { farmName: string; role: FarmRole; status: 'active' | 'pending' };
 
     // Additional calculators + feed products
@@ -270,7 +288,15 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, pendingFarmSetup, pendingFarmJoin, initialize } = useAuthStore();
+    // One selector per field, deliberately. Subscribing to the whole store made
+    // every auth write (error text, per-request isLoading) re-render — and with
+    // the spinner below that meant UNMOUNTING the navigator and losing all
+    // navigation state on a failed login.
+    const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
+    const pendingFarmJoin = useAuthStore((s) => s.pendingFarmJoin);
+    const initialize = useAuthStore((s) => s.initialize);
     const loadMemberships = useMembershipStore((s) => s.load);
     const resetMemberships = useMembershipStore((s) => s.reset);
 
@@ -294,7 +320,10 @@ const RootNavigator = () => {
         else resetMemberships();
     }, [isAuthenticated, loadMemberships, resetMemberships]);
 
-    if (isLoading || needsLanguage === null) {
+    // ONLY startup may hold the splash. An in-flight login/signup must not, or
+    // the navigator unmounts and the error message arrives at the first
+    // onboarding screen instead of the screen the farmer was typing into.
+    if (isBootstrapping || needsLanguage === null) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
                 <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -375,6 +404,10 @@ const RootNavigator = () => {
                     <Stack.Screen name="PondDashboard" component={PondDashboardScreen} />
                     <Stack.Screen name="CreateCycle" component={CreateCycleScreen} />
                     <Stack.Screen name="CycleDetail" component={CycleDetailScreen} />
+                    <Stack.Screen name="CycleList" component={CycleListScreen} />
+                    {/* The cross-table timeline. Renders its own ScreenHeader,
+                        same as AttendanceLog. */}
+                    <Stack.Screen name="Activity" component={ActivityScreen} />
                     <Stack.Screen name="PondDimensionHistory" component={PondDimensionHistoryScreen} />
                     <Stack.Screen name="CycleAnalysis" component={CycleAnalysisScreen} />
 
@@ -419,6 +452,8 @@ const RootNavigator = () => {
                     />
                     <Stack.Screen name="DailyRoutine" component={DailyRoutineScreen} options={{ headerShown: true, title: 'Daily Routine', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="WeeklyChemistry" component={WeeklyChemistryScreen} options={{ headerShown: true, title: 'Weekly Chemistry', headerTintColor: theme.roles.light.primary }} />
+                    {/* Own back header, matching WaterQualityHistoryScreen. */}
+                    <Stack.Screen name="WeeklyChemistryHistory" component={WeeklyChemistryHistoryScreen} options={{ headerShown: false }} />
                     <Stack.Screen name="EnginesHub" component={EnginesHubScreen} options={{ headerShown: true, title: 'Decision Engines', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="FeedAdvisor" component={FeedAdvisorScreen} options={{ headerShown: true, title: 'Feed Advisor', headerTintColor: theme.roles.light.primary }} />
                     <Stack.Screen name="HarvestTiming" component={HarvestTimingScreen} options={{ headerShown: true, title: 'Harvest Timing', headerTintColor: theme.roles.light.primary }} />
@@ -439,6 +474,9 @@ const RootNavigator = () => {
                     <Stack.Screen name="About" component={AboutScreen} />
                     <Stack.Screen name="Inventory" component={InventoryListScreen} />
                     <Stack.Screen name="InventoryDetail" component={InventoryDetailScreen} />
+                    {/* One screen for create AND edit, so the category chips,
+                        unit list and icon picker cannot drift apart (D4). */}
+                    <Stack.Screen name="InventoryForm" component={InventoryFormScreen} options={{ headerShown: false }} />
 
                     {/* Disease Encyclopedia */}
                     <Stack.Screen name="DiseaseList" component={DiseaseListScreen} />
@@ -447,6 +485,8 @@ const RootNavigator = () => {
 
                     {/* Tasks */}
                     <Stack.Screen name="TaskList" component={TaskListScreen} />
+                    <Stack.Screen name="TaskCompose" component={TaskComposerScreen} />
+                    <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
                     <Stack.Screen name="LeaveRequests" component={LeaveRequestsScreen} />
                     <Stack.Screen name="Attendance" component={AttendanceScreen} />
                     <Stack.Screen name="AttendanceLog" component={AttendanceLogScreen} />

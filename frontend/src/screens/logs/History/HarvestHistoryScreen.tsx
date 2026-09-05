@@ -12,7 +12,9 @@ import { harvestsApi, HarvestRecord } from '../../../api/harvests';
 
 export const HarvestHistoryScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { pondId, cycleId, cropId } = route.params;
+    // The pond's label travels with the navigation params (PondDashboard sends
+    // it). Passing '' onward left the harvest form headed by a blank line.
+    const { pondId, cycleId, cropId, pondName } = route.params;
     const [records, setRecords] = useState<HarvestRecord[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -23,10 +25,25 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
         setError(null);
 
         try {
-            const { data } = cropId
-                ? await harvestsApi.getByCrop(cropId)
-                : await harvestsApi.getAll();
-            const result: HarvestRecord[] = Array.isArray(data) ? data : [];
+            /*
+             * A pond, when we have one, beats a single crop: harvests run
+             * across successive cycles on the same pond and the farmer is
+             * asking for THAT pond's run, not one cycle of it.
+             *
+             * There is deliberately no `getAll()` fallback any more. With
+             * neither id it returned every harvest on every farm the user can
+             * reach and drew them under this pond's title — other ponds'
+             * tonnage, summed into "total harvested", on a screen a farmer
+             * reads as one pond's record. No scope, no list.
+             */
+            if (!pondId && !cropId) {
+                setRecords([]);
+                return;
+            }
+            const { data } = pondId
+                ? await harvestsApi.getByPond(pondId)
+                : await harvestsApi.getByCrop(cropId);
+            const result: HarvestRecord[] = Array.isArray(data) ? data : (data as any)?.data ?? [];
             result.sort((a, b) => new Date(b.harvestDate).getTime() - new Date(a.harvestDate).getTime());
             setRecords(result);
         } catch (err) {
@@ -35,7 +52,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [cropId]);
+    }, [pondId, cropId]);
 
     // Refetch on focus, not just mount — this screen stays mounted in the
     // stack, so logging a new reading and navigating back never showed it.
@@ -64,7 +81,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                         <Text style={styles.badgeText}>{item.harvestType.toUpperCase()}</Text>
                     </View>
                     <TouchableOpacity
-                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: '', cropId, editRecord: item })}
+                        onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId, editRecord: item })}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         accessibilityRole="button"
                         accessibilityLabel={t('common.edit', 'Edit')}
@@ -145,7 +162,7 @@ export const HarvestHistoryScreen = ({ route, navigation }: any) => {
                 </>
             )}
 
-            <FAB icon="plus" onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: '', cropId })} />
+            <FAB icon="plus" onPress={() => navigation.navigate('HarvestLog', { pondId, pondName: pondName ?? '', cropId })} />
         </ScreenWrapper>
     );
 };

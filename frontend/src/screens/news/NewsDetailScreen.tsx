@@ -1,13 +1,17 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Linking, Share, Modal } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Card } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { Button } from '../../components/ui/Button';
 import { theme } from '../../theme';
 import { newsApi, NewsArticle } from '../../api/news';
 import { readNewsCache } from '../../features/newsCache';
+import { buildTranslatePrompt } from '../../features/newsTranslatePrompt';
 import { formatDate } from '../../utils/formatDate';
 import { useUIStore } from '../../store/uiStore';
 import { useSyncStore } from '../../store/syncStore';
@@ -27,6 +31,13 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
     const [article, setArticle] = useState<NewsArticle | null>(seeded ?? null);
     const [isLoading, setIsLoading] = useState(!seeded);
     const [error, setError] = useState<any>(null);
+
+    // Fallback for when the OS share sheet itself fails (rare, but a farmer
+    // stuck with a dead button is worse than an extra modal). The clipboard
+    // copy below is the real safety net — this modal is the backstop for the
+    // backstop, and its own Copy button re-does that same write.
+    const [translateModalVisible, setTranslateModalVisible] = useState(false);
+    const [translatePrompt, setTranslatePrompt] = useState('');
 
     const fetchArticle = useCallback(async () => {
         setError(null);
@@ -66,6 +77,37 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
         );
     }, [article, isConnected, showToast, t]);
 
+    /**
+     * "Translate & explain" — no in-app translator, and detecting installed
+     * AI apps needs a native `<queries>` manifest declaration this OTA-shipped
+     * build can't add (Android 11+ `canOpenURL` scoping). So instead: build a
+     * prompt written IN the farmer's language, copy it to the clipboard
+     * (works even for apps that don't prefill from a share), and hand it to
+     * the OS share sheet, which shows only whatever the farmer actually has
+     * installed. If the share sheet itself throws, the fallback modal keeps
+     * the action from being a dead end.
+     */
+    const handleTranslate = useCallback(async () => {
+        if (!article) return;
+        const prompt = buildTranslatePrompt(
+            { title: article.title, summary: article.summary, sourceName: article.sourceName },
+            i18n.language,
+        );
+        setTranslatePrompt(prompt);
+        await Clipboard.setStringAsync(prompt);
+        showToast({ message: t('content.news.translate.copied'), type: 'success' });
+        try {
+            await Share.share({ message: prompt });
+        } catch {
+            setTranslateModalVisible(true);
+        }
+    }, [article, showToast, t]);
+
+    const handleCopyFromModal = useCallback(async () => {
+        await Clipboard.setStringAsync(translatePrompt);
+        showToast({ message: t('content.news.translate.copied'), type: 'success' });
+    }, [translatePrompt, showToast, t]);
+
     const sourceHost = (() => {
         try {
             return article?.canonicalUrl
@@ -78,15 +120,11 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <MaterialCommunityIcons name="arrow-left" size={24} color={theme.roles.light.textPrimary} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                    {article?.title ?? t('content.news.fallbackTitle')}
-                </Text>
-                <View style={styles.headerSpacer} />
-            </View>
+            <ScreenHeader
+                title={article?.title ?? t('content.news.fallbackTitle')}
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
 
             {isLoading && !article ? (
                 <View style={styles.loadingContainer}>
@@ -127,6 +165,22 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
                                 {t('content.news.attribution', { source: article.sourceName })}
                             </Text>
                         ) : null}
+
+                        <TouchableOpacity
+                            style={styles.translateButton}
+                            onPress={handleTranslate}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('content.news.translate.action')}
+                        >
+                            <MaterialCommunityIcons
+                                name="translate"
+                                size={18}
+                                color={theme.roles.light.primary}
+                            />
+                            <Text style={styles.translateButtonText}>
+                                {t('content.news.translate.action')}
+                            </Text>
+                        </TouchableOpacity>
 
                         {article.summary ? (
                             <View style={styles.summaryContainer}>
@@ -169,31 +223,52 @@ export const NewsDetailScreen = ({ route, navigation }: any) => {
                     </Card>
                 </ScrollView>
             ) : null}
+
+            <Modal
+                visible={translateModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setTranslateModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>
+                                {t('content.news.translate.modalTitle')}
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setTranslateModalVisible(false)}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('content.news.translate.close')}
+                                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                style={styles.modalCloseBtn}
+                            >
+                                <MaterialCommunityIcons
+                                    name="close"
+                                    size={20}
+                                    color={theme.roles.light.textSecondary}
+                                />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.modalBody}>
+                            {t('content.news.translate.modalBody')}
+                        </Text>
+                        <ScrollView style={styles.modalPromptBox}>
+                            <Text style={styles.modalPromptText}>{translatePrompt}</Text>
+                        </ScrollView>
+                        <Button
+                            title={t('content.news.translate.copyButton')}
+                            onPress={handleCopyFromModal}
+                            style={styles.modalCopyButton}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </ScreenWrapper>
     );
 };
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: theme.spacing[4],
-        paddingHorizontal: theme.spacing[4],
-        borderBottomWidth: 1,
-        borderBottomColor: theme.roles.light.borderDefault,
-        backgroundColor: theme.roles.light.surface,
-    },
-    backButton: {
-        marginRight: theme.spacing[3],
-    },
-    headerTitle: {
-        ...theme.typeScale.h2,
-        color: theme.roles.light.textPrimary,
-        flex: 1,
-    },
-    headerSpacer: {
-        width: 24,
-    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -287,5 +362,70 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         paddingBottom: theme.spacing[4],
         backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    translateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: theme.spacing[2],
+        marginHorizontal: theme.spacing[4],
+        marginTop: theme.spacing[3],
+        paddingHorizontal: theme.spacing[3],
+        minHeight: 48,
+        borderRadius: theme.radius.full,
+        borderWidth: 1,
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.surfaceOverlay,
+    },
+    translateButtonText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        padding: theme.spacing[5],
+    },
+    modalCard: {
+        backgroundColor: theme.roles.light.surface,
+        borderRadius: theme.radius.xl,
+        padding: theme.spacing[5],
+        gap: theme.spacing[3],
+        maxHeight: '80%',
+        ...theme.shadows.md,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    modalCloseBtn: {
+        minWidth: 48,
+        minHeight: 48,
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+    },
+    modalTitle: {
+        ...theme.typeScale.h2,
+        color: theme.roles.light.textPrimary,
+        flexShrink: 1,
+    },
+    modalBody: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+    },
+    modalPromptBox: {
+        maxHeight: 220,
+        padding: theme.spacing[3],
+        backgroundColor: theme.roles.light.surfaceVariant,
+        borderRadius: theme.radius.md,
+    },
+    modalPromptText: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textPrimary,
+    },
+    modalCopyButton: {
+        alignSelf: 'stretch',
     },
 });
