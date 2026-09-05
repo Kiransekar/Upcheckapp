@@ -23,7 +23,7 @@ import {
   saveTelemetryPrefs,
   shouldAskAnalyticsConsent,
 } from './src/features/telemetryPrefs';
-import { syncAnalyticsConsent } from './src/features/analytics';
+import { syncAnalyticsConsent, capture } from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
@@ -316,6 +316,28 @@ export default function App() {
                   // dispatched, so the card never fights it for the screen.
                   setNavReady(true);
                 });
+              // The one and only automatic lifecycle event, and it is a no-op
+              // until the farmer has opted in (features/analytics.ts). Fired
+              // here rather than on mount so it cannot run before the consent
+              // state has been read from storage.
+              capture('app_opened');
+            }}
+            /*
+             * Screen views, by ROUTE NAME only. This is the whole of our
+             * automatic instrumentation: PostHog's own autocapture is off at
+             * both ends (project setting and client config) because it would
+             * hoover up the CONTENTS of these screens — pond names, amounts,
+             * harvest figures — which the Privacy Policy promises never reach
+             * analytics. A route name is a UI fact, not a farm fact, and it is
+             * the one thing that tells us which features get used.
+             *
+             * `capture` drops anything not on the AnalyticsProps allowlist, so
+             * route PARAMS (which carry farmId, pondId, cropId and amounts)
+             * cannot leak here even by accident.
+             */
+            onStateChange={() => {
+              const name = navigationRef.getCurrentRoute()?.name;
+              if (name) capture('screen_viewed', { screen: name });
             }}
           >
             <RootNavigator />
