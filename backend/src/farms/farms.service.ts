@@ -150,7 +150,16 @@ export class FarmsService {
    * and a default that still returned them would make the action decorative.
    */
   async findAll(userId: string, includeArchived = false) {
-    const farmIds = await this.farmAccess.getAccessibleFarmIds(userId);
+    // `includeArchived` MUST be threaded into the access lookup, not just the
+    // where-clause below. getAccessibleFarmIds defaults to excluding archived
+    // farms, so omitting it here filtered them out of `farmIds` first and the
+    // where-clause was then choosing between two archive-free sets — making
+    // `?includeArchived=true` return an empty list, always. The "include
+    // archived" toggle on the farms list looked broken because it was.
+    const farmIds = await this.farmAccess.getAccessibleFarmIds(
+      userId,
+      includeArchived,
+    );
     if (farmIds.length === 0) return [];
     return this.farmsRepository.find({
       where: includeArchived

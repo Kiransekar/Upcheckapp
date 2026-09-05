@@ -16,6 +16,7 @@ import {
 
 describe('FarmsService', () => {
   let service: FarmsService;
+  let farmAccess: FarmAccessService;
   let repository: any;
   let cropsRepo: any;
   let module: TestingModule;
@@ -76,6 +77,7 @@ describe('FarmsService', () => {
     }).compile();
 
     service = module.get<FarmsService>(FarmsService);
+    farmAccess = module.get<FarmAccessService>(FarmAccessService);
   });
 
   it('should be defined', () => {
@@ -182,6 +184,32 @@ describe('FarmsService', () => {
       expect(repository.find).toHaveBeenCalledWith({
         where: { id: In(['farm-1']) },
       });
+    });
+
+    /**
+     * The regression this pins, and why the test above did not catch it.
+     *
+     * The archive filter is applied TWICE: once inside getAccessibleFarmIds,
+     * which defaults to excluding archived farms, and once in the where-clause
+     * here. `includeArchived` was threaded into the second but not the first,
+     * so the id set arrived archive-free and the where-clause was choosing
+     * between two archive-free sets. `?includeArchived=true` returned an empty
+     * list every time, and the "include archived" toggle on the farms list
+     * looked broken because it was.
+     *
+     * The test above asserts the where-clause and is blind to it. This one
+     * asserts the ACCESS lookup, which is where the filter actually bit.
+     */
+    it('threads includeArchived into the access lookup, not just the where-clause', async () => {
+      repository.find.mockResolvedValue([mockFarm]);
+      const accessible = farmAccess.getAccessibleFarmIds as jest.Mock;
+
+      await service.findAll('user-1', true);
+      expect(accessible).toHaveBeenCalledWith('user-1', true);
+
+      accessible.mockClear();
+      await service.findAll('user-1');
+      expect(accessible).toHaveBeenCalledWith('user-1', false);
     });
   });
 

@@ -61,7 +61,12 @@ export const ShrimpLogo = ({
  * BrandLockup — the mark plus the wordmark, side by side. The onboarding
  * designs open with this on every pre-account screen (artboards 01, 02 and the
  * first-run dashboard header), so it lives here rather than being redrawn in
- * three files. "upcheck" is a brand name and is deliberately not translated.
+ * three files. "Neerani" is a brand name: it is deliberately NOT translated and
+ * NOT transliterated, so it reads identically in all six locales and stays one
+ * searchable string in the Play Store.
+ *
+ * It is rendered as TEXT, not baked into the logo artwork — which is why the
+ * rename shipped as an over-the-air update instead of waiting for a binary.
  */
 export const BrandLockup = ({ size = 24 }: { size?: number }) => (
   <View style={styles.lockup}>
@@ -70,7 +75,7 @@ export const BrandLockup = ({ size = 24 }: { size?: number }) => (
       color={theme.roles.light.primaryHover}
       eyeColor={theme.roles.light.primaryHover}
     />
-    <Text style={[styles.wordmark, { fontSize: size * 0.75, lineHeight: size }]}>upcheck</Text>
+    <Text style={[styles.wordmark, { fontSize: size * 0.75, lineHeight: size }]}>Neerani</Text>
   </View>
 );
 
