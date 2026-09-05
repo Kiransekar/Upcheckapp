@@ -1,0 +1,112 @@
+{
+  "healthy": {
+    "note": "all good — default launcher icon",
+    "colors": [
+      "#02C1E3",
+      "#007CBC"
+    ],
+    "launcher": "assets/logo-variants/healthy/icon.png",
+    "adaptiveForeground": "assets/logo-variants/healthy/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/healthy/mark.png",
+    "notificationDrawable": "notification_icon"
+  },
+  "stale-data": {
+    "note": "no pond data logged for a while",
+    "colors": [
+      "#FFB020",
+      "#E07A00"
+    ],
+    "launcher": "assets/logo-variants/stale-data/icon.png",
+    "adaptiveForeground": "assets/logo-variants/stale-data/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/stale-data/mark.png",
+    "notificationDrawable": "notification_icon_stale_data"
+  },
+  "critical": {
+    "note": "critical alert needs attention now",
+    "colors": [
+      "#FF5A4E",
+      "#D42017"
+    ],
+    "launcher": "assets/logo-variants/critical/icon.png",
+    "adaptiveForeground": "assets/logo-variants/critical/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/critical/mark.png",
+    "notificationDrawable": "notification_icon_critical"
+  },
+  "insight": {
+    "note": "new insight or recommendation",
+    "colors": [
+      "#A78BFA",
+      "#6D3BE0"
+    ],
+    "launcher": "assets/logo-variants/insight/icon.png",
+    "adaptiveForeground": "assets/logo-variants/insight/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/insight/mark.png",
+    "notificationDrawable": "notification_icon_insight"
+  },
+  "feeding-overdue": {
+    "note": "not fed for too long",
+    "colors": [
+      "#FF9A3D",
+      "#E2560C"
+    ],
+    "launcher": "assets/logo-variants/feeding-overdue/icon.png",
+    "adaptiveForeground": "assets/logo-variants/feeding-overdue/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/feeding-overdue/mark.png",
+    "notificationDrawable": "notification_icon_feeding_overdue"
+  },
+  "harvest": {
+    "note": "harvest window is near",
+    "colors": [
+      "#57D96B",
+      "#10883A"
+    ],
+    "launcher": "assets/logo-variants/harvest/icon.png",
+    "adaptiveForeground": "assets/logo-variants/harvest/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/harvest/mark.png",
+    "notificationDrawable": "notification_icon_harvest"
+  },
+  "ready-to-sell": {
+    "note": "stock ready to sell",
+    "colors": [
+      "#34E0B0",
+      "#08957A"
+    ],
+    "launcher": "assets/logo-variants/ready-to-sell/icon.png",
+    "adaptiveForeground": "assets/logo-variants/ready-to-sell/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/ready-to-sell/mark.png",
+    "notificationDrawable": "notification_icon_ready_to_sell"
+  },
+  "water-quality": {
+    "note": "DO / pH / salinity excursion",
+    "colors": [
+      "#24D3C4",
+      "#056E76"
+    ],
+    "launcher": "assets/logo-variants/water-quality/icon.png",
+    "adaptiveForeground": "assets/logo-variants/water-quality/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/water-quality/mark.png",
+    "notificationDrawable": "notification_icon_water_quality"
+  },
+  "update-available": {
+    "note": "OTA update ready to install",
+    "colors": [
+      "#5B8DEF",
+      "#1E3A8A"
+    ],
+    "launcher": "assets/logo-variants/update-available/icon.png",
+    "adaptiveForeground": "assets/logo-variants/update-available/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/update-available/mark.png",
+    "notificationDrawable": "notification_icon_update_available"
+  },
+  "disease-risk": {
+    "note": "disease risk detected",
+    "colors": [
+      "#C2185B",
+      "#7A0E3A"
+    ],
+    "launcher": "assets/logo-variants/disease-risk/icon.png",
+    "adaptiveForeground": "assets/logo-variants/disease-risk/adaptive-foreground.png",
+    "inAppMark": "assets/logo-variants/disease-risk/mark.png",
+    "notificationDrawable": "notification_icon_disease_risk"
+  }
+}

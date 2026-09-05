@@ -14,7 +14,7 @@ export default {
     splash: {
       image: "./assets/splash-icon.png",
       resizeMode: "contain",
-      backgroundColor: "#ffffff"
+      backgroundColor: "#0092CC"
     },
     ios: {
       supportsTablet: true,
@@ -24,7 +24,7 @@ export default {
       package: "com.upcheck.app",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
-        backgroundColor: "#ffffff"
+        backgroundColor: "#0092CC"
       },
       // No intentFilters entry here: `scheme: "upcheckapp"` above already gets Expo
       // to generate the plain custom-scheme intent-filter on prebuild. autoVerify
