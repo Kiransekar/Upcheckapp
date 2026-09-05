@@ -39,15 +39,16 @@ import { pushApi } from './src/api/push';
  * one we use), 16 Nunito files, 18 DM Sans, 6 DM Mono — 15.4MB of fonts
  * shipped for the 10 faces below. The subpath entry points pull one file each.
  */
-import {
-  useFonts,
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-} from '@expo-google-fonts/nunito';
-import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
-import { DMMono_400Regular, DMMono_500Medium } from '@expo-google-fonts/dm-mono';
+import { useFonts } from 'expo-font';
+import { Nunito_400Regular } from '@expo-google-fonts/nunito/400Regular';
+import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
+import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
+import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
+import { DMSans_400Regular } from '@expo-google-fonts/dm-sans/400Regular';
+import { DMSans_500Medium } from '@expo-google-fonts/dm-sans/500Medium';
+import { DMSans_700Bold } from '@expo-google-fonts/dm-sans/700Bold';
+import { DMMono_400Regular } from '@expo-google-fonts/dm-mono/400Regular';
+import { DMMono_500Medium } from '@expo-google-fonts/dm-mono/500Medium';
 // Material Symbols Rounded — the redesign names its icons in Material Symbols
 // terms, and this is a ligature font, so components render the icon NAME as
 // text (see components/ui/Icon.tsx).
