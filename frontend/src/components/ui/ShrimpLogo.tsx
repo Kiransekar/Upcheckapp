@@ -84,7 +84,21 @@ const styles = StyleSheet.create({
   wordmark: {
     fontFamily: 'Nunito-ExtraBold',
     color: theme.roles.light.primaryHover,
+    // Two separate causes of the same symptom, both of which clipped "Neerani"
+    // to "Neeran":
+    //
+    // 1. This sits in a flex ROW. Without flexShrink: 0 the Text is a
+    //    shrinkable child, so a constrained parent compresses it and cuts the
+    //    tail. The name is a brand mark — it shrinks to nothing before it is
+    //    allowed to be wrong.
+    // 2. Negative letterSpacing under-measures a string on Android: the layout
+    //    width loses the trailing advance, and the final glyph is clipped. The
+    //    old wordmark ended in "k", whose advance left enough slack to hide it;
+    //    "i" is narrow and did not. Tracking is kept for the look, with padding
+    //    to give the last glyph the room the measurement forgets.
+    flexShrink: 0,
     letterSpacing: -0.4,
+    paddingRight: 2,
   },
 });
 
