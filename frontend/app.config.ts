@@ -46,6 +46,14 @@ export default {
       truecallerAndroidClientId: TRUECALLER_ANDROID_CLIENT_ID,
       truecallerIosAppKey: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_KEY || '',
       truecallerIosAppLink: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_LINK || '',
+      // Telemetry. Both are ABSENT by default and both are absent-safe: no
+      // Sentry DSN means crash reporting is a no-op (src/utils/sentry.ts), and
+      // no PostHog key means analytics never starts even with consent
+      // (src/features/analytics.ts). Nothing is hardcoded here on purpose —
+      // a committed DSN is a DSN in every fork of this repo.
+      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+      posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY || '',
+      posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
       eas: {
         projectId: "f3274022-ae8a-4be6-9085-23f935542a4c"
       },

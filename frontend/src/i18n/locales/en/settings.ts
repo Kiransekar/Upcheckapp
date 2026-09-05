@@ -173,6 +173,20 @@ const settings = {
   reminderWhenToday: "today at {{time}}",
   reminderWhenTomorrow: "tomorrow at {{time}}",
   reminderWhenOn: "{{date}} at {{time}}",
+
+  // ── Privacy: crash reports and analytics (Privacy Policy section 6) ───────
+  privacySection: "Privacy",
+  crashReportsToggle: "Crash reports",
+  crashReportsDesc:
+    "On, so we can fix faults before you have to report them. Reports carry no phone number, email, password, money figures or farm records. You can switch this off.",
+  analyticsToggle: "Product analytics",
+  analyticsToggleDesc:
+    "Off unless you turn it on. Tells us which screens are used, so we build the right things. Your farm, money and harvest data are never sent.",
+  analyticsPromptTitle: "May we see which screens you use?",
+  analyticsPromptBody:
+    "It helps us fix what is hard to use. We would send only the name of the screen — never your ponds, money or harvest figures. Everything in the app works the same either way.",
+  analyticsPromptAllow: "Yes, that's fine",
+  analyticsPromptDecline: "No thanks",
 };
 
 export default settings;

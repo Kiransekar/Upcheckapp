@@ -1,7 +1,8 @@
 import './src/i18n'; // initialise i18next before any screen renders
 import './src/theme/fontScaling'; // cap OS-level font scaling app-wide (docs/UI_UX_AUDIT.md Tier 1 #4)
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, type AppStateStatus } from 'react-native';
+import i18n from './src/i18n';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { linking } from './src/navigation/linking';
@@ -17,6 +18,13 @@ import { registerForPushNotificationsAsync, syncReminders } from './src/utils/no
 import { alertCenterApi } from './src/api/alertCenter';
 import { pondsApi } from './src/api/ponds';
 import { loadReminderTimes } from './src/features/reminderTimes';
+import {
+  loadTelemetryPrefs,
+  saveTelemetryPrefs,
+  shouldAskAnalyticsConsent,
+} from './src/features/telemetryPrefs';
+import { syncAnalyticsConsent } from './src/features/analytics';
+import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
@@ -87,6 +95,9 @@ export default function App() {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const userId = useAuthStore((s) => s.user?.id);
+  // One prompt per install, and only for a farmer who has never answered.
+  const askedThisSession = useRef(false);
   // Flips true once the navigator is mounted AND the cold-start notification
   // (if any) has been resolved — see onReady below. Gates WhatsNewCard so it
   // never appears over the login flow, before the navigator exists, or on
@@ -102,6 +113,67 @@ export default function App() {
       });
     }
   }, [isAuthenticated, expoPushToken]);
+
+  // Telemetry, per Privacy Policy section 6. Crash reporting starts on launch
+  // unless the farmer switched it off (and is a no-op with no DSN configured);
+  // analytics is only ever started by syncAnalyticsConsent finding a stored
+  // 'granted' — 'unasked' and 'declined' both leave the SDK unconstructed.
+  useEffect(() => {
+    loadTelemetryPrefs()
+      .then((prefs) => {
+        if (prefs.crashReports) initSentry();
+        return syncAnalyticsConsent();
+      })
+      .catch(() => {
+        /* telemetry must never be able to stop the app starting */
+      });
+  }, []);
+
+  // Identify the account to the crash reporter by an irreversible hash only —
+  // never the raw id, email or phone number (setSentryUser does the derivation).
+  useEffect(() => {
+    setSentryUser(isAuthenticated ? userId : null).catch(() => undefined);
+  }, [isAuthenticated, userId]);
+
+  /*
+   * The analytics consent question, asked ONCE.
+   *
+   * Placed here rather than in onboarding or Settings on purpose: onboarding
+   * is where a farmer is trying to get their first pond in and will tap
+   * anything to get through, which is not consent; Settings is a screen most
+   * farmers never open, so the answer would be "no" by default forever, which
+   * the policy says is not a decision either. This asks after they are signed
+   * in and the navigator is up — the app has already shown it is useful — and
+   * never again: 'declined' is written down and the prompt is gated on
+   * 'unasked'. The switch in Settings is the only way back in either direction.
+   *
+   * Not cancelable: a dismissed dialog is not an answer, and leaving it
+   * 'unasked' would re-raise it on the next launch, which is the nagging the
+   * policy language rules out.
+   */
+  useEffect(() => {
+    if (!isAuthenticated || !navReady || askedThisSession.current) return;
+    askedThisSession.current = true;
+    loadTelemetryPrefs()
+      .then((prefs) => {
+        if (!shouldAskAnalyticsConsent(prefs)) return;
+        const answer = (granted: boolean) => {
+          saveTelemetryPrefs({ ...prefs, analytics: granted ? 'granted' : 'declined' })
+            .then(syncAnalyticsConsent)
+            .catch(() => undefined);
+        };
+        Alert.alert(
+          i18n.t('settings.analyticsPromptTitle'),
+          i18n.t('settings.analyticsPromptBody'),
+          [
+            { text: i18n.t('settings.analyticsPromptDecline'), onPress: () => answer(false) },
+            { text: i18n.t('settings.analyticsPromptAllow'), onPress: () => answer(true) },
+          ],
+          { cancelable: false },
+        );
+      })
+      .catch(() => undefined);
+  }, [isAuthenticated, navReady]);
 
   // React Native has no window focus event, so TanStack Query's refetch-on-focus
   // needs AppState wiring or it never fires — see src/query/client.ts.

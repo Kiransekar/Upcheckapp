@@ -38,6 +38,14 @@ import {
     type HM,
 } from '../../utils/notifications';
 import { loadReminderTimes, saveReminderTimes } from '../../features/reminderTimes';
+import {
+    DEFAULT_TELEMETRY_PREFS,
+    loadTelemetryPrefs,
+    saveTelemetryPrefs,
+    type TelemetryPrefs,
+} from '../../features/telemetryPrefs';
+import { syncAnalyticsConsent } from '../../features/analytics';
+import { setCrashReportingEnabled } from '../../utils/sentry';
 import { alertCenterApi } from '../../api/alertCenter';
 import { pondsApi } from '../../api/ponds';
 import type { PondContext } from '../../api/pondContext';
@@ -96,6 +104,21 @@ export const SettingsScreen = ({ navigation }: any) => {
     // at a glance, the modal is only needed while actually changing it.
     const [openSlot, setOpenSlot] = useState<ReminderSlot | null>(null);
 
+    // Crash reports (on) and product analytics (off unless granted) — the two
+    // switches Privacy Policy section 6 promises. Both take effect the moment
+    // they are flipped, not at the next launch.
+    const [telemetry, setTelemetry] = useState<TelemetryPrefs>(DEFAULT_TELEMETRY_PREFS);
+
+    const updateTelemetry = useCallback((next: TelemetryPrefs) => {
+        setTelemetry(next);
+        saveTelemetryPrefs(next)
+            .then(() => {
+                setCrashReportingEnabled(next.crashReports);
+                return syncAnalyticsConsent();
+            })
+            .catch((e) => console.warn('[Settings] Could not save telemetry preference', e));
+    }, []);
+
     useEffect(() => {
         AsyncStorage.getItem('pushNotifications')
             .then((stored) => {
@@ -103,6 +126,7 @@ export const SettingsScreen = ({ navigation }: any) => {
             })
             .catch(() => undefined);
         loadReminderTimes().then(setReminderTimes);
+        loadTelemetryPrefs().then(setTelemetry).catch(() => undefined);
         alertCenterApi
             .today()
             .then((r) => { pondContextsRef.current = r.data.contexts ?? []; })
@@ -393,6 +417,41 @@ export const SettingsScreen = ({ navigation }: any) => {
                 {farmLinks.map((row) => (
                     <Row key={row.key} row={row} />
                 ))}
+
+                {/*
+                  * Privacy — deliberately immediately above "About", so the
+                  * two switches sit directly next to the Privacy Policy row
+                  * that explains them. Both say what they do in one line; the
+                  * analytics switch is off unless the farmer granted it, and
+                  * nothing here is pre-ticked on their behalf.
+                  */}
+                <SectionHeader label={t('settings.privacySection')} />
+                <View style={styles.row}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.rowLabel}>{t('settings.crashReportsToggle')}</Text>
+                        <Text style={styles.rowSub}>{t('settings.crashReportsDesc')}</Text>
+                    </View>
+                    <Switch
+                        value={telemetry.crashReports}
+                        onValueChange={(v) => updateTelemetry({ ...telemetry, crashReports: v })}
+                        trackColor={{ false: c.borderDefault, true: c.primaryHover }}
+                    />
+                </View>
+                <View style={styles.row}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.rowLabel}>{t('settings.analyticsToggle')}</Text>
+                        <Text style={styles.rowSub}>{t('settings.analyticsToggleDesc')}</Text>
+                    </View>
+                    <Switch
+                        // 'unasked' and 'declined' both read as OFF. Silence is
+                        // never shown to the farmer as a yes.
+                        value={telemetry.analytics === 'granted'}
+                        onValueChange={(v) =>
+                            updateTelemetry({ ...telemetry, analytics: v ? 'granted' : 'declined' })
+                        }
+                        trackColor={{ false: c.borderDefault, true: c.primaryHover }}
+                    />
+                </View>
 
                 <SectionHeader label={t('settings.about')} />
                 {/* "Is my data saved?" needs an answer that is always reachable,
