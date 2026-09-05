@@ -160,9 +160,11 @@ export const PRIVACY_POLICY: LegalBlock[] = [
   {
     heading: '7. Where your data is kept',
     text:
-      'Your data is stored and processed on secure servers located outside India, including in ' +
-      'Singapore. We rely on contractual safeguards with our providers for those transfers, and we ' +
-      'choose providers who commit to appropriate security and confidentiality standards.\n\n' +
+      'Your data is stored and processed on secure servers located outside India. Your account and ' +
+      'farm records are held in Singapore. Crash reports are processed in the European Union, and ' +
+      'product analytics — only if you have opted in — in the United States. We rely on ' +
+      'contractual safeguards with our providers for those transfers, and we choose providers who ' +
+      'commit to appropriate security and confidentiality standards.\n\n' +
       'We protect data in transit with encryption (HTTPS), store passwords only as salted hashes, ' +
       'use signed session tokens, and restrict access to the small number of people who need it to ' +
       'operate the Service. No system is perfectly secure, and we will not pretend otherwise; if a ' +

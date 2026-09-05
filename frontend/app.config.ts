@@ -46,13 +46,32 @@ export default {
       truecallerAndroidClientId: TRUECALLER_ANDROID_CLIENT_ID,
       truecallerIosAppKey: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_KEY || '',
       truecallerIosAppLink: process.env.EXPO_PUBLIC_TRUECALLER_IOS_APP_LINK || '',
-      // Telemetry. Both are ABSENT by default and both are absent-safe: no
-      // Sentry DSN means crash reporting is a no-op (src/utils/sentry.ts), and
-      // no PostHog key means analytics never starts even with consent
-      // (src/features/analytics.ts). Nothing is hardcoded here on purpose —
-      // a committed DSN is a DSN in every fork of this repo.
-      sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
-      posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY || '',
+      // Telemetry. Both fallbacks are PUBLIC client-side keys, the same class as
+      // supabaseAnonKey above: a Sentry DSN and a PostHog project key are
+      // embedded in every installed copy of the app by design, so they are not
+      // secrets. They are committed so an EAS build from a clean checkout is
+      // not silently telemetry-blind — .env is gitignored, and a build that
+      // quietly reports nothing is the failure you notice six weeks late.
+      //
+      // Both remain absent-safe: no DSN means crash reporting is a total no-op
+      // (src/utils/sentry.ts), and no PostHog key means analytics never starts
+      // even after consent is granted (src/features/analytics.ts).
+      //
+      // Neither grants read access. Someone with these can send events in, not
+      // read anything out — which is why they can live here but the Supabase
+      // SERVICE ROLE key never could.
+      // Sentry project `upcheck-app` (org upcheck-technologies-private-l).
+      // The backend has its OWN project, `upcheck-backend`, whose DSN is set as
+      // SENTRY_DSN in the Render environment — deliberately separate, so an
+      // app crash loop cannot bury a server incident in the same issue stream.
+      // This org is on Sentry's EU region (de.sentry.io).
+      sentryDsn:
+        process.env.EXPO_PUBLIC_SENTRY_DSN ||
+        'https://22e456d3d466a11ef1145d89df1831c4@o4511772335865856.ingest.de.sentry.io/4512033193066576',
+      posthogApiKey:
+        process.env.EXPO_PUBLIC_POSTHOG_API_KEY ||
+        'phc_wPSLqk9uyzyC4GzDuczDC73ncqC3jbygPQ7ZxYGmau5R',
+      // PostHog routed this account to its US region.
       posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST || 'https://us.i.posthog.com',
       eas: {
         projectId: "f3274022-ae8a-4be6-9085-23f935542a4c"
