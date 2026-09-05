@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { ConsentNotice } from '../../components/ui/ConsentNotice';
 
 /**
  * Passwordless sign-in: request a one-time code by email, then verify it to
@@ -103,6 +104,7 @@ export const OtpLoginScreen = ({ navigation }: any) => {
                         </>
                     )}
                 </Card>
+                <ConsentNotice navigation={navigation} />
             </ScrollView>
         </ScreenWrapper>
     );
