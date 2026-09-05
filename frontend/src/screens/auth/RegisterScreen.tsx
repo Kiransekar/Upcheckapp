@@ -38,6 +38,7 @@ import { useAuthStore } from '../../store/authStore';
 import { GoogleLoginButton } from '../../components/ui/GoogleLoginButton';
 import { TruecallerLoginButton } from '../../components/ui/TruecallerLoginButton';
 import { LanguagePill } from '../../components/ui/LanguagePill';
+import { ConsentNotice } from '../../components/ui/ConsentNotice';
 import { useGoogleAuth } from '../../hooks/useGoogleAuth';
 import { passwordPolicyError } from '../../features/passwordPolicy';
 
@@ -210,16 +211,7 @@ export const RegisterScreen = ({ navigation, route }: any) => {
                 </Text>
             </Text>
 
-            <Text style={styles.consent}>
-                {t('auth.consentPrefix')}{' '}
-                <Text style={styles.link} onPress={() => navigation.navigate('Terms')}>
-                    {t('settings.termsOfService')}
-                </Text>
-                {' '}{t('auth.consentAnd')}{' '}
-                <Text style={styles.link} onPress={() => navigation.navigate('PrivacyPolicy')}>
-                    {t('settings.privacyPolicy')}
-                </Text>.
-            </Text>
+            <ConsentNotice navigation={navigation} />
         </ScreenWrapper>
     );
 };

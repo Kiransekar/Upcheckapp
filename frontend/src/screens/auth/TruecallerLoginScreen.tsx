@@ -36,6 +36,7 @@ import {
 } from '../../native/TruecallerAuth';
 import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { ConsentNotice } from '../../components/ui/ConsentNotice';
 
 export interface TruecallerLoginScreenProps {
     navigation: {
@@ -255,6 +256,10 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                     />
                     <Text style={styles.emailLinkText}>{t('auth.signInWithEmail')}</Text>
                 </TouchableOpacity>
+
+                {/* Truecaller CREATES an account for a first-time number, so the
+                    terms belong here as much as on the email sign-up form. */}
+                <ConsentNotice navigation={navigation} />
             </View>
         </ScreenWrapper>
     );
