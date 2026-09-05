@@ -258,12 +258,27 @@ export async function syncReminders(
         // second, Android delivers on a channel the farmer never saw.
         const permission = await ensureNotificationPermission();
         await ensureNotificationChannel();
-        await cancelOurs();
+
+        // CANCEL ONLY WHEN WE ARE ABOUT TO RESCHEDULE.
+        //
+        // This used to cancel first and then hit these two early returns, and
+        // it runs on EVERY app foreground — so a single transient condition
+        // (permission not yet answered, `/ponds/mine` momentarily empty or
+        // failing) silently wiped every reminder the farmer had and put none
+        // back. Nothing rearmed them until a later launch happened to satisfy
+        // both guards, and from the farmer's side reminders had simply stopped
+        // with no explanation and nothing on screen.
+        //
+        // Bailing BEFORE the cancel leaves the previously scheduled window
+        // intact, which is strictly better: those notifications were correct
+        // when they were scheduled, and a stale reminder is a far smaller
+        // failure than silence.
         if (permission !== 'granted') {
             console.warn('[Notifications] Reminders not armed — permission is', permission);
             return;
         }
         if (!hasPonds) return;
+        await cancelOurs();
 
         /** Today's slot is skipped only when we KNOW every pond has logged it. */
         const allDone = (fn: (c: PondContext) => boolean) =>

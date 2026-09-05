@@ -168,6 +168,46 @@ describe('syncReminders', () => {
         await syncReminders([ctx({ waterQuality: null })], DEFAULT_REMINDER_TIMES, now);
         expect(mockSchedule).not.toHaveBeenCalled();
     });
+
+    /**
+     * The regression these two pin.
+     *
+     * cancelOurs() used to run BEFORE the permission and hasPonds guards, and
+     * syncReminders runs on every app foreground. So one transient condition —
+     * a permission not yet answered, /ponds/mine momentarily empty or failing —
+     * wiped every reminder the farmer had and scheduled none back. Nothing
+     * rearmed them until a later launch happened to satisfy both guards, and
+     * from the farmer's side reminders had simply stopped, with no explanation
+     * and nothing on screen.
+     *
+     * Bailing out must leave the existing window ALONE. Those notifications
+     * were correct when scheduled; a stale reminder is a far smaller failure
+     * than silence.
+     */
+    it('does not wipe the existing window when permission is denied', async () => {
+        // Seed an existing window, or cancelOurs() has nothing to cancel and
+        // the assertion below would pass whether or not the bug is present.
+        mockGetAll.mockResolvedValue([
+            { identifier: 'existing-1', content: { data: { tag: 'wq-reminder' } } },
+        ]);
+        mockGetPermissions.mockResolvedValue({ status: 'denied' });
+        mockRequestPermissions.mockResolvedValue({ status: 'denied' });
+        await syncReminders([ctx({ waterQuality: null })], DEFAULT_REMINDER_TIMES, now);
+        expect(mockCancel).not.toHaveBeenCalled();
+    });
+
+    it('does not wipe the existing window when the pond list is momentarily empty', async () => {
+        // hasPonds=false is the "/ponds/mine returned nothing this time" case,
+        // which a flaky rural connection produces regularly.
+        // Seed an existing window, or cancelOurs() has nothing to cancel and
+        // the assertion below would pass whether or not the bug is present.
+        mockGetAll.mockResolvedValue([
+            { identifier: 'existing-1', content: { data: { tag: 'wq-reminder' } } },
+        ]);
+        await syncReminders([], DEFAULT_REMINDER_TIMES, now, false);
+        expect(mockCancel).not.toHaveBeenCalled();
+        expect(mockSchedule).not.toHaveBeenCalled();
+    });
 });
 
 describe('getReminderStatus', () => {
