@@ -162,6 +162,13 @@ const settings = {
   reminderChemistry: "साप्ताहिक रसायन जांच",
   reminderHourLabel: "घंटा",
   reminderMinuteLabel: "मिनट",
+  reminderStatusOn: "रिमाइंडर चालू हैं। अगला: {{when}}",
+  reminderStatusOff: "अभी कोई रिमाइंडर सेट नहीं है। एक तालाब जोड़ें, फिर Upcheck एक बार खोलें — रिमाइंडर लग जाएंगे।",
+  reminderStatusBlocked: "इस फ़ोन पर Upcheck सूचनाएँ नहीं दिखा सकता, इसलिए रिमाइंडर नहीं आएंगे।",
+  reminderStatusOpenSettings: "फ़ोन सेटिंग्स खोलें",
+  reminderWhenToday: "आज {{time}} बजे",
+  reminderWhenTomorrow: "कल {{time}} बजे",
+  reminderWhenOn: "{{date}} को {{time}} बजे",
 };
 
 export default settings;

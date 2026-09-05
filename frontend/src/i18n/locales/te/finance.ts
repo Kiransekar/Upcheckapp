@@ -102,5 +102,30 @@ const finance = {
   entriesNote: "ఇటీవలి ఎంట్రీలు మాత్రమే. పైన ఉన్న నికరంలో సైకిల్‌కు నమోదైన ఖర్చులూ ఉన్నాయి — అవి \"ఎక్కడికి పోయింది\"లో ఉన్నాయి.",
   noFarmTitle: "ఇంకా ఫారాలు లేవు",
   noFarmSub: "డబ్బు ట్రాక్ చేయడానికి ఒక ఫారం చేర్చండి.",
+
+  periodAll: "మొత్తం కాలం",
+  periodToday: "ఈ రోజు",
+  periodWeek: "ఈ వారం",
+  periodMonth: "ఈ నెల",
+  periodCustom: "ఎంపిక",
+  customFrom: "నుండి",
+  customTo: "వరకు",
+
+  includeArchived: "ఆర్కైవ్ చెరువులను లెక్కించు",
+  includeArchivedHint: "మూసిన చెరువుల డబ్బు కూడా మీ ఖర్చు, ఆదాయమే.",
+  includeArchivedWorth: "పై లెక్కలలో {{amount}}.",
+  entriesArchivedNote: "పై మొత్తంలో ఆర్కైవ్ చెరువులూ ఉన్నాయి. ఎంట్రీలు ఫారం పేరుపై నమోదవుతాయి, చెరువు పేరుపై కాదు — అందుకే ఇక్కడ గుర్తు ఉండదు. మూసిన చెరువు సొంత లెక్క చూడాలంటే చెరువుల జాబితా తెరవండి.",
+  includeInventory: "స్టాక్ కొనుగోళ్లను లెక్కించు",
+  includeInventoryHint: "కొన్న స్టాక్ ఆ రోజు ఖర్చుగా లెక్కిస్తారు.",
+  includeInventoryOff: "పై లెక్కలలో స్టాక్ కొనుగోళ్లు చేర్చలేదు.",
+  includeInventoryWorth: "పై ఖర్చులలో {{amount}}.",
+  archivedTag: "ఆర్కైవ్",
+
+  byPond: "చెరువుల వారీగా",
+  wholeFarm: "మొత్తం ఫారం",
+  allCycles: "అన్ని సైకిళ్లు",
+  pondCostTotal: "ఈ చెరువు ఖర్చు",
+  cycleCostTotal: "ఈ సైకిల్ ఖర్చు",
+  noPondCosts: "ఈ కాలంలో ఈ చెరువుకు ఏమీ నమోదు కాలేదు.",
 };
 export default finance;

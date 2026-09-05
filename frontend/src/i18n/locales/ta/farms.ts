@@ -128,6 +128,8 @@ const farms = {
   archivedBadge: "காப்பகம்",
   archivedFarmsEmpty: "காப்பகத்தில் பண்ணை எதுவும் இல்லை.",
   archivedPondsEmpty: "காப்பகத்தில் குளம் எதுவும் இல்லை.",
+  includeArchivedPondsCount: "காப்பகக் குளங்களையும் காட்டு ({{n}})",
+  archivedPondsError: "காப்பகக் குளங்களை ஏற்ற முடியவில்லை.",
   archivedNoticeTitle: "இந்தப் பண்ணை காப்பகத்தில் உள்ளது",
   archivedNoticeBody: "இது உங்கள் பண்ணைப் பட்டியலில் தெரியாது, எந்தக் கூட்டுத்தொகையிலும் சேராது. தேவைப்படும்போது திரும்பக் கொண்டுவரலாம்.",
   manageFarm: "பண்ணை நிர்வாகம்",

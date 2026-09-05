@@ -45,7 +45,15 @@ interface AuthState {
     status: AuthStatus;
     user: AuthUser | null;
     session: Session | null;
-    isLoading: boolean; // Retained for compatibility with existing UI
+    isLoading: boolean; // Per-request flag: an auth call is in flight (button spinners)
+
+    // ── Startup only ──
+    // True until initialize() has finished deciding whether there is a session.
+    // NOTHING else may set it: it gates the whole navigator, so flipping it back
+    // to true unmounts <Stack.Navigator> and destroys all navigation state. That
+    // is exactly what `isLoading` used to do on every failed login — the user was
+    // thrown back to the first onboarding screen instead of seeing the error.
+    isBootstrapping: boolean;
 
     // ── Derived (computed from session) ──
     accessToken: string | null;
@@ -152,6 +160,7 @@ export const useAuthStore = create<AuthState>()(
             // Initial state
             status: 'initializing',
             isLoading: true,
+            isBootstrapping: true,
             user: null,
             session: null,
             accessToken: null,
@@ -296,7 +305,7 @@ export const useAuthStore = create<AuthState>()(
                 const refreshToken = state.refreshToken;
 
                 if (!refreshToken) {
-                    set({ status: 'unauthenticated', isLoading: false });
+                    set({ status: 'unauthenticated', isLoading: false, isBootstrapping: false });
                     return;
                 }
 
@@ -324,6 +333,9 @@ export const useAuthStore = create<AuthState>()(
                     // from the persisted identity so the app is usable against cached
                     // data; recoverSession() re-attempts a real refresh on reconnect.
                     get().enterOfflineSession();
+                } finally {
+                    // Whatever we decided, startup is over — set exactly once.
+                    set({ isBootstrapping: false });
                 }
             },
 

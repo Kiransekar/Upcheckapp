@@ -97,6 +97,15 @@ const inventory = {
   validAmountRequired: '০-এর বেশি একটি বৈধ পরিমাণ দিন।',
   adjustFailed: 'স্টক সামঞ্জস্য করা যায়নি।',
 
+  // ── কেনাকাটা (স্টক ঢুকল → একটি যুক্ত খরচ) ─────────────────────────────────
+  purchaseCostHint: 'এই স্টক আগে থেকেই আপনার হলে ফাঁকা রাখুন। লিখলে খরচ নিজে থেকেই নথিভুক্ত হবে।',
+  fieldTotalCost: 'মোট খরচ',
+  billToFarm: 'কোন খামার টাকা দিয়েছে?',
+  billToFarmRequired: 'কোন খামার এই স্টকের টাকা দিয়েছে তা বেছে নিন।',
+  purchaseRecorded: '{{quantity}} {{unit}} যোগ হয়েছে এবং {{farm}}-এর জন্য {{amount}} খরচ নথিভুক্ত হয়েছে।',
+  purchaseSection: 'কেনাকাটা',
+  movementToPond: '{{pond}}-এ',
+
   // Delete
   deleteItem: 'আইটেম মুছুন',
   deleteConfirm: '"{{name}}" মুছবেন? এটি ফেরানো যাবে না।',

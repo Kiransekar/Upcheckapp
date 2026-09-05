@@ -165,6 +165,14 @@ const settings = {
   reminderChemistry: "Weekly chemistry check",
   reminderHourLabel: "Hour",
   reminderMinuteLabel: "Minute",
+  // The armed-state readout — read back from the phone, not assumed.
+  reminderStatusOn: "Reminders are on. Next: {{when}}",
+  reminderStatusOff: "No reminders are set right now. Add a pond, then open Upcheck once and they will be armed.",
+  reminderStatusBlocked: "Upcheck cannot show notifications on this phone, so reminders will not appear.",
+  reminderStatusOpenSettings: "Open phone settings",
+  reminderWhenToday: "today at {{time}}",
+  reminderWhenTomorrow: "tomorrow at {{time}}",
+  reminderWhenOn: "{{date}} at {{time}}",
 };
 
 export default settings;

@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { MoneyOverviewService } from './money-overview.service';
 
 /**
@@ -190,6 +191,74 @@ describe('MoneyOverviewService', () => {
 
     expect(out.allEntries).toHaveLength(1);
     expect(Object.keys(out.reports)).toHaveLength(2);
+  });
+
+  /**
+   * The tab's filters. Every fan-out call here is wrapped in `.catch()`, so an
+   * inverted range validated only inside the downstream services would be
+   * swallowed into an empty tab instead of a 400 — hence the up-front check.
+   */
+  describe('filters', () => {
+    it('passes the range and both toggles through to every farm report', async () => {
+      const { svc, reports, transactions } = makeService();
+      const q = {
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        includeArchivedPonds: false,
+        includeInventoryPurchases: false,
+      };
+
+      await svc.forUser('u', q);
+
+      expect(reports.getFinancialReport).toHaveBeenCalledWith('f1', 'u', q);
+      expect(transactions.findAll).toHaveBeenCalledWith('u', q);
+    });
+
+    it('rejects an inverted range with 400 rather than an empty tab', async () => {
+      const { svc, farms } = makeService();
+
+      await expect(
+        svc.forUser('u', { startDate: '2026-03-01', endDate: '2026-02-01' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(farms.findAll).not.toHaveBeenCalled();
+    });
+
+    // Harvests are read through another module's service, which takes no date
+    // filter, so the range is applied here.
+    it('drops harvest rows outside the range, inclusive on both bounds', async () => {
+      const { svc } = makeService({
+        entries: [],
+        harvests: [
+          harvestEntry({ id: 'h-before', transactionDate: '2026-01-31' }),
+          harvestEntry({ id: 'h-start', transactionDate: '2026-02-01' }),
+          harvestEntry({ id: 'h-end', transactionDate: '2026-02-28' }),
+          harvestEntry({ id: 'h-after', transactionDate: '2026-03-01' }),
+        ],
+      });
+
+      const out = await svc.forUser('u', {
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+      });
+
+      expect(out.allEntries.map((e: any) => e.id)).toEqual([
+        'h-end',
+        'h-start',
+      ]);
+    });
+
+    it('sums the per-farm inventory subtotals so the tab needs no second request', async () => {
+      const { svc, reports } = makeService();
+      reports.getFinancialReport.mockImplementation(async (farmId: string) => ({
+        farmId,
+        revenue: 0,
+        inventoryExpenses: farmId === 'f1' ? 3000 : 1500,
+      }));
+
+      const out = await svc.forUser('u');
+
+      expect(out.inventoryExpenses).toBe(4500);
+    });
   });
 
   it('returns nothing for a caller on no farms', async () => {

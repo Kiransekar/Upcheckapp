@@ -168,5 +168,11 @@ const ponds = {
 
   // Age chip — how old the data behind a pond row's colour is.
   lastLog: "ଶେଷ ଲଗ୍ {{age}}",
+
+  // Compact "last logged / last fed" hint, shown on every pond and farm row.
+  ageLogged: "ଲଗ୍ {{age}} ପୂର୍ବେ",
+  ageFed: "ଖାଦ୍ୟ {{age}} ପୂର୍ବେ",
+  ageNeverLogged: "କେବେ ଲଗ୍ ହୋଇନାହିଁ",
+  ageNeverFed: "କେବେ ଖାଦ୍ୟ ଦିଆଯାଇନାହିଁ",
 };
 export default ponds;

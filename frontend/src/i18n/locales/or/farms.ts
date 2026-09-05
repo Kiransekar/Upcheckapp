@@ -128,6 +128,8 @@ const farms = {
   archivedBadge: "ସଂରକ୍ଷିତ",
   archivedFarmsEmpty: "କୌଣସି ସଂରକ୍ଷିତ ଫାର୍ମ ନାହିଁ।",
   archivedPondsEmpty: "କୌଣସି ସଂରକ୍ଷିତ ପୋଖରୀ ନାହିଁ।",
+  includeArchivedPondsCount: "ସଂରକ୍ଷିତ ପୋଖରୀ ମଧ୍ୟ ଦେଖାନ୍ତୁ ({{n}})",
+  archivedPondsError: "ସଂରକ୍ଷିତ ପୋଖରୀ ଲୋଡ୍ ହୋଇପାରିଲା ନାହିଁ।",
   archivedNoticeTitle: "ଏହି ଫାର୍ମ ସଂରକ୍ଷିତ ଅଛି",
   archivedNoticeBody: "ଏହା ଆପଣଙ୍କ ଫାର୍ମ ତାଲିକାରେ ଦେଖାଯାଏ ନାହିଁ ଏବଂ କୌଣସି ହିସାବରେ ଗଣାଯାଏ ନାହିଁ। ଇଚ୍ଛା ହେଲେ ଫେରାଇ ଆଣିପାରିବେ।",
   manageFarm: "ଫାର୍ମ ପରିଚାଳନା",

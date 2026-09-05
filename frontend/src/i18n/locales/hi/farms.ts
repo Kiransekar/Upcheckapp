@@ -128,6 +128,8 @@ const farms = {
   archivedBadge: "संग्रहित",
   archivedFarmsEmpty: "कोई संग्रहित फ़ार्म नहीं।",
   archivedPondsEmpty: "कोई संग्रहित तालाब नहीं।",
+  includeArchivedPondsCount: "संग्रहित तालाब भी दिखाएँ ({{n}})",
+  archivedPondsError: "संग्रहित तालाब लोड नहीं हो सके।",
   archivedNoticeTitle: "यह फ़ार्म संग्रहित है",
   archivedNoticeBody: "यह आपकी फ़ार्म सूची में नहीं दिखता और किसी भी जोड़ में नहीं गिना जाता। जब चाहें वापस ला सकते हैं।",
   manageFarm: "फ़ार्म प्रबंधन",

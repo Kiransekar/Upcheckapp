@@ -162,6 +162,13 @@ const settings = {
   reminderChemistry: "সাপ্তাহিক রসায়ন পরীক্ষা",
   reminderHourLabel: "ঘণ্টা",
   reminderMinuteLabel: "মিনিট",
+  reminderStatusOn: "রিমাইন্ডার চালু আছে। পরেরটি: {{when}}",
+  reminderStatusOff: "এখন কোনো রিমাইন্ডার সেট নেই। একটি পুকুর যোগ করুন, তারপর একবার Upcheck খুলুন — রিমাইন্ডার চালু হয়ে যাবে।",
+  reminderStatusBlocked: "এই ফোনে Upcheck বিজ্ঞপ্তি দেখাতে পারে না, তাই রিমাইন্ডার আসবে না।",
+  reminderStatusOpenSettings: "ফোনের সেটিংস খুলুন",
+  reminderWhenToday: "আজ {{time}}-এ",
+  reminderWhenTomorrow: "আগামীকাল {{time}}-এ",
+  reminderWhenOn: "{{date}} তারিখে {{time}}-এ",
 };
 
 export default settings;

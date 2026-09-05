@@ -30,14 +30,14 @@ import { StatRow, type Stat } from '../../components/ui/StatRow';
 import { Icon, type IconName } from '../../components/ui/Icon';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { SessionHint } from '../../components/ui/SessionHint';
+import { SessionHint, AgeHint } from '../../components/ui/SessionHint';
 import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { cropsApi, type Crop } from '../../api/crops';
 import { pondContextApi, type PondContext } from '../../api/pondContext';
 import { activityApi, type ActivityItem } from '../../api/activity';
 import { ACTIVITY_ICON, activityKindKey } from '../activity/activityKinds';
-import { slotAt, pondSlotDone, pondFedThisSession, chemistryDone } from '../../features/logProgress';
+import { slotAt, pondSlotDone, pondFedThisSession, chemistryDone, pondFreshness } from '../../features/logProgress';
 import { requiresActiveCycle } from '../../features/cycleRequirement';
 import { survivalPctFrom } from '../calculators/prefill';
 import { alertCenterApi, type BriefingItem } from '../../api/alertCenter';
@@ -690,6 +690,16 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                                 {!!context && (
                                     <View style={styles.sessionHint}>
                                         <SessionHint ctx={context} />
+                                        {/* …and how long since each. The
+                                            per-parameter ages further down are
+                                            for reading a probe; this is the one
+                                            line that says whether the pond has
+                                            been looked at at all. */}
+                                        <AgeHint
+                                            loggedAt={context.waterQuality?.recordedAt ?? null}
+                                            fedAt={context.lastFeedAt}
+                                            stale={pondFreshness(context, now).state !== 'fresh'}
+                                        />
                                     </View>
                                 )}
                             </View>
@@ -1086,7 +1096,7 @@ const styles = StyleSheet.create({
     cycleDivider: { width: 1, alignSelf: 'stretch', backgroundColor: theme.roles.light.borderDefault },
     cycleName: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
     cycleMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: theme.roles.light.textTertiary },
-    sessionHint: { marginTop: theme.spacing[1.5] },
+    sessionHint: { marginTop: theme.spacing[1.5], gap: 2 },
     harvestBtn: {
         borderWidth: 1.5,
         borderColor: theme.roles.light.successText,

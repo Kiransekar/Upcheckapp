@@ -97,6 +97,15 @@ const inventory = {
   validAmountRequired: '0 కంటే ఎక్కువ చెల్లుబాటు అయ్యే పరిమాణాన్ని నమోదు చేయండి.',
   adjustFailed: 'స్టాక్ సర్దుబాటు విఫలమైంది.',
 
+  // ── కొనుగోలు (స్టాక్ వచ్చింది → ఒక అనుసంధాన ఖర్చు) ──────────────────────
+  purchaseCostHint: 'ఈ స్టాక్ ఇప్పటికే మీదైతే ఖాళీగా వదిలేయండి. నింపితే ఖర్చు దానంతట అదే నమోదవుతుంది.',
+  fieldTotalCost: 'మొత్తం ఖర్చు',
+  billToFarm: 'ఏ ఫారం డబ్బు చెల్లించింది?',
+  billToFarmRequired: 'ఈ స్టాక్‌కు ఏ ఫారం చెల్లించిందో ఎంచుకోండి.',
+  purchaseRecorded: '{{quantity}} {{unit}} జోడించబడింది; {{farm}} కోసం {{amount}} ఖర్చుగా నమోదైంది.',
+  purchaseSection: 'కొనుగోళ్లు',
+  movementToPond: '{{pond}} చెరువుకు',
+
   // Delete
   deleteItem: 'అంశాన్ని తొలగించు',
   deleteConfirm: '"{{name}}" తొలగించాలా? దీన్ని తిరిగి పొందలేరు.',

@@ -38,7 +38,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { fetchTodaySnapshot } from '../../api/todaySnapshot';
 import { farmMembersApi } from '../../api/farmMembers';
-import { type Task } from '../../api/tasks';
+import { splitTasks, type Task } from '../../api/tasks';
 import { fetchTeamOverview } from '../../api/teamOverview';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
@@ -621,11 +621,17 @@ export const HomeScreen = ({ navigation }: any) => {
      *
      *  is excluded but  is NOT — a finished task waiting on a
      * verifier is precisely what 1b's "Verify" button is for.
+     *
+     * "Mine" is the same rule the Team tab's "Your tasks" uses — assigned to
+     * me, unassigned in my scope (everyone means me), or my own personal task.
+     * It used to be `assignedToId === me` alone, which missed both of the
+     * other two: a farm-wide task and a note a farmer wrote themselves both
+     * failed to reach Today at all.
      */
     const myOpenTasks = React.useMemo(() => {
         if (!user?.id || !teamQuery.data || teamQuery.isError) return null;
-        return (teamQuery.data.tasks ?? []).filter(
-            (task: any) => task.assignedToId === user.id && task.status !== 'verified',
+        return splitTasks(teamQuery.data.tasks ?? [], user.id).mine.filter(
+            (task) => task.status !== 'verified',
         );
     }, [teamQuery.data, teamQuery.isError, user?.id]);
 
@@ -886,6 +892,7 @@ export const HomeScreen = ({ navigation }: any) => {
                     {/* "My tasks" — mine only. The Team tab shows the whole team's. */}
                     <MyTasksList
                         tasks={myOpenTasks ?? []}
+                        userId={user?.id}
                         farmNameForTask={(task) => farms.find((f) => f.id === task.farmId)?.name}
                         // The whole board, not just mine — an owner who has
                         // handed every task to someone else still has to see

@@ -162,6 +162,13 @@ const settings = {
   reminderChemistry: "వారపు రసాయన తనిఖీ",
   reminderHourLabel: "గంట",
   reminderMinuteLabel: "నిమిషం",
+  reminderStatusOn: "రిమైండర్లు ఆన్‌లో ఉన్నాయి. తదుపరిది: {{when}}",
+  reminderStatusOff: "ప్రస్తుతం ఏ రిమైండర్ సెట్ కాలేదు. ఒక చెరువును జోడించి, Upcheck ఒకసారి తెరిస్తే అవి సెట్ అవుతాయి.",
+  reminderStatusBlocked: "ఈ ఫోన్‌లో Upcheck నోటిఫికేషన్లు చూపలేదు, కాబట్టి రిమైండర్లు రావు.",
+  reminderStatusOpenSettings: "ఫోన్ సెట్టింగ్‌లు తెరవండి",
+  reminderWhenToday: "ఈరోజు {{time}} గంటలకు",
+  reminderWhenTomorrow: "రేపు {{time}} గంటలకు",
+  reminderWhenOn: "{{date}} న {{time}} గంటలకు",
 };
 
 export default settings;

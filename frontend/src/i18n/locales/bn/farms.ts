@@ -128,6 +128,8 @@ const farms = {
   archivedBadge: "সংরক্ষিত",
   archivedFarmsEmpty: "কোনো সংরক্ষিত খামার নেই।",
   archivedPondsEmpty: "কোনো সংরক্ষিত পুকুর নেই।",
+  includeArchivedPondsCount: "সংরক্ষিত পুকুরও দেখান ({{n}})",
+  archivedPondsError: "সংরক্ষিত পুকুর লোড করা গেল না।",
   archivedNoticeTitle: "এই খামারটি সংরক্ষিত",
   archivedNoticeBody: "এটি আপনার খামারের তালিকায় দেখায় না এবং কোনো হিসাবে ধরা হয় না। যখন খুশি ফিরিয়ে আনতে পারেন।",
   manageFarm: "খামার পরিচালনা",

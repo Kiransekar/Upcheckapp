@@ -24,7 +24,7 @@ import { Icon, type IconName } from '../../components/ui/Icon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState, NetworkError } from '../../components/ui/ErrorState';
 import { SkeletonList } from '../../components/ui/Skeleton';
-import { SessionHint } from '../../components/ui/SessionHint';
+import { SessionHint, AgeHint } from '../../components/ui/SessionHint';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ChipGroup } from '../../components/ui/ChipGroup';
@@ -60,16 +60,6 @@ const VISIBLE_PONDS = 5;
 
 const kg = (n: number) => n.toLocaleString('en-IN');
 
-const timeAgo = (iso?: string | null): string | null => {
-    if (!iso) return null;
-    const ms = Date.now() - Date.parse(iso);
-    if (Number.isNaN(ms) || ms < 0) return null;
-    const h = Math.floor(ms / 3_600_000);
-    if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`;
-    if (h < 24) return `${h}h`;
-    return `${Math.floor(h / 24)}d`;
-};
-
 export const FarmDetailScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
     const { farmId, farmName } = route.params;
@@ -99,7 +89,13 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         queryKey: qk.farm(farmId),
         queryFn: async () => {
             const [pondsRes, ctxRes, briefingRes, farmRes] = await Promise.all([
-                pondsApi.getAll(farmId, { take: 100 }),
+                // Archived ponds ride along on the SAME read and are split out
+                // below. They used to be a second, opt-in query that only ran
+                // once the toggle was pressed, which meant the screen could not
+                // say whether this farm HAS any archived ponds until after the
+                // farmer had gone looking for them — and an empty result was
+                // indistinguishable from a broken toggle.
+                pondsApi.getAll(farmId, { take: 100, includeArchived: true }),
                 // One request for every pond's snapshot — see pondContextApi.forFarm.
                 pondContextApi.forFarm(farmId).catch(() => ({ data: [] as PondContext[] })),
                 // LIVE, merged with the persisted stream — not persisted alone.
@@ -116,8 +112,12 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                 farmsApi.getById(farmId).catch(() => ({ data: null as Farm | null })),
             ]);
             const result: any = pondsRes.data;
+            const all = (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[];
             return {
-                ponds: (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[],
+                // Archived ponds must never reach a roll-up, a total or the
+                // pond table — they are split off here, once.
+                ponds: all.filter((p) => p.status !== 'archived'),
+                archivedPonds: all.filter((p) => p.status === 'archived'),
                 contexts: ctxRes.data,
                 briefing: briefingRes.data,
                 farm: farmRes.data,
@@ -126,23 +126,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         enabled: !!farmId,
     });
 
-    /**
-     * The archived ponds of this farm. A second, opt-in request rather than a
-     * flag on the main one: the main read is disk-persisted and feeds every
-     * roll-up on the screen, and archived ponds must never reach those numbers.
-     */
-    const archivedQuery = useAppQuery({
-        queryKey: [...qk.farm(farmId), 'archived-ponds'],
-        enabled: !!farmId && showArchivedPonds,
-        queryFn: async () => {
-            const result: any = (await pondsApi.getAll(farmId, { take: 100, includeArchived: true })).data;
-            const list = (Array.isArray(result) ? result : (result?.data ?? [])) as Pond[];
-            return list.filter((p) => p.status === 'archived');
-        },
-    });
-
     const farm = query.data?.farm ?? null;
     const ponds = query.data?.ponds ?? [];
+    const archivedPonds = query.data?.archivedPonds ?? [];
     const contexts = query.data?.contexts ?? [];
     const briefing = query.data?.briefing ?? [];
     // "Failed" and "this farm has no ponds" are different answers — never let a
@@ -192,7 +178,10 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
         return {
             fcr: fcrs.length ? (fcrs.reduce((a, b) => a + b, 0) / fcrs.length).toFixed(2) : null,
             ponds: fcrs.length,
-            lastFedAgo: timeAgo(lastFed as string | undefined),
+            // One definition of "how old" for the whole app — the local copy
+            // this file used to keep said "6h" where every other screen said
+            // "6 h", and rounded differently.
+            lastFedAgo: lastFed ? formatAge(lastFed as string) : null,
         };
     }, [rows]);
 
@@ -267,10 +256,7 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
             cancelLabel: t('common.cancel'),
         });
         if (!ok) return;
-        await runLifecycle(async () => {
-            await pondsApi.unarchive(pondId);
-            await archivedQuery.refetch();
-        }, 'ponds.errorUnarchivePond');
+        await runLifecycle(() => pondsApi.unarchive(pondId), 'ponds.errorUnarchivePond');
     };
 
     const onDelete = async () => {
@@ -416,6 +402,31 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/*
+                  * The archived-ponds toggle sits WITH the pond list, not at
+                  * the bottom of the screen. Below the table, the tiles and the
+                  * farm-lifecycle block it was three screens down on any farm
+                  * with ponds, which is why a farmer who archived a pond could
+                  * not find it again. The count is on the chip so an empty
+                  * result is distinguishable from a toggle that does nothing.
+                  */}
+                <View style={styles.archivedToggle}>
+                    <ChipGroup
+                        options={[
+                            {
+                                value: 'archived',
+                                label: archivedPonds.length
+                                    ? t('farms.includeArchivedPondsCount', { n: archivedPonds.length })
+                                    : t('farms.includeArchivedPonds'),
+                                icon: 'archive-outline',
+                            },
+                        ]}
+                        value={showArchivedPonds ? ['archived'] : []}
+                        multiple
+                        onChange={(v: string[]) => setShowArchivedPonds(v.includes('archived'))}
+                    />
+                </View>
+
                 {!rows.length ? (
                     <EmptyState
                         icon="water"
@@ -462,30 +473,22 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
-                {/* Archived ponds — off by default, so the table above stays
-                    the working farm and nothing else. */}
-                <View style={styles.section}>
-                    <ChipGroup
-                        options={[{ value: 'archived', label: t('farms.includeArchivedPonds'), icon: 'archive-outline' }]}
-                        value={showArchivedPonds ? ['archived'] : []}
-                        multiple
-                        onChange={(v: string[]) => setShowArchivedPonds(v.includes('archived'))}
-                    />
-                    {showArchivedPonds && (
-                        archivedQuery.isPending ? (
-                            <SkeletonList count={2} />
-                        ) : archivedQuery.isError ? (
-                            <ErrorState
-                                title={t('farms.errorPondsTitle')}
-                                error={archivedQuery.error}
-                                onRetry={() => archivedQuery.refetch()}
-                            />
-                        ) : !archivedQuery.data?.length ? (
+                {/* The archived ponds themselves, directly under the table they
+                    belong to — never as a separate section at page bottom. */}
+                {showArchivedPonds && (
+                    <View style={styles.section}>
+                        {query.isError && !hasData ? (
+                            // "Couldn't load" and "this farm has no archived
+                            // ponds" are different answers and must read
+                            // differently, or an outage looks like an empty
+                            // archive and the farmer stops looking.
+                            <Text style={styles.mutedNote}>{t('farms.archivedPondsError')}</Text>
+                        ) : !archivedPonds.length ? (
                             <Text style={styles.mutedNote}>{t('farms.archivedPondsEmpty')}</Text>
                         ) : (
                             <>
-                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedQuery.data.length} />
-                                {archivedQuery.data.map((p) => (
+                                <SectionHeader label={t('farms.archivedSection')} trailing={archivedPonds.length} />
+                                {archivedPonds.map((p) => (
                                     <View key={p.id} style={styles.archivedRow}>
                                         <Text style={styles.archivedName} numberOfLines={1}>
                                             {pondLabel(p)}
@@ -505,9 +508,9 @@ export const FarmDetailScreen = ({ route, navigation }: any) => {
                                     </View>
                                 ))}
                             </>
-                        )
-                    )}
-                </View>
+                        )}
+                    </View>
+                )}
 
                 {/* Farm lifecycle. Owner only — the same capability the server
                     guards these three routes with. */}
@@ -611,18 +614,18 @@ const PondRow: React.FC<{
                     {reason ?? t('farms.pondActive')}
                 </Text>
                 {/* Logged / fed this session — same rule as the reminders and
-                    the Today progress card (features/logProgress.ts). */}
+                    the Today progress card (features/logProgress.ts) — then how
+                    long since each, ALWAYS. The age used to appear only once a
+                    pond had already gone stale, so "logged this morning" and
+                    "logged 40 hours ago" were the same row. */}
                 {!!context && (
                     <View style={styles.sessionHint}>
                         <SessionHint ctx={context} />
-                        {freshness.state !== 'fresh' && (
-                            <View style={styles.staleChip}>
-                                <Icon name="schedule" size={12} color={theme.roles.light.staleText} />
-                                <Text style={styles.staleChipLabel} numberOfLines={1}>
-                                    {t('ponds.lastLog', { age: formatAge(freshness.asOf) })}
-                                </Text>
-                            </View>
-                        )}
+                        <AgeHint
+                            loggedAt={freshness.asOf}
+                            fedAt={context.lastFeedAt}
+                            stale={freshness.state !== 'fresh'}
+                        />
                     </View>
                 )}
             </View>
@@ -649,6 +652,7 @@ const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
     bannerWrap: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
     section: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[5] },
+    archivedToggle: { paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3] },
     mutedNote: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.textTertiary,
@@ -745,19 +749,7 @@ const styles = StyleSheet.create({
         lineHeight: 16,
         color: theme.roles.light.textTertiary,
     },
-    sessionHint: { marginTop: theme.spacing[1] },
-    staleChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 3,
-        paddingHorizontal: theme.spacing[2],
-        height: theme.tokens.chip.height,
-        borderRadius: theme.radius.full,
-        borderWidth: 1,
-        backgroundColor: theme.roles.light.staleBg,
-        borderColor: theme.roles.light.staleBorder,
-    },
-    staleChipLabel: { ...theme.typeScale.labelSmall, color: theme.roles.light.staleText },
+    sessionHint: { marginTop: theme.spacing[1], gap: 2 },
     cell: {
         fontFamily: 'DMMono-Regular',
         fontSize: 15,

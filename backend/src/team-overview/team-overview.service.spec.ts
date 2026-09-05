@@ -75,6 +75,27 @@ describe('TeamOverviewService', () => {
   });
 
   /**
+   * The farm filter used to scope the members and the attendance but NOT the
+   * tasks — so filtering the tab to one farm still listed every farm's chores
+   * underneath one farm's roster.
+   */
+  it('scopes the tasks to the requested farm too', async () => {
+    const { svc, tasks } = makeService();
+
+    await svc.forUser('u', 'f2');
+
+    expect(tasks.findMine).toHaveBeenCalledWith('u', { farmId: 'f2' });
+  });
+
+  it('leaves the tasks unscoped when no farm is requested', async () => {
+    const { svc, tasks } = makeService();
+
+    await svc.forUser('u');
+
+    expect(tasks.findMine).toHaveBeenCalledWith('u', { farmId: undefined });
+  });
+
+  /**
    * A stale filter pointing at a farm the caller has left must not become a
    * way to read that farm. It falls back to their own set.
    */

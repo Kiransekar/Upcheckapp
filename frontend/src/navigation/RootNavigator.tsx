@@ -104,6 +104,8 @@ import { DiagnoseScreen } from '../screens/diseases/DiagnoseScreen';
 
 // Tasks
 import { TaskListScreen } from '../screens/tasks/TaskListScreen';
+import { TaskComposerScreen } from '../screens/tasks/TaskComposerScreen';
+import { RecurringTasksScreen } from '../screens/tasks/RecurringTasksScreen';
 import { LeaveRequestsScreen } from '../screens/leave/LeaveRequestsScreen';
 import { AttendanceScreen } from '../screens/attendance/AttendanceScreen';
 import { AttendanceLogScreen } from '../screens/attendance/AttendanceLogScreen';
@@ -244,6 +246,8 @@ export type RootStackParamList = {
 
     // Tasks
     TaskList: { farmId: string; farmName?: string };
+    TaskCompose: { farmId: string; farmName?: string; scope?: 'farm' | 'personal' };
+    RecurringTasks: { farmId: string; farmName?: string };
 
     // Leave requests
     LeaveRequests: { farmId: string; farmName?: string };
@@ -284,7 +288,15 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
-    const { isLoading, isAuthenticated, pendingFarmSetup, pendingFarmJoin, initialize } = useAuthStore();
+    // One selector per field, deliberately. Subscribing to the whole store made
+    // every auth write (error text, per-request isLoading) re-render — and with
+    // the spinner below that meant UNMOUNTING the navigator and losing all
+    // navigation state on a failed login.
+    const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const pendingFarmSetup = useAuthStore((s) => s.pendingFarmSetup);
+    const pendingFarmJoin = useAuthStore((s) => s.pendingFarmJoin);
+    const initialize = useAuthStore((s) => s.initialize);
     const loadMemberships = useMembershipStore((s) => s.load);
     const resetMemberships = useMembershipStore((s) => s.reset);
 
@@ -308,7 +320,10 @@ const RootNavigator = () => {
         else resetMemberships();
     }, [isAuthenticated, loadMemberships, resetMemberships]);
 
-    if (isLoading || needsLanguage === null) {
+    // ONLY startup may hold the splash. An in-flight login/signup must not, or
+    // the navigator unmounts and the error message arrives at the first
+    // onboarding screen instead of the screen the farmer was typing into.
+    if (isBootstrapping || needsLanguage === null) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
                 <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -470,6 +485,8 @@ const RootNavigator = () => {
 
                     {/* Tasks */}
                     <Stack.Screen name="TaskList" component={TaskListScreen} />
+                    <Stack.Screen name="TaskCompose" component={TaskComposerScreen} />
+                    <Stack.Screen name="RecurringTasks" component={RecurringTasksScreen} />
                     <Stack.Screen name="LeaveRequests" component={LeaveRequestsScreen} />
                     <Stack.Screen name="Attendance" component={AttendanceScreen} />
                     <Stack.Screen name="AttendanceLog" component={AttendanceLogScreen} />

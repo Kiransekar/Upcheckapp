@@ -1,9 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, EntityManager } from 'typeorm';
+import { Repository, In, IsNull, EntityManager } from 'typeorm';
 import { Transaction } from './transaction.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import {
+  TransactionQueryDto,
+  dateRangeWhere,
+  istBounds,
+} from './dto/money-query.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmCapability } from '../farm-access/farm-capability';
 
@@ -79,9 +84,19 @@ export class TransactionsService {
     return repo.save(transaction);
   }
 
-  async findAll(userId: string, farmId?: string, type?: string) {
+  async findAll(userId: string, q: Partial<TransactionQueryDto> = {}) {
+    const { farmId, type } = q;
     const where: any = {};
     if (type) where.type = type;
+
+    // Validates the range (400 when inverted) as well as building the filter.
+    const dateWhere = dateRangeWhere(q, { timestamp: true });
+    if (dateWhere) where.transactionDate = dateWhere;
+
+    // D2 toggle: an inventory purchase writes a transaction with the item id
+    // set. Excluding them changes what the totals DESCRIBE, so it is opt-out,
+    // never the default.
+    if (q.includeInventoryPurchases === false) where.inventoryItemId = IsNull();
 
     if (farmId) {
       await this.farmAccess.assertCanAccessFarm(
@@ -100,10 +115,19 @@ export class TransactionsService {
       where.farmId = In(farmIds);
     }
 
-    return this.transactionsRepository.find({
+    const rows = await this.transactionsRepository.find({
       where,
       order: { transactionDate: 'DESC' },
     });
+    // Row flags the Money screen renders directly. `archived` is always false
+    // here: a transaction hangs off a FARM, not a pond, so there is no pond to
+    // be archived. It is present so transaction and expense rows share one
+    // shape on the client.
+    return rows.map((t) => ({
+      ...t,
+      inventoryPurchase: t.inventoryItemId != null,
+      archived: false,
+    }));
   }
 
   private async findWithCapability(
@@ -160,30 +184,64 @@ export class TransactionsService {
     return this.transactionsRepository.delete(id);
   }
 
-  async getSummaryByFarm(farmId: string, userId: string) {
+  async getSummaryByFarm(
+    farmId: string,
+    userId: string,
+    q: Partial<TransactionQueryDto> = {},
+  ) {
     await this.farmAccess.assertCanAccessFarm(
       userId,
       farmId,
       'VIEW_FINANCIALS',
     );
-    const income = await this.transactionsRepository
-      .createQueryBuilder('t')
-      .select('SUM(t.amount)', 'total')
-      .where('t.farmId = :farmId', { farmId })
-      .andWhere('t.type = :type', { type: 'income' })
-      .getRawOne();
+    // Validate the range up front; the bounds go on the query builder below
+    // because this aggregates in SQL rather than through `find`.
+    dateRangeWhere(q);
 
-    const expense = await this.transactionsRepository
+    // One pass with conditional aggregates instead of a query per bucket —
+    // three round trips would otherwise be needed now that the inventory
+    // subtotal rides along.
+    const qb = this.transactionsRepository
       .createQueryBuilder('t')
-      .select('SUM(t.amount)', 'total')
-      .where('t.farmId = :farmId', { farmId })
-      .andWhere('t.type = :type', { type: 'expense' })
-      .getRawOne();
+      .select(
+        "SUM(CASE WHEN t.type = 'income' THEN t.amount ELSE 0 END)",
+        'income',
+      )
+      .addSelect(
+        "SUM(CASE WHEN t.type = 'expense' THEN t.amount ELSE 0 END)",
+        'expense',
+      )
+      .addSelect(
+        "SUM(CASE WHEN t.type = 'expense' AND t.inventoryItemId IS NOT NULL THEN t.amount ELSE 0 END)",
+        'inventory',
+      )
+      .where('t.farmId = :farmId', { farmId });
+
+    // IST-local day bounds — see dateRangeWhere. A bare `YYYY-MM-DD` against a
+    // timestamptz would run the day 05:30–05:29 IST.
+    const { start, end } = istBounds(q);
+    if (start) qb.andWhere('t.transactionDate >= :startDate', { startDate: start });
+    if (end) qb.andWhere('t.transactionDate <= :endDate', { endDate: end });
+    if (q.includeInventoryPurchases === false) {
+      qb.andWhere('t.inventoryItemId IS NULL');
+    }
+
+    const row = await qb.getRawOne();
+    const totalIncome = Number(row?.income || 0);
+    const totalExpense = Number(row?.expense || 0);
 
     return {
-      totalIncome: Number(income?.total || 0),
-      totalExpense: Number(expense?.total || 0),
-      netProfit: Number(income?.total || 0) - Number(expense?.total || 0),
+      totalIncome,
+      totalExpense,
+      netProfit: totalIncome - totalExpense,
+      // The slice of `totalExpense` that came from inventory purchases, so the
+      // client can render "of which inventory: ₹X" without a second request.
+      // Zero when `includeInventoryPurchases=false`, because those rows are
+      // then not in `totalExpense` either.
+      inventoryExpense:
+        q.includeInventoryPurchases === false
+          ? 0
+          : Number(row?.inventory || 0),
     };
   }
 }

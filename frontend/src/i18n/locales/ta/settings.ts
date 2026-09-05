@@ -162,6 +162,13 @@ const settings = {
   reminderChemistry: "வாராந்திர வேதியியல் சோதனை",
   reminderHourLabel: "மணி",
   reminderMinuteLabel: "நிமிடம்",
+  reminderStatusOn: "நினைவூட்டல்கள் இயங்குகின்றன. அடுத்தது: {{when}}",
+  reminderStatusOff: "இப்போது எந்த நினைவூட்டலும் அமைக்கப்படவில்லை. ஒரு குளத்தைச் சேர்த்து, Upcheck-ஐ ஒருமுறை திறந்தால் அவை அமைக்கப்படும்.",
+  reminderStatusBlocked: "இந்த ஃபோனில் Upcheck அறிவிப்புகளைக் காட்ட முடியாது, எனவே நினைவூட்டல்கள் வராது.",
+  reminderStatusOpenSettings: "ஃபோன் அமைப்புகளைத் திற",
+  reminderWhenToday: "இன்று {{time}} மணிக்கு",
+  reminderWhenTomorrow: "நாளை {{time}} மணிக்கு",
+  reminderWhenOn: "{{date}} அன்று {{time}} மணிக்கு",
 };
 
 export default settings;

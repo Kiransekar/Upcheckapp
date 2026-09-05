@@ -162,6 +162,13 @@ const settings = {
   reminderChemistry: "ସାପ୍ତାହିକ ରସାୟନ ଯାଞ୍ଚ",
   reminderHourLabel: "ଘଣ୍ଟା",
   reminderMinuteLabel: "ମିନିଟ୍",
+  reminderStatusOn: "ସ୍ମାରକ ଚାଲୁ ଅଛି। ପରବର୍ତ୍ତୀ: {{when}}",
+  reminderStatusOff: "ବର୍ତ୍ତମାନ କୌଣସି ସ୍ମାରକ ସେଟ୍ ହୋଇନାହିଁ। ଗୋଟିଏ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ, ତାପରେ Upcheck ଥରେ ଖୋଲନ୍ତୁ — ସ୍ମାରକ ଲାଗିଯିବ।",
+  reminderStatusBlocked: "ଏହି ଫୋନରେ Upcheck ବିଜ୍ଞପ୍ତି ଦେଖାଇ ପାରିବ ନାହିଁ, ତେଣୁ ସ୍ମାରକ ଆସିବ ନାହିଁ।",
+  reminderStatusOpenSettings: "ଫୋନ୍ ସେଟିଂସ୍ ଖୋଲନ୍ତୁ",
+  reminderWhenToday: "ଆଜି {{time}} ବେଳେ",
+  reminderWhenTomorrow: "ଆସନ୍ତାକାଲି {{time}} ବେଳେ",
+  reminderWhenOn: "{{date}} ରେ {{time}} ବେଳେ",
 };
 
 export default settings;

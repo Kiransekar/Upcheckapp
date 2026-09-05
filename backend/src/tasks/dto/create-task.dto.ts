@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsUUID,
   IsString,
@@ -6,10 +7,13 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsArray,
   MaxLength,
+  ArrayMaxSize,
   Min,
   Max,
   Matches,
+  ValidateNested,
 } from 'class-validator';
 
 export const TASK_TYPES = [
@@ -22,7 +26,30 @@ export const TASK_TYPES = [
   'OTHER',
 ] as const;
 
+export const TASK_SCOPES = ['farm', 'personal'] as const;
+
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/; // HH:mm
+
+/**
+ * A recurring task is ONE template row, not N pre-generated rows. Instances are
+ * materialised lazily on read — there is no scheduler in this backend.
+ */
+export class RecurrenceDto {
+  @IsIn(['daily', 'weekly'])
+  freq: 'daily' | 'weekly';
+
+  /** 0 = Sunday … 6 = Saturday. Weekly only; omitted means "same weekday". */
+  @IsInt()
+  @Min(0)
+  @Max(6)
+  @IsOptional()
+  byWeekday?: number;
+
+  /** Last date the series runs. Omitted = forever. */
+  @IsDateString()
+  @IsOptional()
+  until?: string;
+}
 
 export class CreateTaskDto {
   @IsUUID()
@@ -50,6 +77,10 @@ export class CreateTaskDto {
   @IsOptional()
   priority?: string;
 
+  @IsIn(TASK_SCOPES as unknown as string[])
+  @IsOptional()
+  scope?: string;
+
   @IsDateString()
   @IsOptional()
   dueDate?: string;
@@ -62,18 +93,10 @@ export class CreateTaskDto {
   @IsOptional()
   timeWindowEnd?: string;
 
-  // Pragmatic recurrence: a frequency + count generates that many dated
-  // instances on creation (daily feeding, weekly sampling). Stored as an
-  // RFC-5545-style recurrence_rule string for forward compatibility.
-  @IsIn(['daily', 'weekly'])
+  @ValidateNested()
+  @Type(() => RecurrenceDto)
   @IsOptional()
-  recurrenceFreq?: 'daily' | 'weekly';
-
-  @IsInt()
-  @Min(2)
-  @Max(120)
-  @IsOptional()
-  recurrenceCount?: number;
+  recurrence?: RecurrenceDto;
 
   @IsUUID()
   @IsOptional()
@@ -83,7 +106,14 @@ export class CreateTaskDto {
   @IsOptional()
   cropId?: string;
 
-  @IsUUID()
+  /**
+   * AN EMPTY ARRAY MEANS EVERYONE IN SCOPE, not nobody — see TaskAssignee.
+   * Every id must be an active member of `farmId`, and must have access to
+   * `pondId` when one is set; the service rejects rather than dropping.
+   */
+  @IsArray()
+  @IsUUID('all', { each: true })
+  @ArrayMaxSize(50)
   @IsOptional()
-  assignedToId?: string;
+  assigneeIds?: string[];
 }

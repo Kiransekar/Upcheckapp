@@ -1,7 +1,12 @@
 import apiClient from './client';
 import { farmsApi } from './farms';
 import { reportsApi, type FinancialReport } from './reports';
-import { transactionsApi, type Transaction } from './transactions';
+import {
+    transactionsApi,
+    moneyQueryParams,
+    type Transaction,
+    type MoneyFilterParams,
+} from './transactions';
 import { creditApi, type CreditLedger } from './credit';
 
 /**
@@ -44,6 +49,12 @@ export interface MoneyOverview {
     reports: Record<string, FinancialReport>;
     allEntries: MoneyEntry[];
     credit: CreditLedger[];
+    /**
+     * Inventory-purchase expenses across EVERY farm in the response. The Money
+     * screen sums the per-report figure instead, because it has to answer for
+     * the farm in scope rather than for all of them.
+     */
+    inventoryExpenses?: number;
 }
 
 /**
@@ -57,29 +68,31 @@ const isMissingEndpoint = (err: any): boolean => {
     return status === 404 || status === 501;
 };
 
-export async function fetchMoneyOverview(): Promise<MoneyOverview> {
+export async function fetchMoneyOverview(filters?: MoneyFilterParams): Promise<MoneyOverview> {
     try {
-        const { data } = await apiClient.get('/money/overview');
+        const { data } = await apiClient.get('/money/overview', {
+            params: moneyQueryParams(filters),
+        });
         return data;
     } catch (err) {
         if (!isMissingEndpoint(err)) throw err;
-        return legacyFanOut();
+        return legacyFanOut(filters);
     }
 }
 
 /** The pre-batching path: 3 + N requests. Kept only for old backends. */
-async function legacyFanOut(): Promise<MoneyOverview> {
+async function legacyFanOut(filters?: MoneyFilterParams): Promise<MoneyOverview> {
     const list = (await farmsApi.getAll()).data ?? [];
     const [reportPairs, txRes, creditRes] = await Promise.all([
         Promise.all(
             list.map((farm: any) =>
                 reportsApi
-                    .getFinancialReport(farm.id)
+                    .getFinancialReport(farm.id, filters)
                     .then((r) => [farm.id, r.data] as const)
                     .catch(() => null),
             ),
         ),
-        transactionsApi.getAll().catch(() => ({ data: [] as Transaction[] })),
+        transactionsApi.getAll(undefined, undefined, filters).catch(() => ({ data: [] as Transaction[] })),
         creditApi.list().catch(() => ({ data: [] as CreditLedger[] })),
     ]);
     const reports: Record<string, FinancialReport> = {};

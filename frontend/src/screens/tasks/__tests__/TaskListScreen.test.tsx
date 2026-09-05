@@ -6,6 +6,7 @@
 //   "once changed task status i cannot change that back" — the tap was a
 //    one-way ratchet, so a mis-tap was permanent.
 jest.mock('../../../api/tasks', () => ({
+    ...jest.requireActual('../../../api/tasks'),
     tasksApi: {
         getAll: jest.fn(),
         create: jest.fn(),
@@ -62,39 +63,53 @@ beforeEach(() => {
 });
 
 describe('adding a task', () => {
-    // A task with no assignee is nobody's work: it never reached Today, which
-    // asks for tasks assigned to you, so adding one looked like it did nothing.
-    it('assigns it to whoever added it', async () => {
-        const { getByPlaceholderText, findByPlaceholderText } = renderScreen();
-        const input = await findByPlaceholderText('Add a task…');
+    // The inline title box is gone. It could only ever send a title — no due
+    // date, no type, no pond, no recurrence, and an assignee that was always
+    // whoever tapped it — so creating a task is a real screen now.
+    it('opens the composer instead of creating from a text box', async () => {
+        const { findByText } = renderScreen();
 
-        fireEvent.changeText(input, 'Check the aerators');
-        fireEvent(getByPlaceholderText('Add a task…'), 'submitEditing');
+        fireEvent.press(await findByText('New task'));
 
         await waitFor(() =>
-            expect(tasksApi.create).toHaveBeenCalledWith({
-                farmId: 'farm-1',
-                title: 'Check the aerators',
-                assignedToId: 'user-1',
-            }),
+            expect(navigation.navigate).toHaveBeenCalledWith(
+                'TaskCompose',
+                expect.objectContaining({ farmId: 'farm-1', scope: 'farm' }),
+            ),
+        );
+        expect(tasksApi.create).not.toHaveBeenCalled();
+    });
+
+    // A worker cannot assign farm work, but they may always write themselves a
+    // note — so the button is there for them too, pointed at the personal form.
+    it('offers a worker the personal form', async () => {
+        useMembershipStore.setState({
+            memberships: [{ farmId: 'farm-1', role: 'worker', farm: { id: 'farm-1', name: 'North Farm' } }],
+            loaded: true, loading: false,
+        } as any);
+        const { findByText } = renderScreen();
+
+        fireEvent.press(await findByText('Task for myself'));
+
+        await waitFor(() =>
+            expect(navigation.navigate).toHaveBeenCalledWith(
+                'TaskCompose',
+                expect.objectContaining({ scope: 'personal' }),
+            ),
         );
     });
 
-    // Opened from Today filtered to one person, a task added here belongs to
-    // that person — not to whoever happens to be holding the phone.
-    it('keeps the filtered assignee when the list is scoped to someone', async () => {
-        const { getByPlaceholderText, findByPlaceholderText } = renderScreen({
-            farmId: 'farm-1',
-            assignedToId: 'worker-9',
-        });
-        const input = await findByPlaceholderText('Add a task…');
+    // A daily task mints a new instance every day; without one place to see the
+    // templates, stopping one means deleting each day's copy forever.
+    it('has a route to the repeating templates for a manager', async () => {
+        const { findByLabelText } = renderScreen();
 
-        fireEvent.changeText(input, 'Water test');
-        fireEvent(getByPlaceholderText('Add a task…'), 'submitEditing');
+        fireEvent.press(await findByLabelText('Repeating tasks'));
 
         await waitFor(() =>
-            expect(tasksApi.create).toHaveBeenCalledWith(
-                expect.objectContaining({ assignedToId: 'worker-9' }),
+            expect(navigation.navigate).toHaveBeenCalledWith(
+                'RecurringTasks',
+                expect.objectContaining({ farmId: 'farm-1' }),
             ),
         );
     });

@@ -128,6 +128,8 @@ const farms = {
   archivedBadge: "ఆర్కైవ్",
   archivedFarmsEmpty: "ఆర్కైవ్ చేసిన ఫారమ్‌లు లేవు.",
   archivedPondsEmpty: "ఆర్కైవ్ చేసిన చెరువులు లేవు.",
+  includeArchivedPondsCount: "ఆర్కైవ్ చేసిన చెరువులూ చూపు ({{n}})",
+  archivedPondsError: "ఆర్కైవ్ చేసిన చెరువులను లోడ్ చేయలేకపోయాం.",
   archivedNoticeTitle: "ఈ ఫారమ్ ఆర్కైవ్‌లో ఉంది",
   archivedNoticeBody: "ఇది మీ ఫారమ్ జాబితాలో కనిపించదు, ఏ మొత్తంలోనూ లెక్కలోకి రాదు. కావలసినప్పుడు తిరిగి తేవచ్చు.",
   manageFarm: "ఫారమ్ నిర్వహణ",

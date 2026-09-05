@@ -27,7 +27,11 @@ jest.mock('../../../api/farmMembers', () => ({
 jest.mock('../../../api/alertCenter', () => ({
     alertCenterApi: { today: jest.fn(), liveBriefing: jest.fn(), briefing: jest.fn() },
 }));
+// Only the HTTP surface is faked. `splitTasks` and the due/repeat helpers next
+// to it are pure rules about what the farmer sees — stubbing those would test
+// the stub.
 jest.mock('../../../api/tasks', () => ({
+    ...jest.requireActual('../../../api/tasks'),
     tasksApi: { getAll: jest.fn() },
 }));
 // The roster and "my tasks" used to fan out per farm — attendance + members +

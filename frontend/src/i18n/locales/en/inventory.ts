@@ -97,6 +97,15 @@ const inventory = {
   validAmountRequired: 'Enter a valid quantity greater than 0.',
   adjustFailed: 'Failed to adjust stock.',
 
+  // ── Purchase (stock in → one linked expense) ────────────────────────────────
+  purchaseCostHint: 'Leave blank if you already own this stock. Fill it in and an expense is recorded for you.',
+  fieldTotalCost: 'Total cost',
+  billToFarm: 'Paid by which farm?',
+  billToFarmRequired: 'Choose which farm paid for this stock.',
+  purchaseRecorded: 'Added {{quantity}} {{unit}} and recorded {{amount}} as an expense for {{farm}}.',
+  purchaseSection: 'Purchases',
+  movementToPond: 'to {{pond}}',
+
   // Delete
   deleteItem: 'Delete item',
   deleteConfirm: 'Delete "{{name}}"? This cannot be undone.',

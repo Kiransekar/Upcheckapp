@@ -48,7 +48,8 @@ import { saveRecord } from '../../sync/recordSync';
 import { apiErrorMessage } from '../../api/errors';
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { leaveRequestsApi, type LeaveRequest } from '../../api/leaveRequests';
-import { tasksApi, type Task } from '../../api/tasks';
+import { tasksApi, splitTasks, taskAssignees, type Task } from '../../api/tasks';
+import { dueLabel, isOverdue, repeatLabel, originLabel } from '../tasks/taskLabels';
 import { farmMembersApi, type FarmMember } from '../../api/farmMembers';
 import { farmsApi, type Farm } from '../../api/farms';
 import { fetchTeamOverview } from '../../api/teamOverview';
@@ -79,11 +80,15 @@ const OPEN_STATUSES = ['open', 'in_progress'];
  * checking in on the wrong farm puts a shift on the wrong payroll. So when
  * more than one farm qualifies, the farmer picks.
  */
-type TeamAction = 'members' | 'attendance' | 'assign' | 'checkin';
+type TeamAction = 'members' | 'attendance' | 'assign' | 'checkin' | 'repeating';
 
 const ACTION_CAPABILITY: Record<TeamAction, FarmCapability> = {
     members: 'MANAGE_WORKERS',
-    assign: 'MANAGE_WORKERS',
+    // Creating farm work is WRITE_MANAGEMENT, not MANAGE_WORKERS — the server
+    // checks that one, so gating the button on the other offers a 403.
+    assign: 'WRITE_MANAGEMENT',
+    // Stopping a daily task is the same authority as creating one.
+    repeating: 'WRITE_MANAGEMENT',
     attendance: 'WRITE_OPERATIONAL',
     checkin: 'WRITE_OPERATIONAL',
 };
@@ -194,6 +199,8 @@ export const TeamScreen = ({ navigation }: any) => {
 
     const canManage = farmsWith('MANAGE_WORKERS').length > 0;
     const canRecordData = farmsWith('WRITE_OPERATIONAL').length > 0;
+    /** Who may create or stop farm tasks — the capability the server checks. */
+    const canCreateTasks = farmsWith('WRITE_MANAGEMENT').length > 0;
 
     const checkIn = useCallback(
         async (id: string) => {
@@ -230,7 +237,13 @@ export const TeamScreen = ({ navigation }: any) => {
                     navigation.navigate('Attendance', { farmId: farm.id, farmName: farm.name });
                     break;
                 case 'assign':
-                    navigation.navigate('TaskList', { farmId: farm.id, farmName: farm.name });
+                    // Straight to the composer. "Assign" used to open the task
+                    // LIST, which had no assignee control on it at all — the
+                    // action named the one thing it could not do.
+                    navigation.navigate('TaskCompose', { farmId: farm.id, farmName: farm.name, scope: 'farm' });
+                    break;
+                case 'repeating':
+                    navigation.navigate('RecurringTasks', { farmId: farm.id, farmName: farm.name });
                     break;
                 case 'checkin':
                     void checkIn(farm.id);
@@ -305,20 +318,84 @@ export const TeamScreen = ({ navigation }: any) => {
         .filter((m) => m.status !== 'pending')
         .filter((m, i, all) => all.findIndex((x) => x.userId === m.userId) === i);
     const openTasks = tasks.filter((tk) => OPEN_STATUSES.includes(tk.status));
-    const overdue = openTasks.filter(
-        (tk) => tk.dueDate && new Date(tk.dueDate).getTime() < Date.now(),
-    ).length;
-    const visibleTasks = showAllTasks ? tasks : tasks.slice(0, 5);
+    const overdue = openTasks.filter((tk) => isOverdue(tk)).length;
+
+    /**
+     * "Your tasks" / "Others' tasks", the split the farmer asked for.
+     *
+     * Yours also catches the two kinds this board never showed you: a task with
+     * NO named assignee (everyone in scope, so you), and your own personal
+     * note. A personal task can never cross into "others'" — see splitTasks.
+     */
+    const { mine: myTasks, others: otherTasks } = splitTasks(tasks, userId);
+    const cut = (list: Task[]) => (showAllTasks ? list : list.slice(0, 5));
+    const hiddenCount = showAllTasks
+        ? 0
+        : Math.max(0, myTasks.length - 5) + Math.max(0, otherTasks.length - 5);
 
     /** "Ravi 1/3" — done vs assigned, per person, for today. */
     const tallies = activeMembers
         .map((m) => {
-            const assigned = tasks.filter((tk) => tk.assignedToId === m.userId);
+            const assigned = tasks.filter((tk) => taskAssignees(tk).includes(m.userId));
             if (assigned.length === 0) return null;
             const done = assigned.filter((tk) => !OPEN_STATUSES.includes(tk.status)).length;
             return { name: memberName(m).split(' ')[0], done, total: assigned.length };
         })
         .filter(Boolean) as { name: string; done: number; total: number }[];
+
+    /**
+     * One task row. `mine` decides the third fact on the meta line: on your own
+     * row it is who set it (you, or a manager), on somebody else's it is whose
+     * work it is — the two questions are different and only one fits.
+     */
+    const renderTask = (tk: Task, mine: boolean) => {
+        const late = isOverdue(tk);
+        const names = taskAssignees(tk)
+            .map((id) => memberName(activeMembers.find((m) => m.userId === id)))
+            .filter(Boolean)
+            .join(', ');
+        const who = mine
+            ? tk.scope === 'personal'
+                ? t('tasks.badgePersonal')
+                : originLabel(t, tk, userId)
+            : names || t('tasks.assignEveryone');
+        return (
+            <TouchableOpacity
+                key={tk.id}
+                style={styles.taskRow}
+                accessibilityRole="button"
+                accessibilityLabel={`${tk.title} · ${t(`team.status_${tk.status}`, tk.status)}`}
+                onPress={() => navigation.navigate('TaskList', { farmId: tk.farmId, farmName: farmName(tk.farmId) })}
+            >
+                <View
+                    style={[
+                        styles.taskBar,
+                        { backgroundColor: late ? theme.roles.light.dangerBorder : theme.roles.light.borderDefault },
+                    ]}
+                />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={styles.taskTitle} numberOfLines={1}>{tk.title}</Text>
+                    <Text
+                        style={[styles.taskMeta, late && { color: theme.roles.light.dangerText }]}
+                        numberOfLines={1}
+                    >
+                        {[
+                            who,
+                            dueLabel(t, tk.dueDate),
+                            repeatLabel(t, tk),
+                            activeScope === ALL ? farmName(tk.farmId) : null,
+                        ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </Text>
+                </View>
+                <StatusBadge
+                    status={STATUS_TONE[tk.status] ?? 'idle'}
+                    label={t(`team.status_${tk.status}`, tk.status)}
+                />
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <ScreenWrapper scroll={false} padded={false}>
@@ -523,7 +600,7 @@ export const TeamScreen = ({ navigation }: any) => {
 
                 <SectionHeader
                     label={t('team.tasksToday')}
-                    actionLabel={canManage ? t('team.assign') : undefined}
+                    actionLabel={canCreateTasks ? t('team.assign') : undefined}
                     onAction={() => startAction('assign')}
                 />
 
@@ -548,57 +625,44 @@ export const TeamScreen = ({ navigation }: any) => {
                         subtitle={t('team.noTasksSub')}
                     />
                 ) : (
-                    visibleTasks.map((tk) => {
-                        const assignee = activeMembers.find((m) => m.userId === tk.assignedToId);
-                        const isOverdue =
-                            !!tk.dueDate &&
-                            OPEN_STATUSES.includes(tk.status) &&
-                            new Date(tk.dueDate).getTime() < Date.now();
-                        return (
-                            <TouchableOpacity
-                                key={tk.id}
-                                style={styles.taskRow}
-                                accessibilityRole="button"
-                                accessibilityLabel={`${tk.title} · ${t(`team.status_${tk.status}`, tk.status)}`}
-                                onPress={() => navigation.navigate('TaskList', { farmId: tk.farmId, farmName: farmName(tk.farmId) })}
-                            >
-                                <View
-                                    style={[
-                                        styles.taskBar,
-                                        { backgroundColor: isOverdue ? theme.roles.light.dangerBorder : theme.roles.light.borderDefault },
-                                    ]}
-                                />
-                                <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.taskTitle} numberOfLines={1}>{tk.title}</Text>
-                                    <Text
-                                        style={[styles.taskMeta, isOverdue && { color: theme.roles.light.dangerText }]}
-                                        numberOfLines={1}
-                                    >
-                                        {[
-                                            memberName(assignee),
-                                            activeScope === ALL ? farmName(tk.farmId) : null,
-                                            tk.dueDate ? hhmm(tk.dueDate) : null,
-                                            isOverdue ? t('team.overdue') : null,
-                                        ]
-                                            .filter(Boolean)
-                                            .join(' · ')}
-                                    </Text>
-                                </View>
-                                <StatusBadge
-                                    status={STATUS_TONE[tk.status] ?? 'idle'}
-                                    label={t(`team.status_${tk.status}`, tk.status)}
-                                />
-                            </TouchableOpacity>
-                        );
-                    })
+                    <>
+                        <Text style={styles.taskGroup}>{t('team.yourTasks')}</Text>
+                        {myTasks.length === 0 ? (
+                            <Text style={styles.taskGroupEmpty}>{t('team.yourTasksNone')}</Text>
+                        ) : (
+                            cut(myTasks).map((tk) => renderTask(tk, true))
+                        )}
+
+                        {/* Never anyone's personal tasks — splitTasks keeps
+                            them out, and that is the point of the split. */}
+                        {otherTasks.length > 0 && (
+                            <>
+                                <Text style={styles.taskGroup}>{t('team.othersTasks')}</Text>
+                                {cut(otherTasks).map((tk) => renderTask(tk, false))}
+                            </>
+                        )}
+                    </>
                 )}
 
-                {!showAllTasks && tasks.length > 5 && (
+                {hiddenCount > 0 && (
                     <Button
-                        title={t('team.showMoreTasks', { count: tasks.length - 5 })}
+                        title={t('team.showMoreTasks', { count: hiddenCount })}
                         variant="text"
                         onPress={() => setShowAllTasks(true)}
                         style={styles.showMore}
+                    />
+                )}
+
+                {/* A daily task mints a new instance every day; without one
+                    place to see the templates, stopping one means deleting
+                    each day's copy forever. */}
+                {canCreateTasks && (
+                    <SummaryRow
+                        icon="calendar_month"
+                        title={t('tasks.repeatingTitle')}
+                        subtitle={t('tasks.repeatingSub')}
+                        divider="strong"
+                        onPress={() => startAction('repeating')}
                     />
                 )}
             </ScrollView>
@@ -691,6 +755,15 @@ const styles = StyleSheet.create({
         minHeight: 56,
     },
     taskBar: { width: 4, height: 40, borderRadius: 2 },
+    taskGroup: {
+        ...theme.typeScale.labelMedium, color: theme.roles.light.textSecondary,
+        paddingHorizontal: theme.spacing[5], paddingTop: theme.spacing[3],
+        paddingBottom: theme.spacing[1], textTransform: 'uppercase', letterSpacing: 0.8,
+    },
+    taskGroupEmpty: {
+        ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary,
+        paddingHorizontal: theme.spacing[5], paddingBottom: theme.spacing[2],
+    },
     taskTitle: { ...theme.typeScale.bodyLarge, color: theme.roles.light.textPrimary, fontWeight: '600' },
     taskMeta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
     showMore: { alignSelf: 'flex-start', marginHorizontal: theme.spacing[4], marginTop: theme.spacing[2] },

@@ -82,7 +82,7 @@ describe('FarmDetailScreen — syncs the active-farm store on open (#37)', () =>
     });
 });
 
-describe('FarmDetailScreen — last-log age chip', () => {
+describe('FarmDetailScreen — compact last-logged / last-fed hint', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         useActiveFarmStore.setState({ selectedFarm: null } as any);
@@ -91,25 +91,49 @@ describe('FarmDetailScreen — last-log age chip', () => {
         mockedBriefing.mockResolvedValue({ data: [] });
     });
 
-    it('shows how old a pond row is when the log is stale', async () => {
-        mockedGetAll.mockResolvedValue({
-            data: { data: [{ id: 'p1', farmId: 'f1', name: 'Pond 01', activeCycleId: 'c1', status: 'active' }] },
-        });
-        mockedForFarm.mockResolvedValue({
-            data: [
-                {
-                    pondId: 'p1',
-                    farmId: 'f1',
-                    waterQuality: { recordedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
-                },
-            ] as any,
-        });
-
-        const { findByText } = render(
+    const renderFarm = () =>
+        render(
             <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
                 <FarmDetailScreen navigation={navigation} route={{ params: { farmId: 'f1', farmName: 'Test Farm' } }} />
             </SafeAreaProvider>,
         );
-        expect(await findByText('Last log 3 d')).toBeTruthy();
+
+    const onePond = (ctx: any) => {
+        mockedGetAll.mockResolvedValue({
+            data: { data: [{ id: 'p1', farmId: 'f1', name: 'Pond 01', activeCycleId: 'c1', status: 'active' }] },
+        });
+        mockedForFarm.mockResolvedValue({ data: [{ pondId: 'p1', farmId: 'f1', ...ctx }] as any });
+    };
+
+    it('shows how old a pond row is when the log is stale', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 3 * 86400_000).toISOString() },
+            lastFeedAt: new Date(Date.now() - 6 * 3600_000).toISOString(),
+        });
+        expect(await renderFarm().findByText('Logged 3 d · Fed 6 h')).toBeTruthy();
+    });
+
+    // The age used to appear ONLY once the pond had already gone stale, so a
+    // pond logged an hour ago and one logged 40 hours ago showed the same row.
+    it('shows the age on a FRESH pond too, not only a stale one', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 4 * 3600_000).toISOString() },
+            lastFeedAt: new Date(Date.now() - 2 * 3600_000).toISOString(),
+        });
+        expect(await renderFarm().findByText('Logged 4 h · Fed 2 h')).toBeTruthy();
+    });
+
+    /**
+     * `lastFeedAt` is MAX(feed.recordedAt) GROUPED BY crop, so a pond with no
+     * active crop always reports null. That must read as "never fed", never as
+     * "just now" — the failure mode that would tell a farmer a starving pond
+     * had been fed this hour.
+     */
+    it('renders a null lastFeedAt as "never fed", not as a fresh feed', async () => {
+        onePond({
+            waterQuality: { recordedAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
+            lastFeedAt: null,
+        });
+        expect(await renderFarm().findByText('Logged 2 h · Never fed')).toBeTruthy();
     });
 });

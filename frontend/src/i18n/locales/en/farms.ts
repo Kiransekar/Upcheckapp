@@ -126,6 +126,8 @@ const farms = {
   archivedBadge: "Archived",
   archivedFarmsEmpty: "No archived farms.",
   archivedPondsEmpty: "No archived ponds.",
+  includeArchivedPondsCount: "Include archived ponds ({{n}})",
+  archivedPondsError: "Couldn't load archived ponds.",
   archivedNoticeTitle: "This farm is archived",
   archivedNoticeBody: "It is hidden from your farm list and left out of every total. Bring it back whenever you need it.",
   manageFarm: "Manage farm",
