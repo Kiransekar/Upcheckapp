@@ -1,0 +1,2 @@
+# Ignore build.gradle so versionCode/versionName edits do not invalidate OTA runtimeVersion
+android/app/build.gradle

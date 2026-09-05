@@ -11,14 +11,14 @@
     },
     "preview": {
       "distribution": "internal",
-      "autoIncrement": true,
+      "autoIncrement": false,
       "android": {
         "buildType": "apk"
       },
       "channel": "preview"
     },
     "production": {
-      "autoIncrement": true,
+      "autoIncrement": false,
       "android": {
         "buildType": "app-bundle"
       },
