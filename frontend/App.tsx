@@ -27,6 +27,8 @@ import {
 import { syncAnalyticsConsent, screenView, identifyUser } from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
+import { useActiveFarmStore } from './src/store/activeFarmStore';
+import { useMembershipStore } from './src/store/membershipStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
 /*
@@ -117,6 +119,14 @@ export default function App() {
   // Read only to time it — the navigator gate itself lives in RootNavigator
   // and must stay there (see its `isBootstrapping` comment).
   const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+  // Person properties for analytics. Subscribed rather than read once: at the
+  // moment a session appears, memberships have not loaded and no farm is
+  // selected, so a one-shot read would set `role` to null forever. Both are
+  // primitives, so this only re-renders — and only re-identifies — when the
+  // value actually changes, which is also when feature-flag assignment should
+  // be re-fetched (see analytics.reloadFeatureFlags).
+  const activeFarmId = useActiveFarmStore((s) => s.selectedFarm?.id);
+  const farmRole = useMembershipStore((s) => s.roleForFarm(activeFarmId));
   useEffect(() => {
     if (!isBootstrapping) mark('auth-bootstrap');
   }, [isBootstrapping]);
@@ -187,8 +197,18 @@ export default function App() {
     // Same hash, so a PostHog person and a Sentry user are the same string.
     // Without this PostHog mints a fresh anonymous id per launch and every
     // people-based metric — retention, growth, DAU — stays empty forever.
-    void identifyUser(isAuthenticated ? userId : null);
-  }, [isAuthenticated, userId]);
+    //
+    // A language, and a permission level on the currently-open farm. Neither
+    // identifies anyone, and both are the difference between "3,000 people
+    // churned" and "Odia-speaking workers churn in week two".
+    // ponytail: i18n.language is read at identify time rather than subscribed
+    // to — a language switch lands on the next identify. Subscribe to
+    // i18n 'languageChanged' if the lag ever matters.
+    void identifyUser(isAuthenticated ? userId : null, {
+      language: i18n.language,
+      role: farmRole ?? undefined,
+    });
+  }, [isAuthenticated, userId, farmRole]);
 
   /*
    * The analytics consent question, asked ONCE.

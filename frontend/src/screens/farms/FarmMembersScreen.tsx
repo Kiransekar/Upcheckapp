@@ -44,6 +44,7 @@ import { farmsApi } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
 import { usePermissions } from '../../hooks/usePermissions';
 import { personName } from '../../utils/personName';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -144,6 +145,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
             // tracking — one credential per farm is what an owner can reason
             // about.
             const { data } = await farmMembersApi.rotateInvite(farmId, {});
+            // The invite exists — the role it grants is a permission level,
+            // not a person.
+            capture(EVENTS.INVITE_SENT, { role: data.role });
             setInvites([data]);
             await Clipboard.setStringAsync(data.code);
             Alert.alert(t('members.inviteCreatedTitle'), t('members.inviteCreatedSub'));
@@ -202,6 +206,9 @@ export const FarmMembersScreen = ({ route, navigation }: any) => {
         async (m: FarmMember) => {
             try {
                 await farmMembersApi.approveMember(farmId, m.userId);
+                // They redeemed a code and are now actually on the farm — the
+                // point at which the invite has been accepted.
+                capture(EVENTS.INVITE_ACCEPTED, { role: m.role });
                 setPending((cur) => cur.filter((p) => p.id !== m.id));
                 load();
             } catch (e: any) {

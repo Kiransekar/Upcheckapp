@@ -12,6 +12,7 @@ import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
 import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
+import { capture, EVENTS } from '../../features/analytics';
 
 /** Parse a non-empty numeric string, else undefined (so the column default applies). */
 const num = (s: string) => (s.trim() ? Number(s) : undefined);
@@ -110,6 +111,9 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
                 targetSize: num(targetSize),
                 targetSrPercent: num(targetSr),
             });
+            // Activation. The stocking count, seed and prices above are farm
+            // records and stay here — only the fact of a cycle starting goes.
+            capture(EVENTS.CYCLE_STARTED, { ok: true });
             navigation.goBack();
         } catch (error: any) {
             Alert.alert(t('common.error'), apiErrorMessage(error, t('cycles.errorStartCycle')));

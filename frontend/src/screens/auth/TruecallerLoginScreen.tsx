@@ -36,6 +36,7 @@ import {
 } from '../../native/TruecallerAuth';
 import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 
 export interface TruecallerLoginScreenProps {
@@ -92,6 +93,10 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
             if (data.session) {
                 // RootNavigator swaps stacks on isAuthenticated; no explicit nav.
                 setSession(data.session);
+                // Reported HERE and not inside setSession: api/client.ts calls
+                // setSession on every silent token refresh, so an event there
+                // would count a refresh as a login. This is the one-tap Truecaller OAuth.
+                capture(EVENTS.LOGIN_COMPLETED, { method: 'truecaller' });
                 return;
             }
             Alert.alert(

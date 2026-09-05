@@ -35,6 +35,7 @@ import { Icon } from '../../components/ui/Icon';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { theme } from '../../theme';
 import { farmMembersApi, inviteRejectionOf, type InviteRejection } from '../../api/farmMembers';
+import { capture, EVENTS } from '../../features/analytics';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 
@@ -91,6 +92,9 @@ export const JoinFarmScreen = ({ route, navigation }: any) => {
         setFailure(null);
         try {
             const { data } = await farmMembersApi.joinFarm(value);
+            // The JOINER side. The farm-side approval is reported separately;
+            // both matter, because an invite can be sent and never redeemed.
+            capture(EVENTS.INVITE_ACCEPTED, { role: data.role });
             await loadMemberships();
             if (pendingFarmJoin) completeFarmJoin();
             navigation.replace('JoinedFarm', {

@@ -1,4 +1,5 @@
 import * as Crypto from 'expo-crypto';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiClient from '../api/client';
 import { useSyncStore, type QueuedOperation, type DrainOutcome } from '../store/syncStore';
 import { useAuthStore } from '../store/authStore';
@@ -6,6 +7,96 @@ import { invalidateForEntity, queryClient, qk } from '../query/client';
 import type { TodaySnapshot } from '../api/todaySnapshot';
 import { syncReminders } from '../utils/notifications';
 import { loadReminderTimes } from '../features/reminderTimes';
+import { capture, sizeBand, EVENTS, type AnalyticsProps } from '../features/analytics';
+
+/**
+ * ── Analytics ────────────────────────────────────────────────────────────────
+ *
+ * Every operational record in the app funnels through `saveRecord`, so
+ * LOG_RECORDED is emitted HERE rather than in a dozen screens: one call site
+ * cannot drift, cannot double-fire, and a screen added later is counted for
+ * free. `entity` is already the category name analytics wants, so it IS the
+ * `kind` — no mapping table to keep in step.
+ *
+ * `saveRecord` is not only used by logs (attendance, leave and measurements
+ * ride it too), so the set below is the allowlist of what counts as a farm
+ * log. Anything not listed records nothing.
+ */
+const LOG_ENTITIES: ReadonlySet<string> = new Set([
+    'water_quality',
+    'feed',
+    'sampling',
+    'mortality',
+    'treatment',
+    'disease',
+    'harvest',
+    'chemical',
+    'microbiology',
+    'plankton',
+    'feeding_tray_check',
+]);
+
+/**
+ * "Has this farmer ever logged anything?" — one AsyncStorage key, JSON, safe
+ * default. A NEW key: nothing else may be reused for this, because a farmer
+ * whose flag is wrong either never gets counted as activated or gets counted
+ * twice.
+ */
+const FIRST_LOG_KEY = 'upcheck-first-log-recorded';
+
+/** In-memory short-circuit so the steady state is a boolean, not a disk read. */
+let hasLoggedBefore = false;
+
+/** Test seam only — the module cache above would otherwise leak between tests. */
+export const __resetFirstLogCache = (): void => {
+    hasLoggedBefore = false;
+};
+
+/**
+ * One saved log, confirmed by the server. Fired from the two places a record
+ * genuinely LANDS — the immediate POST and a successful replay — never on the
+ * optimistic offline path, so a queued record is counted when it actually
+ * syncs and a record that never syncs is never counted.
+ *
+ * Never awaited by the save path and never able to throw: `capture` swallows
+ * its own errors and the storage read is wrapped.
+ *
+ * ponytail: no lock around the read-then-write. Screen saves are serial and the
+ * drain is a sequential loop, so the only way to double-fire FIRST_LOG_RECORDED
+ * is two truly concurrent first-ever logs. Add a promise latch if that ever
+ * shows up as a duplicate in the funnel.
+ */
+async function noteLogRecorded(entity: string): Promise<void> {
+    if (!LOG_ENTITIES.has(entity)) return;
+    capture(EVENTS.LOG_RECORDED, { kind: entity, ok: true });
+    if (hasLoggedBefore) return;
+    try {
+        const raw = await AsyncStorage.getItem(FIRST_LOG_KEY);
+        if (raw && JSON.parse(raw)?.recorded === true) {
+            hasLoggedBefore = true;
+            return;
+        }
+        await AsyncStorage.setItem(FIRST_LOG_KEY, JSON.stringify({ recorded: true }));
+        hasLoggedBefore = true;
+        capture(EVENTS.FIRST_LOG_RECORDED, { kind: entity });
+    } catch {
+        /* a flag we could not read or write must never affect the save */
+    }
+}
+
+/**
+ * An error → a reason CATEGORY. Never the message: messages carry ids, emails
+ * and amounts, and the Privacy Policy says none of that reaches analytics.
+ */
+export function failureReason(err: any): NonNullable<AnalyticsProps['reason']> {
+    const status = err?.response?.status;
+    if (!status) return 'network';
+    if (status === 401) return 'auth';
+    if (status === 403) return 'permission';
+    if (status === 409) return 'conflict';
+    if (status >= 400 && status < 500) return 'validation';
+    return 'unknown';
+}
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -98,12 +189,16 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
         } catch (e) {
             console.warn('[Notifications] Could not re-arm after save', e);
         }
+        void noteLogRecorded(entity);
         return { id, queued: false, data };
     } catch (err) {
         if (isNetworkError(err)) {
             queue();
             return { id, queued: true };
         }
+        // A genuine save failure the farmer is about to see an error for —
+        // not a crash, so Sentry never hears about it.
+        capture(EVENTS.SAVE_FAILED, { kind: entity, reason: failureReason(err) });
         throw err; // validation / permission / conflict the user must see
     }
 }
@@ -119,6 +214,7 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
 export async function replayQueuedOp(op: QueuedOperation): Promise<DrainOutcome> {
     try {
         await apiClient.request({ method: op.method, url: op.endpoint, data: op.payload });
+        void noteLogRecorded(op.entity); // it landed — count it now, not when it was written
         return 'done';
     } catch (err: any) {
         const status = err?.response?.status;
@@ -126,7 +222,10 @@ export async function replayQueuedOp(op: QueuedOperation): Promise<DrainOutcome>
         if (status === 409) return 'done';              // idempotent duplicate the server already has
         if (status === 401 || status === 403) return 'retry'; // recoverable: refresh + retry, never drop
         if (status >= 500) return 'retry';              // server-side transient
-        return 'failed';                                // 400/422/etc — permanent, park as visible
+        // 400/422/etc — permanent. The record is parked and the farmer's write
+        // is lost until they act on it; that is a failure worth counting.
+        capture(EVENTS.SAVE_FAILED, { kind: op.entity, reason: failureReason(err) });
+        return 'failed';
     }
 }
 
@@ -143,6 +242,23 @@ export async function drainRecordQueue(): Promise<void> {
     const sync = useSyncStore.getState();
     if (!sync.isConnected) return;
     const userId = useAuthStore.getState().user?.id;
+    // Two cheap counts around the drain: the store returns the distinct
+    // entities that landed, not how many ops moved, and "did the farmer's
+    // backlog actually make it" is the question nothing answers today.
+    const queuedBefore = sync.queue.length;
+    const parkedBefore = sync.failedOperations.length;
+
     const syncedEntities = await sync.drainQueue(replayQueuedOp, userId);
     syncedEntities.forEach(invalidateForEntity);
+
+    const after = useSyncStore.getState();
+    const replayed = queuedBefore - after.queue.length;
+    // A drain that moved nothing is not news — and NetInfo fires one on every
+    // cell handoff, so reporting those would drown the signal.
+    if (replayed > 0) {
+        capture(EVENTS.SYNC_QUEUE_DRAINED, {
+            band: sizeBand(replayed),
+            ok: after.failedOperations.length === parkedBefore && after.queue.length === 0,
+        });
+    }
 }

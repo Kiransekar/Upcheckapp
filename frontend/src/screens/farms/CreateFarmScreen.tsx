@@ -29,6 +29,7 @@ import { confirm } from '../../utils/confirm';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useAuthStore } from '../../store/authStore';
 import { useUIStore } from '../../store/uiStore';
+import { capture, EVENTS, sizeBand } from '../../features/analytics';
 
 const WATER_SOURCES: { key: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
     { key: 'tidal', icon: 'waves' },
@@ -184,6 +185,10 @@ export const CreateFarmScreen = ({ navigation, route }: any) => {
             }
             // No ponds declared: this is the entire flow, so save here.
             await farmsApi.create(buildDraft());
+            // Banded, never the count: how many farms someone holds is a
+            // commercial fact. `existingFarmCount` is already on screen (the
+            // "YOUR 4TH FARM" eyebrow), so this costs no request.
+            capture(EVENTS.FARM_CREATED, { band: sizeBand(existingFarmCount + 1) });
             showToast({
                 message: t('farms.farmCreatedToast', { name: name.trim(), defaultValue: '{{name}} created' }),
                 type: 'success',

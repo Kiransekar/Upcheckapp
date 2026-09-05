@@ -21,6 +21,7 @@ import { tasksApi, Task } from '../../api/tasks';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuthStore } from '../../store/authStore';
 import { dueLabel, isOverdue, repeatLabel } from './taskLabels';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -118,8 +119,12 @@ export const TaskListScreen = ({ route, navigation }: any) => {
         setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: next } : t)));
         try {
             // Completing routes through the assignee-enforced endpoint.
-            if (next === 'done') await tasksApi.complete(task.id);
-            else await tasksApi.update(task.id, { status: next });
+            if (next === 'done') {
+                await tasksApi.complete(task.id);
+                // After the server confirms, not on the optimistic setTasks
+                // above — the catch below rolls that back.
+                capture(EVENTS.TASK_COMPLETED, { kind: task.type });
+            } else await tasksApi.update(task.id, { status: next });
         } catch {
             fetchTasks();
         }

@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 
 /**
@@ -52,6 +53,10 @@ export const OtpLoginScreen = ({ navigation }: any) => {
                 navigation.navigate('TwoFactorChallenge', { tempToken: data.tempToken });
             } else if (data.session) {
                 setSession(data.session);
+                // Reported HERE and not inside setSession: api/client.ts calls
+                // setSession on every silent token refresh, so an event there
+                // would count a refresh as a login. This is the emailed one-time code.
+                capture(EVENTS.LOGIN_COMPLETED, { method: 'otp' });
             } else {
                 Alert.alert(t('common.error'), t('auth.noSessionReturned'));
             }

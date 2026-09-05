@@ -40,6 +40,7 @@ import { personName } from '../../utils/personName';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAppQuery } from '../../query/hooks';
 import { qk } from '../../query/client';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -177,6 +178,12 @@ export const TaskComposerScreen = ({ route, navigation }: any) => {
 
         try {
             await tasksApi.create(body);
+            // `kind` is the task TYPE, not the scope: which kinds of work
+            // farmers actually schedule is the question that changes what we
+            // build, and personal-vs-farm is already answered by who the task
+            // ends up assigned to. TaskType is a closed union, so it is a
+            // category and never free text the farmer typed.
+            capture(EVENTS.TASK_CREATED, { kind: type });
             navigation.goBack();
         } catch (err) {
             Alert.alert(

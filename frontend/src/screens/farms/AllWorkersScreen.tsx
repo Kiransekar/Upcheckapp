@@ -50,6 +50,7 @@ import {
 } from '../../api/teamOverview';
 import { qk } from '../../query/client';
 import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+import { capture, EVENTS } from '../../features/analytics';
 
 /** The roster is always every farm — narrowing it is what the Team tab is for. */
 const ALL = 'all';
@@ -228,9 +229,12 @@ export const AllWorkersScreen = ({ navigation }: any) => {
                         <Button
                             title={t('members.letIn')}
                             onPress={() =>
-                                run(item.key, () =>
-                                    farmMembersApi.approveMember(item.farmId, item.userId),
-                                )
+                                run(item.key, async () => {
+                                    await farmMembersApi.approveMember(item.farmId, item.userId);
+                                    // Same funnel step as FarmMembersScreen's
+                                    // approve — the other door onto it.
+                                    capture(EVENTS.INVITE_ACCEPTED, { role: item.role });
+                                })
                             }
                             disabled={rowBusy}
                             style={styles.actionBtn}

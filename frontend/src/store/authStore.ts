@@ -12,6 +12,25 @@ import { useActiveFarmStore } from './activeFarmStore';
 import { useNotificationStore } from './notificationStore';
 import { useUploadStore } from './uploadStore';
 import { clearCachedReads } from '../query/client';
+import { capture, EVENTS, type AnalyticsProps } from '../features/analytics';
+
+/**
+ * HTTP failure → the analytics `reason` CATEGORY.
+ *
+ * Deliberately not the message: a backend message carries emails, ids and
+ * whatever it chose to interpolate, and the Privacy Policy says none of that
+ * reaches analytics. No response at all means the request never landed —
+ * offline, DNS, timeout — which is 'network', not 'unknown'.
+ */
+const failureReason = (err: any): AnalyticsProps['reason'] => {
+    const status = err?.response?.status;
+    if (status == null) return 'network';
+    if (status === 401) return 'auth';
+    if (status === 403) return 'permission';
+    if (status === 400 || status === 422) return 'validation';
+    if (status === 409) return 'conflict';
+    return 'unknown';
+};
 
 export type AuthStatus =
     | 'initializing'       // app just launched, checking stored session
@@ -197,6 +216,11 @@ export const useAuthStore = create<AuthState>()(
             // render lands them on the main app, and clear the stored intent so a
             // reinstall does not send them back through setup they have done.
             completeFarmSetup: () => {
+                // Fire on the TRANSITION only. Four screens call this (create,
+                // skip, the pond-names step, the gate) and some call it whether
+                // or not the gate is up; keyed on the flag actually dropping,
+                // one farmer finishing onboarding is one event.
+                if (get().pendingFarmSetup) capture(EVENTS.ONBOARDING_COMPLETED);
                 set({ pendingFarmSetup: false });
                 void get().clearOnboardingIntent();
             },
@@ -204,6 +228,8 @@ export const useAuthStore = create<AuthState>()(
             // Worker joined a farm (or skipped) — drop the gate so the next
             // render lands them on the main app.
             completeFarmJoin: () => {
+                // Same transition rule as completeFarmSetup.
+                if (get().pendingFarmJoin) capture(EVENTS.ONBOARDING_COMPLETED);
                 set({ pendingFarmJoin: false });
                 void get().clearOnboardingIntent();
             },
@@ -408,9 +434,11 @@ export const useAuthStore = create<AuthState>()(
                     }
                     if (data.session) {
                         get().setSession(data.session);
+                        capture(EVENTS.LOGIN_COMPLETED, { method: 'email' });
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
+                    capture(EVENTS.LOGIN_FAILED, { method: 'email', reason: failureReason(err) });
                     const message = apiErrorMessage(err, err.message || 'Login failed');
                     // An unverified account is a DEAD END unless we re-arm the
                     // resend banner. `pendingVerificationEmail` was only ever set
@@ -439,11 +467,25 @@ export const useAuthStore = create<AuthState>()(
                     }
                     if (data.session) {
                         get().setSession(data.session);
+                        // The backend REJECTS an unknown email when intent is
+                        // 'signin' (supabase-auth.service.signInWithIdToken), so
+                        // an account can only be provisioned on the 'signup'
+                        // path — that is the closest signal to "created" the
+                        // response carries.
+                        // ponytail: intent, not a server "isNewUser" flag, so
+                        // an existing account tapping Create Account counts as a
+                        // signup. Return the flag from the backend if the split
+                        // ever has to be exact.
+                        capture(
+                            intent === 'signin' ? EVENTS.LOGIN_COMPLETED : EVENTS.SIGNUP_COMPLETED,
+                            { method: 'google' },
+                        );
                     } else {
                         set({ isLoading: false });
                     }
                     return { requires2FA: false };
                 } catch (err: any) {
+                    capture(EVENTS.LOGIN_FAILED, { method: 'google', reason: failureReason(err) });
                     const message = apiErrorMessage(err, err.message || 'Google sign in failed');
                     get().setError(message);
                     return { requires2FA: false };
@@ -454,6 +496,10 @@ export const useAuthStore = create<AuthState>()(
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    // The account exists from here whether or not a session came
+                    // back — an unconfirmed email withholds the session, it does
+                    // not withhold the account.
+                    capture(EVENTS.SIGNUP_COMPLETED, { method: 'email' });
                     // Route the first run from the stated intent: someone who runs
                     // their own farm sets one up, someone joining an existing farm
                     // enters a code. Read by RootNavigator once authenticated. The
@@ -516,6 +562,17 @@ export const useAuthStore = create<AuthState>()(
                 // clears the local session (returns the user to the sign-in stack).
                 // Password is re-verified server-side for email/password accounts.
                 await profilesApi.deleteMe(password);
+                // BEFORE the teardown below, and it has to stay there.
+                // clearSession() flips isAuthenticated, which runs App.tsx's
+                // identify effect with a null id — that calls client.reset(),
+                // which drops the queued batch along with the person id. An
+                // ACCOUNT_DELETED captured after that point is either discarded
+                // or attributed to a fresh anonymous stranger, so the one event
+                // that measures churn would never arrive. Captured here it is
+                // already in the queue, under the right person, before anything
+                // is torn down. After deleteMe resolves, so a failed deletion
+                // does not report a churn that did not happen.
+                capture(EVENTS.ACCOUNT_DELETED);
                 try {
                     TruecallerAuth.clear();
                 } catch {

@@ -17,6 +17,7 @@ import { isHistoryConflict } from '../../api/farms';
 import { apiErrorMessage } from '../../api/errors';
 import { confirm } from '../../utils/confirm';
 import { usePermissions } from '../../hooks/usePermissions';
+import { capture, EVENTS, sizeBand } from '../../features/analytics';
 
 type GeometryType = 'rectangular' | 'circular' | 'irregular' | 'raceway';
 type ConstructionType = 'earthen' | 'lined' | 'cage' | 'biofloc_ras';
@@ -328,6 +329,14 @@ export const CreatePondScreen = ({ route, navigation }: any) => {
                 namePrefix: derivePrefix(displayName),
                 ...shaped,
             });
+            // `pondCount` is the farm's pond count BEFORE this one — the same
+            // number the "3rd pond" subtitle above is built from, so the band
+            // costs no request. Omitted rather than fetched when the caller
+            // did not pass it: telemetry does not get to make network calls.
+            capture(
+                EVENTS.POND_CREATED,
+                pondCount != null ? { band: sizeBand(pondCount + 1) } : undefined,
+            );
             // Pond saved — discard the draft so it isn't restored next time.
             await AsyncStorage.removeItem(draftKey);
             navigation.goBack();

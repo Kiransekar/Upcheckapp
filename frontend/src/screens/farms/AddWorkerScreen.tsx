@@ -20,6 +20,7 @@ import { farmMembersApi, WORKER_QR_PREFIX, type PublicUser, type AssignableRole 
 import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { canAssignRole } from '../../permissions/capabilities';
+import { capture, EVENTS } from '../../features/analytics';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -109,6 +110,9 @@ export const AddWorkerScreen = ({ route, navigation }: any) => {
         setBusy(true);
         try {
             await farmMembersApi.addMember(farmId, found.id, role);
+            // Adding someone who already has an account is the same funnel
+            // step as minting them a code — team grew by one, at this role.
+            capture(EVENTS.INVITE_SENT, { role });
             Alert.alert(t('members.addedTitle'), t('members.addedSub', { name: displayName(found) }));
             navigation.goBack();
         } catch (e: any) {

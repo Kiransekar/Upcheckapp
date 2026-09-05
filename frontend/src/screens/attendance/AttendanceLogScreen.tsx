@@ -40,6 +40,7 @@ import { personName } from '../../utils/personName';
 import { formatDate, formatTime } from '../../utils/formatDate';
 import { toLocalISODate } from '../../utils/localDate';
 import { toCsv, type CsvCell } from '../../utils/csv';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -243,6 +244,7 @@ export const AttendanceLogScreen = ({ route, navigation }: any) => {
                 title: t('attendance.exportTitle', { farm: farmName ?? '' }),
                 message: csv,
             });
+            capture(EVENTS.EXPORT_GENERATED, { kind: 'csv', feature: 'attendance' });
         } catch {
             // The user dismissing the share sheet is not an error worth an alert.
         }

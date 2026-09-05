@@ -40,6 +40,7 @@ import { theme } from '../../theme';
 import { activityApi, type ActivityItem, type ActivityKind } from '../../api/activity';
 import { usePermissions } from '../../hooks/usePermissions';
 import { toCsv, type CsvCell } from '../../utils/csv';
+import { capture, EVENTS } from '../../features/analytics';
 import { formatTime, formatWeekday } from '../../utils/formatDate';
 import { toLocalISODate, todayLocalISODate } from '../../utils/localDate';
 import { ACTIVITY_ICON, activityKindKey, visibleActivityKinds } from './activityKinds';
@@ -220,6 +221,9 @@ export const ActivityScreen = ({ route, navigation }: any) => {
         );
         try {
             await Share.share({ title: t('activity.exportTitle'), message: csv });
+            // The sheet opened and returned. The CSV itself — names, notes,
+            // amounts — never leaves the device by this route.
+            capture(EVENTS.EXPORT_GENERATED, { kind: 'csv', feature: 'activity' });
         } catch {
             // Dismissing the share sheet is not an error worth an alert.
         }

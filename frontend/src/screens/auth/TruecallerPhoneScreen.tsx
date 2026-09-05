@@ -48,6 +48,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi, type AuthResponse } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 import {
     TruecallerAuth,
@@ -120,6 +121,10 @@ export const TruecallerPhoneScreen = ({ navigation }: any) => {
             }
             if (data.session) {
                 setSession(data.session);
+                // Reported HERE and not inside setSession: api/client.ts calls
+                // setSession on every silent token refresh, so an event there
+                // would count a refresh as a login. This is the Truecaller missed-call fallback.
+                capture(EVENTS.LOGIN_COMPLETED, { method: 'truecaller' });
                 return;
             }
             setError(

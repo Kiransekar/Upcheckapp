@@ -7,6 +7,7 @@ import { theme } from '../../theme';
 import { supabase } from '../../lib/supabase';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 
 const c = theme.roles.light;
 
@@ -58,6 +59,10 @@ export const OtpCallbackScreen = ({ navigation }: any) => {
                 const { data: sess } = await supabase.auth.getSession();
                 if (sess.session) {
                     setSession(sess.session);
+                    // Reported HERE and not inside setSession: api/client.ts calls
+                    // setSession on every silent token refresh, so an event there
+                    // would count a refresh as a login. This is the emailed magic-link callback.
+                    capture(EVENTS.LOGIN_COMPLETED, { method: 'otp' });
                 } else {
                     setState('error');
                 }

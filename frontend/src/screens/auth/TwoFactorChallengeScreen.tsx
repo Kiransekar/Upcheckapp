@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
 import { authApi } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { capture, EVENTS } from '../../features/analytics';
 
 /**
  * Second factor prompt shown after a password sign-in when the account has
@@ -33,6 +34,11 @@ export const TwoFactorChallengeScreen = ({ route, navigation }: any) => {
             const { data } = await authApi.twoFactor.login(tempToken, code.trim());
             if (data.session) {
                 setSession(data.session);
+                // login/googleLogin return EARLY on requires2FA, so the session
+                // only ever lands here — without this a two-factor login was
+                // invisible to analytics, which quietly under-counts exactly the
+                // users careful enough to enable 2FA.
+                capture(EVENTS.LOGIN_COMPLETED, { method: 'email', feature: '2fa' });
             } else {
                 Alert.alert(t('common.error'), t('auth.noSessionSignInAgain'));
                 navigation.goBack();

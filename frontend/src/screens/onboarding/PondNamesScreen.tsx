@@ -44,6 +44,7 @@ import { apiErrorMessage } from '../../api/errors';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
 import { useUIStore } from '../../store/uiStore';
+import { capture, EVENTS, sizeBand } from '../../features/analytics';
 
 /** The server's naming rule, mirrored so the preview cannot disagree with it. */
 export const isValidPrefix = (prefix: string) => /^[A-Za-z0-9]{1,4}$/.test(prefix);
@@ -108,6 +109,15 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
             }
 
             await loadMemberships();
+            // No `band` on the farm: this screen never asks how many farms the
+            // person has, and the contract says omit the band rather than make
+            // a request for telemetry. The pond band is free — it is the count
+            // this screen was handed. One POND_CREATED for the whole set,
+            // because naming N ponds is one action by the farmer.
+            capture(EVENTS.FARM_CREATED);
+            if (pondCount - failed > 0) {
+                capture(EVENTS.POND_CREATED, { band: sizeBand(pondCount - failed) });
+            }
             showToast(
                 failed > 0
                     ? { message: t('pondSetup.errPondsPartial', { count: failed }), type: 'error' }

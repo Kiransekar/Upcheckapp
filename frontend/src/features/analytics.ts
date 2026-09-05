@@ -31,6 +31,22 @@ import { hashUserId } from '../utils/hashUserId';
  * The only properties that may leave the device. Every one is a UI fact, not a
  * farm fact. Add to this list deliberately; do not widen the type.
  */
+export type SignupMethod = 'email' | 'google' | 'truecaller' | 'otp';
+export type FarmRole = 'owner' | 'manager' | 'worker' | 'viewer';
+
+/**
+ * Bucketed size band. Deliberately NOT an exact number: how many ponds a farmer
+ * holds is a commercial fact about their business, and the Privacy Policy says
+ * farm records never reach analytics. A band answers the question worth asking
+ * — do small holdings retain differently from large ones — without shipping a
+ * per-person holding size.
+ */
+export type SizeBand = '1' | '2-5' | '6-20' | '20+';
+
+/** Bucket a raw count. The ONLY sanctioned way to get a quantity into an event. */
+export const sizeBand = (n: number): SizeBand =>
+    n <= 1 ? '1' : n <= 5 ? '2-5' : n <= 20 ? '6-20' : '20+';
+
 export interface AnalyticsProps {
     /** Route name, e.g. 'WaterLog'. */
     screen?: string;
@@ -42,8 +58,20 @@ export interface AnalyticsProps {
     language?: string;
     /** Whether it succeeded. */
     ok?: boolean;
-    /** A COUNT of things, never a value of things. */
-    count?: number;
+    /** How the account was created or signed in to. */
+    method?: SignupMethod;
+    /** WHICH kind of thing, e.g. 'water_quality' | 'feed' | 'pdf'. A category. */
+    kind?: string;
+    /**
+     * Why something failed, as a CATEGORY — 'network' | 'validation' | 'auth'.
+     * Never an error message: messages carry ids, emails, amounts and whatever
+     * a backend chose to interpolate. A union, so a message cannot be passed.
+     */
+    reason?: 'network' | 'validation' | 'auth' | 'permission' | 'conflict' | 'unknown';
+    /** The actor's role on the farm in context. A permission level, not a person. */
+    role?: FarmRole;
+    /** A bucketed quantity. Use sizeBand(); exact counts are not representable. */
+    band?: SizeBand;
 }
 
 const ALLOWED_PROPS: (keyof AnalyticsProps)[] = [
@@ -52,7 +80,11 @@ const ALLOWED_PROPS: (keyof AnalyticsProps)[] = [
     'action',
     'language',
     'ok',
-    'count',
+    'method',
+    'kind',
+    'reason',
+    'role',
+    'band',
 ];
 
 /**
@@ -144,7 +176,82 @@ export async function stopAnalytics(): Promise<void> {
  * The entire call-site API. A no-op without consent, so screens never have to
  * check — and a screen that forgets to check therefore cannot leak anything.
  */
-export function capture(event: string, props?: AnalyticsProps): void {
+/**
+ * Properties attached to the PERSON rather than an event, so PostHog can build
+ * cohorts — "Odia-speaking workers who churned in week two" is a question you
+ * cannot ask from events alone.
+ *
+ * All three are approved and all three are deliberately NOT identifying: a
+ * language, a permission level, and which sign-in button was pressed. There is
+ * no name, email, phone or farm here, and the person they hang off is a
+ * one-way hash.
+ */
+export interface PersonProps {
+    language?: string;
+    role?: FarmRole;
+    method?: SignupMethod;
+}
+
+const ALLOWED_PERSON_PROPS: (keyof PersonProps)[] = ['language', 'role', 'method'];
+
+/** Same allowlist discipline as events — a person object is just as leakable. */
+export function sanitizePersonProps(props?: PersonProps): Record<string, string> {
+    const out: Record<string, string> = {};
+    if (!props) return out;
+    for (const key of ALLOWED_PERSON_PROPS) {
+        const v = (props as Record<string, unknown>)[key];
+        if (typeof v === 'string' && v) out[key] = v;
+    }
+    return out;
+}
+
+/**
+ * Every event this app may send. A closed set, for two reasons: a typo in a
+ * free-form string silently creates a second event that no dashboard counts,
+ * and a reviewer can read this list and see the whole of what we collect
+ * without grepping the codebase.
+ *
+ * Names are past-tense facts about the UI. None of them carries a farm record,
+ * a money value, a harvest figure, or an exact quantity.
+ */
+export const EVENTS = {
+    // Lifecycle — install → account → churn.
+    SIGNUP_COMPLETED: 'signup_completed',
+    LOGIN_COMPLETED: 'login_completed',
+    LOGIN_FAILED: 'login_failed',
+    ONBOARDING_COMPLETED: 'onboarding_completed',
+    /** Fired BEFORE the account goes, or it never sends. See deleteAccount. */
+    ACCOUNT_DELETED: 'account_deleted',
+
+    // Activation — an account with no pond is not yet a user.
+    FARM_CREATED: 'farm_created',
+    POND_CREATED: 'pond_created',
+    CYCLE_STARTED: 'cycle_started',
+    FIRST_LOG_RECORDED: 'first_log_recorded',
+
+    // Engagement — which features earn their place.
+    LOG_RECORDED: 'log_recorded',
+    TASK_CREATED: 'task_created',
+    TASK_COMPLETED: 'task_completed',
+    EXPORT_GENERATED: 'export_generated',
+    INVITE_SENT: 'invite_sent',
+    INVITE_ACCEPTED: 'invite_accepted',
+
+    // Reliability — problems that are not crashes, so Sentry never sees them.
+    SAVE_FAILED: 'save_failed',
+    SYNC_QUEUE_DRAINED: 'sync_queue_drained',
+} as const;
+
+export type AnalyticsEvent = (typeof EVENTS)[keyof typeof EVENTS];
+
+/**
+ * The entire call-site API. A no-op without consent, so screens never have to
+ * check — and a screen that forgets to check therefore cannot leak anything.
+ *
+ * `event` is the closed EVENTS union: a call site cannot invent a name, and
+ * cannot accidentally pass a user-supplied string as one.
+ */
+export function capture(event: AnalyticsEvent, props?: AnalyticsProps): void {
     if (!client) return;
     try {
         client.capture(event, sanitizeProps(props));
@@ -186,7 +293,10 @@ export function screenView(name: string): void {
  * No person properties are set: no email, no name, no phone. The hash is the
  * whole identity, and it means nothing outside Upcheck.
  */
-export async function identifyUser(rawId: string | null | undefined): Promise<void> {
+export async function identifyUser(
+    rawId: string | null | undefined,
+    props?: PersonProps,
+): Promise<void> {
     if (!client) return;
     try {
         if (!rawId) {
@@ -197,7 +307,7 @@ export async function identifyUser(rawId: string | null | undefined): Promise<vo
         }
         const id = await hashUserId(rawId);
         if (!id) return;
-        await client.identify?.(id);
+        await client.identify?.(id, sanitizePersonProps(props));
         // Re-fetch flags for the newly identified person: assignment can depend
         // on who they are, and the payload fetched while anonymous may differ.
         await client.reloadFeatureFlags?.();
