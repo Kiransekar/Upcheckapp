@@ -25,6 +25,7 @@
  */
 import Constants from 'expo-constants';
 import { analyticsAllowed, loadTelemetryPrefs } from './telemetryPrefs';
+import { hashUserId } from '../utils/hashUserId';
 
 /**
  * The only properties that may leave the device. Every one is a UI fact, not a
@@ -95,11 +96,24 @@ export async function startAnalytics(): Promise<boolean> {
         const PostHog = mod.default ?? mod.PostHog ?? mod;
         client = new PostHog(apiKey, {
             host: getHost(),
-            // Off, explicitly, every one of them.
+            // Session replay stays off permanently: it records the SCREEN, and
+            // these screens show pond names, expenses and harvest values, which
+            // the Privacy Policy promises analytics never receives.
             enableSessionReplay: false,
-            captureAppLifecycleEvents: false,
-            captureNativeAppLifecycleEvents: false,
+            // Lifecycle events ARE on. Application opened / installed / updated
+            // / backgrounded are the raw material for every metric that counts
+            // people rather than clicks — DAU, retention, growth, stickiness.
+            // Without them PostHog has events but no product story, which is
+            // what the first build shipped. They carry no farm data: an app
+            // open is a UI fact.
+            captureAppLifecycleEvents: true,
+            // GeoIP off: the Policy says we do not build profiles, and IP
+            // anonymisation is already forced on at the project level.
             disableGeoip: true,
+            // Feature flags and experiments need the flag payload fetched on
+            // start and refreshed on identify, so assignment is stable for a
+            // given person instead of flipping between launches.
+            preloadFeatureFlags: true,
         });
         return true;
     } catch {
@@ -136,6 +150,100 @@ export function capture(event: string, props?: AnalyticsProps): void {
         client.capture(event, sanitizeProps(props));
     } catch {
         /* analytics must never be able to break a screen */
+    }
+}
+
+/**
+ * Record a screen view through PostHog's OWN screen API.
+ *
+ * This must not be `capture('screen_viewed', { screen })`. That is what the
+ * first build did, and it populated a custom property while PostHog's built-in
+ * Screen and URL columns — which every mobile dashboard, path analysis and
+ * funnel reads — stayed null. `client.screen()` emits `$screen` with
+ * `$screen_name`, which is the field the product actually looks at.
+ *
+ * The route NAME only. Route params carry farmId, pondId, cropId and amounts
+ * and are never passed.
+ */
+export function screenView(name: string): void {
+    if (!client || !name) return;
+    try {
+        client.screen(name);
+    } catch {
+        /* analytics must never be able to break a screen */
+    }
+}
+
+/**
+ * Tie events to a stable person, by irreversible hash only.
+ *
+ * Everything that counts PEOPLE rather than events — retention, growth,
+ * DAU/MAU, stickiness — needs a distinct id that survives a restart. Without
+ * this, PostHog mints a fresh anonymous id and those panels are permanently
+ * empty however many events arrive. It is also what makes feature-flag and
+ * experiment assignment stable instead of re-rolling on every launch.
+ *
+ * No person properties are set: no email, no name, no phone. The hash is the
+ * whole identity, and it means nothing outside Upcheck.
+ */
+export async function identifyUser(rawId: string | null | undefined): Promise<void> {
+    if (!client) return;
+    try {
+        if (!rawId) {
+            // Signed out. reset() gives the device a fresh anonymous id so the
+            // next person to use this phone is not counted as the last one.
+            await client.reset?.();
+            return;
+        }
+        const id = await hashUserId(rawId);
+        if (!id) return;
+        await client.identify?.(id);
+        // Re-fetch flags for the newly identified person: assignment can depend
+        // on who they are, and the payload fetched while anonymous may differ.
+        await client.reloadFeatureFlags?.();
+    } catch {
+        /* an identity failure must never break the app or lose the session */
+    }
+}
+
+/**
+ * Feature flags and experiments.
+ *
+ * Both read from the payload PostHog preloads on start and refreshes on
+ * identify. All three degrade to "off"/undefined when analytics is not running
+ * — no consent, no key, or a failed fetch — so a flag can never turn a feature
+ * on for someone who has not agreed to analytics, and an offline farmer gets
+ * the control experience rather than a crash.
+ *
+ * Treat "off" as the safe default when writing call sites: the flag decides
+ * whether to ADD something, never whether to withhold something essential.
+ */
+export function isFeatureEnabled(flag: string): boolean {
+    if (!client) return false;
+    try {
+        return client.isFeatureEnabled?.(flag) === true;
+    } catch {
+        return false;
+    }
+}
+
+/** The variant string for a multivariate flag / experiment, or undefined. */
+export function getFeatureFlag(flag: string): string | boolean | undefined {
+    if (!client) return undefined;
+    try {
+        return client.getFeatureFlag?.(flag);
+    } catch {
+        return undefined;
+    }
+}
+
+/** Force a refresh — after a role change, or on returning to the foreground. */
+export async function reloadFeatureFlags(): Promise<void> {
+    if (!client) return;
+    try {
+        await client.reloadFeatureFlags?.();
+    } catch {
+        /* stale flags are better than a thrown error */
     }
 }
 

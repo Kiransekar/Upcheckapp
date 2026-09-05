@@ -72,7 +72,16 @@ describe('analytics consent gate', () => {
         expect(isAnalyticsRunning()).toBe(true);
         expect(mockConstructed).toHaveBeenCalledWith(
             'phc_test_key',
-            expect.objectContaining({ enableSessionReplay: false, captureAppLifecycleEvents: false }),
+            // Replay stays off forever — it records screens showing pond names,
+            // expenses and harvest values, which the Policy says analytics never
+            // receives. Lifecycle events are ON deliberately: they are what DAU,
+            // retention and growth are computed from, they carry no farm data,
+            // and without them PostHog has events but no product story.
+            expect.objectContaining({
+                enableSessionReplay: false,
+                captureAppLifecycleEvents: true,
+                disableGeoip: true,
+            }),
         );
         capture('screen_view', { screen: 'Today' });
         expect(mockCaptured).toHaveBeenCalledWith('screen_view', { screen: 'Today' });

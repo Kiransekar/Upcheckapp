@@ -23,7 +23,7 @@ import {
   saveTelemetryPrefs,
   shouldAskAnalyticsConsent,
 } from './src/features/telemetryPrefs';
-import { syncAnalyticsConsent, capture } from './src/features/analytics';
+import { syncAnalyticsConsent, screenView, identifyUser } from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
@@ -133,6 +133,10 @@ export default function App() {
   // never the raw id, email or phone number (setSentryUser does the derivation).
   useEffect(() => {
     setSentryUser(isAuthenticated ? userId : null).catch(() => undefined);
+    // Same hash, so a PostHog person and a Sentry user are the same string.
+    // Without this PostHog mints a fresh anonymous id per launch and every
+    // people-based metric — retention, growth, DAU — stays empty forever.
+    void identifyUser(isAuthenticated ? userId : null);
   }, [isAuthenticated, userId]);
 
   /*
@@ -320,7 +324,10 @@ export default function App() {
               // until the farmer has opted in (features/analytics.ts). Fired
               // here rather than on mount so it cannot run before the consent
               // state has been read from storage.
-              capture('app_opened');
+              // App-open volume now comes from PostHog's own lifecycle events
+              // (Application opened/installed/updated), which is what DAU,
+              // retention and growth are actually computed from. A custom
+              // app_opened duplicated it without feeding any of those panels.
             }}
             /*
              * Screen views, by ROUTE NAME only. This is the whole of our
@@ -337,7 +344,7 @@ export default function App() {
              */
             onStateChange={() => {
               const name = navigationRef.getCurrentRoute()?.name;
-              if (name) capture('screen_viewed', { screen: name });
+              if (name) screenView(name);
             }}
           >
             <RootNavigator />
