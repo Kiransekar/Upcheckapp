@@ -75,9 +75,28 @@ describe('AttendanceScreen — worker self check-in/out (#50)', () => {
         const { findByText } = renderScreen();
         fireEvent.press(await findByText('Check in'));
 
-        await waitFor(() => expect(mockedSaveRecord).toHaveBeenCalledWith({
-            entity: 'attendance', endpoint: '/attendance/check-in', payload: { farmId: 'farm-1' },
-        }));
+        /**
+         * This assertion used to read `payload: { farmId: 'farm-1' }` — and in
+         * doing so it PINNED A PAY BUG IN PLACE. Sending no time meant the
+         * server fell back to CURRENT_TIMESTAMP, which offline is the moment
+         * the queue DRAINS, not the moment the worker pressed the button. A
+         * 06:00 check-in drained at 18:00 recorded an 18:00 start and erased
+         * the day. The test passed precisely BECAUSE the bug existed, and
+         * fixing the bug broke the test.
+         *
+         * So it now asserts the BEHAVIOUR that matters — that the recorded
+         * time is the time of the press — rather than the shape of the call.
+         */
+        await waitFor(() => expect(mockedSaveRecord).toHaveBeenCalled());
+        const sent = mockedSaveRecord.mock.calls[0][0];
+        expect(sent.entity).toBe('attendance');
+        expect(sent.endpoint).toBe('/attendance/check-in');
+        expect(sent.payload.farmId).toBe('farm-1');
+        // Present, an ISO instant, and the press moment — not whenever a
+        // queued write happens to reach the server.
+        expect(typeof sent.payload.checkInAt).toBe('string');
+        expect(Number.isNaN(Date.parse(sent.payload.checkInAt))).toBe(false);
+        expect(Math.abs(Date.parse(sent.payload.checkInAt) - Date.now())).toBeLessThan(60_000);
         expect(mockedMine).toHaveBeenCalledTimes(2); // initial load + reload after check-in
     });
 

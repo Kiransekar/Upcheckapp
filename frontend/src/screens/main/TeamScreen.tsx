@@ -211,7 +211,13 @@ export const TeamScreen = ({ navigation }: any) => {
                 const res = await saveRecord({
                     entity: 'attendance',
                     endpoint: '/attendance/check-in',
-                    payload: { farmId: id },
+                    // checkInAt is sent EXPLICITLY, and must stay that way.
+                    // Without it the server falls back to the column default, which is
+                    // CURRENT_TIMESTAMP at the moment the row is written — and offline that
+                    // is when the queue DRAINS, not when the worker pressed the button. A
+                    // 06:00 check-in with no signal, drained at 18:00, recorded an 18:00
+                    // start and erased the whole day. This is a pay record.
+                    payload: { farmId: id, checkInAt: new Date().toISOString() },
                 });
                 Alert.alert(
                     t('attendance.checkedInTitle'),
