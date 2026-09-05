@@ -210,6 +210,9 @@ export const SettingsScreen = ({ navigation }: any) => {
         { key: 'diseases', icon: 'science', label: t('home.moreDiseaseEncyclopedia'), route: 'DiseaseList' },
         { key: 'reference', icon: 'assessment', label: t('home.moreReference'), route: 'Reference' },
         { key: 'news', icon: 'receipt_long', label: t('home.moreNews'), route: 'NewsList' },
+        // The always-reachable way in. The cycle report has its own button, but
+        // "send my books to the bank" does not start from a cycle screen.
+        { key: 'export', icon: 'share', label: t('export.entry'), route: 'Export' },
     ];
 
     const farmLinks: LinkRow[] = [

@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'रिपोर्ट निर्यात करें',
+  subtitle: 'अपने ही रिकॉर्ड से दस्तावेज़ बनाएँ और साझा करें।',
+  entry: 'रिपोर्ट निर्यात करें',
+  entrySub: 'PDF या स्प्रेडशीट, किसी भी भाषा में',
+
+  datasetLabel: 'क्या निर्यात करना है',
+  dataset_cycle: 'फ़सल चक्र रिपोर्ट',
+  dataset_pondLogs: 'तालाब के रिकॉर्ड',
+  dataset_money: 'पैसा',
+  dataset_inventory: 'भंडार',
+  dataset_attendance: 'उपस्थिति',
+  dataset_tasks: 'कार्य',
+
+  scopeLabel: 'कौन से रिकॉर्ड',
+  farmField: 'फ़ार्म',
+  pondField: 'तालाब',
+  cycleField: 'चक्र',
+  farmPlaceholder: 'फ़ार्म चुनें',
+  pondPlaceholder: 'तालाब चुनें',
+  cyclePlaceholder: 'चक्र चुनें',
+  pondAll: 'सभी तालाब',
+  cycleAll: 'सभी चक्र',
+
+  periodLabel: 'अवधि',
+  period_today: 'आज',
+  period_week: 'इस सप्ताह',
+  period_month: 'इस महीने',
+  period_custom: 'अपनी तारीख़',
+  customFrom: 'से',
+  customTo: 'तक',
+
+  sectionsLabel: 'शामिल करें',
+  sectionsHint: 'जो पढ़ने वाले को नहीं दिखाना है, उसे हटा दें।',
+  section_summary: 'सारांश',
+  section_waterQuality: 'पानी की गुणवत्ता',
+  section_feed: 'फ़ीड',
+  section_sampling: 'नमूना जाँच',
+  section_mortality: 'मृत्यु दर',
+  section_treatments: 'उपचार',
+  section_costs: 'ख़र्च',
+  section_harvest: 'कटाई',
+
+  formatLabel: 'फ़ाइल का प्रकार',
+  format_pdf: 'PDF',
+  format_xlsx: 'एक्सेल',
+  format_csv: 'CSV',
+
+  languageLabel: 'रिपोर्ट की भाषा',
+  languageHint: 'यह दस्तावेज़ के अंदर की भाषा है, ऐप की नहीं। ख़रीदार, बैंक या अधिकारी के लिए अंग्रेज़ी चुनें।',
+
+  cta: 'निर्यात करें',
+  ctaBusy: 'रिपोर्ट तैयार हो रही है…',
+  busyNote: 'इसमें कुछ सेकंड लग सकते हैं। कृपया यह स्क्रीन खुली रखें।',
+  chooseCycle: 'पहले एक चक्र चुनें।',
+  chooseFarm: 'पहले एक फ़ार्म चुनें।',
+
+  errorTitle: 'रिपोर्ट नहीं बन सकी',
+  errorBody: 'रिपोर्ट बनाते समय कुछ गड़बड़ हुई। कृपया दोबारा कोशिश करें।',
+  errorOffline: 'आप ऑफ़लाइन हैं। इंटरनेट से जुड़कर दोबारा कोशिश करें।',
+  emptyTitle: 'निर्यात करने के लिए कुछ नहीं है',
+  emptyBody: 'इस अवधि में कोई रिकॉर्ड नहीं मिला। लंबी अवधि या दूसरा तालाब चुनकर देखें।',
+  doneTitle: 'रिपोर्ट तैयार है',
+  doneBody: 'साझा करने की सूची में से चुनें कि इसे कहाँ भेजना है।',
+};
+
+export default exportNs;

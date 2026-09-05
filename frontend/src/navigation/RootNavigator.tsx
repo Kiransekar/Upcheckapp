@@ -7,6 +7,7 @@ import { useMembershipStore } from '../store/membershipStore';
 import type { SignupIntent } from '../store/authStore';
 import type { FarmRole } from '../api/farmMembers';
 import type { CreateFarmDto } from '../api/farms';
+import type { ExportDataset } from '../features/export/types';
 import { hasChosenLanguage } from '../i18n';
 
 // EAGER — only what the app can actually paint on first frame.
@@ -176,6 +177,11 @@ export type RootStackParamList = {
     GrowthAndHarvest: undefined;
     FeedProducts: undefined;
     FeedStats: { pondId: string; pondName?: string; cropId?: string; farmId?: string };
+
+    // One configurable export flow. Every param is a PRE-FILL of a control the
+    // farmer can still change — arriving from a cycle preselects that cycle,
+    // arriving from Settings preselects nothing.
+    Export: { dataset?: ExportDataset; farmId?: string; pondId?: string; cropId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -415,6 +421,9 @@ const RootNavigator = () => {
                         getComponent={() => require('../screens/feed/FeedStatsScreen').FeedStatsScreen}
                         options={{ headerShown: true, title: 'Feed Statistics', headerTintColor: theme.roles.light.primary }}
                     />
+
+                    {/* Export — reachable from the cycle report and from Settings */}
+                    <Stack.Screen name="Export" getComponent={() => require('../screens/export/ExportScreen').ExportScreen} />
 
                     {/* Legal */}
                     <Stack.Screen name="PrivacyPolicy" getComponent={() => require('../screens/legal/PrivacyPolicyScreen').PrivacyPolicyScreen} />

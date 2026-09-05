@@ -118,7 +118,7 @@ export class SupabaseAuthController {
   @Throttle(SENSITIVE_THROTTLE)
   @Post('signup')
   async signup(@Body() body: SignupDto) {
-    const { email, password, firstName, lastName, username } = body;
+    const { email, password, firstName, lastName, username, language } = body;
 
     // No `account_type` is written. The owner/worker question on the register
     // screen is now a first-run routing preference held client-side, not an
@@ -127,6 +127,7 @@ export class SupabaseAuthController {
       firstName,
       lastName,
       username,
+      language,
     });
 
     return {

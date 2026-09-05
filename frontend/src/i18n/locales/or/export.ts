@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'ରିପୋର୍ଟ ରପ୍ତାନି କରନ୍ତୁ',
+  subtitle: 'ନିଜର ରେକର୍ଡରୁ ଏକ ଡକ୍ୟୁମେଣ୍ଟ ତିଆରି କରି ସେୟାର କରନ୍ତୁ।',
+  entry: 'ରିପୋର୍ଟ ରପ୍ତାନି କରନ୍ତୁ',
+  entrySub: 'PDF କିମ୍ବା ସ୍ପ୍ରେଡସିଟ୍, ଯେକୌଣସି ଭାଷାରେ',
+
+  datasetLabel: 'କ’ଣ ରପ୍ତାନି କରିବେ',
+  dataset_cycle: 'ଚକ୍ର ରିପୋର୍ଟ',
+  dataset_pondLogs: 'ପୋଖରୀ ରେକର୍ଡ',
+  dataset_money: 'ଟଙ୍କା',
+  dataset_inventory: 'ଭଣ୍ଡାର',
+  dataset_attendance: 'ଉପସ୍ଥିତି',
+  dataset_tasks: 'କାମ',
+
+  scopeLabel: 'କେଉଁ ରେକର୍ଡ',
+  farmField: 'ଫାର୍ମ',
+  pondField: 'ପୋଖରୀ',
+  cycleField: 'ଚକ୍ର',
+  farmPlaceholder: 'ଫାର୍ମ ବାଛନ୍ତୁ',
+  pondPlaceholder: 'ପୋଖରୀ ବାଛନ୍ତୁ',
+  cyclePlaceholder: 'ଚକ୍ର ବାଛନ୍ତୁ',
+  pondAll: 'ସବୁ ପୋଖରୀ',
+  cycleAll: 'ସବୁ ଚକ୍ର',
+
+  periodLabel: 'ସମୟ',
+  period_today: 'ଆଜି',
+  period_week: 'ଏହି ସପ୍ତାହ',
+  period_month: 'ଏହି ମାସ',
+  period_custom: 'ନିଜ ତାରିଖ',
+  customFrom: 'ଠାରୁ',
+  customTo: 'ପର୍ଯ୍ୟନ୍ତ',
+
+  sectionsLabel: 'ଅନ୍ତର୍ଭୁକ୍ତ କରନ୍ତୁ',
+  sectionsHint: 'ପାଠକ ଦେଖିବା ଦରକାର ନଥିବା ଅଂଶ ବାଦ ଦିଅନ୍ତୁ।',
+  section_summary: 'ସାରାଂଶ',
+  section_waterQuality: 'ପାଣିର ଗୁଣବତ୍ତା',
+  section_feed: 'ଖାଦ୍ୟ',
+  section_sampling: 'ନମୁନା ପରୀକ୍ଷା',
+  section_mortality: 'ମୃତ୍ୟୁହାର',
+  section_treatments: 'ଚିକିତ୍ସା',
+  section_costs: 'ଖର୍ଚ୍ଚ',
+  section_harvest: 'ଅମଳ',
+
+  formatLabel: 'ଫାଇଲ ପ୍ରକାର',
+  format_pdf: 'PDF',
+  format_xlsx: 'ଏକ୍ସେଲ',
+  format_csv: 'CSV',
+
+  languageLabel: 'ରିପୋର୍ଟର ଭାଷା',
+  languageHint: 'ଏହା ଡକ୍ୟୁମେଣ୍ଟ ଭିତରର ଭାଷା, ଆପର ନୁହେଁ। କ୍ରେତା, ବ୍ୟାଙ୍କ କିମ୍ବା ଅଧିକାରୀଙ୍କ ପାଇଁ ଇଂରାଜୀ ବାଛନ୍ତୁ।',
+
+  cta: 'ରପ୍ତାନି',
+  ctaBusy: 'ରିପୋର୍ଟ ପ୍ରସ୍ତୁତ ହେଉଛି…',
+  busyNote: 'ଏଥିପାଇଁ କିଛି ସେକେଣ୍ଡ ଲାଗିପାରେ। ଏହି ସ୍କ୍ରିନ ଖୋଲା ରଖନ୍ତୁ।',
+  chooseCycle: 'ପ୍ରଥମେ ଏକ ଚକ୍ର ବାଛନ୍ତୁ।',
+  chooseFarm: 'ପ୍ରଥମେ ଏକ ଫାର୍ମ ବାଛନ୍ତୁ।',
+
+  errorTitle: 'ରିପୋର୍ଟ ତିଆରି ହୋଇପାରିଲା ନାହିଁ',
+  errorBody: 'ରିପୋର୍ଟ ତିଆରି ସମୟରେ କିଛି ଭୁଲ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  errorOffline: 'ଆପଣ ଅଫଲାଇନ ଅଛନ୍ତି। ଇଣ୍ଟରନେଟ ସହ ଯୋଡ଼ି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  emptyTitle: 'ରପ୍ତାନି କରିବାକୁ କିଛି ନାହିଁ',
+  emptyBody: 'ଏହି ସମୟରେ କୌଣସି ରେକର୍ଡ ମିଳିଲା ନାହିଁ। ଅଧିକ ସମୟ କିମ୍ବା ଅନ୍ୟ ପୋଖରୀ ବାଛନ୍ତୁ।',
+  doneTitle: 'ରିପୋର୍ଟ ପ୍ରସ୍ତୁତ',
+  doneBody: 'ସେୟାର ତାଲିକାରୁ ବାଛନ୍ତୁ କେଉଁଠିକୁ ପଠାଇବେ।',
+};
+
+export default exportNs;

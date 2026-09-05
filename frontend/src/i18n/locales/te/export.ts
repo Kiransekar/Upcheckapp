@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'నివేదికను ఎగుమతి చేయండి',
+  subtitle: 'మీ స్వంత రికార్డుల నుండి పత్రాన్ని తయారు చేసి పంచుకోండి.',
+  entry: 'నివేదికను ఎగుమతి చేయండి',
+  entrySub: 'PDF లేదా స్ప్రెడ్‌షీట్, ఏ భాషలోనైనా',
+
+  datasetLabel: 'దేన్ని ఎగుమతి చేయాలి',
+  dataset_cycle: 'సైకిల్ నివేదిక',
+  dataset_pondLogs: 'చెరువు రికార్డులు',
+  dataset_money: 'డబ్బు',
+  dataset_inventory: 'నిల్వ',
+  dataset_attendance: 'హాజరు',
+  dataset_tasks: 'పనులు',
+
+  scopeLabel: 'ఏ రికార్డులు',
+  farmField: 'ఫారం',
+  pondField: 'చెరువు',
+  cycleField: 'సైకిల్',
+  farmPlaceholder: 'ఫారం ఎంచుకోండి',
+  pondPlaceholder: 'చెరువు ఎంచుకోండి',
+  cyclePlaceholder: 'సైకిల్ ఎంచుకోండి',
+  pondAll: 'అన్ని చెరువులు',
+  cycleAll: 'అన్ని సైకిళ్లు',
+
+  periodLabel: 'కాలం',
+  period_today: 'ఈ రోజు',
+  period_week: 'ఈ వారం',
+  period_month: 'ఈ నెల',
+  period_custom: 'తేదీ ఎంపిక',
+  customFrom: 'నుండి',
+  customTo: 'వరకు',
+
+  sectionsLabel: 'చేర్చవలసినవి',
+  sectionsHint: 'చదివేవారు చూడకూడని వాటిని తీసివేయండి.',
+  section_summary: 'సారాంశం',
+  section_waterQuality: 'నీటి నాణ్యత',
+  section_feed: 'మేత',
+  section_sampling: 'నమూనా పరీక్ష',
+  section_mortality: 'మరణాలు',
+  section_treatments: 'చికిత్సలు',
+  section_costs: 'ఖర్చులు',
+  section_harvest: 'పంట కోత',
+
+  formatLabel: 'ఫైల్ రకం',
+  format_pdf: 'PDF',
+  format_xlsx: 'ఎక్సెల్',
+  format_csv: 'CSV',
+
+  languageLabel: 'నివేదిక భాష',
+  languageHint: 'ఇది పత్రం లోపలి భాష, యాప్ భాష కాదు. కొనుగోలుదారు, బ్యాంకు లేదా అధికారి కోసం ఇంగ్లీష్ ఎంచుకోండి.',
+
+  cta: 'ఎగుమతి',
+  ctaBusy: 'నివేదిక తయారవుతోంది…',
+  busyNote: 'దీనికి కొన్ని సెకన్లు పట్టవచ్చు. ఈ స్క్రీన్‌ను తెరిచే ఉంచండి.',
+  chooseCycle: 'ముందుగా ఒక సైకిల్ ఎంచుకోండి.',
+  chooseFarm: 'ముందుగా ఒక ఫారం ఎంచుకోండి.',
+
+  errorTitle: 'నివేదికను తయారు చేయలేకపోయాం',
+  errorBody: 'నివేదిక తయారు చేసేటప్పుడు ఏదో తప్పు జరిగింది. దయచేసి మళ్లీ ప్రయత్నించండి.',
+  errorOffline: 'మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. ఇంటర్నెట్‌కు కనెక్ట్ అయి మళ్లీ ప్రయత్నించండి.',
+  emptyTitle: 'ఎగుమతి చేయడానికి ఏమీ లేదు',
+  emptyBody: 'ఈ కాలంలో ఎలాంటి రికార్డులు కనిపించలేదు. ఎక్కువ కాలం లేదా వేరే చెరువును ఎంచుకోండి.',
+  doneTitle: 'నివేదిక సిద్ధం',
+  doneBody: 'పంచుకునే జాబితా నుండి ఎక్కడికి పంపాలో ఎంచుకోండి.',
+};
+
+export default exportNs;

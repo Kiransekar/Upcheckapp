@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'Export a report',
+  subtitle: 'Build a document from your own records, then share it.',
+  entry: 'Export a report',
+  entrySub: 'PDF or spreadsheet, in any language',
+
+  datasetLabel: 'What to export',
+  dataset_cycle: 'Cycle report',
+  dataset_pondLogs: 'Pond logs',
+  dataset_money: 'Money',
+  dataset_inventory: 'Inventory',
+  dataset_attendance: 'Attendance',
+  dataset_tasks: 'Tasks',
+
+  scopeLabel: 'Which records',
+  farmField: 'Farm',
+  pondField: 'Pond',
+  cycleField: 'Cycle',
+  farmPlaceholder: 'Choose a farm',
+  pondPlaceholder: 'Choose a pond',
+  cyclePlaceholder: 'Choose a cycle',
+  pondAll: 'All ponds',
+  cycleAll: 'All cycles',
+
+  periodLabel: 'Period',
+  period_today: 'Today',
+  period_week: 'This week',
+  period_month: 'This month',
+  period_custom: 'Custom',
+  customFrom: 'From',
+  customTo: 'To',
+
+  sectionsLabel: 'Include',
+  sectionsHint: 'Leave out anything the reader should not see.',
+  section_summary: 'Summary',
+  section_waterQuality: 'Water quality',
+  section_feed: 'Feed',
+  section_sampling: 'Sampling',
+  section_mortality: 'Mortality',
+  section_treatments: 'Treatments',
+  section_costs: 'Costs',
+  section_harvest: 'Harvest',
+
+  formatLabel: 'File type',
+  format_pdf: 'PDF',
+  format_xlsx: 'Excel',
+  format_csv: 'CSV',
+
+  languageLabel: 'Report language',
+  languageHint: 'The language inside the document, not the app. Pick English for a buyer, bank or officer.',
+
+  cta: 'Export',
+  ctaBusy: 'Preparing report…',
+  busyNote: 'This can take a few seconds. Please keep this screen open.',
+  chooseCycle: 'Choose a cycle first.',
+  chooseFarm: 'Choose a farm first.',
+
+  errorTitle: 'Could not build the report',
+  errorBody: 'Something went wrong while building the report. Please try again.',
+  errorOffline: 'You are offline. Connect to the internet and try again.',
+  emptyTitle: 'Nothing to export',
+  emptyBody: 'No records were found for this period. Try a longer period or a different pond.',
+  doneTitle: 'Report ready',
+  doneBody: 'Choose where to send it from the share sheet.',
+};
+
+export default exportNs;

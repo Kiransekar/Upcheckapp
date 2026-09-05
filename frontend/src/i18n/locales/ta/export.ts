@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'அறிக்கையை ஏற்றுமதி செய்',
+  subtitle: 'உங்கள் சொந்தப் பதிவுகளிலிருந்து ஆவணம் உருவாக்கி பகிரவும்.',
+  entry: 'அறிக்கையை ஏற்றுமதி செய்',
+  entrySub: 'PDF அல்லது விரிதாள், எந்த மொழியிலும்',
+
+  datasetLabel: 'எதை ஏற்றுமதி செய்ய வேண்டும்',
+  dataset_cycle: 'சுழற்சி அறிக்கை',
+  dataset_pondLogs: 'குளப் பதிவுகள்',
+  dataset_money: 'பணம்',
+  dataset_inventory: 'சரக்கு',
+  dataset_attendance: 'வருகை',
+  dataset_tasks: 'பணிகள்',
+
+  scopeLabel: 'எந்தப் பதிவுகள்',
+  farmField: 'பண்ணை',
+  pondField: 'குளம்',
+  cycleField: 'சுழற்சி',
+  farmPlaceholder: 'பண்ணையைத் தேர்ந்தெடுக்கவும்',
+  pondPlaceholder: 'குளத்தைத் தேர்ந்தெடுக்கவும்',
+  cyclePlaceholder: 'சுழற்சியைத் தேர்ந்தெடுக்கவும்',
+  pondAll: 'எல்லாக் குளங்களும்',
+  cycleAll: 'எல்லாச் சுழற்சிகளும்',
+
+  periodLabel: 'காலம்',
+  period_today: 'இன்று',
+  period_week: 'இந்த வாரம்',
+  period_month: 'இந்த மாதம்',
+  period_custom: 'தேதி தேர்வு',
+  customFrom: 'முதல்',
+  customTo: 'வரை',
+
+  sectionsLabel: 'சேர்க்க வேண்டியவை',
+  sectionsHint: 'படிப்பவர் பார்க்கக் கூடாதவற்றை நீக்கிவிடுங்கள்.',
+  section_summary: 'சுருக்கம்',
+  section_waterQuality: 'நீரின் தரம்',
+  section_feed: 'தீவனம்',
+  section_sampling: 'மாதிரி எடுத்தல்',
+  section_mortality: 'இறப்பு',
+  section_treatments: 'சிகிச்சைகள்',
+  section_costs: 'செலவுகள்',
+  section_harvest: 'அறுவடை',
+
+  formatLabel: 'கோப்பு வகை',
+  format_pdf: 'PDF',
+  format_xlsx: 'எக்செல்',
+  format_csv: 'CSV',
+
+  languageLabel: 'அறிக்கையின் மொழி',
+  languageHint: 'இது ஆவணத்திற்குள் இருக்கும் மொழி, செயலியின் மொழி அல்ல. வாங்குபவர், வங்கி அல்லது அதிகாரிக்கு ஆங்கிலத்தைத் தேர்ந்தெடுக்கவும்.',
+
+  cta: 'ஏற்றுமதி',
+  ctaBusy: 'அறிக்கை தயாராகிறது…',
+  busyNote: 'இதற்கு சில வினாடிகள் ஆகலாம். இந்தத் திரையைத் திறந்தே வைக்கவும்.',
+  chooseCycle: 'முதலில் ஒரு சுழற்சியைத் தேர்ந்தெடுக்கவும்.',
+  chooseFarm: 'முதலில் ஒரு பண்ணையைத் தேர்ந்தெடுக்கவும்.',
+
+  errorTitle: 'அறிக்கையை உருவாக்க முடியவில்லை',
+  errorBody: 'அறிக்கையை உருவாக்கும்போது ஏதோ தவறு நடந்தது. மீண்டும் முயற்சிக்கவும்.',
+  errorOffline: 'நீங்கள் ஆஃப்லைனில் உள்ளீர்கள். இணையத்துடன் இணைத்து மீண்டும் முயற்சிக்கவும்.',
+  emptyTitle: 'ஏற்றுமதி செய்ய ஒன்றும் இல்லை',
+  emptyBody: 'இந்தக் காலத்தில் எந்தப் பதிவும் இல்லை. நீண்ட காலத்தையோ வேறு குளத்தையோ தேர்ந்தெடுக்கவும்.',
+  doneTitle: 'அறிக்கை தயார்',
+  doneBody: 'பகிர்வுப் பட்டியலில் இருந்து எங்கு அனுப்புவது என்பதைத் தேர்ந்தெடுக்கவும்.',
+};
+
+export default exportNs;

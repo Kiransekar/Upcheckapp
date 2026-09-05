@@ -96,6 +96,8 @@ export class SupabaseAuthService {
       firstName?: string;
       lastName?: string;
       username?: string;
+      /** Drives the auth email templates's language branch. */
+      language?: string;
     },
   ) {
     const { data, error } = await this.supabase.auth.signUp({

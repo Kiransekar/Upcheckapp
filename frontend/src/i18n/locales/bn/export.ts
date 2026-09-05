@@ -1,0 +1,67 @@
+const exportNs = {
+  title: 'রিপোর্ট রপ্তানি করুন',
+  subtitle: 'নিজের রেকর্ড থেকে নথি তৈরি করে শেয়ার করুন।',
+  entry: 'রিপোর্ট রপ্তানি করুন',
+  entrySub: 'PDF বা স্প্রেডশিট, যেকোনো ভাষায়',
+
+  datasetLabel: 'কী রপ্তানি করবেন',
+  dataset_cycle: 'চক্রের রিপোর্ট',
+  dataset_pondLogs: 'পুকুরের রেকর্ড',
+  dataset_money: 'টাকা',
+  dataset_inventory: 'মজুত',
+  dataset_attendance: 'হাজিরা',
+  dataset_tasks: 'কাজ',
+
+  scopeLabel: 'কোন রেকর্ড',
+  farmField: 'খামার',
+  pondField: 'পুকুর',
+  cycleField: 'চক্র',
+  farmPlaceholder: 'খামার বেছে নিন',
+  pondPlaceholder: 'পুকুর বেছে নিন',
+  cyclePlaceholder: 'চক্র বেছে নিন',
+  pondAll: 'সব পুকুর',
+  cycleAll: 'সব চক্র',
+
+  periodLabel: 'সময়কাল',
+  period_today: 'আজ',
+  period_week: 'এই সপ্তাহ',
+  period_month: 'এই মাস',
+  period_custom: 'নিজের তারিখ',
+  customFrom: 'থেকে',
+  customTo: 'পর্যন্ত',
+
+  sectionsLabel: 'যা রাখবেন',
+  sectionsHint: 'পাঠকের যা দেখার দরকার নেই, তা বাদ দিন।',
+  section_summary: 'সারসংক্ষেপ',
+  section_waterQuality: 'পানির গুণমান',
+  section_feed: 'খাবার',
+  section_sampling: 'নমুনা পরীক্ষা',
+  section_mortality: 'মৃত্যুহার',
+  section_treatments: 'চিকিৎসা',
+  section_costs: 'খরচ',
+  section_harvest: 'ফসল তোলা',
+
+  formatLabel: 'ফাইলের ধরন',
+  format_pdf: 'PDF',
+  format_xlsx: 'এক্সেল',
+  format_csv: 'CSV',
+
+  languageLabel: 'রিপোর্টের ভাষা',
+  languageHint: 'এটি নথির ভিতরের ভাষা, অ্যাপের নয়। ক্রেতা, ব্যাংক বা কর্মকর্তার জন্য ইংরেজি বেছে নিন।',
+
+  cta: 'রপ্তানি',
+  ctaBusy: 'রিপোর্ট তৈরি হচ্ছে…',
+  busyNote: 'কয়েক সেকেন্ড সময় লাগতে পারে। এই স্ক্রিনটি খোলা রাখুন।',
+  chooseCycle: 'আগে একটি চক্র বেছে নিন।',
+  chooseFarm: 'আগে একটি খামার বেছে নিন।',
+
+  errorTitle: 'রিপোর্ট তৈরি করা গেল না',
+  errorBody: 'রিপোর্ট তৈরির সময় কিছু ভুল হয়েছে। আবার চেষ্টা করুন।',
+  errorOffline: 'আপনি অফলাইনে আছেন। ইন্টারনেটে যুক্ত হয়ে আবার চেষ্টা করুন।',
+  emptyTitle: 'রপ্তানি করার মতো কিছু নেই',
+  emptyBody: 'এই সময়ের মধ্যে কোনো রেকর্ড পাওয়া যায়নি। বড় সময়কাল বা অন্য পুকুর বেছে দেখুন।',
+  doneTitle: 'রিপোর্ট প্রস্তুত',
+  doneBody: 'শেয়ার তালিকা থেকে বেছে নিন কোথায় পাঠাবেন।',
+};
+
+export default exportNs;

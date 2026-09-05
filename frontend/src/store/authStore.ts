@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import type { Session, User } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import i18n from '../i18n';
 import { authApi } from '../api/auth';
 import { apiErrorMessage } from '../api/errors';
 import { profilesApi } from '../api/profiles';
@@ -495,7 +496,11 @@ export const useAuthStore = create<AuthState>()(
             signup: async (email, password, firstName, lastName, intent) => {
                 set({ isLoading: true, error: null });
                 try {
-                    const { data } = await authApi.signup({ email, password, firstName, lastName });
+                    // i18n.language is the live UI language; it decides which language the
+                    // verification and password-reset emails arrive in, and it is
+                    // the only chance to record it — Supabase reads user_metadata
+                    // written at signup.
+                    const { data } = await authApi.signup({ email, password, firstName, lastName, language: i18n.language });
                     // The account exists from here whether or not a session came
                     // back — an unconfirmed email withholds the session, it does
                     // not withhold the account.

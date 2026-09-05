@@ -35,6 +35,7 @@ import sync from './sync';
 import notifications from './notifications';
 import whatsNew from './whatsNew';
 import activity from './activity';
+import exportNs from './export';
 
 export default {
   common,
@@ -68,4 +69,5 @@ export default {
   notifications,
   whatsNew,
   activity,
+  export: exportNs,
 };

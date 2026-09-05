@@ -7,6 +7,12 @@ export interface SignupPayload {
     firstName?: string;
     lastName?: string;
     username?: string;
+    /**
+     * The farmer's UI language, stored in Supabase user_metadata so the auth
+     * EMAIL templates can branch on it. Supabase has one template per email
+     * type with no locale switching, so without this every farmer gets English.
+     */
+    language?: string;
 }
 
 export interface SigninPayload {
