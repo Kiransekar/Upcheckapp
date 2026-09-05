@@ -127,20 +127,45 @@ export default {
         { clientId: TRUECALLER_ANDROID_CLIENT_ID, sdkVersion: "3.3.0" }
       ]
     ],
-    // Derived from a hash of the actual native project, NOT a hardcoded
-    // literal. With a literal, an OTA published after adding native modules is
-    // still labelled "1.0.0" and Expo serves it to existing 1.0.0 installs that
-    // do not contain those modules — the bundle imports native code that isn't
-    // there and every one of those users crashes on launch, with no way to push
-    // them a fix. Under the fingerprint policy a native change produces a new
-    // runtime automatically, so old binaries simply stop receiving updates
-    // instead of receiving poisoned ones.
+    // ─────────────────────────────────────────────────────────────────────
+    // BUMP THIS BY HAND WHENEVER THE NATIVE PROJECT CHANGES.
+    //
+    // "Native project changes" means: a new or removed native module, an SDK
+    // upgrade, or an edit to anything under android/ that affects the native
+    // interface. A JS-only change does NOT need a bump — that is the whole
+    // point of OTA, and bumping needlessly strands installs.
+    //
+    // Why a literal and not { policy: "fingerprint" }:
+    // The fingerprint policy requires the developer machine and the EAS builder
+    // to hash android/ to the SAME value. EAS rewrites files in there during
+    // the build and then hashes the result, so the two disagree and every build
+    // dies in "Configure expo-updates". Two of those files were found and put
+    // in .fingerprintignore (android/app/build.gradle for versionCode, and
+    // strings.xml, which circularly contains the fingerprint itself) — both
+    // confirmed by the hash moving on BOTH sides — but at least one more
+    // remained, and finding it needs `expo prebuild` to reproduce EAS's
+    // transformation, which would overwrite the hand-written Truecaller native
+    // module. Not worth it: a literal we control is deterministic, reviewable,
+    // and cannot fail this way.
+    //
+    // The literal still does the job the policy was chosen for. The hazard was
+    // never "a literal" — it was a literal that STAYS 1.0.0 while the native
+    // code changes underneath it, so Expo serves 1.0.0 installs a bundle that
+    // imports native code they do not have, crashing every one of them with no
+    // way to push a fix. Moving to 2.0.0 for this native build means existing
+    // 1.0.0 installs simply stop receiving updates, which is the correct and
+    // intended outcome.
     //
     // Consequence, deliberate: every install still on 1.0.0 stops receiving
     // OTAs the moment this ships. They must install the new build. That is why
     // the OTA-solvable work landed first, and why the in-app update prompt
     // (sp-react-native-in-app-updates) is in this binary.
-    runtimeVersion: { policy: "fingerprint" },
+    //
+    // 1.0.0 — original binary, pre native build-out.
+    // 2.0.0 — adds file/export, sharing, audio, video, speech, gestures,
+    //         reanimated, bottom sheet, sqlite, background tasks, image,
+    //         contacts, SMS, maps, Sentry, PostHog, in-app updates.
+    runtimeVersion: "2.0.0",
     updates: {
       url: "https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c"
     }

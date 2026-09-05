@@ -29,3 +29,8 @@ android/app/build.gradle
 # interface an OTA bundle links against, which is the only thing runtimeVersion
 # exists to protect.
 android/app/src/main/res/values/strings.xml
+
+# NOTE: runtimeVersion is currently the literal "2.0.0" (app.config.ts), not
+# { policy: "fingerprint" }, so nothing here is in force today. Kept because it
+# records two confirmed causes of local-vs-EAS fingerprint divergence, which is
+# exactly what anyone re-attempting the fingerprint policy needs to know first.
