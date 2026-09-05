@@ -100,7 +100,20 @@ export default {
         { clientId: TRUECALLER_ANDROID_CLIENT_ID, sdkVersion: "3.3.0" }
       ]
     ],
-    runtimeVersion: "1.0.0",
+    // Derived from a hash of the actual native project, NOT a hardcoded
+    // literal. With a literal, an OTA published after adding native modules is
+    // still labelled "1.0.0" and Expo serves it to existing 1.0.0 installs that
+    // do not contain those modules — the bundle imports native code that isn't
+    // there and every one of those users crashes on launch, with no way to push
+    // them a fix. Under the fingerprint policy a native change produces a new
+    // runtime automatically, so old binaries simply stop receiving updates
+    // instead of receiving poisoned ones.
+    //
+    // Consequence, deliberate: every install still on 1.0.0 stops receiving
+    // OTAs the moment this ships. They must install the new build. That is why
+    // the OTA-solvable work landed first, and why the in-app update prompt
+    // (sp-react-native-in-app-updates) is in this binary.
+    runtimeVersion: { policy: "fingerprint" },
     updates: {
       url: "https://u.expo.dev/f3274022-ae8a-4be6-9085-23f935542a4c"
     }
