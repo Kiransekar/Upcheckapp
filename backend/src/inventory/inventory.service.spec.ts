@@ -96,7 +96,13 @@ describe('InventoryService', () => {
       createQueryBuilder: jest.fn(() => updateBuilder),
     };
     members = { find: jest.fn().mockResolvedValue([]) };
-    alerts = { createAutoAlert: jest.fn().mockResolvedValue(undefined) };
+    alerts = {
+      createAutoAlert: jest.fn().mockResolvedValue(undefined),
+      // Default: nothing open, so the dedupe guard lets an alert through and
+      // the existing D10/I3 assertions still describe a first-time warning.
+      hasOpenAutoAlert: jest.fn().mockResolvedValue(false),
+      resolveAutoAlerts: jest.fn().mockResolvedValue(0),
+    };
     farmAccess = {
       assertCanAccessFarm: jest.fn().mockResolvedValue(FARM),
       getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
@@ -291,6 +297,47 @@ describe('InventoryService', () => {
         (c: any[]) => c[0],
       );
       expect(notified.sort()).toEqual(['granted-1', 'manager-1', 'owner-1']);
+    });
+
+    /**
+     * The reported bug, in two halves.
+     *
+     * A farmer restocked and the "running low" banner stayed. Then they
+     * dismissed it and it came back on the next app open. Two independent
+     * causes; these pin the server half.
+     */
+    it('does not raise a second alert while one is still open', async () => {
+      // Feed is logged DAILY, and every log from a low bag came back through
+      // raiseLowStockAlert. Without dedupe the farmer got the same sentence
+      // again every day and dismissing one just revealed the next.
+      alerts.hasOpenAutoAlert.mockResolvedValue(true);
+
+      await service.adjustStock('item-1', -1, 'u1');
+
+      expect(alerts.createAutoAlert).not.toHaveBeenCalled();
+    });
+
+    it('closes the open alerts once the item is restocked above its level', async () => {
+      // Nothing ever cleared these. The alert the farmer had already acted on
+      // sat unread forever, which reads as the app being stuck rather than as
+      // stale data.
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        name: 'Feed',
+        quantity: 50,
+        reorderLevel: 10,
+        unit: 'kg',
+        farmId: 'farm-1',
+      });
+
+      await service.adjustStock('item-1', 45, 'u1');
+
+      expect(alerts.resolveAutoAlerts).toHaveBeenCalledWith(
+        'inventory_low_stock',
+        'inventoryItemId',
+        'item-1',
+      );
+      expect(alerts.createAutoAlert).not.toHaveBeenCalled();
     });
   });
 

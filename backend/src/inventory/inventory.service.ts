@@ -654,6 +654,25 @@ export class InventoryService {
       for (const f of farms) {
         await this.raiseLowStockAlert(savedItem, f);
       }
+    } else {
+      // Restocked above the reorder level, so the alert is no longer true.
+      // Nothing used to clear these: the "running low" alert stayed unread
+      // forever after the farmer had already fixed it, which reads as the app
+      // being stuck rather than as stale data. Closed for EVERY recipient, not
+      // just the actor — the manager who reordered is often not the owner who
+      // was warned.
+      try {
+        await this.alertsService.resolveAutoAlerts(
+          'inventory_low_stock',
+          'inventoryItemId',
+          savedItem.id,
+        );
+      } catch (error: any) {
+        // Never fail a stock write because an alert would not close.
+        this.logger.error(
+          `Failed to resolve low stock alerts: ${error?.message ?? error}`,
+        );
+      }
     }
 
     return savedItem;
@@ -689,6 +708,21 @@ export class InventoryService {
 
       const message = `${item.name} is running low (${item.quantity} ${item.unit ?? ''}).`;
       for (const userId of recipients) {
+        // One open alert per item per person. Feed is logged daily, and every
+        // log from a low bag came back through here — so without this a farmer
+        // got the same sentence again every single day, and dismissing one
+        // just revealed the next. The alert reappears only after the current
+        // one is read AND the stock is still low.
+        if (
+          await this.alertsService.hasOpenAutoAlert(
+            userId,
+            'inventory_low_stock',
+            'inventoryItemId',
+            item.id,
+          )
+        ) {
+          continue;
+        }
         await this.alertsService.createAutoAlert(
           userId,
           farm.id,
