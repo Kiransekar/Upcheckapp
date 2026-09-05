@@ -14,49 +14,36 @@
   <uses-feature android:name="android.hardware.camera" android:required="false"/>
   <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
   <uses-feature android:name="android.hardware.microphone" android:required="false"/>
-  <!--
-    Android 11+ hides installed apps unless they are declared here. Without a
-    matching entry, canOpenURL returns false for an app that is plainly
-    installed. QUERY_ALL_PACKAGES is deliberately NOT used - Google Play
-    restricts it and a farm app has no business asking for it.
-  -->
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
-    <!-- Share a exported PDF/CSV/XLSX to any handler (expo-sharing). -->
     <intent>
       <action android:name="android.intent.action.SEND"/>
       <data android:mimeType="*/*"/>
     </intent>
-    <!-- Open a saved export in whatever can read it. -->
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <data android:mimeType="application/pdf"/>
     </intent>
-    <!-- SMS invites (expo-sms). -->
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <data android:scheme="smsto"/>
     </intent>
-    <!-- Call a worker / support. -->
     <intent>
       <action android:name="android.intent.action.DIAL"/>
       <data android:scheme="tel"/>
     </intent>
-    <!-- Email. -->
     <intent>
       <action android:name="android.intent.action.SENDTO"/>
       <data android:scheme="mailto"/>
     </intent>
-    <!-- Maps / geo coordinates. -->
     <intent>
       <action android:name="android.intent.action.VIEW"/>
       <data android:scheme="geo"/>
     </intent>
-    <!-- Named packages we detect or launch directly. -->
     <package android:name="com.whatsapp"/>
     <package android:name="com.whatsapp.w4b"/>
     <package android:name="com.google.android.apps.maps"/>
