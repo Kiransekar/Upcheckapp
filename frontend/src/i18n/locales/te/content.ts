@@ -164,7 +164,7 @@ const content = {
         headline: 'శీర్షిక',
         summary: 'సారాంశం',
         source: 'మూలం',
-        shared: 'Upcheck యాప్ నుండి షేర్ చేయబడింది.',
+        shared: 'Neerani యాప్ నుండి షేర్ చేయబడింది.',
       },
     },
   },

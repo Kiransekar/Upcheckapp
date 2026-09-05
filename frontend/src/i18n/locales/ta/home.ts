@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'உதவி & தகவல்',
   moreUserFallback: 'பயனர்',
   moreEmailFallback: 'மின்னஞ்சல் இல்லை',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'வெளியேறு',
   moreSignOutMessage: 'நிச்சயமாக வெளியேற விரும்புகிறீர்களா?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'உதவி & ஆதரவு',
   moreHelpDesc: 'அடிக்கடி கேட்கப்படும் கேள்விகள் மற்றும் பயிற்சிகள்',
-  moreAbout: 'Upcheck பற்றி',
+  moreAbout: 'Neerani பற்றி',
   moreAboutDesc: 'ஆப் பதிப்பு மற்றும் வரவேற்புகள்',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'சுழற்சி தேவை',
   farmerFallback: 'விவசாயி',
   onboarding_languagePrompt: 'உங்கள் மொழியைத் தேர்ந்தெடுக்கவும்',
-  onboarding_title: 'Upcheck-க்கு வரவேற்கிறோம்',
+  onboarding_title: 'Neerani-க்கு வரவேற்கிறோம்',
   onboarding_subtitle: 'உங்கள் இறால் பண்ணையின் தினசரி உதவியாளர்',
   onboarding_feature1: 'நீர், தீவனம் மற்றும் வளர்ச்சியை வினாடிகளில் பதிவு செய்யுங்கள்',
   onboarding_feature2: 'உயிர்வாழ்வு மற்றும் லாபத்தை அதிகரிக்க அறிவார்ந்த ஆலோசனை',

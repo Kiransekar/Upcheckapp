@@ -1,7 +1,8 @@
+import { mark } from './src/utils/startupTrace'; // FIRST: t0 for the startup budget
 import './src/i18n'; // initialise i18next before any screen renders
 import './src/theme/fontScaling'; // cap OS-level font scaling app-wide (docs/UI_UX_AUDIT.md Tier 1 #4)
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, type AppStateStatus } from 'react-native';
+import { Alert, AppState, InteractionManager, type AppStateStatus } from 'react-native';
 import i18n from './src/i18n';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
@@ -28,6 +29,16 @@ import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
+/*
+ * PER-WEIGHT SUBPATHS, not the package barrels.
+ *
+ * `@expo-google-fonts/<family>`'s index re-exports EVERY weight and italic, and
+ * each of those is a `require()` of a .ttf — so importing one name from the
+ * barrel puts the whole family in Metro's asset graph. Measured from the
+ * exported assetmap: 7 Material Symbols weights at ~1.2MB each (8.3MB for the
+ * one we use), 16 Nunito files, 18 DM Sans, 6 DM Mono — 15.4MB of fonts
+ * shipped for the 10 faces below. The subpath entry points pull one file each.
+ */
 import {
   useFonts,
   Nunito_400Regular,
@@ -35,19 +46,12 @@ import {
   Nunito_700Bold,
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
-import {
-  DMSans_400Regular,
-  DMSans_500Medium,
-  DMSans_700Bold,
-} from '@expo-google-fonts/dm-sans';
-import {
-  DMMono_400Regular,
-  DMMono_500Medium,
-} from '@expo-google-fonts/dm-mono';
+import { DMSans_400Regular, DMSans_500Medium, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
+import { DMMono_400Regular, DMMono_500Medium } from '@expo-google-fonts/dm-mono';
 // Material Symbols Rounded — the redesign names its icons in Material Symbols
 // terms, and this is a ligature font, so components render the icon NAME as
 // text (see components/ui/Icon.tsx).
-import { MaterialSymbolsRounded_400Regular } from '@expo-google-fonts/material-symbols-rounded';
+import { MaterialSymbolsRounded_400Regular } from '@expo-google-fonts/material-symbols-rounded/400Regular';
 
 /**
  * Navigation handle for notification taps.
@@ -59,6 +63,19 @@ import { MaterialSymbolsRounded_400Regular } from '@expo-google-fonts/material-s
  * container that has not mounted yet.
  */
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+/*
+ * The cost of evaluating everything above.
+ *
+ * ES imports are hoisted, so by the time this line runs the whole eager module
+ * graph reachable from App.tsx has already been evaluated — measured at 477
+ * project modules / 3.6MB of source, of which src/i18n is 1.85MB (26.8% of the
+ * production bundle, all six languages) and src/screens is 863KB (12.5%, every
+ * screen, because RootNavigator imports all ~150 at module scope). Nothing can
+ * paint before this number. It is the startup budget's biggest single line and
+ * the reason this mark exists.
+ */
+mark('module-eval');
 
 /**
  * Send the farmer wherever a tapped notification points, if anywhere.
@@ -96,6 +113,12 @@ export default function App() {
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
+  // Read only to time it — the navigator gate itself lives in RootNavigator
+  // and must stay there (see its `isBootstrapping` comment).
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+  useEffect(() => {
+    if (!isBootstrapping) mark('auth-bootstrap');
+  }, [isBootstrapping]);
   // One prompt per install, and only for a farmer who has never answered.
   const askedThisSession = useRef(false);
   // Flips true once the navigator is mounted AND the cold-start notification
@@ -104,29 +127,56 @@ export default function App() {
   // top of a tap that's about to route the farmer to their support reply.
   const [navReady, setNavReady] = useState(false);
 
-  // Once we have a real Expo token and an authenticated session, register the
-  // token with the backend so server-side alerts can be delivered as push.
+  // Acquire the Expo push token and register it with the backend, so
+  // server-side alerts can be delivered as push.
+  //
+  // Gated on `isAuthenticated`, and moved off the mount effect that installs
+  // the notification listeners (those must stay unconditional — a cold-start
+  // tap has to route). `registerForPushNotificationsAsync` asks the OS for
+  // POST_NOTIFICATIONS and then makes a network round trip to Expo's push
+  // service for the token. On a FRESH INSTALL that fired while the farmer was
+  // still on the language picker with no account: a permission dialog over the
+  // first screen, and a round trip whose result cannot be used until they sign
+  // in. There is nothing to register a token against until there is a session.
   useEffect(() => {
-    if (isAuthenticated && expoPushToken.startsWith('ExponentPushToken')) {
+    if (!isAuthenticated) return;
+    if (expoPushToken.startsWith('ExponentPushToken')) {
       pushApi.registerToken(expoPushToken).catch(() => {
         /* best-effort; backend logs failures */
       });
+      return;
     }
+    registerForPushNotificationsAsync()
+      .then((token) => setExpoPushToken(token ?? ''))
+      .catch((error: any) => setExpoPushToken(`${error}`));
   }, [isAuthenticated, expoPushToken]);
 
   // Telemetry, per Privacy Policy section 6. Crash reporting starts on launch
   // unless the farmer switched it off (and is a no-op with no DSN configured);
   // analytics is only ever started by syncAnalyticsConsent finding a stored
   // 'granted' — 'unasked' and 'declined' both leave the SDK unconstructed.
+  //
+  // Deferred behind `runAfterInteractions` because `crashReports` defaults to
+  // TRUE (features/telemetryPrefs.ts DEFAULT_TELEMETRY_PREFS), so on a fresh
+  // install this fires on the very first launch and `require('@sentry/react-
+  // native')` evaluates ~840KB of JS (@sentry/core 287KB, @sentry-internal/
+  // replay 131KB, @sentry/browser 84KB, css-tree 101KB, entities 83KB — all
+  // measured from the production bundle's source map) on the same JS thread
+  // that is trying to render the first screen. Nothing here is needed for the
+  // first frame; running it one interaction later costs crash coverage only
+  // for that first frame, and buys the frame.
   useEffect(() => {
-    loadTelemetryPrefs()
-      .then((prefs) => {
-        if (prefs.crashReports) initSentry();
-        return syncAnalyticsConsent();
-      })
-      .catch(() => {
-        /* telemetry must never be able to stop the app starting */
-      });
+    const task = InteractionManager.runAfterInteractions(() => {
+      loadTelemetryPrefs()
+        .then((prefs) => {
+          if (prefs.crashReports) initSentry();
+          return syncAnalyticsConsent();
+        })
+        .catch(() => {
+          /* telemetry must never be able to stop the app starting */
+        });
+    });
+    return () => task.cancel();
   }, []);
 
   // Identify the account to the crash reporter by an irreversible hash only —
@@ -230,9 +280,16 @@ export default function App() {
 
   // Refresh the authoritative banned-substance list from the backend on launch
   // (BANNED-1). Best-effort: falls back to the cached/bundled list when offline.
+  //
+  // Gated on `isAuthenticated`: the list is only ever read by TreatmentLogScreen
+  // and DiseaseLogScreen, both of which are behind the session. Unconditional,
+  // it put a network GET on the critical path of a FRESH INSTALL, where the
+  // farmer is sitting on the language picker with no account — competing for a
+  // rural connection with nothing to show for it, and 404/401-ing anyway.
   useEffect(() => {
+    if (!isAuthenticated) return;
     useBannedSubstancesStore.getState().hydrate();
-  }, []);
+  }, [isAuthenticated]);
 
   // Global unhandled promise rejection handler — prevents crash on Android production
   useEffect(() => {
@@ -258,12 +315,6 @@ export default function App() {
   });
 
   useEffect(() => {
-    registerForPushNotificationsAsync()
-      .then(token => {
-        setExpoPushToken(token ?? '');
-      })
-      .catch((error: any) => setExpoPushToken(`${error}`));
-
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       setNotification(notification);
     });
@@ -280,10 +331,28 @@ export default function App() {
     };
   }, []);
 
-  if (!fontsLoaded) {
-    return null;
-  }
+  useEffect(() => {
+    if (fontsLoaded) mark('fonts');
+  }, [fontsLoaded]);
 
+  /*
+   * There is NO `if (!fontsLoaded) return null` here any more, on purpose.
+   *
+   * These ten faces total ~1.9MB, of which MaterialSymbolsRounded_400Regular
+   * alone is 1.18MB (measured from the exported asset map). Blocking the whole
+   * tree on them meant the farmer stared at the bare window background for the
+   * entire font load before even the bootstrap spinner could paint — and the
+   * spinner is an <ActivityIndicator> with no text in it, so it never needed a
+   * font in the first place.
+   *
+   * Rendering immediately puts the font load in PARALLEL with the auth
+   * bootstrap and the stored-language read that RootNavigator already waits on
+   * (navigation/RootNavigator.tsx: `if (isBootstrapping || needsLanguage ===
+   * null)`), instead of in series before them. The cost is that if the fonts
+   * lose that race the first real screen flashes in the system font for a
+   * frame or two — which is strictly better than showing nothing at all, and
+   * the `fonts` vs `nav-ready` marks above will say whether it ever happens.
+   */
   return (
     <ErrorBoundary>
       {/*
@@ -305,6 +374,9 @@ export default function App() {
              * navigator is ready, so the navigate call has somewhere to go.
              */
             onReady={() => {
+              // The startup budget's finishing line: the navigator is mounted,
+              // so something the farmer can use is on screen. Prints the line.
+              mark('nav-ready');
               Notifications.getLastNotificationResponseAsync()
                 .then((response) => {
                   if (response) {

@@ -2,7 +2,7 @@ const auth = {
     continueWithGoogle: "Google ସହ ଜାରି ରଖନ୍ତୁ",
     continueWithTruecaller: "Truecaller ସହ ଜାରି ରଖନ୍ତୁ",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'Upcheck',
+  title: 'Neerani',
   subtitle: 'ଚିଙ୍ଗୁଡ଼ି ଜଳକୃଷି ପ୍ରବନ୍ଧନ',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -38,7 +38,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'ଆକାଉଣ୍ଟ ତୈରି କରନ୍ତୁ',
-  registerSubtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଫାର୍ମ ପ୍ରବନ୍ଧନ ପାଇଁ Upcheck ରେ ଯୋଗ ଦିଅନ୍ତୁ',
+  registerSubtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଫାର୍ମ ପ୍ରବନ୍ଧନ ପାଇଁ Neerani ରେ ଯୋଗ ଦିଅନ୍ତୁ',
 
   firstNameLabel: 'ପ୍ରଥମ ନାମ',
   firstNamePlaceholder: 'ଆପଣଙ୍କ ପ୍ରଥମ ନାମ ଦିଅନ୍ତୁ',
@@ -131,7 +131,7 @@ const auth = {
   missedCallBody:
     'ଶୀଘ୍ର ଆପଣଙ୍କ ଫୋନ ବଜିବ। ଉଠାଉ ନ ଥିবେ — Truecaller ସ୍ୱଯଂଚାଳିତ ଭାବେ ଯାଞ୍ଚ କରିବ।',
   expiresIn: '{{seconds}}s ରେ ସମୟ ଶେଷ',
-  verifyingWithUpcheck: 'Upcheck ସହ ଯାଞ୍ଚ ହେଉଛି...',
+  verifyingWithUpcheck: 'Neerani ସହ ଯାଞ୍ଚ ହେଉଛି...',
   signInWithEmail: 'ଇମେଲ ଦ୍ୱାରା ସାଇନ ଇନ',
   truecallerNoSession: 'ସର୍ଭର କୌଣସି ସେସନ ଫେରାଇ ନାହିଁ। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
   truecallerVerificationFailed: 'Truecaller ଯାଞ୍ଚ ବିଫଳ ହେଲା। ଦୟାକରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',

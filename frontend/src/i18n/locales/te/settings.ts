@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'వారపు పనితీరు నివేదికలు',
   security: 'భద్రత',
   twoFactor: 'రెండు-దశల ప్రమాణీకరణ',
-  about: 'Upcheck గురించి',
+  about: 'Neerani గురించి',
   privacyPolicy: 'గోప్యతా విధానం',
   termsOfService: 'సేవా నిబంధనలు',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'సహాయం & మద్దతు',
   helpIntroTitle: 'మేము ఎలా సహాయపడగలం?',
   helpIntroText:
-    'Upcheck మీ రొయ్యల జలకృషి నిర్వహణ సహాయకుడు. దీన్ని బాగా ఉపయోగించుకోవడానికి ఇది చదవండి.',
+    'Neerani మీ రొయ్యల జలకృషి నిర్వహణ సహాయకుడు. దీన్ని బాగా ఉపయోగించుకోవడానికి ఇది చదవండి.',
   quickGuides: 'త్వరిత మార్గదర్శకాలు',
   contactUs: 'మాను సంప్రదించండి',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'చెరువులను నిర్వహించండి, సైకిళ్ళు మేనేజ్ చేయండి, ఇన్వెంటరీ ట్రాక్ చేయండి మరియు ఫారం వారీ ఆర్థిక నివేదికలు చూడండి.',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'Upcheck గురించి',
+  aboutUpcheck: 'Neerani గురించి',
   appTagline: 'రొయ్యల జలకృషి నిర్వహణ',
   versionLabel: 'వెర్షన్',
   buildInfo: 'బిల్డ్ 2026.04.30',
   descriptionLabel: 'వివరణ',
   descriptionText:
-    'Upcheck అనేది రైతులు నీటి నాణ్యత పర్యవేక్షించడానికి, దాణా నిర్వహించడానికి, వృద్ధిని ట్రాక్ చేయడానికి మరియు సాగు పద్ధతులను అనుకూలపరచడానికి రూపొందించిన సమగ్ర రొయ్యల జలకృషి నిర్వహణ అనువర్తనం.',
+    'Neerani అనేది రైతులు నీటి నాణ్యత పర్యవేక్షించడానికి, దాణా నిర్వహించడానికి, వృద్ధిని ట్రాక్ చేయడానికి మరియు సాగు పద్ధతులను అనుకూలపరచడానికి రూపొందించిన సమగ్ర రొయ్యల జలకృషి నిర్వహణ అనువర్తనం.',
   featuresLabel: 'ఫీచర్లు',
   featureMultiFarm: 'బహు-ఫారం నిర్వహణ',
   featurePondMonitoring: 'చెరువు పర్యవేక్షణ & లాగ్లు',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'వృద్ధి సిమ్యులేషన్లు',
   featureFinancialReports: 'ఆర్థిక నివేదికలు',
   developedByLabel: 'అభివృద్ధి చేసినవారు',
-  developedByTeam: 'Upcheck బృందం',
+  developedByTeam: 'Neerani బృందం',
   developedByLocation: 'భారతదేశం',
-  footerCopyright: '© 2026 Upcheck. అన్ని హక్కులు రిజర్వు చేయబడ్డాయి.',
+  footerCopyright: '© 2026 Neerani. అన్ని హక్కులు రిజర్వు చేయబడ్డాయి.',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'రెండు-దశల ప్రమాణీకరణ',
@@ -155,7 +155,7 @@ const settings = {
 
   // ── రిమైండర్ సమయాలు (స్మార్ట్ రిమైండర్లు) ────────────────────────────
   reminderTimes: "రిమైండర్ సమయాలు",
-  reminderTimesDesc: "నీటి నాణ్యతను నమోదు చేయడానికి Upcheck మిమ్మల్ని ఎప్పుడు గుర్తు చేయాలో ఎంచుకోండి.",
+  reminderTimesDesc: "నీటి నాణ్యతను నమోదు చేయడానికి Neerani మిమ్మల్ని ఎప్పుడు గుర్తు చేయాలో ఎంచుకోండి.",
   reminderMorning: "ఉదయం తనిఖీ",
   reminderAfternoon: "మధ్యాహ్నం తనిఖీ",
   reminderEvening: "సాయంత్రం తనిఖీ",
@@ -163,8 +163,8 @@ const settings = {
   reminderHourLabel: "గంట",
   reminderMinuteLabel: "నిమిషం",
   reminderStatusOn: "రిమైండర్లు ఆన్‌లో ఉన్నాయి. తదుపరిది: {{when}}",
-  reminderStatusOff: "ప్రస్తుతం ఏ రిమైండర్ సెట్ కాలేదు. ఒక చెరువును జోడించి, Upcheck ఒకసారి తెరిస్తే అవి సెట్ అవుతాయి.",
-  reminderStatusBlocked: "ఈ ఫోన్‌లో Upcheck నోటిఫికేషన్లు చూపలేదు, కాబట్టి రిమైండర్లు రావు.",
+  reminderStatusOff: "ప్రస్తుతం ఏ రిమైండర్ సెట్ కాలేదు. ఒక చెరువును జోడించి, Neerani ఒకసారి తెరిస్తే అవి సెట్ అవుతాయి.",
+  reminderStatusBlocked: "ఈ ఫోన్‌లో Neerani నోటిఫికేషన్లు చూపలేదు, కాబట్టి రిమైండర్లు రావు.",
   reminderStatusOpenSettings: "ఫోన్ సెట్టింగ్‌లు తెరవండి",
   reminderWhenToday: "ఈరోజు {{time}} గంటలకు",
   reminderWhenTomorrow: "రేపు {{time}} గంటలకు",

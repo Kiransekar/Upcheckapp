@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'ସହାୟତା ଓ ତଥ୍ୟ',
   moreUserFallback: 'ବ୍ୟବହାରକାରୀ',
   moreEmailFallback: 'ଇମେଲ ନାହିଁ',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'ସାଇନ ଆଉଟ',
   moreSignOutMessage: 'ଆପଣ ସତ ସାଇନ ଆଉଟ କରିବାକୁ ଚାହୁଁଛନ୍ତି?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'ସହାୟତା ଓ ସମର୍ଥନ',
   moreHelpDesc: 'FAQ ଓ ଟ୍ୟୁଟୋରିଆଲ',
-  moreAbout: 'Upcheck ବିଷୟରେ',
+  moreAbout: 'Neerani ବିଷୟରେ',
   moreAboutDesc: 'ଆପ ସଂସ୍କରଣ ଓ କ୍ରେଡିଟ',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'ସାଇକଲ ଦରକାର',
   farmerFallback: 'କୃଷକ',
   onboarding_languagePrompt: 'ଆପଣଙ୍କ ଭାଷା ବାଛନ୍ତୁ',
-  onboarding_title: 'Upcheck କୁ ସ୍ୱାଗତ',
+  onboarding_title: 'Neerani କୁ ସ୍ୱାଗତ',
   onboarding_subtitle: 'ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଚାଷର ଦୈନିକ ସହାୟକ',
   onboarding_feature1: 'ପାଣି, ଖାଦ୍ୟ ଓ ବୃଦ୍ଧି ସେକେଣ୍ଡରେ ରେକର୍ଡ କରନ୍ତୁ',
   onboarding_feature2: 'ବଞ୍ଚିବା ଓ ଲାଭ ବଢ଼ାଇବା ପାଇଁ ସ୍ମାର୍ଟ ପରାମର୍ଶ',

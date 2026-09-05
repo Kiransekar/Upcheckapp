@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'साप्ताहिक प्रदर्शन रिपोर्ट',
   security: 'सुरक्षा',
   twoFactor: 'दो-चरणीय प्रमाणीकरण',
-  about: 'Upcheck के बारे में',
+  about: 'Neerani के बारे में',
   privacyPolicy: 'गोपनीयता नीति',
   termsOfService: 'सेवा की शर्तें',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'सहायता और समर्थन',
   helpIntroTitle: 'हम कैसे मदद कर सकते हैं?',
   helpIntroText:
-    'Upcheck आपका झींगा जलकृषि प्रबंधन साथी है। इसका अधिकतम लाभ उठाने का तरीका यहाँ है।',
+    'Neerani आपका झींगा जलकृषि प्रबंधन साथी है। इसका अधिकतम लाभ उठाने का तरीका यहाँ है।',
   quickGuides: 'त्वरित मार्गदर्शिकाएं',
   contactUs: 'हमसे संपर्क करें',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'तालाब व्यवस्थित करें, चक्र प्रबंधित करें, इन्वेंटरी ट्रैक करें, और प्रत्येक फार्म की वित्तीय रिपोर्ट देखें।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'Upcheck के बारे में',
+  aboutUpcheck: 'Neerani के बारे में',
   appTagline: 'झींगा जलकृषि प्रबंधन',
   versionLabel: 'संस्करण',
   buildInfo: 'बिल्ड 2026.04.30',
   descriptionLabel: 'विवरण',
   descriptionText:
-    'Upcheck एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',
+    'Neerani एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',
   featuresLabel: 'विशेषताएं',
   featureMultiFarm: 'बहु-फार्म प्रबंधन',
   featurePondMonitoring: 'तालाब निगरानी और लॉग',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'वृद्धि सिमुलेशन',
   featureFinancialReports: 'वित्तीय रिपोर्ट',
   developedByLabel: 'विकसित किया',
-  developedByTeam: 'Upcheck टीम',
+  developedByTeam: 'Neerani टीम',
   developedByLocation: 'भारत',
-  footerCopyright: '© 2026 Upcheck. सर्वाधिकार सुरक्षित।',
+  footerCopyright: '© 2026 Neerani. सर्वाधिकार सुरक्षित।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'दो-चरणीय प्रमाणीकरण',
@@ -155,7 +155,7 @@ const settings = {
 
   // ── रिमाइंडर का समय (स्मार्ट रिमाइंडर) ──────────────────────────────────
   reminderTimes: "रिमाइंडर का समय",
-  reminderTimesDesc: "तय करें कि Upcheck आपको पानी की गुणवत्ता दर्ज करने के लिए कब याद दिलाए।",
+  reminderTimesDesc: "तय करें कि Neerani आपको पानी की गुणवत्ता दर्ज करने के लिए कब याद दिलाए।",
   reminderMorning: "सुबह की जांच",
   reminderAfternoon: "दोपहर की जांच",
   reminderEvening: "शाम की जांच",
@@ -163,8 +163,8 @@ const settings = {
   reminderHourLabel: "घंटा",
   reminderMinuteLabel: "मिनट",
   reminderStatusOn: "रिमाइंडर चालू हैं। अगला: {{when}}",
-  reminderStatusOff: "अभी कोई रिमाइंडर सेट नहीं है। एक तालाब जोड़ें, फिर Upcheck एक बार खोलें — रिमाइंडर लग जाएंगे।",
-  reminderStatusBlocked: "इस फ़ोन पर Upcheck सूचनाएँ नहीं दिखा सकता, इसलिए रिमाइंडर नहीं आएंगे।",
+  reminderStatusOff: "अभी कोई रिमाइंडर सेट नहीं है। एक तालाब जोड़ें, फिर Neerani एक बार खोलें — रिमाइंडर लग जाएंगे।",
+  reminderStatusBlocked: "इस फ़ोन पर Neerani सूचनाएँ नहीं दिखा सकता, इसलिए रिमाइंडर नहीं आएंगे।",
   reminderStatusOpenSettings: "फ़ोन सेटिंग्स खोलें",
   reminderWhenToday: "आज {{time}} बजे",
   reminderWhenTomorrow: "कल {{time}} बजे",

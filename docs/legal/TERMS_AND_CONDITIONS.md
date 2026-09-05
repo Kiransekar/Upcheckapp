@@ -5,13 +5,13 @@
 
 **Upcheck Technologies Private Limited**
 
-These Terms of Service ("Terms") are an agreement between you and Upcheck Technologies Private Limited ("Upcheck", "we", "us"), covering the Upcheck application and any Upcheck hardware that connects to it (the "Service").
+These Terms of Service ("Terms") are an agreement between you and Upcheck Technologies Private Limited ("we", "us"), the company that operates Neerani. They cover the Neerani application and any Neerani hardware that connects to it (the "Service").
 
 By creating an account or using the Service, you accept these Terms and our Privacy Policy. If you do not accept them, please do not use the Service.
 
 Effective 5 September 2026. Last updated 5 September 2026.
 
-## 1. Who may use Upcheck
+## 1. Who may use Neerani
 
 You must be at least 18 years old and legally able to enter into a contract. You are responsible for the accuracy of what you tell us, for keeping your password and device secure, and for everything done through your account.
 
@@ -31,9 +31,9 @@ You own the farm data and content you enter. You give us a limited licence to st
 
 Export your important records and keep your own copies. The app can produce PDF, CSV and Excel exports at any time. No online service should be your only copy of something that matters.
 
-## 4. What Upcheck is, and what it is not
+## 4. What Neerani is, and what it is not
 
-Upcheck is a decision-support tool. It records what you tell it, calculates from those figures, and highlights things that may need attention. It is an aid to your own judgement and to qualified advice — it is not a substitute for either.
+Neerani is a decision-support tool. It records what you tell it, calculates from those figures, and highlights things that may need attention. It is an aid to your own judgement and to qualified advice — it is not a substitute for either.
 
 It is not professional, veterinary, agronomic, financial or legal advice. Its calculators, simulations, thresholds, alerts and predictions are approximations built on the data you enter and on general models that cannot see your pond. They may be wrong, and they will certainly be wrong if the data entered is wrong or out of date.
 
@@ -51,13 +51,13 @@ You remain responsible for complying with every law and regulation that applies 
 
 ## 6. Cost
 
-Upcheck is currently free to use.
+Neerani is currently free to use.
 
 We may introduce paid features or plans in future. If we do, we will tell you in advance, paid features will be clearly marked before you are charged, and you will never be billed without agreeing first. Your existing data will remain accessible to you and exportable whether or not you take a paid plan.
 
-## 7. Upcheck hardware
+## 7. Neerani hardware
 
-Where you use Upcheck devices with the app, these Terms cover the app and the service the device connects to. The purchase, warranty, replacement and physical use of the device itself are governed by the terms supplied with that device.
+Where you use Neerani devices with the app, these Terms cover the app and the service the device connects to. The purchase, warranty, replacement and physical use of the device itself are governed by the terms supplied with that device.
 
 Device readings are subject to section 4 in the same way as anything else in the app: a sensor can drift, foul, lose power or lose connectivity, and a reading is information for your judgement, not a guarantee about your pond. Do not rely on a device alone for a decision that could cost you a crop.
 

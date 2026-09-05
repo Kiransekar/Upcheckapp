@@ -28,7 +28,7 @@ describe('WelcomeScreen — artboard 02', () => {
     it('shows the three value props and nothing else to decide', () => {
         const { getByText, queryByText } = renderScreen();
 
-        expect(getByText('Welcome to Upcheck')).toBeTruthy();
+        expect(getByText('Welcome to Neerani')).toBeTruthy();
         expect(getByText('Log water, feed and growth in seconds')).toBeTruthy();
         expect(getByText('Smart advice to boost survival and profit')).toBeTruthy();
         expect(getByText('Add workers to share the daily work')).toBeTruthy();

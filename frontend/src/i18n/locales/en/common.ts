@@ -4,7 +4,7 @@ const common = {
   tryAgain: "Try again",
   noOptions: "No options available",
   selectPlaceholder: "Select…",
-  appName: 'Upcheck',
+  appName: 'Neerani',
   save: 'Save',
   cancel: 'Cancel',
   delete: 'Delete',

@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'வாராந்திர செயல்திறன் அறிக்கைகள்',
   security: 'பாதுகாப்பு',
   twoFactor: 'இரு-படி அங்கீகரிப்பு',
-  about: 'Upcheck பற்றி',
+  about: 'Neerani பற்றி',
   privacyPolicy: 'தனியுரிமை கொள்கை',
   termsOfService: 'சேவை விதிமுறைகள்',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'உதவி & ஆதரவு',
   helpIntroTitle: 'எவ்வாறு உதவலாம்?',
   helpIntroText:
-    'Upcheck உங்கள் இறால் மீன்வளர்ப்பு மேலாண்மை உதவியாளர். இதை சிறப்பாக பயன்படுத்த கீழே காணுங்கள்.',
+    'Neerani உங்கள் இறால் மீன்வளர்ப்பு மேலாண்மை உதவியாளர். இதை சிறப்பாக பயன்படுத்த கீழே காணுங்கள்.',
   quickGuides: 'விரைவு வழிகாட்டிகள்',
   contactUs: 'எங்களை தொடர்பு கொள்',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'குளங்களை ஒழுங்கமைக்கவும், சுழற்சிகளை நிர்வகிக்கவும், சரக்கை கண்காணிக்கவும், பண்ணைவாரியாக நிதி அறிக்கைகளை பார்க்கவும்.',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'Upcheck பற்றி',
+  aboutUpcheck: 'Neerani பற்றி',
   appTagline: 'இறால் மீன்வளர்ப்பு மேலாண்மை',
   versionLabel: 'பதிப்பு',
   buildInfo: 'Build 2026.04.30',
   descriptionLabel: 'விளக்கம்',
   descriptionText:
-    'Upcheck என்பது நீர் தரம் கண்காணிக்க, தீவனம் நிர்வகிக்க, வளர்ச்சியை கண்காணிக்க மற்றும் வளர்ப்பு முறைகளை மேம்படுத்த விவசாயிகளுக்கு உதவும் விரிவான இறால் மீன்வளர்ப்பு மேலாண்மை பயன்பாடு.',
+    'Neerani என்பது நீர் தரம் கண்காணிக்க, தீவனம் நிர்வகிக்க, வளர்ச்சியை கண்காணிக்க மற்றும் வளர்ப்பு முறைகளை மேம்படுத்த விவசாயிகளுக்கு உதவும் விரிவான இறால் மீன்வளர்ப்பு மேலாண்மை பயன்பாடு.',
   featuresLabel: 'அம்சங்கள்',
   featureMultiFarm: 'பல பண்ணை மேலாண்மை',
   featurePondMonitoring: 'குளம் கண்காணிப்பு & பதிவுகள்',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'வளர்ச்சி உருவகப்படுத்தல்கள்',
   featureFinancialReports: 'நிதி அறிக்கைகள்',
   developedByLabel: 'உருவாக்கியவர்கள்',
-  developedByTeam: 'Upcheck குழு',
+  developedByTeam: 'Neerani குழு',
   developedByLocation: 'இந்தியா',
-  footerCopyright: '© 2026 Upcheck. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.',
+  footerCopyright: '© 2026 Neerani. அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'இரு-படி அங்கீகரிப்பு',
@@ -155,7 +155,7 @@ const settings = {
 
   // ── நினைவூட்டல் நேரங்கள் (ஸ்மார்ட் நினைவூட்டல்கள்) ───────────────────
   reminderTimes: "நினைவூட்டல் நேரங்கள்",
-  reminderTimesDesc: "நீரின் தரத்தை பதிவு செய்ய Upcheck உங்களுக்கு எப்போது நினைவூட்ட வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.",
+  reminderTimesDesc: "நீரின் தரத்தை பதிவு செய்ய Neerani உங்களுக்கு எப்போது நினைவூட்ட வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.",
   reminderMorning: "காலை சோதனை",
   reminderAfternoon: "மதிய சோதனை",
   reminderEvening: "மாலை சோதனை",
@@ -163,8 +163,8 @@ const settings = {
   reminderHourLabel: "மணி",
   reminderMinuteLabel: "நிமிடம்",
   reminderStatusOn: "நினைவூட்டல்கள் இயங்குகின்றன. அடுத்தது: {{when}}",
-  reminderStatusOff: "இப்போது எந்த நினைவூட்டலும் அமைக்கப்படவில்லை. ஒரு குளத்தைச் சேர்த்து, Upcheck-ஐ ஒருமுறை திறந்தால் அவை அமைக்கப்படும்.",
-  reminderStatusBlocked: "இந்த ஃபோனில் Upcheck அறிவிப்புகளைக் காட்ட முடியாது, எனவே நினைவூட்டல்கள் வராது.",
+  reminderStatusOff: "இப்போது எந்த நினைவூட்டலும் அமைக்கப்படவில்லை. ஒரு குளத்தைச் சேர்த்து, Neerani-யை ஒருமுறை திறந்தால் அவை அமைக்கப்படும்.",
+  reminderStatusBlocked: "இந்த ஃபோனில் Neerani அறிவிப்புகளைக் காட்ட முடியாது, எனவே நினைவூட்டல்கள் வராது.",
   reminderStatusOpenSettings: "ஃபோன் அமைப்புகளைத் திற",
   reminderWhenToday: "இன்று {{time}} மணிக்கு",
   reminderWhenTomorrow: "நாளை {{time}} மணிக்கு",

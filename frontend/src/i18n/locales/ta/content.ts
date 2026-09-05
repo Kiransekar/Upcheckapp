@@ -164,7 +164,7 @@ const content = {
         headline: 'தலைப்பு',
         summary: 'சுருக்கம்',
         source: 'மூலம்',
-        shared: 'Upcheck ஆப்பிலிருந்து பகிரப்பட்டது.',
+        shared: 'Neerani ஆப்பிலிருந்து பகிரப்பட்டது.',
       },
     },
   },

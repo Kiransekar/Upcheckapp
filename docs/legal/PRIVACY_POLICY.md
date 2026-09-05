@@ -5,7 +5,7 @@
 
 **Upcheck Technologies Private Limited**
 
-Upcheck Technologies Private Limited ("Upcheck", "we", "us", "our") operates the Upcheck mobile application and any Upcheck hardware devices that connect to it (together, the "Service"). Upcheck is a farm-management tool for shrimp and aquaculture producers.
+Upcheck Technologies Private Limited ("we", "us", "our") operates the Neerani mobile application and any Neerani hardware devices that connect to it (together, the "Service"). Neerani is a farm-management tool for shrimp and aquaculture producers, and is operated by Upcheck Technologies Private Limited.
 
 This policy explains what personal data we collect, why we collect it, who we share it with, where it is kept, and the control you have over it. It is written to be read, not to be survived.
 
@@ -13,7 +13,7 @@ Effective 5 September 2026. Last updated 5 September 2026.
 
 ## 1. Who this applies to
 
-Anyone who creates an Upcheck account, or who is invited to a farm by an account holder as an owner, manager, worker or viewer. If a farm owner invites you, they decide what you can see and do on that farm, and the farm records you enter belong to that farm — not to you personally. Your own profile details remain yours.
+Anyone who creates an Neerani account, or who is invited to a farm by an account holder as an owner, manager, worker or viewer. If a farm owner invites you, they decide what you can see and do on that farm, and the farm records you enter belong to that farm — not to you personally. Your own profile details remain yours.
 
 The Service is available across India and, in future, internationally.
 
@@ -31,7 +31,7 @@ Team and attendance — who belongs to a farm, their role, and attendance or tas
 
 Device and technical data — app version, device model, operating system version, language, a push-notification token if you enable notifications, and diagnostic logs. Credentials, tokens and verification codes are stripped from our logs.
 
-Connected Upcheck devices — where you use Upcheck hardware, the readings it takes (such as dissolved oxygen, pH, temperature and salinity), the pond it is assigned to, and device status such as its identifier, battery level and connectivity.
+Connected Neerani devices — where you use Neerani hardware, the readings it takes (such as dissolved oxygen, pH, temperature and salinity), the pond it is assigned to, and device status such as its identifier, battery level and connectivity.
 
 ## 3. What we do with it
 
@@ -77,7 +77,7 @@ Two providers are involved only because you chose them, and their own terms and 
 • Google — if you sign in with Google.
 • Truecaller — if you verify your phone with Truecaller.
 
-We may also disclose information where the law requires it, or where it is necessary to protect the rights, safety or security of our users, the public or Upcheck. If we are ever compelled to hand over data, we will tell you unless we are legally barred from doing so.
+We may also disclose information where the law requires it, or where it is necessary to protect the rights, safety or security of our users, the public or Neerani. If we are ever compelled to hand over data, we will tell you unless we are legally barred from doing so.
 
 ## 6. Crash reports and analytics — what you control
 
@@ -121,11 +121,11 @@ If you are unhappy with how we have handled your data, tell us first — we woul
 
 ## 10. Age
 
-Upcheck is a business tool for adults. You must be at least 18 to hold an account. We do not knowingly collect personal data from anyone under 18, and if we discover that we have, we will delete it. If you believe a minor has given us their data, contact us and we will act.
+Neerani is a business tool for adults. You must be at least 18 to hold an account. We do not knowingly collect personal data from anyone under 18, and if we discover that we have, we will delete it. If you believe a minor has given us their data, contact us and we will act.
 
-## 11. Connected Upcheck devices
+## 11. Connected Neerani devices
 
-Where you use Upcheck hardware with the app, the device sends its readings and status to your account so they appear against the correct pond. That data is treated exactly like the readings you enter by hand: it is yours, it is not sold, and it is not shared with other users.
+Where you use Neerani hardware with the app, the device sends its readings and status to your account so they appear against the correct pond. That data is treated exactly like the readings you enter by hand: it is yours, it is not sold, and it is not shared with other users.
 
 A device is linked to a pond by you, and can be unlinked by you. If a specific device ever collects a category of data not described in this policy, we will update this policy and tell you before that device starts sending it.
 

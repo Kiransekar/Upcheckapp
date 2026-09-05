@@ -2,7 +2,7 @@ const auth = {
     continueWithGoogle: "Continue with Google",
     continueWithTruecaller: "Continue with Truecaller",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'Upcheck',
+  title: 'Neerani',
   subtitle: 'Shrimp Aquaculture Management',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -38,7 +38,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'Create Account',
-  registerSubtitle: 'Join Upcheck to manage your shrimp farms',
+  registerSubtitle: 'Join Neerani to manage your shrimp farms',
 
   firstNameLabel: 'First Name',
   firstNamePlaceholder: 'Enter your first name',
@@ -131,7 +131,7 @@ const auth = {
   missedCallBody:
     'You will receive a missed call shortly. Do not pick it up — Truecaller will verify automatically.',
   expiresIn: 'Expires in {{seconds}}s',
-  verifyingWithUpcheck: 'Verifying with Upcheck...',
+  verifyingWithUpcheck: 'Verifying with Neerani...',
   signInWithEmail: 'Sign in with email',
   truecallerNoSession: 'The server did not return a session. Please try again.',
   truecallerVerificationFailed: 'Truecaller verification failed. Please try again.',

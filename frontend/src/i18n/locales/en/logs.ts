@@ -37,9 +37,9 @@ const logs = {
   disease_bannedTitle: 'Banned Substance Referenced',
   disease_restrictedTitle: 'Restricted Substance Referenced',
   disease_bannedBody:
-    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   disease_restrictedBody:
-    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   disease_saveAnyway: 'Save Anyway',
   disease_bannerBannedTitle: 'Banned substance detected',
   disease_bannerRestrictedTitle: 'Restricted substance detected',
@@ -151,9 +151,9 @@ const logs = {
   treatment_bannedTitle: 'Banned Substance Referenced',
   treatment_restrictedTitle: 'Restricted Substance Referenced',
   treatment_bannedBody:
-    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThese are prohibited in shrimp aquaculture for export and can cause your harvest to be rejected (CAA/MPEDA).\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   treatment_restrictedBody:
-    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nUpcheck only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
+    'This entry references: {{names}}.\n\nThis is export-restricted — observe the withdrawal period before harvest.\n\nNeerani only flags this for your awareness; it does not advise a substitute. Save the record anyway?',
   treatment_saveAnyway: 'Save Anyway',
   treatment_bannerBannedTitle: 'Banned substance detected',
   treatment_bannerRestrictedTitle: 'Restricted substance detected',

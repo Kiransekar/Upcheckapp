@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'Weekly performance reports (coming soon)',
   security: 'Security',
   twoFactor: 'Two-Factor Authentication',
-  about: 'About Upcheck',
+  about: 'About Neerani',
   privacyPolicy: 'Privacy Policy',
   termsOfService: 'Terms of Service',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'Help & Support',
   helpIntroTitle: 'How can we help?',
   helpIntroText:
-    "Upcheck is your shrimp aquaculture management companion. Here's how to get the most out of it.",
+    "Neerani is your shrimp aquaculture management companion. Here's how to get the most out of it.",
   quickGuides: 'Quick Guides',
   contactUs: 'Contact Us',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'Organize ponds, manage cycles, track inventory, and view financial reports per farm.',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'About Upcheck',
+  aboutUpcheck: 'About Neerani',
   appTagline: 'Shrimp Aquaculture Management',
   versionLabel: 'Version',
   buildInfo: 'Build 2026.04.30',
   descriptionLabel: 'Description',
   descriptionText:
-    'Upcheck is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.',
+    'Neerani is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.',
   featuresLabel: 'Features',
   featureMultiFarm: 'Multi-farm management',
   featurePondMonitoring: 'Pond monitoring & logs',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'Growth simulations',
   featureFinancialReports: 'Financial reports',
   developedByLabel: 'Developed By',
-  developedByTeam: 'Upcheck Team',
+  developedByTeam: 'Neerani Team',
   developedByLocation: 'India',
-  footerCopyright: '© 2026 Upcheck. All rights reserved.',
+  footerCopyright: '© 2026 Neerani. All rights reserved.',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'Two-Factor Authentication',
@@ -147,18 +147,18 @@ const settings = {
   deleteAccountWrongPassword: 'Password is incorrect.',
 
   // Settings — artboard p6
-  accountEyebrow: "{{name}} · Upcheck",
+  accountEyebrow: "{{name}} · Neerani",
   edit: "Edit",
   ownerOfFarms: "owner of {{count}} farms",
   ownerOfFarms_one: "owner of {{count}} farm",
   languageWholeApp: "The whole app changes, including what workers see.",
-  signOutConfirm: "Sign out of Upcheck on this device?",
+  signOutConfirm: "Sign out of Neerani on this device?",
   toolsSection: "Tools",
   farmSection: "Farm",
 
   // ── Reminder times (smart reminders) ──────────────────────────────────────
   reminderTimes: "Reminder times",
-  reminderTimesDesc: "Choose when Upcheck reminds you to log water quality.",
+  reminderTimesDesc: "Choose when Neerani reminds you to log water quality.",
   reminderMorning: "Morning check",
   reminderAfternoon: "Afternoon check",
   reminderEvening: "Evening check",
@@ -167,8 +167,8 @@ const settings = {
   reminderMinuteLabel: "Minute",
   // The armed-state readout — read back from the phone, not assumed.
   reminderStatusOn: "Reminders are on. Next: {{when}}",
-  reminderStatusOff: "No reminders are set right now. Add a pond, then open Upcheck once and they will be armed.",
-  reminderStatusBlocked: "Upcheck cannot show notifications on this phone, so reminders will not appear.",
+  reminderStatusOff: "No reminders are set right now. Add a pond, then open Neerani once and they will be armed.",
+  reminderStatusBlocked: "Neerani cannot show notifications on this phone, so reminders will not appear.",
   reminderStatusOpenSettings: "Open phone settings",
   reminderWhenToday: "today at {{time}}",
   reminderWhenTomorrow: "tomorrow at {{time}}",

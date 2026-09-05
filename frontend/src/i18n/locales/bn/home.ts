@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'সাহায্য ও তথ্য',
   moreUserFallback: 'ব্যবহারকারী',
   moreEmailFallback: 'ইমেইল নেই',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'সাইন আউট',
   moreSignOutMessage: 'আপনি কি সত্যিই সাইন আউট করতে চান?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'সাহায্য ও সহায়তা',
   moreHelpDesc: 'প্রশ্নোত্তর ও টিউটোরিয়াল',
-  moreAbout: 'Upcheck সম্পর্কে',
+  moreAbout: 'Neerani সম্পর্কে',
   moreAboutDesc: 'অ্যাপ সংস্করণ ও কৃতিত্ব',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'সাইকেল দরকার',
   farmerFallback: 'কৃষক',
   onboarding_languagePrompt: 'আপনার ভাষা নির্বাচন করুন',
-  onboarding_title: 'Upcheck-এ স্বাগতম',
+  onboarding_title: 'Neerani-তে স্বাগতম',
   onboarding_subtitle: 'আপনার চিংড়ি খামারের দৈনিক সহকারী',
   onboarding_feature1: 'জল, খাবার ও বৃদ্ধি কয়েক সেকেন্ডে রেকর্ড করুন',
   onboarding_feature2: 'বেঁচে থাকা ও মুনাফা বাড়াতে স্মার্ট পরামর্শ',

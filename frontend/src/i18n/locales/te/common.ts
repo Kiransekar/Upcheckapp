@@ -4,7 +4,7 @@ const common = {
   tryAgain: "మళ్ళీ ప్రయత్నించు",
   noOptions: "ఎంపికలు లేవు",
   selectPlaceholder: "ఎంచుకోండి…",
-  appName: 'Upcheck',
+  appName: 'Neerani',
   save: 'సేవ్ చేయి',
   cancel: 'రద్దు చేయి',
   delete: 'తొలగించు',

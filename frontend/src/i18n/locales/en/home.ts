@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'Help & Info',
   moreUserFallback: 'User',
   moreEmailFallback: 'No email',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'Sign Out',
   moreSignOutMessage: 'Are you sure you want to sign out?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'Help & Support',
   moreHelpDesc: 'FAQs and tutorials',
-  moreAbout: 'About Upcheck',
+  moreAbout: 'About Neerani',
   moreAboutDesc: 'App version and credits',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'Needs a cycle',
   farmerFallback: 'Farmer',
   onboarding_languagePrompt: 'Choose your language',
-  onboarding_title: 'Welcome to Upcheck',
+  onboarding_title: 'Welcome to Neerani',
   onboarding_subtitle: "Your shrimp farm's daily assistant",
   onboarding_feature1: 'Log water, feed and growth in seconds',
   onboarding_feature2: 'Smart advice to boost survival and profit',
@@ -204,7 +204,7 @@ const home = {
   lunarQuiet: "No molting expected today.",
   startHere: "Start here",
   stepPondsTitle: "Add your ponds",
-  stepPondsWhy: "Upcheck watches water, feed and growth pond by pond. There is nothing to watch yet.",
+  stepPondsWhy: "Neerani watches water, feed and growth pond by pond. There is nothing to watch yet.",
   stepPondsCta: "Add ponds",
   stepCycleTitle: "Stock a cycle in {{pond}}",
   stepCycleWhy: "An empty pond has no biomass, no feed plan and nothing to warn you about. A cycle starts all three.",

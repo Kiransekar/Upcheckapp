@@ -21,7 +21,7 @@ export interface LegalBlock {
 
 export const LEGAL_META = {
   company: 'Upcheck Technologies Private Limited',
-  appName: 'Upcheck',
+  appName: 'Neerani',
   contactEmail: 'admin@upcheck.in',
   governingLaw: 'India',
   jurisdiction: 'Chennai, Tamil Nadu',
@@ -37,9 +37,10 @@ export const LEGAL_META = {
 export const PRIVACY_POLICY: LegalBlock[] = [
   {
     text:
-      `${LEGAL_META.company} ("Upcheck", "we", "us", "our") operates the ${LEGAL_META.appName} ` +
-      `mobile application and any Upcheck hardware devices that connect to it (together, the ` +
-      `"Service"). Upcheck is a farm-management tool for shrimp and aquaculture producers.\n\n` +
+      `${LEGAL_META.company} ("we", "us", "our") operates the ${LEGAL_META.appName} mobile ` +
+      `application and any ${LEGAL_META.appName} hardware devices that connect to it (together, ` +
+      `the "Service"). ${LEGAL_META.appName} is a farm-management tool for shrimp and aquaculture ` +
+      `producers, and is operated by ${LEGAL_META.company}.\n\n` +
       `This policy explains what personal data we collect, why we collect it, who we share it with, ` +
       `where it is kept, and the control you have over it. It is written to be read, not to be ` +
       `survived.\n\n` +
@@ -48,7 +49,7 @@ export const PRIVACY_POLICY: LegalBlock[] = [
   {
     heading: '1. Who this applies to',
     text:
-      'Anyone who creates an Upcheck account, or who is invited to a farm by an account holder as an ' +
+      'Anyone who creates an Neerani account, or who is invited to a farm by an account holder as an ' +
       'owner, manager, worker or viewer. If a farm owner invites you, they decide what you can see ' +
       'and do on that farm, and the farm records you enter belong to that farm — not to you ' +
       'personally. Your own profile details remain yours.\n\n' +
@@ -75,7 +76,7 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       'Device and technical data — app version, device model, operating system version, language, a ' +
       'push-notification token if you enable notifications, and diagnostic logs. Credentials, tokens ' +
       'and verification codes are stripped from our logs.\n\n' +
-      'Connected Upcheck devices — where you use Upcheck hardware, the readings it takes (such as ' +
+      'Connected Neerani devices — where you use Neerani hardware, the readings it takes (such as ' +
       'dissolved oxygen, pH, temperature and salinity), the pond it is assigned to, and device status ' +
       'such as its identifier, battery level and connectivity.',
   },
@@ -137,7 +138,7 @@ export const PRIVACY_POLICY: LegalBlock[] = [
       '• Google — if you sign in with Google.\n' +
       '• Truecaller — if you verify your phone with Truecaller.\n\n' +
       'We may also disclose information where the law requires it, or where it is necessary to ' +
-      'protect the rights, safety or security of our users, the public or Upcheck. If we are ever ' +
+      'protect the rights, safety or security of our users, the public or Neerani. If we are ever ' +
       'compelled to hand over data, we will tell you unless we are legally barred from doing so.',
   },
   {
@@ -210,14 +211,14 @@ export const PRIVACY_POLICY: LegalBlock[] = [
   {
     heading: '10. Age',
     text:
-      'Upcheck is a business tool for adults. You must be at least 18 to hold an account. We do not ' +
+      'Neerani is a business tool for adults. You must be at least 18 to hold an account. We do not ' +
       'knowingly collect personal data from anyone under 18, and if we discover that we have, we ' +
       'will delete it. If you believe a minor has given us their data, contact us and we will act.',
   },
   {
-    heading: '11. Connected Upcheck devices',
+    heading: '11. Connected Neerani devices',
     text:
-      'Where you use Upcheck hardware with the app, the device sends its readings and status to your ' +
+      'Where you use Neerani hardware with the app, the device sends its readings and status to your ' +
       'account so they appear against the correct pond. That data is treated exactly like the ' +
       'readings you enter by hand: it is yours, it is not sold, and it is not shared with other ' +
       'users.\n\n' +
@@ -251,14 +252,15 @@ export const TERMS: LegalBlock[] = [
   {
     text:
       `These Terms of Service ("Terms") are an agreement between you and ${LEGAL_META.company} ` +
-      `("Upcheck", "we", "us"), covering the ${LEGAL_META.appName} application and any Upcheck ` +
-      `hardware that connects to it (the "Service").\n\n` +
+      `("we", "us"), the company that operates ${LEGAL_META.appName}. They cover the ` +
+      `${LEGAL_META.appName} application and any ${LEGAL_META.appName} hardware that connects to ` +
+      `it (the "Service").\n\n` +
       `By creating an account or using the Service, you accept these Terms and our Privacy Policy. ` +
       `If you do not accept them, please do not use the Service.\n\n` +
       `Effective ${LEGAL_META.effectiveDate}. Last updated ${LEGAL_META.lastUpdated}.`,
   },
   {
-    heading: '1. Who may use Upcheck',
+    heading: '1. Who may use Neerani',
     text:
       'You must be at least 18 years old and legally able to enter into a contract. You are ' +
       'responsible for the accuracy of what you tell us, for keeping your password and device ' +
@@ -288,9 +290,9 @@ export const TERMS: LegalBlock[] = [
       'matters.',
   },
   {
-    heading: '4. What Upcheck is, and what it is not',
+    heading: '4. What Neerani is, and what it is not',
     text:
-      'Upcheck is a decision-support tool. It records what you tell it, calculates from those ' +
+      'Neerani is a decision-support tool. It records what you tell it, calculates from those ' +
       'figures, and highlights things that may need attention. It is an aid to your own judgement ' +
       'and to qualified advice — it is not a substitute for either.\n\n' +
       'It is not professional, veterinary, agronomic, financial or legal advice. Its calculators, ' +
@@ -323,16 +325,16 @@ export const TERMS: LegalBlock[] = [
   {
     heading: '6. Cost',
     text:
-      'Upcheck is currently free to use.\n\n' +
+      'Neerani is currently free to use.\n\n' +
       'We may introduce paid features or plans in future. If we do, we will tell you in advance, ' +
       'paid features will be clearly marked before you are charged, and you will never be billed ' +
       'without agreeing first. Your existing data will remain accessible to you and exportable ' +
       'whether or not you take a paid plan.',
   },
   {
-    heading: '7. Upcheck hardware',
+    heading: '7. Neerani hardware',
     text:
-      'Where you use Upcheck devices with the app, these Terms cover the app and the service the ' +
+      'Where you use Neerani devices with the app, these Terms cover the app and the service the ' +
       'device connects to. The purchase, warranty, replacement and physical use of the device itself ' +
       'are governed by the terms supplied with that device.\n\n' +
       'Device readings are subject to section 4 in the same way as anything else in the app: a ' +

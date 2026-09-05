@@ -3,7 +3,10 @@ const TRUECALLER_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_TRUECALLER_ANDROID_
 
 export default {
   expo: {
-    name: "upcheck",
+    // Display name shown in the launcher, task switcher and Play listing.
+    // The SLUG below stays "upcheck": it is the EAS project identity, not a
+    // user-visible string, and changing it would orphan the project.
+    name: "Neerani",
     slug: "upcheck",
     version: "1.0.0",
     scheme: "upcheckapp",
@@ -93,7 +96,7 @@ export default {
       [
         "expo-camera",
         {
-          cameraPermission: "Allow UpCheck to use the camera to scan a worker's QR code."
+          cameraPermission: "Allow Neerani to use the camera to scan a worker's QR code."
         }
       ],
       [
@@ -108,13 +111,13 @@ export default {
         // broken on arrival.
         "expo-image-picker",
         {
-          photosPermission: "Allow UpCheck to attach a photo to a problem report you send to the team."
+          photosPermission: "Allow Neerani to attach a photo to a problem report you send to the team."
         }
       ],
       [
         "expo-location",
         {
-          locationAlwaysAndWhenInUsePermission: "Allow UpCheck to use your location to set your farm position for weather, tide and regional pricing features."
+          locationAlwaysAndWhenInUsePermission: "Allow Neerani to use your location to set your farm position for weather, tide and regional pricing features."
         }
       ],
       "@react-native-google-signin/google-signin",

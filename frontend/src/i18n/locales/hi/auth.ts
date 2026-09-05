@@ -2,7 +2,7 @@ const auth = {
     continueWithGoogle: "Google से जारी रखें",
     continueWithTruecaller: "Truecaller से जारी रखें",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'Upcheck',
+  title: 'Neerani',
   subtitle: 'झींगा जलकृषि प्रबंधन',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -38,7 +38,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'खाता बनाएं',
-  registerSubtitle: 'अपने झींगा फार्म प्रबंधित करने के लिए Upcheck से जुड़ें',
+  registerSubtitle: 'अपने झींगा फार्म प्रबंधित करने के लिए Neerani से जुड़ें',
 
   firstNameLabel: 'पहला नाम',
   firstNamePlaceholder: 'अपना पहला नाम दर्ज करें',
@@ -131,7 +131,7 @@ const auth = {
   missedCallBody:
     'आपको जल्द ही एक मिस्ड कॉल आएगी। इसे न उठाएं — Truecaller स्वचालित रूप से सत्यापित कर देगा।',
   expiresIn: '{{seconds}}s में समाप्त',
-  verifyingWithUpcheck: 'Upcheck से सत्यापित किया जा रहा है...',
+  verifyingWithUpcheck: 'Neerani से सत्यापित किया जा रहा है...',
   signInWithEmail: 'ईमेल से साइन इन करें',
   truecallerNoSession: 'सर्वर ने कोई सत्र नहीं लौटाया। कृपया पुनः प्रयास करें।',
   truecallerVerificationFailed: 'Truecaller सत्यापन विफल रहा। कृपया पुनः प्रयास करें।',

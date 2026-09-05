@@ -164,7 +164,7 @@ const content = {
         headline: 'Headline',
         summary: 'Summary',
         source: 'Source',
-        shared: 'Shared from the Upcheck app.',
+        shared: 'Shared from the Neerani app.',
       },
     },
   },

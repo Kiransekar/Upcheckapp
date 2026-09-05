@@ -2,7 +2,7 @@ const auth = {
     continueWithGoogle: "Google மூலம் தொடரவும்",
     continueWithTruecaller: "Truecaller மூலம் தொடரவும்",
   // ── App header (LoginScreen) ──────────────────────────────────────────────
-  title: 'Upcheck',
+  title: 'Neerani',
   subtitle: 'இறால் மீன்வளர்ப்பு மேலாண்மை',
 
   // ── Shared field labels / placeholders ───────────────────────────────────
@@ -38,7 +38,7 @@ const auth = {
 
   // ── RegisterScreen ────────────────────────────────────────────────────────
   createAccountTitle: 'கணக்கு உருவாக்கு',
-  registerSubtitle: 'உங்கள் இறால் பண்ணைகளை நிர்வகிக்க Upcheck-ல் சேருங்கள்',
+  registerSubtitle: 'உங்கள் இறால் பண்ணைகளை நிர்வகிக்க Neerani-யில் சேருங்கள்',
 
   firstNameLabel: 'முதல் பெயர்',
   firstNamePlaceholder: 'உங்கள் முதல் பெயரை உள்ளிடுக',
@@ -131,7 +131,7 @@ const auth = {
   missedCallBody:
     'விரைவில் ஒரு மிஸ்டு கால் வரும். எடுக்காதீர்கள் — Truecaller தானாக சரிபார்க்கும்.',
   expiresIn: '{{seconds}}வி-ல் காலாவதியாகும்',
-  verifyingWithUpcheck: 'Upcheck மூலம் சரிபார்க்கிறது...',
+  verifyingWithUpcheck: 'Neerani மூலம் சரிபார்க்கிறது...',
   signInWithEmail: 'மின்னஞ்சல் மூலம் உள்நுழை',
   truecallerNoSession: 'சேவையகம் அமர்வை வழங்கவில்லை. மீண்டும் முயற்சிக்கவும்.',
   truecallerVerificationFailed: 'Truecaller சரிபார்ப்பு தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.',

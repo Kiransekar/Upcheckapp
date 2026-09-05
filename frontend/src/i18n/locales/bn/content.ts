@@ -164,7 +164,7 @@ const content = {
         headline: 'শিরোনাম',
         summary: 'সারাংশ',
         source: 'সূত্র',
-        shared: 'Upcheck অ্যাপ থেকে শেয়ার করা হয়েছে।',
+        shared: 'Neerani অ্যাপ থেকে শেয়ার করা হয়েছে।',
       },
     },
   },

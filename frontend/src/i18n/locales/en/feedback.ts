@@ -4,7 +4,7 @@ const feedback = {
     tileSub: 'Tell the team directly. They reply here in the app.',
 
     title: 'Report a problem',
-    eyebrow: 'Straight to the Upcheck team',
+    eyebrow: 'Straight to the Neerani team',
     intro: 'Tell us what happened. Someone on the team reads every report and replies on this screen — you do not need to leave a Play Store review to reach us.',
 
     categoryLabel: 'What is this about',
@@ -24,7 +24,7 @@ const feedback = {
     removePhoto: 'Remove photo',
     photoLimitReached: 'You can attach up to {{count}} photos.',
     permissionTitle: 'Photos need permission',
-    permissionBody: 'Upcheck cannot open your photos without permission. You can allow it in your phone settings — or just send the report without a photo.',
+    permissionBody: 'Neerani cannot open your photos without permission. You can allow it in your phone settings — or just send the report without a photo.',
     uploadFailed: 'That photo could not be attached. You can send the report without it.',
 
     send: 'Send to the team',

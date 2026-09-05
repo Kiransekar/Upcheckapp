@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'সাপ্তাহিক কার্যকারিতার প্রতিবেদন',
   security: 'নিরাপত্তা',
   twoFactor: 'দ্বি-স্তরীয় প্রমাণীকরণ',
-  about: 'Upcheck সম্পর্কে',
+  about: 'Neerani সম্পর্কে',
   privacyPolicy: 'গোপনীয়তা নীতি',
   termsOfService: 'সেবার শর্তাবলী',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'সাহায্য ও সহায়তা',
   helpIntroTitle: 'আমরা কীভাবে সাহায্য করতে পারি?',
   helpIntroText:
-    'Upcheck হলো আপনার চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনার সঙ্গী। এটি থেকে সর্বোচ্চ সুবিধা পাওয়ার উপায় জানুন।',
+    'Neerani হলো আপনার চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনার সঙ্গী। এটি থেকে সর্বোচ্চ সুবিধা পাওয়ার উপায় জানুন।',
   quickGuides: 'দ্রুত গাইড',
   contactUs: 'যোগাযোগ করুন',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'পুকুর সংগঠিত করুন, চক্র পরিচালনা করুন, ইনভেন্টরি ট্র্যাক করুন এবং খামার প্রতি আর্থিক প্রতিবেদন দেখুন।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'Upcheck সম্পর্কে',
+  aboutUpcheck: 'Neerani সম্পর্কে',
   appTagline: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',
   versionLabel: 'সংস্করণ',
   buildInfo: 'বিল্ড 2026.04.30',
   descriptionLabel: 'বিবরণ',
   descriptionText:
-    'Upcheck হলো একটি ব্যাপক চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনা অ্যাপ্লিকেশন যা কৃষকদের পানির মান পর্যবেক্ষণ, খাদ্য ব্যবস্থাপনা, বৃদ্ধি ট্র্যাকিং এবং চাষ পদ্ধতি অপ্টিমাইজ করতে সাহায্য করে।',
+    'Neerani হলো একটি ব্যাপক চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনা অ্যাপ্লিকেশন যা কৃষকদের পানির মান পর্যবেক্ষণ, খাদ্য ব্যবস্থাপনা, বৃদ্ধি ট্র্যাকিং এবং চাষ পদ্ধতি অপ্টিমাইজ করতে সাহায্য করে।',
   featuresLabel: 'বৈশিষ্ট্য',
   featureMultiFarm: 'একাধিক খামার ব্যবস্থাপনা',
   featurePondMonitoring: 'পুকুর পর্যবেক্ষণ ও লগ',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'বৃদ্ধির সিমুলেশন',
   featureFinancialReports: 'আর্থিক প্রতিবেদন',
   developedByLabel: 'নির্মাতা',
-  developedByTeam: 'Upcheck টিম',
+  developedByTeam: 'Neerani টিম',
   developedByLocation: 'ভারত',
-  footerCopyright: '© 2026 Upcheck। সর্বস্বত্ব সংরক্ষিত।',
+  footerCopyright: '© 2026 Neerani। সর্বস্বত্ব সংরক্ষিত।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'দ্বি-স্তরীয় প্রমাণীকরণ',
@@ -155,7 +155,7 @@ const settings = {
 
   // ── রিমাইন্ডারের সময় (স্মার্ট রিমাইন্ডার) ──────────────────────────────
   reminderTimes: "রিমাইন্ডারের সময়",
-  reminderTimesDesc: "Upcheck কখন আপনাকে পানির গুণমান লগ করার কথা মনে করিয়ে দেবে তা নির্বাচন করুন।",
+  reminderTimesDesc: "Neerani কখন আপনাকে পানির গুণমান লগ করার কথা মনে করিয়ে দেবে তা নির্বাচন করুন।",
   reminderMorning: "সকালের চেক",
   reminderAfternoon: "দুপুরের চেক",
   reminderEvening: "সন্ধ্যার চেক",
@@ -163,8 +163,8 @@ const settings = {
   reminderHourLabel: "ঘণ্টা",
   reminderMinuteLabel: "মিনিট",
   reminderStatusOn: "রিমাইন্ডার চালু আছে। পরেরটি: {{when}}",
-  reminderStatusOff: "এখন কোনো রিমাইন্ডার সেট নেই। একটি পুকুর যোগ করুন, তারপর একবার Upcheck খুলুন — রিমাইন্ডার চালু হয়ে যাবে।",
-  reminderStatusBlocked: "এই ফোনে Upcheck বিজ্ঞপ্তি দেখাতে পারে না, তাই রিমাইন্ডার আসবে না।",
+  reminderStatusOff: "এখন কোনো রিমাইন্ডার সেট নেই। একটি পুকুর যোগ করুন, তারপর একবার Neerani খুলুন — রিমাইন্ডার চালু হয়ে যাবে।",
+  reminderStatusBlocked: "এই ফোনে Neerani বিজ্ঞপ্তি দেখাতে পারে না, তাই রিমাইন্ডার আসবে না।",
   reminderStatusOpenSettings: "ফোনের সেটিংস খুলুন",
   reminderWhenToday: "আজ {{time}}-এ",
   reminderWhenTomorrow: "আগামীকাল {{time}}-এ",

@@ -38,7 +38,7 @@ export const ProfileScreen = ({ navigation }: any) => {
         if (!user?.id) return;
         try {
             await Share.share({
-                message: t('members.workerCodeShareMessage', 'My Upcheck worker code: {{code}}', { code: user.id }),
+                message: t('members.workerCodeShareMessage', 'My Neerani worker code: {{code}}', { code: user.id }),
             });
         } catch {
             // User cancelled the share sheet — not an error.

@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'सहायता और जानकारी',
   moreUserFallback: 'उपयोगकर्ता',
   moreEmailFallback: 'कोई ईमेल नहीं',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'साइन आउट',
   moreSignOutMessage: 'क्या आप वाकई साइन आउट करना चाहते हैं?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'सहायता और समर्थन',
   moreHelpDesc: 'FAQ और ट्यूटोरियल',
-  moreAbout: 'Upcheck के बारे में',
+  moreAbout: 'Neerani के बारे में',
   moreAboutDesc: 'ऐप संस्करण और श्रेय',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'साइकिल चाहिए',
   farmerFallback: 'किसान',
   onboarding_languagePrompt: 'अपनी भाषा चुनें',
-  onboarding_title: 'Upcheck में आपका स्वागत है',
+  onboarding_title: 'Neerani में आपका स्वागत है',
   onboarding_subtitle: 'आपके झींगा फार्म का दैनिक सहायक',
   onboarding_feature1: 'पानी, फ़ीड और वृद्धि कुछ ही सेकंड में दर्ज करें',
   onboarding_feature2: 'जीवित रहने की दर और मुनाफ़ा बढ़ाने के लिए स्मार्ट सलाह',

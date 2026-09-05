@@ -13,7 +13,7 @@ const settings = {
   emailSummariesDesc: 'ସାପ୍ତାହିକ ପ୍ରଦର୍ଶନ ରିପୋର୍ଟ',
   security: 'ସୁରକ୍ଷା',
   twoFactor: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ',
-  about: 'Upcheck ବିଷୟରେ',
+  about: 'Neerani ବିଷୟରେ',
   privacyPolicy: 'ଗୋପନୀୟତା ନୀତି',
   termsOfService: 'ସେବা ସର୍ତ୍ତ',
 
@@ -44,7 +44,7 @@ const settings = {
   helpAndSupport: 'ସାହାଯ୍ୟ ଓ ସହଯୋଗ',
   helpIntroTitle: 'ଆମେ କିଭଳି ସାହାଯ୍ୟ କରିପାରିବୁ?',
   helpIntroText:
-    'Upcheck ହେଉଛି ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ସହଯୋଗୀ। ଏଥିରୁ ସର୍ବଶ୍ରେଷ୍ଠ ଫଳ ପାଇବାର ଉପାୟ ଜାଣନ୍ତୁ।',
+    'Neerani ହେଉଛି ଆପଣଙ୍କ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ସହଯୋଗୀ। ଏଥିରୁ ସର୍ବଶ୍ରେଷ୍ଠ ଫଳ ପାଇବାର ଉପାୟ ଜାଣନ୍ତୁ।',
   quickGuides: 'ଦ୍ରୁତ ଗାଇଡ',
   contactUs: 'ଆମ ସହ ଯୋଗାଯୋଗ',
   // Help topic titles
@@ -68,13 +68,13 @@ const settings = {
     'ପୋଖରି ସଂଗଠିତ କରନ୍ତୁ, ଚକ୍ର ପରିଚାଳନା କରନ୍ତୁ, ଭଣ୍ଡାର ଟ୍ର୍ୟାକ୍ କରନ୍ତୁ ଏବଂ ପ୍ରତି ଫାର୍ମ ଅର୍ଥ ରିପୋର୍ଟ ଦେଖନ୍ତୁ।',
 
   // ── AboutScreen ───────────────────────────────────────────────────────────
-  aboutUpcheck: 'Upcheck ବିଷୟରେ',
+  aboutUpcheck: 'Neerani ବିଷୟରେ',
   appTagline: 'ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା',
   versionLabel: 'ସଂସ୍କରଣ',
   buildInfo: 'Build 2026.04.30',
   descriptionLabel: 'ବିବରଣ',
   descriptionText:
-    'Upcheck ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',
+    'Neerani ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',
   featuresLabel: 'ବୈଶିଷ୍ଟ୍ୟ',
   featureMultiFarm: 'ବହୁ-ଫାର୍ମ ପରିଚାଳନା',
   featurePondMonitoring: 'ପୋଖରି ଦେଖୁ ରଖିବା ଓ ଲଗ',
@@ -83,9 +83,9 @@ const settings = {
   featureGrowthSimulations: 'ବୃଦ୍ଧି ଅନୁକରଣ',
   featureFinancialReports: 'ଅର୍ଥ ରିପୋର୍ଟ',
   developedByLabel: 'ବିକଶିତ',
-  developedByTeam: 'Upcheck ଦଳ',
+  developedByTeam: 'Neerani ଦଳ',
   developedByLocation: 'ଭାରତ',
-  footerCopyright: '© 2026 Upcheck। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ।',
+  footerCopyright: '© 2026 Neerani। ସମସ୍ତ ଅଧିକାର ସଂରକ୍ଷିତ।',
 
   // ── TwoFactorScreen ───────────────────────────────────────────────────────
   twoFactorTitle: 'ଦ୍ୱି-ଘଟକ ପ୍ରମାଣୀକରଣ',
@@ -155,7 +155,7 @@ const settings = {
 
   // ── ରିମାଇଣ୍ଡର ସମୟ (ସ୍ମାର୍ଟ ରିମାଇଣ୍ଡର) ──────────────────────────────
   reminderTimes: "ରିମାଇଣ୍ଡର ସମୟ",
-  reminderTimesDesc: "ପାଣିର ଗୁଣବତ୍ତା ଲଗ୍ କରିବାକୁ Upcheck ଆପଣଙ୍କୁ କେବେ ମନେ ପକାଇବ ତାହା ବାଛନ୍ତୁ।",
+  reminderTimesDesc: "ପାଣିର ଗୁଣବତ୍ତା ଲଗ୍ କରିବାକୁ Neerani ଆପଣଙ୍କୁ କେବେ ମନେ ପକାଇବ ତାହା ବାଛନ୍ତୁ।",
   reminderMorning: "ସକାଳ ଯାଞ୍ଚ",
   reminderAfternoon: "ଅପରାହ୍ନ ଯାଞ୍ଚ",
   reminderEvening: "ସନ୍ଧ୍ୟା ଯାଞ୍ଚ",
@@ -163,8 +163,8 @@ const settings = {
   reminderHourLabel: "ଘଣ୍ଟା",
   reminderMinuteLabel: "ମିନିଟ୍",
   reminderStatusOn: "ସ୍ମାରକ ଚାଲୁ ଅଛି। ପରବର୍ତ୍ତୀ: {{when}}",
-  reminderStatusOff: "ବର୍ତ୍ତମାନ କୌଣସି ସ୍ମାରକ ସେଟ୍ ହୋଇନାହିଁ। ଗୋଟିଏ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ, ତାପରେ Upcheck ଥରେ ଖୋଲନ୍ତୁ — ସ୍ମାରକ ଲାଗିଯିବ।",
-  reminderStatusBlocked: "ଏହି ଫୋନରେ Upcheck ବିଜ୍ଞପ୍ତି ଦେଖାଇ ପାରିବ ନାହିଁ, ତେଣୁ ସ୍ମାରକ ଆସିବ ନାହିଁ।",
+  reminderStatusOff: "ବର୍ତ୍ତମାନ କୌଣସି ସ୍ମାରକ ସେଟ୍ ହୋଇନାହିଁ। ଗୋଟିଏ ପୋଖରୀ ଯୋଡ଼ନ୍ତୁ, ତାପରେ Neerani ଥରେ ଖୋଲନ୍ତୁ — ସ୍ମାରକ ଲାଗିଯିବ।",
+  reminderStatusBlocked: "ଏହି ଫୋନରେ Neerani ବିଜ୍ଞପ୍ତି ଦେଖାଇ ପାରିବ ନାହିଁ, ତେଣୁ ସ୍ମାରକ ଆସିବ ନାହିଁ।",
   reminderStatusOpenSettings: "ଫୋନ୍ ସେଟିଂସ୍ ଖୋଲନ୍ତୁ",
   reminderWhenToday: "ଆଜି {{time}} ବେଳେ",
   reminderWhenTomorrow: "ଆସନ୍ତାକାଲି {{time}} ବେଳେ",

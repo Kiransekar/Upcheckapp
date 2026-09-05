@@ -164,7 +164,7 @@ const content = {
         headline: 'शीर्षक',
         summary: 'सारांश',
         source: 'स्रोत',
-        shared: 'Upcheck ऐप से साझा किया गया।',
+        shared: 'Neerani ऐप से साझा किया गया।',
       },
     },
   },

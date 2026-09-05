@@ -41,7 +41,7 @@ const home = {
   moreSectionHelp: 'సహాయం & సమాచారం',
   moreUserFallback: 'వినియోగదారు',
   moreEmailFallback: 'ఇమెయిల్ లేదు',
-  moreVersion: 'Upcheck v1.0.0',
+  moreVersion: 'Neerani v1.0.0',
   moreSignOutTitle: 'సైన్ అవుట్',
   moreSignOutMessage: 'మీరు నిజంగా సైన్ అవుట్ చేయాలనుకుంటున్నారా?',
   // Account items
@@ -77,7 +77,7 @@ const home = {
   // Help items
   moreHelp: 'సహాయం & మద్దతు',
   moreHelpDesc: 'తరచుగా అడిగే ప్రశ్నలు మరియు ట్యుటోరియల్లు',
-  moreAbout: 'Upcheck గురించి',
+  moreAbout: 'Neerani గురించి',
   moreAboutDesc: 'యాప్ వెర్షన్ మరియు క్రెడిట్స్',
 
   // ReportsScreen
@@ -119,7 +119,7 @@ const home = {
   quickLogNeedsCycle: 'సైకిల్ కావాలి',
   farmerFallback: 'రైతు',
   onboarding_languagePrompt: 'మీ భాషను ఎంచుకోండి',
-  onboarding_title: 'Upcheck కు స్వాగతం',
+  onboarding_title: 'Neerani కు స్వాగతం',
   onboarding_subtitle: 'మీ రొయ్యల చెరువు రోజువారీ సహాయకుడు',
   onboarding_feature1: 'నీరు, దాణా మరియు పెరుగుదలను సెకన్లలో నమోదు చేయండి',
   onboarding_feature2: 'మనుగడ మరియు లాభాన్ని పెంచడానికి స్మార్ట్ సలహా',

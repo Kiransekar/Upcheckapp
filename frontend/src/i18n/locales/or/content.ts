@@ -164,7 +164,7 @@ const content = {
         headline: 'ଶୀର୍ଷକ',
         summary: 'ସାରାଂଶ',
         source: 'ଉତ୍ସ',
-        shared: 'Upcheck ଆପ୍ ରୁ ସେୟାର୍ କରାଯାଇଛି।',
+        shared: 'Neerani ଆପ୍ ରୁ ସେୟାର୍ କରାଯାଇଛି।',
       },
     },
   },
