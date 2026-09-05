@@ -309,3 +309,38 @@ export async function setSentryUser(rawId: string | null | undefined): Promise<v
 
 /** True when a DSN is configured AND the farmer has not switched this off. */
 export const isCrashReportingActive = (): boolean => !!sentry && enabled;
+
+/**
+ * Report an error the app CAUGHT itself.
+ *
+ * Sentry's own global handler only sees errors nobody caught. Everything the
+ * app handles deliberately — a render crash stopped by ErrorBoundary above all
+ * — never reaches it, so without this the reports we actually care about were
+ * the exact ones being dropped. `reportError()` routes here.
+ *
+ * A no-op when crash reporting is off or unconfigured, like everything else in
+ * this file, and it swallows its own failures: a reporter that can throw while
+ * reporting an error turns one bug into two.
+ */
+export function captureError(
+    error: unknown,
+    context?: Record<string, unknown>,
+): void {
+    if (!sentry || !enabled) return;
+    try {
+        // Context goes through the SAME scrubber as everything else — a
+        // componentStack is safe, but callers may pass anything, and `extra`
+        // would otherwise bypass beforeSend's event-level walk.
+        const extra = context
+            ? (scrubEvent({ extra: context } as SentryEventLike)?.extra as
+                  | Record<string, unknown>
+                  | undefined)
+            : undefined;
+        sentry.captureException(
+            error instanceof Error ? error : new Error(String(error)),
+            extra ? { extra } : undefined,
+        );
+    } catch {
+        /* reporting must never be able to break the thing it is reporting on */
+    }
+}
