@@ -32,7 +32,18 @@
       "Bash(curl -s https://upcheckapp-sg.onrender.com/api/health)",
       "Bash(echo *)",
       "mcp__upstash__redis_database_delete",
-      "mcp__upstash__redis_database_list_databases"
+      "mcp__upstash__redis_database_list_databases",
+      "Bash(npx typeorm-ts-node-commonjs *)",
+      "Bash(npx ts-node *)",
+      "Bash(gh pr create --base master --head feat/phase3-polish --title 'Phase 3: data freshness, inventory ledger and §5 polish' --body ' *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "mcp__upcheck-render__list_deploys",
+      "Bash(curl -s --max-time 20 https://api.upcheck.in/api/health)",
+      "Bash(cd *)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(npx eas-cli@latest update --branch preview --message \"Auth fixes: clearer sign-in errors, unverified-email recovery\" --non-interactive)"
     ]
   },
   "enableAllProjectMcpServers": true,
