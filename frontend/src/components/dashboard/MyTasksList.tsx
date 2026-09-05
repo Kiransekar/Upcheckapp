@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { SectionHeader } from '../ui/SectionHeader';
 import type { Task } from '../../api/tasks';
+import { isOverdue, myTaskMeta } from '../../screens/tasks/taskLabels';
 
 /**
  * "My tasks" — what is assigned to ME, across every farm.
@@ -33,6 +34,12 @@ export interface MyTasksListProps {
     onSeeAll?: () => void;
     /** How many to show before the list is cut off. */
     limit?: number;
+    /**
+     * Whose list this is. It decides the third word on every row — "You set
+     * this" vs "Assigned to you" — which is the distinction the farmer asked
+     * for and which nothing else on Today makes.
+     */
+    userId?: string | null;
 }
 
 /** A task someone has completed and is waiting on a verifier is the urgent kind. */
@@ -44,6 +51,7 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
     onOpen,
     onSeeAll,
     limit = 4,
+    userId,
 }) => {
     const { t } = useTranslation();
 
@@ -65,8 +73,12 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
 
     // Anything waiting on a verification decision comes first — it is blocking
     // somebody else's work, which nothing further down this list is.
+    // …and after that, whatever is already late. Today only shows four rows, so
+    // which four it picks is the whole design.
     const ordered = [...tasks].sort(
-        (a, b) => Number(needsVerify(b)) - Number(needsVerify(a)),
+        (a, b) =>
+            Number(needsVerify(b)) - Number(needsVerify(a)) ||
+            Number(isOverdue(b)) - Number(isOverdue(a)),
     );
     const visible = ordered.slice(0, limit);
     // "N open" counts what still needs DOING. A task you have already finished
@@ -87,9 +99,12 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
             {visible.map((task) => {
                 const farm = farmNameForTask?.(task);
                 const verify = needsVerify(task);
-                const meta = [farm, task.dueDate ? t('home.taskDue', { date: task.dueDate }) : null]
+                // Due, then routine-or-one-off, then who set it. Farm name last
+                // — on a one-farm account it is noise, and the row has one line.
+                const meta = [...myTaskMeta(t, task, userId), farm]
                     .filter(Boolean)
                     .join(' · ');
+                const late = isOverdue(task);
                 return (
                     <View key={task.id} style={styles.row}>
                         <View style={styles.text}>
@@ -97,7 +112,7 @@ export const MyTasksList: React.FC<MyTasksListProps> = ({
                                 {task.title}
                             </Text>
                             {!!meta && (
-                                <Text style={styles.meta} numberOfLines={1}>
+                                <Text style={[styles.meta, late && styles.metaLate]} numberOfLines={1}>
                                     {meta}
                                 </Text>
                             )}
@@ -133,6 +148,7 @@ const styles = StyleSheet.create({
     text: { flex: 1, minWidth: 0 },
     title: { ...theme.typeScale.labelLarge, fontSize: 15, color: theme.roles.light.textPrimary },
     meta: { ...theme.typeScale.bodySmall, color: theme.roles.light.textTertiary },
+    metaLate: { color: theme.roles.light.dangerText },
     empty: {
         ...theme.typeScale.bodyMedium,
         color: theme.roles.light.textTertiary,

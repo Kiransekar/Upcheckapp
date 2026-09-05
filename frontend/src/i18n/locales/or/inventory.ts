@@ -97,6 +97,15 @@ const inventory = {
   validAmountRequired: '0 ଠାରୁ ଅଧିକ ଏକ ବୈଧ ପରିମାଣ ଦିଅନ୍ତୁ।',
   adjustFailed: 'ଷ୍ଟକ ସଂଶୋଧନ ବିଫଳ।',
 
+  // ── କିଣା (ଷ୍ଟକ ଆସିଲା → ଗୋଟିଏ ସଂଯୁକ୍ତ ଖର୍ଚ୍ଚ) ─────────────────────────────
+  purchaseCostHint: 'ଏହି ଷ୍ଟକ ପୂର୍ବରୁ ଆପଣଙ୍କର ହୋଇଥିଲେ ଖାଲି ଛାଡ଼ନ୍ତୁ। ଭରିଲେ ଖର୍ଚ୍ଚ ଆପେ ଲିପିବଦ୍ଧ ହେବ।',
+  fieldTotalCost: 'ମୋଟ ଖର୍ଚ୍ଚ',
+  billToFarm: 'କେଉଁ ଫାର୍ମ ଟଙ୍କା ଦେଇଛି?',
+  billToFarmRequired: 'ଏହି ଷ୍ଟକ ପାଇଁ କେଉଁ ଫାର୍ମ ଟଙ୍କା ଦେଇଛି ବାଛନ୍ତୁ।',
+  purchaseRecorded: '{{quantity}} {{unit}} ଯୋଡ଼ାଗଲା ଏବଂ {{farm}} ପାଇଁ {{amount}} ଖର୍ଚ୍ଚ ଲିପିବଦ୍ଧ ହେଲା।',
+  purchaseSection: 'କିଣା',
+  movementToPond: '{{pond}} ପାଇଁ',
+
   // Delete
   deleteItem: 'ଆଇଟମ ଡିଲିଟ କରନ୍ତୁ',
   deleteConfirm: '"{{name}}" ଡିଲିଟ କରିବେ? ଏହା ଫେରାଇ ହେବ ନାହିଁ।',

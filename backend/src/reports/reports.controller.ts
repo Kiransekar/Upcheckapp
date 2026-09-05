@@ -13,6 +13,7 @@ import {
 import { OwnershipGuard } from '../common/guards/ownership.guard';
 import { OwnsResource } from '../common/decorators/owns-resource.decorator';
 import { ReportsService } from './reports.service';
+import { FinancialReportQueryDto } from '../transactions/dto/money-query.dto';
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
@@ -34,9 +35,13 @@ export class ReportsController {
 
   @Get('financials')
   async getFinancialReport(
-    @Query('farmId') farmId: string,
+    @Query() q: FinancialReportQueryDto,
     @CurrentUser() user,
   ) {
-    return this.reportsService.getFinancialReport(farmId, user.id);
+    return this.reportsService.getFinancialReport(
+      q.farmId as string,
+      user.id,
+      q,
+    );
   }
 }

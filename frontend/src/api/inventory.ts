@@ -113,6 +113,28 @@ export interface InventoryMovement {
     createdById: string | null;
     feedRecordId: string | null;
     createdAt: string;
+    /**
+     * The pond a consumption went to, joined server-side through
+     * `feedRecordId`. Null on a purchase, a manual correction, or once the
+     * feed record itself is gone — the movement outlives it.
+     */
+    pondId?: string | null;
+    pondName?: string | null;
+}
+
+/**
+ * The money row a purchase wrote — the other end of the inventory↔money link.
+ * Only returned for farms the caller may VIEW_FINANCIALS on, so an empty list
+ * means either "no purchases" or "not your business"; the UI treats both the
+ * same and hides the section.
+ */
+export interface InventoryPurchase {
+    id: string;
+    farmId: string;
+    transactionDate: string;
+    amount: number;
+    category: string;
+    description?: string | null;
 }
 
 export interface CreateInventoryItemDto {
@@ -172,8 +194,22 @@ export const inventoryApi = {
     delete: (id: string) =>
         apiClient.delete(`/inventory/${id}`),
 
-    adjustStock: (id: string, adjustment: number, reason?: string) =>
-        apiClient.patch(`/inventory/${id}/adjust`, { adjustment, reason }),
+    /**
+     * `amount` present ⇒ this addition is a PURCHASE and the server writes one
+     * linked expense (D2). It is only legal on a positive adjustment, and
+     * `billToFarmId` is required once the item is stocked for more than one
+     * farm — the server refuses to guess which farm's money was spent.
+     *
+     * `idempotencyKey` is minted once per attempt by the caller and reused on
+     * every retry, so a flaky connection cannot buy the same feed twice (F1).
+     */
+    adjustStock: (
+        id: string,
+        adjustment: number,
+        reason?: string,
+        opts?: { amount?: number; billToFarmId?: string; idempotencyKey?: string },
+    ) =>
+        apiClient.patch(`/inventory/${id}/adjust`, { adjustment, reason, ...opts }),
 
     getLowStock: (farmId: string) =>
         apiClient.get<InventoryItem[]>(`/inventory/low-stock/${farmId}`),
@@ -181,4 +217,8 @@ export const inventoryApi = {
     /** Newest-first, capped at 100 rows server-side (Task 7). */
     listMovements: (id: string) =>
         apiClient.get<InventoryMovement[]>(`/inventory/${id}/movements`),
+
+    /** The expenses this item's purchases wrote. Empty unless the caller may see financials. */
+    listPurchases: (id: string) =>
+        apiClient.get<InventoryPurchase[]>(`/inventory/${id}/purchases`),
 };

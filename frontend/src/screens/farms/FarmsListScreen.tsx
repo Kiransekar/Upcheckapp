@@ -52,13 +52,17 @@ import {
     HEALTH_COLOR,
     type FarmRollup,
     type PondHealth,
+    type PondWithHealth,
 } from '../../utils/pondHealth';
+import { FarmAgeHint } from '../../components/ui/SessionHint';
 import type { FarmRole } from '../../api/farmMembers';
 
 interface FarmCardData {
     farm: Farm;
     role: FarmRole | null;
     roll: FarmRollup;
+    /** This farm's ponds — the compact age hint reads the worst of them. */
+    rows: PondWithHealth[];
 }
 
 /** 1,234 — thousands separators, because biomass is read at a glance. */
@@ -182,11 +186,10 @@ export const FarmsListScreen = ({ navigation }: any) => {
         // re-render mid-second cannot flip one pond's bar and not another's.
         const now = new Date();
         const rows = buildPondRows(ponds, contexts, briefing, now);
-        return farms.map((farm) => ({
-            farm,
-            role: roleForFarm(farm.id),
-            roll: rollUpFarm(rows.filter((r) => r.pond.farmId === farm.id)),
-        }));
+        return farms.map((farm) => {
+            const mine = rows.filter((r) => r.pond.farmId === farm.id);
+            return { farm, role: roleForFarm(farm.id), roll: rollUpFarm(mine), rows: mine };
+        });
     }, [farms, ponds, contexts, briefing, roleForFarm]);
 
     const totals = useMemo(() => {
@@ -391,7 +394,7 @@ export const FarmsListScreen = ({ navigation }: any) => {
  */
 const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data, onPress }) => {
     const { t } = useTranslation();
-    const { farm, role, roll } = data;
+    const { farm, role, roll, rows } = data;
     const worst: PondHealth =
         roll.actNow > 0 ? 'critical' : roll.watch > 0 ? 'watch' : roll.stale > 0 ? 'stale' : 'fine';
 
@@ -438,6 +441,11 @@ const FarmCard: React.FC<{ data: FarmCardData; onPress: () => void }> = ({ data,
                             {subtitle}
                         </Text>
                     )}
+                    {/* One line, worst pond first: "N not updated" said how many
+                        ponds were unaccounted for but never how long for, so a
+                        farm two days behind and one three weeks behind read the
+                        same. */}
+                    <FarmAgeHint rows={rows} />
                 </View>
                 <Icon name="chevron_right" size={22} color={theme.roles.light.textDisabled} />
             </View>

@@ -102,5 +102,30 @@ const finance = {
   entriesNote: "केवल हाल की एंट्रियाँ। ऊपर का शुद्ध चक्र में दर्ज खर्च भी गिनता है — वे \"कहाँ गया\" में दिखाए गए हैं।",
   noFarmTitle: "अभी कोई फ़ार्म नहीं",
   noFarmSub: "पैसा ट्रैक करने के लिए एक फ़ार्म जोड़ें।",
+
+  periodAll: "पूरा समय",
+  periodToday: "आज",
+  periodWeek: "इस सप्ताह",
+  periodMonth: "इस महीने",
+  periodCustom: "चुनें",
+  customFrom: "से",
+  customTo: "तक",
+
+  includeArchived: "संग्रहित तालाब गिनें",
+  includeArchivedHint: "बंद किए गए तालाबों का पैसा भी आपका खर्च और आय है।",
+  includeArchivedWorth: "ऊपर के आँकड़ों में से {{amount}}।",
+  entriesArchivedNote: "ऊपर के कुल में संग्रहित तालाब भी गिने गए हैं। एंट्रियाँ फ़ार्म पर दर्ज होती हैं, तालाब पर नहीं, इसलिए यहाँ उन पर निशान नहीं है — बंद तालाब का अपना हिसाब देखने के लिए तालाब सूची खोलें।",
+  includeInventory: "स्टॉक खरीद गिनें",
+  includeInventoryHint: "खरीदा गया स्टॉक उसी दिन खर्च में गिना जाता है।",
+  includeInventoryOff: "ऊपर के आँकड़ों में स्टॉक खरीद शामिल नहीं है।",
+  includeInventoryWorth: "ऊपर के खर्च में से {{amount}}।",
+  archivedTag: "संग्रहित",
+
+  byPond: "तालाब के अनुसार",
+  wholeFarm: "पूरा फ़ार्म",
+  allCycles: "सभी चक्र",
+  pondCostTotal: "इस तालाब का खर्च",
+  cycleCostTotal: "इस चक्र का खर्च",
+  noPondCosts: "इस अवधि में इस तालाब के लिए कुछ दर्ज नहीं।",
 };
 export default finance;

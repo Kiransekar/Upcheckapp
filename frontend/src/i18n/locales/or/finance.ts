@@ -102,5 +102,30 @@ const finance = {
   entriesNote: "କେବଳ ସାମ୍ପ୍ରତିକ ଏଣ୍ଟ୍ରି। ଉପରର ନିଟରେ ଚକ୍ରରେ ଲେଖା ଖର୍ଚ୍ଚ ମଧ୍ୟ ଅଛି — ସେଗୁଡ଼ିକ \"କେଉଁଠି ଗଲା\"ରେ ଦେଖାଯାଇଛି।",
   noFarmTitle: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଫାର୍ମ ନାହିଁ",
   noFarmSub: "ଟଙ୍କାର ହିସାବ ରଖିବାକୁ ଏକ ଫାର୍ମ ଯୋଡ଼ନ୍ତୁ।",
+
+  periodAll: "ସମସ୍ତ ସମୟ",
+  periodToday: "ଆଜି",
+  periodWeek: "ଏହି ସପ୍ତାହ",
+  periodMonth: "ଏହି ମାସ",
+  periodCustom: "ନିଜେ ବାଛନ୍ତୁ",
+  customFrom: "ଠାରୁ",
+  customTo: "ପର୍ଯ୍ୟନ୍ତ",
+
+  includeArchived: "ସଂରକ୍ଷିତ ପୋଖରୀ ଗଣନ୍ତୁ",
+  includeArchivedHint: "ବନ୍ଦ ପୋଖରୀର ଟଙ୍କା ମଧ୍ୟ ଆପଣଙ୍କ ଖର୍ଚ୍ଚ ଓ ଆୟ।",
+  includeArchivedWorth: "ଉପରୋକ୍ତ ହିସାବ ମଧ୍ୟରୁ {{amount}}।",
+  entriesArchivedNote: "ଉପରର ମୋଟରେ ସଂରକ୍ଷିତ ପୋଖରୀ ମଧ୍ୟ ଗଣାଯାଇଛି। ଏଣ୍ଟ୍ରିଗୁଡ଼ିକ ଫାର୍ମ ନାମରେ ଲେଖାଯାଏ, ପୋଖରୀ ନାମରେ ନୁହେଁ — ତେଣୁ ଏଠାରେ ଚିହ୍ନ ନାହିଁ। ବନ୍ଦ ପୋଖରୀର ନିଜ ହିସାବ ଦେଖିବାକୁ ପୋଖରୀ ତାଲିକା ଖୋଲନ୍ତୁ।",
+  includeInventory: "ଷ୍ଟକ୍ କିଣା ଗଣନ୍ତୁ",
+  includeInventoryHint: "କିଣା ଯାଇଥିବା ଷ୍ଟକ୍ ସେହିଦିନର ଖର୍ଚ୍ଚ ଭାବେ ଗଣାଯାଏ।",
+  includeInventoryOff: "ଉପରୋକ୍ତ ହିସାବରେ ଷ୍ଟକ୍ କିଣା ଅନ୍ତର୍ଭୁକ୍ତ ନୁହେଁ।",
+  includeInventoryWorth: "ଉପରୋକ୍ତ ଖର୍ଚ୍ଚ ମଧ୍ୟରୁ {{amount}}।",
+  archivedTag: "ସଂରକ୍ଷିତ",
+
+  byPond: "ପୋଖରୀ ଅନୁଯାୟୀ",
+  wholeFarm: "ସମ୍ପୂର୍ଣ୍ଣ ଫାର୍ମ",
+  allCycles: "ସମସ୍ତ ଚକ୍ର",
+  pondCostTotal: "ଏହି ପୋଖରୀର ଖର୍ଚ୍ଚ",
+  cycleCostTotal: "ଏହି ଚକ୍ରର ଖର୍ଚ୍ଚ",
+  noPondCosts: "ଏହି ସମୟରେ ଏହି ପୋଖରୀ ପାଇଁ କିଛି ଲିପିବଦ୍ଧ ନାହିଁ।",
 };
 export default finance;

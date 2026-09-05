@@ -12,6 +12,7 @@ jest.mock('../../../api/leaveRequests', () => ({
     leaveRequestsApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/tasks', () => ({
+    ...jest.requireActual('../../../api/tasks'),
     tasksApi: { getAll: jest.fn() },
 }));
 jest.mock('../../../api/farmMembers', () => ({

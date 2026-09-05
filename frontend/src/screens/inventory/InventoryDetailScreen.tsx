@@ -7,12 +7,17 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { theme } from '../../theme';
-import { inventoryApi, InventoryItem, InventoryMovement, isLowStock, stockFraction, itemIcon, CATEGORY_LABEL_KEY } from '../../api/inventory';
+import * as Crypto from 'expo-crypto';
+import { inventoryApi, InventoryItem, InventoryMovement, InventoryPurchase, isLowStock, stockFraction, itemIcon, CATEGORY_LABEL_KEY } from '../../api/inventory';
+import { farmsApi } from '../../api/farms';
 import { apiErrorMessage } from '../../api/errors';
 import { usePermissions } from '../../hooks/usePermissions';
 import { confirm } from '../../utils/confirm';
 import { formatAge, formatNumber } from '../../utils/formatDate';
 import { useFocusEffect } from '@react-navigation/native';
+
+/** Same shape the finance screens use — one rupee formatter, no new util. */
+const formatMoney = (value: number) => `₹${Number(value).toFixed(2)}`;
 
 export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const { t } = useTranslation();
@@ -21,11 +26,21 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
     const [movements, setMovements] = useState<InventoryMovement[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [purchases, setPurchases] = useState<InventoryPurchase[]>([]);
+
     // Adjust-stock modal state
     const [adjustMode, setAdjustMode] = useState<'add' | 'reduce' | null>(null);
     const [adjustAmount, setAdjustAmount] = useState('');
     const [adjustReason, setAdjustReason] = useState('');
     const [isAdjusting, setIsAdjusting] = useState(false);
+
+    // Purchase capture, ADD path only. Unit price and total are two views of
+    // one number: typing either fills the other, so the farmer uses whichever
+    // the invoice actually shows.
+    const [unitPrice, setUnitPrice] = useState('');
+    const [totalCost, setTotalCost] = useState('');
+    const [billToFarmId, setBillToFarmId] = useState<string | null>(null);
+    const [farmNames, setFarmNames] = useState<Record<string, string>>({});
 
     // Editing lives on InventoryForm now — the same screen that creates an item,
     // so the two can never drift into offering different fields again (D4).
@@ -65,10 +80,33 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
         } catch (error) {
             console.error('Failed to fetch inventory movements:', error);
             setMovements([]);
-        } finally {
-            setIsLoading(false);
         }
+        // Purchases are the money half of the link. Own call, own failure, and
+        // an empty list for a farmer with no financial access — the server
+        // filters by VIEW_FINANCIALS per farm, so the section simply does not
+        // render rather than 403ing the whole screen.
+        try {
+            const { data } = await inventoryApi.listPurchases(inventoryId);
+            setPurchases(data);
+        } catch (error) {
+            console.error('Failed to fetch inventory purchases:', error);
+            setPurchases([]);
+        }
+        setIsLoading(false);
     };
+
+    // Farm names are only ever used to label the bill-to choice and the
+    // "expense recorded for X" confirmation, so they are fetched when the add
+    // modal opens, not on every visit to the screen.
+    const farmIds = item?.farmIds ?? (item?.farmId ? [item.farmId] : []);
+    const needsFarmChoice = farmIds.length > 1;
+    useEffect(() => {
+        if (adjustMode !== 'add' || Object.keys(farmNames).length) return;
+        farmsApi.getAll()
+            .then(({ data }) => setFarmNames(Object.fromEntries((data ?? []).map((f: any) => [f.id, f.name]))))
+            .catch(() => { /* names are a nicety; the ids still work */ });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [adjustMode]);
 
     const getStockStatus = () => {
         if (!item) return { color: theme.roles.light.textDisabled, label: t('common.status') };
@@ -77,16 +115,47 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
         return { color: theme.roles.light.successText, label: t('inventory.inStock'), icon: 'check-circle' };
     };
 
+    const openAdjust = (mode: 'add' | 'reduce') => {
+        setAdjustAmount('');
+        setAdjustReason('');
+        setUnitPrice('');
+        setTotalCost('');
+        setBillToFarmId(farmIds.length === 1 ? farmIds[0] : null);
+        setAdjustMode(mode);
+    };
+
     const handleAdjustStock = () => {
         Alert.alert(
             t('inventory.adjustStock'),
             t('inventory.adjustStockChoose'),
             [
-                { text: t('inventory.addStock'), onPress: () => { setAdjustAmount(''); setAdjustReason(''); setAdjustMode('add'); } },
-                { text: t('inventory.reduceStock'), onPress: () => { setAdjustAmount(''); setAdjustReason(''); setAdjustMode('reduce'); } },
+                { text: t('inventory.addStock'), onPress: () => openAdjust('add') },
+                { text: t('inventory.reduceStock'), onPress: () => openAdjust('reduce') },
                 { text: t('common.cancel'), style: 'cancel' },
             ]
         );
+    };
+
+    /** Typing either price fills the other from the quantity. */
+    const onUnitPriceChange = (text: string) => {
+        setUnitPrice(text);
+        const qty = parseFloat(adjustAmount);
+        const price = parseFloat(text);
+        setTotalCost(qty > 0 && price > 0 ? String(Number((qty * price).toFixed(2))) : '');
+    };
+    const onTotalCostChange = (text: string) => {
+        setTotalCost(text);
+        const qty = parseFloat(adjustAmount);
+        const total = parseFloat(text);
+        setUnitPrice(qty > 0 && total > 0 ? String(Number((total / qty).toFixed(2))) : '');
+    };
+    const onQuantityChange = (text: string) => {
+        setAdjustAmount(text);
+        const qty = parseFloat(text);
+        const price = parseFloat(unitPrice);
+        // The unit price is what the farmer read off the invoice, so it is the
+        // one that survives a quantity edit; the total follows it.
+        if (qty > 0 && price > 0) setTotalCost(String(Number((qty * price).toFixed(2))));
     };
 
     const submitAdjust = async () => {
@@ -95,12 +164,39 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
             Alert.alert(t('common.error'), t('inventory.validAmountRequired', 'Enter a valid quantity greater than 0.'));
             return;
         }
+        // Cost only ever rides on stock coming IN (D2): consuming feed is
+        // attribution, not a second rupee, and the server rejects an amount on
+        // a reduction rather than dropping it.
+        const cost = adjustMode === 'add' ? parseFloat(totalCost) : NaN;
+        const isPurchase = Number.isFinite(cost) && cost > 0;
+        if (isPurchase && !billToFarmId) {
+            Alert.alert(t('common.error'), t('inventory.billToFarmRequired'));
+            return;
+        }
         setIsAdjusting(true);
         try {
             const signedAmount = adjustMode === 'reduce' ? -amount : amount;
-            await inventoryApi.adjustStock(inventoryId, signedAmount, adjustReason.trim() || undefined);
+            // One key per attempt, reused by every retry underneath: the server
+            // makes the replay a no-op instead of buying the feed twice (F1).
+            await inventoryApi.adjustStock(inventoryId, signedAmount, adjustReason.trim() || undefined, {
+                idempotencyKey: Crypto.randomUUID(),
+                ...(isPurchase ? { amount: cost, billToFarmId: billToFarmId! } : {}),
+            });
             setAdjustMode(null);
             await fetchItem();
+            if (isPurchase) {
+                // Name the money row that was just written, so the expense is
+                // never a surprise the farmer finds later on the Money screen.
+                Alert.alert(
+                    t('inventory.purchaseSection'),
+                    t('inventory.purchaseRecorded', {
+                        quantity: amount,
+                        unit: item?.unit ?? '',
+                        amount: formatMoney(cost),
+                        farm: farmNames[billToFarmId!] ?? '',
+                    }),
+                );
+            }
         } catch (err: any) {
             Alert.alert(t('common.error'), apiErrorMessage(err, t('inventory.adjustFailed', 'Failed to adjust stock.')));
         } finally {
@@ -277,8 +373,13 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                                             >
                                                 {sign}{formatNumber(delta)} {item.unit}
                                             </Text>
+                                            {/* The pond a consumption fed, joined server-side
+                                                through feed_record_id — this is where "where
+                                                did my feed go" becomes readable. */}
                                             <Text style={styles.movementMeta} numberOfLines={1}>
-                                                {m.reason || t('inventory.movementNoReason')} · {formatAge(m.createdAt)}
+                                                {m.reason || t('inventory.movementNoReason')}
+                                                {m.pondName ? ` ${t('inventory.movementToPond', { pond: m.pondName })}` : ''}
+                                                {' · '}{formatAge(m.createdAt)}
                                             </Text>
                                         </View>
                                     );
@@ -306,6 +407,30 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                     )}
                 </Card>
 
+                {/* The money half of the link. Hidden entirely when the server
+                    returns nothing — either no purchases, or no financial
+                    access — so a storekeeper never sees an empty "Purchases"
+                    heading they are not allowed to fill. */}
+                {purchases.length > 0 && (
+                    <Card style={styles.infoCard}>
+                        <View style={[styles.infoRow, styles.noBorder]}>
+                            <MaterialCommunityIcons name="cash-multiple" size={20} color={theme.roles.light.textSecondary} />
+                            <View style={styles.infoTextContainer}>
+                                <Text style={styles.infoLabel}>{t('inventory.purchaseSection')}</Text>
+                                {purchases.map((p) => (
+                                    <View key={p.id} style={styles.movementRow}>
+                                        <Text style={styles.infoValue}>{formatMoney(p.amount)}</Text>
+                                        <Text style={styles.movementMeta} numberOfLines={1}>
+                                            {new Date(p.transactionDate).toLocaleDateString()}
+                                            {farmNames[p.farmId] ? ` · ${farmNames[p.farmId]}` : ''}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </Card>
+                )}
+
                 {canManageInventory && (
                     <Button
                         title={t('inventory.adjustStock')}
@@ -326,15 +451,65 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                         <Text style={styles.modalTitle}>
                             {adjustMode === 'reduce' ? t('inventory.reduceStock') : t('inventory.addStock')}
                         </Text>
+                    <ScrollView keyboardShouldPersistTaps="handled">
                         <Input
                             label={t('inventory.fieldQuantity', 'Quantity')}
                             value={adjustAmount}
-                            onChangeText={setAdjustAmount}
+                            onChangeText={onQuantityChange}
                             placeholder="0"
                             keyboardType="decimal-pad"
                             leftIcon="counter"
                             required
                         />
+
+                        {/* Cost capture, ADD path only (D2). Optional: an
+                            opening balance the farmer already owns must not
+                            book an expense today. */}
+                        {adjustMode === 'add' && (
+                            <>
+                                <Text style={styles.sectionHint}>{t('inventory.purchaseCostHint')}</Text>
+                                <Input
+                                    label={t('inventory.fieldUnitPrice')}
+                                    value={unitPrice}
+                                    onChangeText={onUnitPriceChange}
+                                    placeholder="0"
+                                    keyboardType="decimal-pad"
+                                    leftIcon="tag-outline"
+                                />
+                                <Input
+                                    label={t('inventory.fieldTotalCost')}
+                                    value={totalCost}
+                                    onChangeText={onTotalCostChange}
+                                    placeholder="0"
+                                    keyboardType="decimal-pad"
+                                    leftIcon="cash"
+                                />
+                                {/* One purchase bills exactly one farm. With a
+                                    shared item the server refuses to guess, so
+                                    neither do we. */}
+                                {needsFarmChoice && (
+                                    <>
+                                        <Text style={styles.sectionHint}>{t('inventory.billToFarm')}</Text>
+                                        <View style={styles.farmChoices}>
+                                            {farmIds.map((fid) => (
+                                                <TouchableOpacity
+                                                    key={fid}
+                                                    onPress={() => setBillToFarmId(fid)}
+                                                    accessibilityRole="button"
+                                                    accessibilityState={{ selected: billToFarmId === fid }}
+                                                    style={[styles.farmChip, billToFarmId === fid && styles.farmChipActive]}
+                                                >
+                                                    <Text style={billToFarmId === fid ? styles.farmChipTextActive : styles.farmChipText}>
+                                                        {farmNames[fid] ?? fid.slice(0, 8)}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </>
+                                )}
+                            </>
+                        )}
+
                         <Input
                             label={t('common.notes')}
                             value={adjustReason}
@@ -342,6 +517,7 @@ export const InventoryDetailScreen = ({ navigation, route }: any) => {
                             placeholder={t('inventory.reasonPlaceholder', 'Optional reason')}
                             leftIcon="note-text-outline"
                         />
+                    </ScrollView>
                         <View style={styles.modalActions}>
                             <Button
                                 title={t('common.cancel')}
@@ -488,6 +664,39 @@ const styles = StyleSheet.create({
     },
     movementRow: {
         marginTop: theme.spacing[2],
+    },
+    sectionHint: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginBottom: theme.spacing[2],
+    },
+    farmChoices: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: theme.spacing[2],
+        marginBottom: theme.spacing[3],
+    },
+    farmChip: {
+        paddingVertical: theme.spacing[2],
+        paddingHorizontal: theme.spacing[3],
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+        minHeight: 44,
+        justifyContent: 'center',
+    },
+    farmChipActive: {
+        borderColor: theme.roles.light.primary,
+        backgroundColor: theme.roles.light.primary + '20',
+    },
+    farmChipText: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
+    },
+    farmChipTextActive: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.primary,
+        fontWeight: '600',
     },
     movementDelta: {
         ...theme.typeScale.bodyMedium,

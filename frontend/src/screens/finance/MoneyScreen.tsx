@@ -17,8 +17,16 @@
  * report we cannot read is in neither the total nor the by-farm list, so the
  * rows always add up to the hero figure.
  */
-import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    RefreshControl,
+    Switch,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -30,13 +38,26 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { Icon } from '../../components/ui/Icon';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { CalendarPicker } from '../../components/ui/CalendarPicker';
 import { theme } from '../../theme';
 import { formatDate } from '../../utils/formatDate';
+import { toLocalISODate } from '../../utils/localDate';
 import { reportsApi, type FinancialReport } from '../../api/reports';
 import { transactionsApi, type Transaction } from '../../api/transactions';
 import { creditApi, type CreditLedger } from '../../api/credit';
 import { farmsApi, type Farm } from '../../api/farms';
+import { pondsApi, type Pond } from '../../api/ponds';
+import { cropsApi, type Crop } from '../../api/crops';
+import { expensesApi, type Expense } from '../../api/expenses';
 import { fetchMoneyOverview, type MoneyEntry } from '../../api/moneyOverview';
+import {
+    DEFAULT_MONEY_PREFS,
+    loadMoneyPrefs,
+    moneyPeriodRange,
+    saveMoneyPrefs,
+    type MoneyPeriod,
+    type MoneyPrefs,
+} from '../../features/moneyPrefs';
 import { useActiveFarmStore } from '../../store/activeFarmStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { qk } from '../../query/client';
@@ -49,12 +70,33 @@ const c = theme.roles.light;
 const EMPTY_REPORTS: Record<string, FinancialReport> = {};
 const EMPTY_ENTRIES: MoneyEntry[] = [];
 const EMPTY_CREDIT: CreditLedger[] = [];
+const EMPTY_PONDS: Pond[] = [];
+const EMPTY_CYCLES: Crop[] = [];
+const EMPTY_EXPENSES: Expense[] = [];
 
 /** Recent entries shown before "All ›" takes over. */
 const RECENT_COUNT = 6;
 
 /** Scope value meaning "every farm I can see financials for". */
 const ALL = 'all';
+
+/** Period chips, in the order a farmer reaches for them. */
+const PERIODS: MoneyPeriod[] = ['all', 'today', 'week', 'month', 'custom'];
+
+/** Written out rather than built from the value, so the keys stay greppable. */
+const PERIOD_KEY: Record<MoneyPeriod, string> = {
+    all: 'finance.periodAll',
+    today: 'finance.periodToday',
+    week: 'finance.periodWeek',
+    month: 'finance.periodMonth',
+    custom: 'finance.periodCustom',
+};
+
+const parseISO = (iso: string | null): Date => {
+    if (!iso) return new Date();
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
+};
 
 /**
  * Cost-category ribbon. Six colours, cycled — the seventh category and beyond
@@ -94,10 +136,16 @@ export const combineReports = (reports: FinancialReport[]): FinancialReport | nu
     let revenue = 0;
     let totalExpenses = 0;
     let profit = 0;
+    let inventoryExpenses = 0;
+    const ponds: NonNullable<FinancialReport['ponds']> = [];
     for (const r of reports) {
         revenue += Number(r.revenue || 0);
         totalExpenses += Number(r.totalExpenses || 0);
         profit += Number(r.profit || 0);
+        inventoryExpenses += Number(r.inventoryExpenses || 0);
+        // Concatenated, not merged: pond ids are unique across farms, and the
+        // archived split is read per pond.
+        if (r.ponds) ponds.push(...r.ponds);
         for (const row of r.expensesByCategory ?? []) {
             byCategory[row.category] = (byCategory[row.category] || 0) + Number(row.amount || 0);
         }
@@ -106,6 +154,10 @@ export const combineReports = (reports: FinancialReport[]): FinancialReport | nu
         revenue,
         totalExpenses,
         profit,
+        inventoryExpenses,
+        ponds,
+        // A combined report only "included archived ponds" if every farm did.
+        includedArchivedPonds: reports.every((r) => r.includedArchivedPonds !== false),
         expensesByCategory: Object.keys(byCategory).map((category) => ({
             category,
             amount: byCategory[category],
@@ -121,6 +173,57 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     // THIS farm's money". Everything else opens combined.
     const [scope, setScope] = useState<string>(route?.params?.farmId ?? ALL);
 
+    // Pond and cycle narrow the costs BELOW the farm figures. They are not
+    // persisted: "which pond am I looking at" is a question about right now,
+    // unlike the period and the two toggles, which are how the farmer wants
+    // their books read every time.
+    const [pondId, setPondId] = useState<string | null>(null);
+    const [cropId, setCropId] = useState<string | null>(null);
+
+    /**
+     * Period + the two toggles, restored from disk.
+     *
+     * Rendering the defaults for one frame and then swapping is deliberate:
+     * blocking the whole tab on an AsyncStorage read to find out whether a
+     * checkbox is ticked would be a worse trade than one extra fetch.
+     */
+    const [prefs, setPrefs] = useState<MoneyPrefs>(DEFAULT_MONEY_PREFS);
+    useEffect(() => {
+        let alive = true;
+        void loadMoneyPrefs().then((p) => {
+            if (alive) setPrefs(p);
+        });
+        return () => {
+            alive = false;
+        };
+    }, []);
+
+    const updatePrefs = useCallback((patch: Partial<MoneyPrefs>) => {
+        setPrefs((prev) => {
+            const next = { ...prev, ...patch };
+            void saveMoneyPrefs(next);
+            return next;
+        });
+    }, []);
+
+    const range = useMemo(() => moneyPeriodRange(prefs), [prefs]);
+
+    const filters = useMemo(
+        () => ({
+            startDate: range.startDate,
+            endDate: range.endDate,
+            includeArchivedPonds: prefs.includeArchivedPonds,
+            includeInventoryPurchases: prefs.includeInventoryPurchases,
+        }),
+        [range, prefs.includeArchivedPonds, prefs.includeInventoryPurchases],
+    );
+
+    // Every filter is part of the cache identity — two different periods are
+    // two different answers, and serving one for the other is a wrong number.
+    const filterKey = `${range.startDate ?? ''}~${range.endDate ?? ''}~${
+        prefs.includeArchivedPonds ? 1 : 0
+    }${prefs.includeInventoryPurchases ? 1 : 0}`;
+
     /**
      * One cached read for the tab, and ONE request to fill it.
      *
@@ -133,11 +236,11 @@ export const MoneyScreen = ({ navigation, route }: any) => {
      * that used to always fail with no signal.
      */
     const query = useAppQuery({
-        queryKey: qk.money(),
-        queryFn: () => fetchMoneyOverview(),
+        queryKey: qk.money(filterKey),
+        queryFn: () => fetchMoneyOverview(filters),
     });
 
-    useRefetchOnFocus(qk.money());
+    useRefetchOnFocus(qk.money(filterKey));
 
     const farms = query.data?.farms ?? [];
     const reports = query.data?.reports ?? EMPTY_REPORTS;
@@ -176,6 +279,90 @@ export const MoneyScreen = ({ navigation, route }: any) => {
     const entries = useMemo(
         () => (activeScope === ALL ? allEntries : allEntries.filter((tx) => tx.farmId === activeScope)),
         [allEntries, activeScope],
+    );
+
+    /** Changing farm invalidates the pond and cycle chosen inside the old one. */
+    const selectScope = useCallback((next: string) => {
+        setScope(next);
+        setPondId(null);
+        setCropId(null);
+    }, []);
+
+    /**
+     * The ponds of the scoped farm — ARCHIVED ONES INCLUDED, so a farmer can
+     * still open the books of a pond they retired. Only fetched once a single
+     * farm is in scope; "all farms" has no meaningful pond list.
+     */
+    const pondsQuery = useAppQuery({
+        queryKey: ['money', 'ponds', activeScope],
+        queryFn: async () => {
+            const res = await pondsApi.getAll(activeScope, { take: 100, includeArchived: true });
+            const data: any = res.data;
+            return (Array.isArray(data) ? data : (data?.items ?? data?.data ?? [])) as Pond[];
+        },
+        enabled: activeScope !== ALL,
+    });
+    const ponds: Pond[] = pondsQuery.data ?? EMPTY_PONDS;
+
+    const cyclesQuery = useAppQuery({
+        queryKey: ['money', 'crops', pondId],
+        queryFn: async () => (await cropsApi.getAll(pondId as string)).data ?? [],
+        enabled: !!pondId,
+    });
+    const cycles: Crop[] = cyclesQuery.data ?? EMPTY_CYCLES;
+
+    /**
+     * Pond- and cycle-scoped costs, filtered ON THE SERVER.
+     *
+     * This is the only way to answer "what did this pond cost me this week":
+     * costs recorded against a CYCLE never appear in the transaction list, so
+     * no amount of client-side filtering of `allEntries` could have shown them.
+     */
+    const scopedQuery = useAppQuery({
+        queryKey: ['money', 'expenses', activeScope, pondId, cropId, filterKey],
+        queryFn: async () =>
+            (
+                await expensesApi.list({
+                    farmId: activeScope,
+                    pondId: pondId as string,
+                    cropId: cropId ?? undefined,
+                    ...filters,
+                })
+            ).data ?? [],
+        enabled: !!pondId,
+    });
+    const scopedExpenses: Expense[] = scopedQuery.data ?? EMPTY_EXPENSES;
+
+    const scopedTotal = useMemo(
+        () => scopedExpenses.reduce((a, e) => a + Number(e.amount || 0), 0),
+        [scopedExpenses],
+    );
+
+    /** What the "count inventory purchases" toggle is worth, in rupees. */
+    const inventoryTotal = useMemo(
+        () => scopedFarms.reduce((a, f) => a + Number(reports[f.id]?.inventoryExpenses ?? 0), 0),
+        [scopedFarms, reports],
+    );
+
+    /**
+     * What the "count archived ponds" toggle is worth — from the report's
+     * per-pond split, which is the ONLY place that knows.
+     *
+     * Not from the entry list: a transaction hangs off a farm and has no pond,
+     * so the backend hard-codes `archived: false` on every one of them. Reading
+     * that as "no archived money" would be a wrong answer confidently given.
+     */
+    const archivedTotal = useMemo(
+        () =>
+            scopedFarms.reduce(
+                (a, f) =>
+                    a +
+                    (reports[f.id]?.ponds ?? [])
+                        .filter((p) => p.archived)
+                        .reduce((s, p) => s + Number(p.revenue || 0) + Number(p.expenses || 0), 0),
+                0,
+            ),
+        [scopedFarms, reports],
     );
 
     /** Categories sorted biggest-first, with each one's share of the total. */
@@ -289,17 +476,73 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                     <Chip
                         label={t('finance.allFarms')}
                         active={activeScope === ALL}
-                        onPress={() => setScope(ALL)}
+                        onPress={() => selectScope(ALL)}
                     />
                     {visibleFarms.map((farm) => (
                         <Chip
                             key={farm.id}
                             label={farm.name}
                             active={activeScope === farm.id}
-                            onPress={() => setScope(farm.id)}
+                            onPress={() => selectScope(farm.id)}
                         />
                     ))}
                 </ScrollView>
+            )}
+
+            {/*
+              * Period. "Am I making money" is always "…over what stretch of
+              * time"; before this the tab only ever answered "since forever",
+              * which is the one period a farmer never asks about.
+              */}
+            <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.chips}
+            >
+                {PERIODS.map((p) => (
+                    <Chip
+                        key={p}
+                        label={t(PERIOD_KEY[p])}
+                        active={prefs.period === p}
+                        onPress={() => updatePrefs({ period: p })}
+                    />
+                ))}
+            </ScrollView>
+
+            {prefs.period === 'custom' && (
+                <View style={styles.customRange}>
+                    {/*
+                      * `startDate > endDate` is a 400 from the server, so the
+                      * picker never lets one be made: "To" cannot go before
+                      * "From", and moving "From" past the current "To" drags
+                      * "To" with it rather than leaving an invalid pair.
+                      */}
+                    <View style={styles.customField}>
+                        <CalendarPicker
+                            label={t('finance.customFrom')}
+                            value={parseISO(prefs.customStart)}
+                            maxDate={new Date()}
+                            onChange={(d) => {
+                                const start = toLocalISODate(d);
+                                updatePrefs({
+                                    customStart: start,
+                                    customEnd:
+                                        prefs.customEnd && prefs.customEnd < start
+                                            ? start
+                                            : prefs.customEnd,
+                                });
+                            }}
+                        />
+                    </View>
+                    <View style={styles.customField}>
+                        <CalendarPicker
+                            label={t('finance.customTo')}
+                            value={parseISO(prefs.customEnd)}
+                            minDate={parseISO(prefs.customStart)}
+                            onChange={(d) => updatePrefs({ customEnd: toLocalISODate(d) })}
+                        />
+                    </View>
+                </View>
             )}
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -368,6 +611,42 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 )}
 
                 {/*
+                  * What the figures above COUNT. Both default on: archived
+                  * ponds spent real money, and a sack of feed bought on Tuesday
+                  * is money out on Tuesday. A farmer who reads their books
+                  * differently flips them once and we remember.
+                  */}
+                <View style={styles.toggles}>
+                    <ToggleRow
+                        label={t('finance.includeArchived')}
+                        hint={
+                            archivedTotal > 0
+                                ? t('finance.includeArchivedWorth', { amount: inr(archivedTotal) })
+                                : t('finance.includeArchivedHint')
+                        }
+                        value={prefs.includeArchivedPonds}
+                        onChange={(v) => updatePrefs({ includeArchivedPonds: v })}
+                    />
+                    <ToggleRow
+                        label={t('finance.includeInventory')}
+                        hint={
+                            // The subtotal describes what is INSIDE the totals,
+                            // so it is 0 whenever the toggle is off. Printing
+                            // "₹0 of the expenses above" there would read as
+                            // "you have no inventory spend", which is a
+                            // different — and probably false — statement.
+                            !prefs.includeInventoryPurchases
+                                ? t('finance.includeInventoryOff')
+                                : inventoryTotal > 0
+                                  ? t('finance.includeInventoryWorth', { amount: inr(inventoryTotal) })
+                                  : t('finance.includeInventoryHint')
+                        }
+                        value={prefs.includeInventoryPurchases}
+                        onChange={(v) => updatePrefs({ includeInventoryPurchases: v })}
+                    />
+                </View>
+
+                {/*
                   * Which farm the combined number came from, worst first — the
                   * farm losing money is the one worth opening. Tapping a row is
                   * the same as tapping its chip, so a farmer can drill in where
@@ -384,7 +663,7 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                                     <TouchableOpacity
                                         key={farm.id}
                                         style={styles.farmRow}
-                                        onPress={() => setScope(farm.id)}
+                                        onPress={() => selectScope(farm.id)}
                                         accessibilityRole="button"
                                     >
                                         <View style={{ flex: 1, minWidth: 0 }}>
@@ -435,6 +714,124 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                                 <Text style={styles.catShare}>{Math.round(row.share * 100)}%</Text>
                             </View>
                         ))}
+                    </>
+                )}
+
+                {/*
+                  * Pond, then that pond's cycles. Only once a single farm is in
+                  * scope — a pond list across three farms is a list of ponds
+                  * with the same names on it.
+                  *
+                  * An archived pond is IN the list, in the slate colour and
+                  * carrying the word "Archived": colour alone is not a signal a
+                  * farmer in bright sun with a cheap screen can read.
+                  */}
+                {activeScope !== ALL && ponds.length > 0 && (
+                    <>
+                        <SectionHeader label={t('finance.byPond')} />
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.chips}
+                        >
+                            <Chip
+                                label={t('finance.wholeFarm')}
+                                active={pondId == null}
+                                onPress={() => {
+                                    setPondId(null);
+                                    setCropId(null);
+                                }}
+                            />
+                            {ponds.map((p) => {
+                                const isArchived = p.status === 'archived';
+                                return (
+                                    <Chip
+                                        key={p.id}
+                                        label={
+                                            (p.displayName || p.name) +
+                                            (isArchived ? ` · ${t('finance.archivedTag')}` : '')
+                                        }
+                                        archived={isArchived}
+                                        active={pondId === p.id}
+                                        onPress={() => {
+                                            setPondId(p.id);
+                                            setCropId(null);
+                                        }}
+                                    />
+                                );
+                            })}
+                        </ScrollView>
+                    </>
+                )}
+
+                {pondId != null && cycles.length > 0 && (
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.chips}
+                    >
+                        <Chip
+                            label={t('finance.allCycles')}
+                            active={cropId == null}
+                            onPress={() => setCropId(null)}
+                        />
+                        {cycles.map((cr) => (
+                            <Chip
+                                key={cr.id}
+                                label={cr.cropCode || cr.name}
+                                active={cropId === cr.id}
+                                onPress={() => setCropId(cr.id)}
+                            />
+                        ))}
+                    </ScrollView>
+                )}
+
+                {pondId != null && (
+                    <>
+                        <View style={styles.scopedTotalRow}>
+                            <Text style={styles.scopedTotalLabel} numberOfLines={1}>
+                                {cropId
+                                    ? t('finance.cycleCostTotal')
+                                    : t('finance.pondCostTotal')}
+                            </Text>
+                            <Text style={styles.scopedTotalValue}>{inr(scopedTotal)}</Text>
+                        </View>
+                        {scopedQuery.isPending ? (
+                            <Skeleton width="100%" height={44} />
+                        ) : scopedExpenses.length === 0 ? (
+                            <Text style={styles.empty}>{t('finance.noPondCosts')}</Text>
+                        ) : (
+                            scopedExpenses.slice(0, RECENT_COUNT).map((e) => (
+                                <View
+                                    key={e.id}
+                                    style={[styles.entry, e.archived && styles.entryArchived]}
+                                >
+                                    <View style={{ flex: 1, minWidth: 0 }}>
+                                        <Text
+                                            style={[
+                                                styles.entryTitle,
+                                                e.archived && styles.archivedText,
+                                            ]}
+                                            numberOfLines={1}
+                                        >
+                                            {e.description || e.category}
+                                        </Text>
+                                        <Text style={styles.entryMeta} numberOfLines={1}>
+                                            {[
+                                                shortDate(e.date),
+                                                e.category,
+                                                e.archived ? t('finance.archivedTag') : null,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                        </Text>
+                                    </View>
+                                    <Text style={[styles.entryAmount, { color: c.dangerText }]}>
+                                        −{inr(Math.abs(Number(e.amount)))}
+                                    </Text>
+                                </View>
+                            ))
+                        )}
                     </>
                 )}
 
@@ -501,6 +898,13 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                                 ? t('finance.harvestSoldTo', { buyer: tx.buyerName })
                                 : t('finance.harvestSale')
                             : tx.paymentMethod;
+                        // No archived treatment here, deliberately. A
+                        // transaction hangs off a FARM and has no pond, so the
+                        // backend hard-codes `archived: false` on every row.
+                        // Colouring on that flag would paint every entry "live"
+                        // and quietly claim there is no archived money, when the
+                        // truth is this ledger cannot tell. The toggle hint and
+                        // the pond list above answer it from the report instead.
                         return (
                             <View key={tx.id} style={styles.entry}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
@@ -536,26 +940,66 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                 {recent.length > 0 && hasFigures && (
                     <Text style={styles.note}>{t('finance.entriesNote')}</Text>
                 )}
+                {/* Said out loud rather than left to be inferred from the
+                    absence of any archived marking in the list above. */}
+                {archivedTotal > 0 && prefs.includeArchivedPonds && (
+                    <Text style={styles.note}>{t('finance.entriesArchivedNote')}</Text>
+                )}
             </ScrollView>
         </ScreenWrapper>
     );
 };
 
-const Chip: React.FC<{ label: string; active: boolean; onPress: () => void }> = ({
-    label,
-    active,
-    onPress,
-}) => (
+const Chip: React.FC<{
+    label: string;
+    active: boolean;
+    onPress: () => void;
+    /** Slate treatment for an archived pond — the label still says the word. */
+    archived?: boolean;
+}> = ({ label, active, onPress, archived }) => (
     <TouchableOpacity
-        style={[styles.chip, active && styles.chipActive]}
+        style={[styles.chip, archived && styles.chipArchived, active && styles.chipActive]}
         onPress={onPress}
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
     >
-        <Text style={[styles.chipLabel, active && styles.chipLabelActive]} numberOfLines={1}>
+        <Text
+            style={[
+                styles.chipLabel,
+                archived && styles.archivedText,
+                active && styles.chipLabelActive,
+            ]}
+            numberOfLines={1}
+        >
             {label}
         </Text>
     </TouchableOpacity>
+);
+
+/**
+ * One line, one switch, one sentence saying what flipping it does.
+ *
+ * The label is the switch's accessibility label too — a bare Switch announces
+ * only "on", which tells a screen-reader user nothing about what is on.
+ */
+const ToggleRow: React.FC<{
+    label: string;
+    hint: string;
+    value: boolean;
+    onChange: (v: boolean) => void;
+}> = ({ label, hint, value, onChange }) => (
+    <View style={styles.toggleRow}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.toggleLabel}>{label}</Text>
+            <Text style={styles.toggleHint}>{hint}</Text>
+        </View>
+        <Switch
+            value={value}
+            onValueChange={onChange}
+            accessibilityLabel={label}
+            accessibilityRole="switch"
+        />
+    </View>
 );
 
 const HeroStat: React.FC<{ label: string; value: string; tone?: string }> = ({
@@ -597,6 +1041,49 @@ const styles = StyleSheet.create({
     chipActive: { borderColor: c.borderStrong, backgroundColor: c.surfaceVariant },
     chipLabel: { ...theme.typeScale.labelMedium, color: c.textSecondary },
     chipLabelActive: { color: c.textPrimary },
+    // The app's one "this is retired but still true" treatment — same slate
+    // roles the stale-data hints use, not a colour invented here.
+    chipArchived: { borderColor: c.staleBorder, backgroundColor: c.staleBg },
+    archivedText: { color: c.staleText },
+
+    customRange: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[2],
+        backgroundColor: c.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
+    },
+    customField: { flex: 1, minWidth: 0 },
+
+    toggles: {
+        borderBottomWidth: 1,
+        borderBottomColor: c.borderDefault,
+    },
+    toggleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2],
+        borderTopWidth: 1,
+        borderTopColor: c.surfaceVariant,
+        minHeight: 48,
+    },
+    toggleLabel: { ...theme.typeScale.labelLarge, color: c.textPrimary },
+    toggleHint: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary },
+
+    scopedTotalRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        backgroundColor: c.surfaceVariant,
+        paddingHorizontal: theme.spacing[5],
+        paddingVertical: theme.spacing[2.5],
+    },
+    scopedTotalLabel: { ...theme.typeScale.labelLarge, flex: 1, minWidth: 0, color: c.textPrimary },
+    scopedTotalValue: { fontFamily: 'DMMono-Medium', fontSize: 16, color: c.dangerText },
 
     hero: {
         backgroundColor: c.successBg,
@@ -719,6 +1206,7 @@ const styles = StyleSheet.create({
         borderTopColor: c.surfaceVariant,
         minHeight: 44,
     },
+    entryArchived: { backgroundColor: c.staleBg, borderLeftWidth: 3, borderLeftColor: c.staleBorder },
     entryTitle: { ...theme.typeScale.labelLarge, color: c.textPrimary },
     entryMeta: { ...theme.typeScale.bodySmall, fontSize: 11, color: c.textTertiary },
     entryAmount: { fontFamily: 'DMMono-Medium', fontSize: 15 },

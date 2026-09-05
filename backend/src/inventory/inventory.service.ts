@@ -21,6 +21,12 @@ import { FarmMember } from '../farm-access/farm-member.entity';
 import { Farm } from '../farms/farm.entity';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreateTransactionDto } from '../transactions/dto/create-transaction.dto';
+// Read-only joins for the two cross-links on the detail screen: the pond a
+// consumption fed, and the expense a purchase wrote. Repositories only — no
+// service of another module is touched.
+import { Transaction } from '../transactions/transaction.entity';
+import { FeedRecord } from '../feed-records/feed-record.entity';
+import { Pond } from '../ponds/pond.entity';
 
 /** Options for a stock adjustment. */
 export interface AdjustStockOptions {
@@ -45,13 +51,26 @@ export interface AdjustStockOptions {
    * Present only when this adjustment is a purchase. Opt-in: a plain stock
    * correction must not write a money row. When set, `adjustStock` records a
    * 'inventory'-category expense of `amount`, tagged with the item, in the
-   * SAME transaction as the stock update. Billed to the farm `loadItem`
-   * already authorized the caller against — there is no caller-supplied
-   * farmId, deliberately: taking one from the caller and not checking it
-   * against the authorized farm was a cross-farm billing hole (Task 9 review
-   * finding 1).
+   * SAME transaction as the stock update.
+   *
+   * `farmId` names which farm is billed. It is REQUIRED when the item is
+   * paired to more than one farm — a purchase spends exactly one farm's cash
+   * and silently picking the first paired farm would bill the wrong one. It
+   * is checked against the farms `loadItem` actually AUTHORIZED (mode 'all',
+   * so every paired farm), which is what closes the old cross-farm billing
+   * hole (Task 9 review finding 1): a farmId that is not in that set is a
+   * 400, never a bill.
    */
-  purchase?: { amount: number };
+  purchase?: { amount: number; farmId?: string };
+  /**
+   * Client-minted UUID (F1). Becomes the movement row's PRIMARY KEY and the
+   * linked transaction's id, so replaying the same request writes one
+   * movement, one money row and moves the quantity once. The PK is the real
+   * guard — a lost race fails the INSERT and rolls the whole transaction
+   * back; the pre-check below only turns the common retry into a success
+   * instead of a 500.
+   */
+  idempotencyKey?: string;
 }
 
 /** An item plus every farm it is paired to (not persisted on the entity). */
@@ -74,6 +93,12 @@ export class InventoryService {
     private pairingRepo: Repository<InventoryFarm>,
     private readonly dataSource: DataSource,
     private readonly transactionsService: TransactionsService,
+    @InjectRepository(Transaction)
+    private txRepo: Repository<Transaction>,
+    @InjectRepository(FeedRecord)
+    private feedRepo: Repository<FeedRecord>,
+    @InjectRepository(Pond)
+    private pondRepo: Repository<Pond>,
   ) {}
 
   async create(createDto: CreateInventoryItemDto, userId: string) {
@@ -101,6 +126,13 @@ export class InventoryService {
       ),
     );
 
+    // DELIBERATE: creating an item with an opening quantity and a unitPrice
+    // writes NO money row. `quantity * unitPrice` is the value of stock the
+    // farmer already owns, not cash they spent today — auto-expensing it
+    // would book last season's feed as this week's cost the moment someone
+    // finally types their store into the app. Money is opt-in and explicit,
+    // through the purchase path on PATCH /inventory/:id/adjust (`amount`),
+    // which is also where the idempotency key and the bill-to farm live.
     const { farmIds: _drop, ...rest } = createDto;
     const item = this.itemsRepository.create({ ...rest, farmId: farmIds[0] });
 
@@ -365,16 +397,73 @@ export class InventoryService {
     return qb.orderBy('item.name', 'ASC').getMany();
   }
 
-  /** One item's stock history, newest first. */
+  /**
+   * One item's stock history, newest first, with the pond a consumption went
+   * to attached where it is derivable.
+   *
+   * The pond is JOINED at read time through `feed_record_id` rather than
+   * stored on the movement: no column, no migration, no backfill, and it
+   * works for every row already in the table. A deleted feed record simply
+   * gives `pondId: null` — the movement still says what left the store, which
+   * is the part that must outlive the feed log.
+   */
   async listMovements(
     itemId: string,
     userId: string,
-  ): Promise<InventoryMovement[]> {
+  ): Promise<(InventoryMovement & { pondId: string | null; pondName: string | null })[]> {
     await this.loadItem(itemId, userId, 'VIEW_INVENTORY');
-    return this.movementRepo.find({
+    const rows = await this.movementRepo.find({
       where: { inventoryId: itemId },
       order: { createdAt: 'DESC' },
       take: 100,
+    });
+
+    const feedIds = [
+      ...new Set(rows.map((r) => r.feedRecordId).filter(Boolean) as string[]),
+    ];
+    const pondByFeed = new Map<string, { id: string; name: string }>();
+    if (feedIds.length) {
+      const feeds = await this.feedRepo.find({ where: { id: In(feedIds) } });
+      const ponds = await this.pondRepo.find({
+        where: { id: In([...new Set(feeds.map((f) => f.pondId))]) },
+      });
+      const byId = new Map(ponds.map((p) => [p.id, p]));
+      for (const f of feeds) {
+        const p = byId.get(f.pondId);
+        if (p) pondByFeed.set(f.id, { id: p.id, name: p.name });
+      }
+    }
+
+    return rows.map((r) => {
+      const pond = r.feedRecordId ? pondByFeed.get(r.feedRecordId) : undefined;
+      return { ...r, pondId: pond?.id ?? null, pondName: pond?.name ?? null };
+    });
+  }
+
+  /**
+   * The money rows this item's purchases created — the other half of the
+   * inventory↔money link, so a farmer can see the expense their stock
+   * addition wrote.
+   *
+   * Gated on VIEW_FINANCIALS *per farm*, not on VIEW_INVENTORY: a storekeeper
+   * who may count bags is not automatically allowed to read what the farm
+   * paid for them. Farms the caller cannot see financials for are dropped,
+   * and no visible farm yields an empty list rather than a 403 — the section
+   * simply does not render.
+   */
+  async listPurchases(itemId: string, userId: string): Promise<Transaction[]> {
+    const { item } = await this.loadItem(itemId, userId, 'VIEW_INVENTORY');
+    const farmIds = await this.farmsFor(itemId, item);
+    const visible = await this.farmAccess.getFarmIdsWithCapability(
+      userId,
+      'VIEW_FINANCIALS',
+    );
+    const allowed = farmIds.filter((f) => visible.includes(f));
+    if (!allowed.length) return [];
+    return this.txRepo.find({
+      where: { inventoryItemId: itemId, farmId: In(allowed) },
+      order: { transactionDate: 'DESC' },
+      take: 50,
     });
   }
 
@@ -391,7 +480,7 @@ export class InventoryService {
   ) {
     const capability = options.capability ?? 'MANAGE_INVENTORY';
 
-    // T9 guard. `purchase` bills `farm.id` through createInternal, which
+    // T9 guard. `purchase` bills a farm through createInternal, which
     // performs NO capability check by design — safe only because mode 'all'
     // means the caller is authorized on every paired farm. A caller combining
     // `purchase` with VIEW_INVENTORY would get mode 'any', so `farm` could be
@@ -404,8 +493,36 @@ export class InventoryService {
       );
     }
 
+    // Money only ever follows stock coming IN. An `amount` on a deduction is
+    // a caller mistake (double-counting a consumption as a second expense —
+    // see D2), so it is refused rather than silently dropped.
+    if (options.purchase && quantityChange <= 0) {
+      throw new BadRequestException(
+        'A purchase must add stock; a reduction cannot carry an amount',
+      );
+    }
+
     const { item, farms } = await this.loadItem(id, userId, capability);
-    const farm = farms[0];
+
+    // Which farm the purchase bills. `farms` is every paired farm the caller
+    // just proved MANAGE_INVENTORY on (mode 'all'), so membership here IS the
+    // authorization check — an unpaired or unauthorized farmId never reaches
+    // createInternal.
+    let billTo: Farm | undefined;
+    if (options.purchase) {
+      billTo = options.purchase.farmId
+        ? farms.find((f) => f.id === options.purchase!.farmId)
+        : farms.length === 1
+          ? farms[0]
+          : undefined;
+      if (!billTo) {
+        throw new BadRequestException(
+          options.purchase.farmId
+            ? 'The purchase must be billed to a farm this item is stocked for'
+            : 'This item is shared by several farms — name the farm this purchase belongs to',
+        );
+      }
+    }
 
     // A feed log on pond X must not be able to draw down another farm's stock.
     // C1: checked against every farm the item is PAIRED to, not the legacy
@@ -439,6 +556,17 @@ export class InventoryService {
     // throwing inside the callback rolls everything in it back, so the
     // `affected === 0` guard still leaves no movement row and no money row.
     await this.dataSource.transaction(async (manager) => {
+      // F1 replay guard. The movement id IS the client's idempotency key, so
+      // "has this adjustment already been applied?" is one indexed PK lookup.
+      // A retry returns the item untouched: no second decrement, no second
+      // money row.
+      if (options.idempotencyKey) {
+        const seen = await manager.findOne(InventoryMovement, {
+          where: { id: options.idempotencyKey },
+        });
+        if (seen) return;
+      }
+
       const result = await manager
         .createQueryBuilder()
         .update(InventoryItem)
@@ -462,41 +590,44 @@ export class InventoryService {
 
       // Append-only ledger. Written after the guard, so a rejected adjustment
       // leaves no trace of a change that never happened.
+      //
+      // `insert`, not `save`: save() with an explicit PK does a SELECT and
+      // then an UPDATE when the row exists, which would silently accept a
+      // concurrent replay that slipped past the pre-check above. A plain
+      // INSERT raises the unique violation instead, rolling back this
+      // transaction — including the quantity change — so the adjustment is
+      // applied exactly once even under a lost race.
       const movementRepo = manager.getRepository(InventoryMovement);
-      await movementRepo.save(
-        movementRepo.create({
-          inventoryId: id,
-          delta: quantityChange,
-          reason: options.reason ?? null,
-          createdById: userId ?? null,
-          feedRecordId: options.feedRecordId ?? null,
-        }),
-      );
+      await movementRepo.insert({
+        ...(options.idempotencyKey ? { id: options.idempotencyKey } : {}),
+        inventoryId: id,
+        delta: quantityChange,
+        reason: options.reason ?? null,
+        createdById: userId ?? null,
+        feedRecordId: options.feedRecordId ?? null,
+      });
 
       // Opt-in money write. A purchase spends the farm's cash, so it goes
       // through TransactionsService — but via the INTERNAL, unchecked path:
       // the caller already proved MANAGE_INVENTORY (or WRITE_OPERATIONAL) on
       // EVERY farm this item is paired to above (loadItem/assertPaired, mode
-      // 'all' for any non-VIEW_INVENTORY capability), so `farm.id` — the farm
-      // that check authorized — is always a safe bill-to. There is
-      // deliberately no caller-supplied farmId here any more: an earlier
-      // version took `options.purchase.farmId` from the caller and never
-      // checked it against `farm`, which would have let the first caller to
-      // wire user input into `purchase` bill an arbitrary, unauthorized farm
-      // (Task 9 review finding 1). Billing `farm.id` unconditionally closes
-      // that hole by construction instead of by a runtime equality check.
+      // 'all' for any non-VIEW_INVENTORY capability), so any farm in `farms`
+      // is a safe bill-to. `billTo` is resolved from that authorized list
+      // above: the caller may NAME a farm (required once the item is shared,
+      // otherwise the bill lands on an arbitrary one) but a name outside the
+      // authorized set is a 400, never a bill — which is what the earlier
+      // `options.purchase.farmId` was missing (Task 9 review finding 1).
       // No `purchase` option means no money row — a plain stock correction
-      // stays out of the ledger.
-      // ponytail: no idempotency guard on this path — AdjustStockDto carries
-      // no client id and createInternal accepts none, so a retried request
-      // double-writes the movement row today and would double-write the
-      // money row too. Not reachable yet (no route sets `purchase`); add a
-      // client id + replay guard (mirroring TransactionsService.create's)
-      // when the purchase UI is wired up and retries become real.
+      // stays out of the ledger, and a CONSUMPTION never gets here at all
+      // (D2: consumption is cost attribution, not a second rupee).
+      // F1 closed: the money row's id is the same client key as the movement
+      // id (different tables, so one key serves both), which makes the write
+      // deterministic even if this ever runs outside the replay guard above.
       if (options.purchase) {
         await this.transactionsService.createInternal(
           {
-            farmId: farm.id,
+            ...(options.idempotencyKey ? { id: options.idempotencyKey } : {}),
+            farmId: billTo!.id,
             transactionDate: new Date().toISOString(),
             type: 'expense',
             category: 'inventory',

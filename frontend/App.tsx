@@ -15,6 +15,8 @@ import { ToastHost } from './src/components/ui/ToastHost';
 import { WhatsNewCard } from './src/components/ui/WhatsNewCard';
 import { registerForPushNotificationsAsync, syncReminders } from './src/utils/notifications';
 import { alertCenterApi } from './src/api/alertCenter';
+import { pondsApi } from './src/api/ponds';
+import { loadReminderTimes } from './src/features/reminderTimes';
 import { useAuthStore } from './src/store/authStore';
 import { useBannedSubstancesStore } from './src/features/bannedSubstancesStore';
 import { pushApi } from './src/api/push';
@@ -113,17 +115,39 @@ export default function App() {
   // immediately, not just at the next foreground.
   useEffect(() => {
     if (!isAuthenticated) return;
-    const armReminders = () => {
-      alertCenterApi
-        .today()
-        .then((r) => syncReminders(r.data.contexts ?? []))
-        .catch(() => {
-          /* best-effort; the next foreground or save will retry */
-        });
+    //
+    // THREE things this deliberately does NOT do any more:
+    //  1. It no longer lets `/alert-center/today` decide whether the farmer
+    //     gets reminders at all. That endpoint only returns ponds with a
+    //     RUNNING CYCLE, so a farmer between crops got an empty array and
+    //     silently zero reminders. `/ponds/mine` answers the real question —
+    //     "is there a pond here?" — and a fallow pond still needs testing.
+    //  2. It no longer drops the whole arming on a failed fetch. If `today()`
+    //     fails we arm the full window with no skip information, which is
+    //     strictly better than the previous outcome of nothing at all.
+    //  3. It no longer scheduled against DEFAULT_REMINDER_TIMES while the
+    //     farmer's chosen times sat unread in AsyncStorage.
+    const armReminders = async () => {
+      const [ctxRes, pondRes, times] = await Promise.all([
+        alertCenterApi.today().catch(() => null),
+        pondsApi.getMine().catch(() => null),
+        loadReminderTimes(),
+      ]);
+      const contexts = ctxRes?.data?.contexts ?? [];
+      // Unknown pond list → fall back to the contexts, which is what the old
+      // code assumed unconditionally.
+      const hasPonds = pondRes ? (pondRes.data?.length ?? 0) > 0 : contexts.length > 0;
+      await syncReminders(contexts, times, new Date(), hasPonds);
     };
-    armReminders();
+    const arm = () =>
+      armReminders().catch((e) =>
+        // Not swallowed silently any more — Settings shows the farmer the same
+        // truth (getReminderStatus), this is for the crash/log trail.
+        console.warn('[Notifications] Could not arm reminders', e),
+      );
+    arm();
     const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') armReminders();
+      if (state === 'active') arm();
     });
     return () => sub.remove();
   }, [isAuthenticated]);

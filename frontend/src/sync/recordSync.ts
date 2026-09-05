@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { invalidateForEntity, queryClient, qk } from '../query/client';
 import type { TodaySnapshot } from '../api/todaySnapshot';
 import { syncReminders } from '../utils/notifications';
+import { loadReminderTimes } from '../features/reminderTimes';
 
 /**
  * Shared offline-aware save path for operational records (feed, water quality,
@@ -82,15 +83,20 @@ export async function saveRecord({ entity, endpoint, payload }: SaveRecordArgs):
         // If nothing is cached yet, the interceptor's invalidation above
         // already marked it stale, so the Today screen refetches on its own
         // and the next app-foreground re-arms from fresh data instead.
+        //
+        // `loadReminderTimes()` is read here rather than passing the default:
+        // scheduling against 06:30/13:00/18:00 when the farmer had chosen
+        // 05:00 meant every save quietly overwrote their own choice until the
+        // next visit to Settings.
         try {
             const cached = queryClient.getQueryData<TodaySnapshot>([...qk.briefing(), 'home']);
             if (cached?.contexts?.length) {
-                syncReminders(cached.contexts).catch(() => {
-                    /* best-effort; the next foreground or save will retry */
-                });
+                loadReminderTimes()
+                    .then((times) => syncReminders(cached.contexts, times))
+                    .catch((e) => console.warn('[Notifications] Could not re-arm after save', e));
             }
-        } catch {
-            /* best-effort; see above */
+        } catch (e) {
+            console.warn('[Notifications] Could not re-arm after save', e);
         }
         return { id, queued: false, data };
     } catch (err) {

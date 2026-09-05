@@ -4,6 +4,20 @@ jest.mock('../../api/client', () => ({
     default: { get: jest.fn(), post: jest.fn(), request: jest.fn() },
 }));
 jest.mock('../../utils/notifications', () => ({ syncReminders: jest.fn().mockResolvedValue(undefined) }));
+// The re-arm reads the farmer's own reminder times before scheduling, so a
+// save can no longer quietly overwrite them with the defaults.
+const TIMES = {
+    morning: { hour: 6, minute: 30 },
+    afternoon: { hour: 13, minute: 0 },
+    evening: { hour: 18, minute: 0 },
+    chemistry: { hour: 7, minute: 30, weekday: 0 },
+};
+jest.mock('../../features/reminderTimes', () => ({
+    loadReminderTimes: jest.fn().mockResolvedValue(TIMES),
+}));
+
+/** The re-arm is deliberately fire-and-forget, so a save never waits on it. */
+const flushReArm = () => new Promise((r) => setImmediate(r));
 
 import apiClient from '../../api/client';
 import { useSyncStore, RETRY_COUNT_INTERVAL_MS } from '../../store/syncStore';
@@ -90,10 +104,14 @@ describe('recordSync.saveRecord re-arms reminders from the cache, never the netw
 
         await saveRecord({ entity: 'water_quality', endpoint: '/water-quality', payload: { pondId: 'a', ph: 7.8 } });
 
+        await flushReArm();
+
         // This is the regression the fix closes: /alert-center/today builds
         // every pond's context server-side, so a save must never call it.
         expect(mockedGet).not.toHaveBeenCalled();
-        expect(mockedSyncReminders).toHaveBeenCalledWith([ctx('a')]);
+        // The farmer's OWN times, not the defaults — passing the defaults here
+        // meant every save silently overwrote a farmer who had chosen 05:00.
+        expect(mockedSyncReminders).toHaveBeenCalledWith([ctx('a')], TIMES);
     });
 
     it('skips re-arming (rather than fetching) when nothing is cached yet', async () => {

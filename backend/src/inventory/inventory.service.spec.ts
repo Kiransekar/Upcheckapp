@@ -10,6 +10,9 @@ import { FarmMember } from '../farm-access/farm-member.entity';
 import { AlertsService } from '../alerts/alerts.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { TransactionsService } from '../transactions/transactions.service';
+import { Transaction } from '../transactions/transaction.entity';
+import { FeedRecord } from '../feed-records/feed-record.entity';
+import { Pond } from '../ponds/pond.entity';
 import { isLowStock } from './inventory.constants';
 
 const FARM = { id: 'farm-1', userId: 'owner-1', rolePolicy: null } as any;
@@ -26,6 +29,10 @@ describe('InventoryService', () => {
   let pairingRepo: any;
   let dataSource: any;
   let transactionsService: any;
+  let managerFindOne: any;
+  let txRepo: any;
+  let feedRepo: any;
+  let pondRepo: any;
 
   beforeEach(async () => {
     updateResult = { affected: 1 };
@@ -39,9 +46,12 @@ describe('InventoryService', () => {
       getMany: jest.fn().mockResolvedValue([]),
       getCount: jest.fn().mockResolvedValue(0),
     };
+    // `insert`, not `save`: adjustStock writes the movement with a plain
+    // INSERT so a replayed idempotency key hits the primary key and rolls the
+    // whole adjustment back instead of being silently UPDATEd over (F1).
     movementRepo = {
       create: jest.fn((dto) => dto),
-      save: jest.fn().mockResolvedValue({}),
+      insert: jest.fn().mockResolvedValue({}),
       find: jest.fn().mockResolvedValue([]),
     };
     // Empty by default: farmsFor() then falls back to item.farmId, matching
@@ -51,6 +61,8 @@ describe('InventoryService', () => {
       save: jest.fn().mockResolvedValue({}),
       find: jest.fn().mockResolvedValue([]),
     };
+    // The F1 replay lookup. Null = "this key has not been applied yet".
+    managerFindOne = jest.fn().mockResolvedValue(null);
     dataSource = {
       // adjustStock now runs the stock UPDATE, movement insert and (opt-in)
       // money insert through this one manager — createQueryBuilder for the
@@ -61,6 +73,7 @@ describe('InventoryService', () => {
           delete: jest.fn(),
           insert: jest.fn(),
           update: jest.fn(),
+          findOne: managerFindOne,
           createQueryBuilder: jest.fn(() => updateBuilder),
           // create() now saves the item inside the transaction too, so this
           // has to hand back the right repo per entity rather than always
@@ -92,6 +105,11 @@ describe('InventoryService', () => {
       create: jest.fn().mockResolvedValue({}),
       createInternal: jest.fn().mockResolvedValue({}),
     };
+    // Read-only joins for the two cross-links (purchase list, pond on a
+    // consumption row).
+    txRepo = { find: jest.fn().mockResolvedValue([]) };
+    feedRepo = { find: jest.fn().mockResolvedValue([]) };
+    pondRepo = { find: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -107,6 +125,9 @@ describe('InventoryService', () => {
         { provide: getRepositoryToken(InventoryFarm), useValue: pairingRepo },
         { provide: DataSource, useValue: dataSource },
         { provide: TransactionsService, useValue: transactionsService },
+        { provide: getRepositoryToken(Transaction), useValue: txRepo },
+        { provide: getRepositoryToken(FeedRecord), useValue: feedRepo },
+        { provide: getRepositoryToken(Pond), useValue: pondRepo },
       ],
     }).compile();
 
@@ -208,7 +229,7 @@ describe('InventoryService', () => {
       await expect(service.adjustStock('item-1', -1, 'u1')).rejects.toThrow(
         /Insufficient stock/,
       );
-      expect(movementRepo.save).not.toHaveBeenCalled();
+      expect(movementRepo.insert).not.toHaveBeenCalled();
     });
   });
 
@@ -279,7 +300,7 @@ describe('InventoryService', () => {
         capability: 'MANAGE_INVENTORY',
         reason: 'Feed log',
       });
-      expect(movementRepo.save).toHaveBeenCalledWith(
+      expect(movementRepo.insert).toHaveBeenCalledWith(
         expect.objectContaining({
           inventoryId: 'item-1',
           delta: -5,
@@ -300,7 +321,7 @@ describe('InventoryService', () => {
           capability: 'MANAGE_INVENTORY',
         }),
       ).rejects.toThrow(BadRequestException);
-      expect(movementRepo.save).not.toHaveBeenCalled();
+      expect(movementRepo.insert).not.toHaveBeenCalled();
     });
 
     it('links a feed-driven movement back to its feed record', async () => {
@@ -309,7 +330,7 @@ describe('InventoryService', () => {
         reason: 'Feed log',
         feedRecordId: 'feed-9',
       });
-      expect(movementRepo.save).toHaveBeenCalledWith(
+      expect(movementRepo.insert).toHaveBeenCalledWith(
         expect.objectContaining({ feedRecordId: 'feed-9' }),
       );
     });
@@ -401,6 +422,259 @@ describe('InventoryService', () => {
       // The post-transaction re-fetch (the second findOneBy call in a
       // successful run) never runs — the failure is not swallowed.
       expect(items.findOneBy).toHaveBeenCalledTimes(1);
+    });
+
+    it('refuses an amount on a reduction instead of dropping it (D2)', async () => {
+      // Consumption is cost attribution on the pond, never a second money
+      // row. Silently ignoring the amount would let a client believe it had
+      // recorded a cost that was never written.
+      await expect(
+        service.adjustStock('item-1', -5, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+          purchase: { amount: 4500 },
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+    });
+
+    it('writes no money row for a feed deduction', async () => {
+      // The whole point of D2: the feed pipeline draws stock down and books
+      // nothing. Money was already spent when the stock was bought.
+      await service.adjustStock('item-1', -3, 'user-1', {
+        capability: 'WRITE_OPERATIONAL',
+        reason: 'Feed log',
+        feedRecordId: 'feed-9',
+      });
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+      expect(transactionsService.create).not.toHaveBeenCalled();
+      expect(movementRepo.insert).toHaveBeenCalledWith(
+        expect.objectContaining({ delta: -3, feedRecordId: 'feed-9' }),
+      );
+    });
+  });
+
+  describe('which farm a purchase bills', () => {
+    beforeEach(() => {
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'item-1', farmId: 'farm-a' },
+        { inventoryId: 'item-1', farmId: 'farm-b' },
+      ]);
+      farmAccess.assertCanAccessFarm.mockImplementation(
+        (_userId: string, farmId: string) =>
+          Promise.resolve({ id: farmId, userId: 'owner-1', rolePolicy: null }),
+      );
+    });
+
+    it('refuses to guess when the item is shared by several farms', async () => {
+      await expect(
+        service.adjustStock('item-1', 10, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+          purchase: { amount: 4500 },
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+    });
+
+    it('bills the named farm', async () => {
+      await service.adjustStock('item-1', 10, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+        purchase: { amount: 4500, farmId: 'farm-b' },
+      });
+      expect(transactionsService.createInternal).toHaveBeenCalledWith(
+        expect.objectContaining({ farmId: 'farm-b', amount: 4500 }),
+        'user-1',
+        expect.anything(),
+      );
+    });
+
+    it('refuses a farm outside the authorized, paired set', async () => {
+      // `farms` is exactly the farms assertPaired authorized (mode 'all'), so
+      // naming anything else — another farm entirely, or one this item is not
+      // stocked for — cannot become a bill.
+      await expect(
+        service.adjustStock('item-1', 10, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+          purchase: { amount: 4500, farmId: 'farm-z' },
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+    });
+
+    it('403s before any billing when the caller lacks MANAGE_INVENTORY on a paired farm', async () => {
+      // Mode 'all': failing on farm-b denies the whole write, so farm-a can
+      // never be billed by someone who only manages farm-a.
+      farmAccess.assertCanAccessFarm.mockImplementation(
+        (_userId: string, farmId: string) =>
+          farmId === 'farm-b'
+            ? Promise.reject(new ForbiddenException())
+            : Promise.resolve({ id: farmId, userId: 'o', rolePolicy: null }),
+      );
+      await expect(
+        service.adjustStock('item-1', 10, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+          purchase: { amount: 4500, farmId: 'farm-a' },
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(transactionsService.createInternal).not.toHaveBeenCalled();
+    });
+  });
+
+  // F1 (the follow-up that had to close before a purchase UI could ship): a
+  // retried purchase must write ONE movement, ONE money row and move the
+  // quantity ONCE.
+  //
+  // This fake models the only thing the guarantee rests on — the movement
+  // row's PRIMARY KEY — plus transaction rollback, because "the second write
+  // fails and takes the quantity change with it" is the half that makes the
+  // lost race safe rather than merely unlikely.
+  describe('F1 — replaying a purchase', () => {
+    const KEY = '11111111-1111-4111-8111-111111111111';
+    let stock: number;
+    let movements: any[];
+    let blindToExisting: boolean;
+    let pendingDelta: number;
+
+    beforeEach(() => {
+      stock = 10;
+      movements = [];
+      blindToExisting = false;
+      pendingDelta = 0;
+
+      updateBuilder.where = jest.fn((_sql: string, params: any) => {
+        pendingDelta = params.quantityChange;
+        return updateBuilder;
+      });
+      updateBuilder.execute = jest.fn(async () => {
+        stock += pendingDelta;
+        return { affected: 1 };
+      });
+
+      dataSource.transaction = jest.fn(async (cb: any) => {
+        const stockBefore = stock;
+        const movementsBefore = movements.slice();
+        try {
+          return await cb({
+            findOne: async (_entity: any, opts: any) =>
+              blindToExisting
+                ? null
+                : (movements.find((m) => m.id === opts.where.id) ?? null),
+            createQueryBuilder: () => updateBuilder,
+            getRepository: (entity: any) =>
+              entity === InventoryItem
+                ? items
+                : {
+                    create: (dto: any) => dto,
+                    insert: async (row: any) => {
+                      if (row.id && movements.some((m) => m.id === row.id)) {
+                        throw new Error(
+                          'duplicate key value violates unique constraint "PK_inventory_movements"',
+                        );
+                      }
+                      movements.push(row);
+                    },
+                  },
+          });
+        } catch (e) {
+          // ROLLBACK.
+          stock = stockBefore;
+          movements = movementsBefore;
+          throw e;
+        }
+      });
+    });
+
+    const purchase = () =>
+      service.adjustStock('item-1', 10, 'user-1', {
+        capability: 'MANAGE_INVENTORY',
+        reason: 'Purchase',
+        purchase: { amount: 4500 },
+        idempotencyKey: KEY,
+      });
+
+    it('applies the same purchase exactly once', async () => {
+      await purchase();
+      await purchase();
+
+      expect(stock).toBe(20); // moved once, not twice
+      expect(movements).toHaveLength(1);
+      expect(movements[0].id).toBe(KEY);
+      expect(transactionsService.createInternal).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives the money row the same deterministic id', async () => {
+      await purchase();
+      expect(transactionsService.createInternal).toHaveBeenCalledWith(
+        expect.objectContaining({ id: KEY, amount: 4500 }),
+        'user-1',
+        expect.anything(),
+      );
+    });
+
+    it('rolls back a lost race rather than double-applying', async () => {
+      await purchase();
+      // Both requests read before either committed: the pre-check sees
+      // nothing, so the primary key is the only thing left standing.
+      blindToExisting = true;
+      await expect(purchase()).rejects.toThrow(/duplicate key/);
+      expect(stock).toBe(20);
+      expect(movements).toHaveLength(1);
+      expect(transactionsService.createInternal).toHaveBeenCalledTimes(1);
+    });
+
+    it('still writes every un-keyed adjustment (no key, no dedupe)', async () => {
+      const plain = () =>
+        service.adjustStock('item-1', 5, 'user-1', {
+          capability: 'MANAGE_INVENTORY',
+        });
+      await plain();
+      await plain();
+      expect(stock).toBe(20);
+      expect(movements).toHaveLength(2);
+    });
+  });
+
+  describe('cross-links on the detail screen', () => {
+    it('attaches the pond a feed-driven movement fed', async () => {
+      movementRepo.find.mockResolvedValue([
+        { id: 'm1', delta: -3, feedRecordId: 'feed-1' },
+        { id: 'm2', delta: 10, feedRecordId: null },
+      ]);
+      feedRepo.find.mockResolvedValue([{ id: 'feed-1', pondId: 'pond-1' }]);
+      pondRepo.find.mockResolvedValue([{ id: 'pond-1', name: 'Pond A' }]);
+
+      const rows = await service.listMovements('item-1', 'u1');
+      expect(rows[0]).toMatchObject({ pondId: 'pond-1', pondName: 'Pond A' });
+      // A purchase has no feed record and therefore no pond — not an error.
+      expect(rows[1]).toMatchObject({ pondId: null, pondName: null });
+    });
+
+    it('does not query ponds when nothing was fed', async () => {
+      movementRepo.find.mockResolvedValue([
+        { id: 'm2', delta: 10, feedRecordId: null },
+      ]);
+      await service.listMovements('item-1', 'u1');
+      expect(feedRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('lists purchases only for farms the caller may see financials on', async () => {
+      // VIEW_INVENTORY is not VIEW_FINANCIALS: a storekeeper counts bags, a
+      // manager sees what they cost.
+      farmAccess.getFarmIdsWithCapability.mockResolvedValue([]);
+      expect(await service.listPurchases('item-1', 'storekeeper')).toEqual([]);
+      expect(txRepo.find).not.toHaveBeenCalled();
+
+      farmAccess.getFarmIdsWithCapability.mockResolvedValue(['farm-1']);
+      await service.listPurchases('item-1', 'manager');
+      expect(farmAccess.getFarmIdsWithCapability).toHaveBeenCalledWith(
+        'manager',
+        'VIEW_FINANCIALS',
+      );
+      expect(txRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ inventoryItemId: 'item-1' }),
+        }),
+      );
     });
   });
 

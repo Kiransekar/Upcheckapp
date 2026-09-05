@@ -97,6 +97,15 @@ const inventory = {
   validAmountRequired: '0 से अधिक वैध मात्रा दर्ज करें।',
   adjustFailed: 'स्टॉक समायोजित करने में विफल।',
 
+  // ── खरीद (स्टॉक आया → एक जुड़ा हुआ खर्च) ────────────────────────────────────
+  purchaseCostHint: 'यदि यह स्टॉक पहले से आपका है तो खाली छोड़ें। भरने पर खर्च अपने आप दर्ज हो जाएगा।',
+  fieldTotalCost: 'कुल लागत',
+  billToFarm: 'किस फ़ार्म ने भुगतान किया?',
+  billToFarmRequired: 'चुनें कि इस स्टॉक का भुगतान किस फ़ार्म ने किया।',
+  purchaseRecorded: '{{quantity}} {{unit}} जोड़ा गया और {{farm}} के लिए {{amount}} का खर्च दर्ज किया गया।',
+  purchaseSection: 'खरीद',
+  movementToPond: '{{pond}} के लिए',
+
   // Delete
   deleteItem: 'आइटम हटाएं',
   deleteConfirm: '"{{name}}" हटाएं? यह वापस नहीं किया जा सकता।',

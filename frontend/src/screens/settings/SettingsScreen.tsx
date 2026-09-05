@@ -14,7 +14,7 @@
  * as the rest of the page rather than as the old card grid.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch, ScrollView, Alert, Modal, Pressable, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import { useTranslation } from 'react-i18next';
@@ -31,12 +31,15 @@ import { theme } from '../../theme';
 import {
     registerForPushNotificationsAsync,
     syncReminders,
+    getReminderStatus,
     DEFAULT_REMINDER_TIMES,
     type ReminderTimes,
+    type ReminderStatus,
     type HM,
 } from '../../utils/notifications';
 import { loadReminderTimes, saveReminderTimes } from '../../features/reminderTimes';
 import { alertCenterApi } from '../../api/alertCenter';
+import { pondsApi } from '../../api/ponds';
 import type { PondContext } from '../../api/pondContext';
 import { pushApi } from '../../api/push';
 import { useAuthStore } from '../../store/authStore';
@@ -79,6 +82,15 @@ export const SettingsScreen = ({ navigation }: any) => {
     // round trip per tap.
     const [reminderTimes, setReminderTimes] = useState<ReminderTimes>(DEFAULT_REMINDER_TIMES);
     const pondContextsRef = useRef<PondContext[]>([]);
+    // Ponds, not pond CONTEXTS: `/alert-center/today` only returns ponds with a
+    // running crop, so it cannot answer "does this farmer have a pond".
+    const hasPondsRef = useRef(false);
+    // What the OS actually holds, read back rather than assumed — the whole
+    // point of the readout below.
+    const [reminderStatus, setReminderStatus] = useState<ReminderStatus | null>(null);
+    const refreshReminderStatus = useCallback(() => {
+        getReminderStatus().then(setReminderStatus).catch(() => undefined);
+    }, []);
     // Which slot's picker sheet is open — null means closed. One shared modal
     // rather than one per row: the four rows already show their current value
     // at a glance, the modal is only needed while actually changing it.
@@ -95,19 +107,28 @@ export const SettingsScreen = ({ navigation }: any) => {
             .today()
             .then((r) => { pondContextsRef.current = r.data.contexts ?? []; })
             .catch(() => undefined);
+        pondsApi
+            .getMine()
+            .then((r) => { hasPondsRef.current = (r.data?.length ?? 0) > 0; })
+            .catch(() => undefined);
     }, []);
+
+    useFocusEffect(refreshReminderStatus);
 
     const updateReminderTime = useCallback(
         (slot: ReminderSlot, field: keyof HM, value: number) => {
             setReminderTimes((prev) => {
                 const next: ReminderTimes = { ...prev, [slot]: { ...prev[slot], [field]: value } };
                 saveReminderTimes(next)
-                    .then(() => syncReminders(pondContextsRef.current, next))
-                    .catch(() => undefined);
+                    .then(() =>
+                        syncReminders(pondContextsRef.current, next, new Date(), hasPondsRef.current),
+                    )
+                    .then(refreshReminderStatus)
+                    .catch((e) => console.warn('[Settings] Could not re-arm reminders', e));
                 return next;
             });
         },
-        [],
+        [refreshReminderStatus],
     );
 
     useFocusEffect(useCallback(() => { loadMemberships(); }, [loadMemberships]));
@@ -183,6 +204,34 @@ export const SettingsScreen = ({ navigation }: any) => {
         { slot: 'evening', label: t('settings.reminderEvening') },
         { slot: 'chemistry', label: t('settings.reminderChemistry') },
     ];
+    /**
+     * "Reminders are on and the next one is at 6:30 tomorrow" vs "reminders are
+     * not set up" — read from the OS, never assumed. Every failure in this
+     * path used to be swallowed, so both states looked identical here.
+     */
+    const armed = (reminderStatus?.scheduled ?? 0) > 0 && reminderStatus?.permission === 'granted';
+    const blocked = reminderStatus != null && reminderStatus.permission !== 'granted';
+    const reminderStatusText = (() => {
+        if (!reminderStatus) return null;
+        if (blocked) return t('settings.reminderStatusBlocked');
+        if (!armed) return t('settings.reminderStatusOff');
+        const next = reminderStatus.next;
+        if (!next) return t('settings.reminderStatusOn', { when: '' }).trim();
+        const time = formatHM({ hour: next.getHours(), minute: next.getMinutes() });
+        const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const days = Math.round((midnight(next) - midnight(new Date())) / 86_400_000);
+        const when =
+            days <= 0
+                ? t('settings.reminderWhenToday', { time })
+                : days === 1
+                    ? t('settings.reminderWhenTomorrow', { time })
+                    : t('settings.reminderWhenOn', {
+                        time,
+                        date: `${String(next.getDate()).padStart(2, '0')}/${String(next.getMonth() + 1).padStart(2, '0')}`,
+                    });
+        return t('settings.reminderStatusOn', { when });
+    })();
+
     const openSlotLabel = REMINDER_SLOTS.find((s) => s.slot === openSlot)?.label ?? '';
     const openValue = openSlot ? reminderTimes[openSlot] : null;
 
@@ -302,6 +351,31 @@ export const SettingsScreen = ({ navigation }: any) => {
 
                 <SectionHeader label={t('settings.reminderTimes')} />
                 <Text style={styles.note}>{t('settings.reminderTimesDesc')}</Text>
+                {reminderStatusText != null && (
+                    <View
+                        style={[styles.reminderStatus, armed ? styles.reminderStatusOk : styles.reminderStatusBad]}
+                        accessibilityRole="summary"
+                    >
+                        <Icon
+                            name={armed ? 'check_circle' : 'warning'}
+                            size={18}
+                            color={armed ? c.successBorder : c.warningBorder}
+                        />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                            <Text style={styles.reminderStatusText}>{reminderStatusText}</Text>
+                            {blocked && (
+                                <TouchableOpacity
+                                    onPress={() => Linking.openSettings().catch(() => undefined)}
+                                    accessibilityRole="button"
+                                >
+                                    <Text style={styles.editLink}>
+                                        {t('settings.reminderStatusOpenSettings')}
+                                    </Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                )}
                 {REMINDER_SLOTS.map(({ slot, label }) => (
                     <TimeRow key={slot} label={label} slot={slot} value={reminderTimes[slot]} />
                 ))}
@@ -542,6 +616,19 @@ const styles = StyleSheet.create({
     sheetDone: { alignSelf: 'stretch', marginTop: theme.spacing[6] },
     rowLabel: { ...theme.typeScale.labelLarge, flex: 1, minWidth: 0, color: c.textPrimary },
     rowSub: { ...theme.typeScale.bodySmall, color: c.textTertiary },
+    reminderStatus: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: theme.spacing[2],
+        marginHorizontal: theme.spacing[5],
+        marginBottom: theme.spacing[2],
+        padding: theme.spacing[3],
+        borderRadius: theme.radius.sm,
+        borderWidth: 1,
+    },
+    reminderStatusOk: { backgroundColor: c.successBg, borderColor: c.successBorder },
+    reminderStatusBad: { backgroundColor: c.warningBg, borderColor: c.warningBorder },
+    reminderStatusText: { ...theme.typeScale.bodySmall, color: c.textPrimary },
     version: { fontFamily: 'DMMono-Regular', fontSize: 13, color: c.textTertiary },
 
     accountActions: {

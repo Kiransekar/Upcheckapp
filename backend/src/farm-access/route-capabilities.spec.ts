@@ -332,6 +332,12 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
               find: jest.fn().mockResolvedValue([]),
               save: jest.fn().mockResolvedValue({}),
               create: (d: any) => d,
+              // The movement row is written with `insert`, not `save`, so a
+              // replayed idempotency key raises on the PK instead of being
+              // silently turned into an UPDATE. `findOne` is the pre-check
+              // that makes the ordinary retry a no-op rather than an error.
+              insert: jest.fn().mockResolvedValue({}),
+              findOne: jest.fn().mockResolvedValue(null),
             }),
           }),
         ),
@@ -339,6 +345,11 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
       // Task 9: purchase-flavoured adjustStock's internal money write. Unused
       // by every route pinned in this file (none pass a `purchase` option).
       { createInternal: jest.fn() } as any,
+      // Read-only repos behind the detail-screen cross-links (transactions,
+      // feed records, ponds). No route pinned here reads them.
+      { find: jest.fn().mockResolvedValue([]) } as any,
+      { find: jest.fn().mockResolvedValue([]) } as any,
+      { find: jest.fn().mockResolvedValue([]) } as any,
     );
 
     const args: Record<string, unknown[]> = {
@@ -410,6 +421,9 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         } as any,
         { transaction: jest.fn() } as any,
         { createInternal: jest.fn() } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
+        { find: jest.fn().mockResolvedValue([]) } as any,
       );
       return { service, assertCanAccessFarm };
     };

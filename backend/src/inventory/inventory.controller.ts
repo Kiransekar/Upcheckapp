@@ -43,6 +43,12 @@ export class InventoryController {
     return this.inventoryService.listMovements(id, user.id);
   }
 
+  /** The expenses this item's purchases wrote. VIEW_FINANCIALS-gated per farm. */
+  @Get(':id/purchases')
+  listPurchases(@Param('id') id: string, @CurrentUser() user) {
+    return this.inventoryService.listPurchases(id, user.id);
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user, @Param('id') id: string) {
     return this.inventoryService.findOne(id, user.id);
@@ -57,6 +63,13 @@ export class InventoryController {
     return this.inventoryService.adjustStock(id, dto.adjustment, user.id, {
       reason: dto.reason,
       capability: 'MANAGE_INVENTORY',
+      idempotencyKey: dto.idempotencyKey,
+      // `amount` present ⇒ purchase. The service owns every rule about it
+      // (positive-only, which farm is billed, whether that farm was
+      // authorized) so the route stays a pass-through.
+      ...(dto.amount !== undefined
+        ? { purchase: { amount: dto.amount, farmId: dto.billToFarmId } }
+        : {}),
     });
   }
 

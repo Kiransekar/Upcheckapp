@@ -55,8 +55,13 @@ export class TeamOverviewService {
     // Tasks already resolve every accessible farm in a single query
     // (TasksService.findMine → getAccessibleFarmIds), so it is asked once
     // rather than per farm.
+    //
+    // The farm filter is passed through. It used to be omitted, so filtering
+    // the Team tab to one farm scoped the members and the attendance but NOT
+    // the tasks — the tab showed one farm's roster next to every farm's chores.
+    const taskScope = farmIds.length === 1 ? farmIds[0] : undefined;
     const [tasks, perFarm] = await Promise.all([
-      this.tasks.findMine(userId).catch(() => []),
+      this.tasks.findMine(userId, { farmId: taskScope }).catch(() => []),
       Promise.all(farmIds.map((farmId) => this.forFarm(userId, farmId))),
     ]);
 
