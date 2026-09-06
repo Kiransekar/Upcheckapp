@@ -5,7 +5,13 @@ import { CountPriceBand } from '../india/economics.service';
 export interface HarvestTimingInput {
   abwNow: number; // g
   adgNow: number; // g/day
-  /** Multiplicative ADG decay per day (<1 decelerates growth). Default 0.97. */
+  /**
+   * Multiplicative ADG decay per day (<1 decelerates growth). Default 0.97.
+   *
+   * PROVENANCE (E4): industry rule of thumb, UNCALIBRATED. It encodes the
+   * observation that growth slows as shrimp approach market size, not a rate
+   * measured on these farms. Tunable per request; nothing tunes it yet.
+   */
   adgDecay?: number;
   nNow: number; // live population
   dailySurvival: number; // e.g. 0.999

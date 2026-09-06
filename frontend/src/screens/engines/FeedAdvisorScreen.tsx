@@ -18,8 +18,13 @@ import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { theme } from '../../theme';
 import { feedAdvisorApi, type RationResult, type TrayResidue } from '../../api/feedAdvisor';
 import { apiErrorMessage } from '../../api/errors';
-import { pondContextApi, type PondContext } from '../../api/pondContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { usePondContext } from '../../hooks/usePondContext';
+import { MissingInputs } from '../../components/ui/MissingInputs';
+import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
+import {
+    missingInputs,
+    type RequiredInput,
+} from '../../features/engineInputs';
 
 /** Set a text-field state from a context number only when it's present. */
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
@@ -35,8 +40,20 @@ const TRAYS: { key: TrayResidue; tkey: string; icon: any }[] = [
 export const FeedAdvisorScreen = ({ route }: any) => {
   const { t } = useTranslation();
   const { pondId, pondName } = route.params ?? {};
-  const [population, setPopulation] = useState('120000');
-  const [abw, setAbw] = useState('25');
+  /**
+   * EMPTY, not seeded (E1 / E-D1).
+   *
+   * These read `'120000'` and `'25'` — a whole invented pond. Combined with
+   * the `.catch(() => {})` below, a farmer offline or on a cold start tapped
+   * Calculate and got a confident ration computed from a population and a
+   * weight nobody had ever entered, with no error and no way to tell.
+   *
+   * `mealsPerDay` keeps its default because 4 is a genuine PREFERENCE with a
+   * sensible norm, not a measurement of this pond — nothing is fabricated by
+   * assuming it, and the farmer can see and change it.
+   */
+  const [population, setPopulation] = useState('');
+  const [abw, setAbw] = useState('');
   const [meals, setMeals] = useState('4');
   const [doVal, setDoVal] = useState('');
   const [nh3, setNh3] = useState('');
@@ -47,24 +64,37 @@ export const FeedAdvisorScreen = ({ route }: any) => {
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<RationResult | null>(null);
-  const [ctx, setCtx] = useState<PondContext | null>(null);
 
-  // Auto-fill from the farmer's latest logs — no re-asking for data already entered.
-  // Refetch on FOCUS, not on mount. React Navigation keeps a screen
-  // mounted once opened, so a mount-only effect never ran again: log a
-  // reading, come back, and this still advised on the older numbers.
-  useFocusEffect(useCallback(() => {
-    if (!pondId) return;
-    pondContextApi.get(pondId).then(({ data }) => {
-      setCtx(data);
-      fill(data.livePopulation, setPopulation);
-      fill(data.abwG, setAbw);
-      fill(data.waterQuality?.dissolvedOxygen, setDoVal);
-      fill(data.freeAmmoniaMgL, setNh3);
-      fill(data.waterQuality?.temperature, setTemp);
-      if (data.latestTrayResidue) setTray(data.latestTrayResidue);
-    }).catch(() => {});
-  }, [pondId]));
+  /**
+   * The context, through the shared hook — which surfaces failure instead of
+   * swallowing it, and reads through the cache so an offline farmer still gets
+   * their own numbers rather than a silent nothing.
+   */
+  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
+
+  // Auto-fill from the farmer's latest logs — no re-asking for data already
+  // entered. Only ever fills from a REAL value; there is nothing to fall back
+  // to any more, which is the point.
+  useEffect(() => {
+    if (!ctx) return;
+    fill(ctx.livePopulation, setPopulation);
+    fill(ctx.abwG, setAbw);
+    fill(ctx.waterQuality?.dissolvedOxygen, setDoVal);
+    fill(ctx.freeAmmoniaMgL, setNh3);
+    fill(ctx.waterQuality?.temperature, setTemp);
+    if (ctx.latestTrayResidue) setTray(ctx.latestTrayResidue);
+  }, [ctx]);
+
+  /**
+   * The two figures the ration is actually built from: `biomass = N × ABW`.
+   * Everything else is a multiplier between 0.75 and 1.07, so without these
+   * two there is no answer to give — only an invented one.
+   */
+  const required: RequiredInput[] = [
+    { value: population, labelKey: 'engines.common.needsPopulation' },
+    { value: abw, labelKey: 'engines.common.needsSampling' },
+  ];
+  const missing = missingInputs(required);
 
   const compute = useCallback(async () => {
     setLoading(true);
@@ -80,6 +110,10 @@ export const FeedAdvisorScreen = ({ route }: any) => {
         do: doVal ? Number(doVal) : undefined,
         nh3: nh3 ? Number(nh3) : undefined,
         temp: temp ? Number(temp) : undefined,
+        // Let the engine widen its own answer when the inputs are thin (E2).
+        // Sent rather than applied here, so there is one definition of
+        // confidence and it lives server-side.
+        confidence: ctx?.confidence?.score,
       });
       setResult(data);
     } catch (e: any) {
@@ -100,6 +134,8 @@ export const FeedAdvisorScreen = ({ route }: any) => {
           </View>
         </View>
 
+        {/* The failure is a first-class state now, not a swallowed catch. */}
+        {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && <PrefilledBanner doc={ctx.doc} recordedAt={ctx.waterQuality?.recordedAt} />}
 
         <Card style={styles.card}>
@@ -144,12 +180,23 @@ export const FeedAdvisorScreen = ({ route }: any) => {
             <ToggleChip icon="food-off-outline" label={t('engines.feed.fasting')} value={fasting} onChange={setFasting} />
           </View>
 
-          <Button title={t('engines.feed.calculate')} onPress={compute} loading={loading} style={styles.cta} />
+          {/* Names what is missing, in the farmer's terms, instead of
+              quietly computing from a seeded default. */}
+          <MissingInputs missing={missing} />
+          <Button
+            title={t('engines.feed.calculate')}
+            onPress={compute}
+            loading={loading}
+            // An engine that refuses can be trusted; one that guesses cannot.
+            disabled={missing.length > 0}
+            style={styles.cta}
+          />
         </Card>
 
         {result && (
           <Card style={[styles.card, styles.hero]}>
-            {ctx && <ConfidenceChip confidence={ctx.confidence} showHint />}
+            {/* ALWAYS rendered — reads "no data" when there is none. */}
+            <ConfidenceChip confidence={ctx?.confidence} showHint />
             {ctx && (
               <FirstUseHint
                 flagKey="confidence-chip"
@@ -160,10 +207,38 @@ export const FeedAdvisorScreen = ({ route }: any) => {
               />
             )}
             <Text style={styles.heroLabel}>{t('engines.feed.recommended')}</Text>
-            <View style={styles.heroValueRow}>
-              <Text style={styles.heroValue}>{result.recommendedKg}</Text>
-              <Text style={styles.heroUnit}>kg</Text>
-            </View>
+            {/*
+              * A RANGE when the inputs are thin (E2), not a point value with a
+              * worried chip beside it. The chip said "low confidence" while the
+              * number said "47 kg" in 40pt — and only one of those is what a
+              * farmer acts on.
+              */}
+            {result.range ? (
+              <>
+                <View style={styles.heroValueRow}>
+                  <Text style={styles.heroValue}>
+                    {result.range.lowKg}–{result.range.highKg}
+                  </Text>
+                  <Text style={styles.heroUnit}>kg</Text>
+                </View>
+                {/* Says WHY it is a range, and what would narrow it. */}
+                <Text style={styles.rangeWhy}>
+                  {t('engines.feed.rangeWhy')}
+                  {ctx && [...ctx.confidence.missing, ...ctx.confidence.stale].length > 0
+                    ? ` ${t('engines.common.improveHint', {
+                          items: [...ctx.confidence.missing, ...ctx.confidence.stale]
+                              .slice(0, 3)
+                              .join(', '),
+                      })}`
+                    : ''}
+                </Text>
+              </>
+            ) : (
+              <View style={styles.heroValueRow}>
+                <Text style={styles.heroValue}>{result.recommendedKg}</Text>
+                <Text style={styles.heroUnit}>kg</Text>
+              </View>
+            )}
             <Text style={styles.heroSub}>
               {t('engines.feed.biomassFr', { biomass: result.biomassKg, fr: result.frPct })}
             </Text>
@@ -235,6 +310,12 @@ const styles = StyleSheet.create({
   heroLabel: { ...theme.typeScale.overline, color: theme.roles.light.textTertiary },
   heroValueRow: { flexDirection: 'row', alignItems: 'flex-end', gap: theme.spacing[1], marginTop: theme.spacing[1] },
   heroValue: { ...theme.typeScale.numericHero, color: theme.roles.light.primary },
+  rangeWhy: {
+    ...theme.typeScale.bodySmall,
+    color: theme.roles.light.textSecondary,
+    textAlign: 'center',
+    marginTop: theme.spacing[1],
+  },
   heroUnit: { ...theme.typeScale.h2, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
   heroSub: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
   meals: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[2], marginTop: theme.spacing[4], justifyContent: 'center' },

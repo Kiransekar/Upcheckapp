@@ -17,8 +17,10 @@ import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
 import { theme } from '../../theme';
 import { diseaseWarningApi, type DiseaseIndicators, type DiseaseRisk } from '../../api/diseaseWarning';
 import { apiErrorMessage } from '../../api/errors';
-import { pondContextApi, type PondContext } from '../../api/pondContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { usePondContext } from '../../hooks/usePondContext';
+import { MissingInputs } from '../../components/ui/MissingInputs';
+import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
+import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 
 const INDICATORS: { key: keyof DiseaseIndicators; tkey: string }[] = [
   { key: 'tempDrop3in48h', tkey: 'ind_tempDrop' },
@@ -49,7 +51,11 @@ export const DiseaseRiskScreen = ({ route }: any) => {
   const [loading, setLoading] = useState(false);
   const [risks, setRisks] = useState<DiseaseRisk[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [ctx, setCtx] = useState<PondContext | null>(null);
+  /**
+   * Through the shared hook: a failure is a state the screen must render, not
+   * a `.catch(() => {})` that leaves seeded defaults standing in for data.
+   */
+  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
 
   const toggle = (k: string) => setSelected((s) => ({ ...s, [k]: !s[k] }));
 
@@ -57,17 +63,16 @@ export const DiseaseRiskScreen = ({ route }: any) => {
   // Refetch on FOCUS, not on mount. React Navigation keeps a screen
   // mounted once opened, so a mount-only effect never ran again: log a
   // reading, come back, and this still advised on the older numbers.
-  useFocusEffect(useCallback(() => {
-    if (!pondId) return;
-    pondContextApi.get(pondId).then(({ data }) => {
-      setCtx(data);
-      const wq = data.waterQuality;
+  // Auto-fill from the farmer's own logs. Only ever from a REAL value —
+  // there is nothing to fall back to any more, which is the point (E1).
+  useEffect(() => {
+    if (!ctx) return;
+      const wq = ctx.waterQuality;
       setSelected((s) => ({
         ...s,
         doBelow4: wq?.dissolvedOxygen != null ? wq.dissolvedOxygen < 4 : s.doBelow4,
       }));
-    }).catch(() => {});
-  }, [pondId]));
+  }, [ctx]);
 
   const compute = useCallback(async () => {
     setLoading(true);
@@ -96,6 +101,8 @@ export const DiseaseRiskScreen = ({ route }: any) => {
           </View>
         </View>
 
+        {/* A failure is a state now, not a swallowed catch (E1). */}
+        {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && ctx.waterQuality && <PrefilledBanner doc={ctx.doc} recordedAt={ctx.waterQuality.recordedAt} />}
 
         <Card style={styles.card}>
@@ -125,7 +132,7 @@ export const DiseaseRiskScreen = ({ route }: any) => {
 
         {top && (
           <Card style={[styles.card, styles.topCard, { borderLeftColor: bandColor(top.band) }]}>
-            {ctx && <ConfidenceChip confidence={ctx.confidence} />}
+            <ConfidenceChip confidence={ctx?.confidence} />
             <Text style={styles.sectionLabel}>{t('engines.disease.highestRisk')}</Text>
             <View style={styles.topRow}>
               <Text style={styles.topName} numberOfLines={1}>{top.disease}</Text>

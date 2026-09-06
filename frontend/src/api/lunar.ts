@@ -10,6 +10,18 @@ export interface MoonPhase {
   daysToSpringTide: number;
   signedDaysToSpringTide: number;
   inMoltWindow: boolean;
+
+  /**
+   * TRUE phase dates (E5.1), corrected per Meeus ch. 49 and already bucketed
+   * into IST by the server. The mean-phase figures above can be ±14 h out,
+   * which is enough to name the wrong day — and this audience checks the app
+   * against the Panchang.
+   */
+  nextNewMoonIst?: string;
+  nextFullMoonIst?: string;
+  nextNewMoonAt?: string;
+  nextFullMoonAt?: string;
+  trueDaysToSpringTide?: number;
 }
 
 export interface MoltVulnerabilityInput {

@@ -1,7 +1,32 @@
 import { Injectable } from '@nestjs/common';
 
-const HP_TO_KW = 0.746; // 1 HP = 0.746 kW
-const HP_PER_KG = 1 / 500; // ≈ 2 HP per tonne standing biomass
+/**
+ * PROVENANCE (E4). Every constant here says where it came from, because a
+ * constant nobody can trace is a constant nobody can ever safely change — and
+ * the first real farm data that contradicts a prediction should be able to
+ * move a number.
+ *
+ * FEATURES.md already admits these are "uncalibrated heuristics", but that
+ * caveat lived only in a developer document: nothing in the code and nothing
+ * in the UI told a farmer that a predicted pre-dawn DO is a rule of thumb
+ * rather than a measurement. The UI half is a one-time hint on the aeration
+ * and lunar screens.
+ *
+ * NOTHING HERE IS RECALIBRATED. Changing a number without farm data would only
+ * swap one uncalibrated guess for another; this documents what we have.
+ */
+
+/** Exact unit conversion. Not a heuristic. */
+const HP_TO_KW = 0.746;
+
+/**
+ * Aerator sizing: about 2 HP per tonne of standing biomass.
+ *
+ * SOURCE: industry rule of thumb, widely quoted for semi-intensive vannamei
+ * and consistent with the 1 HP per 400-500 kg range in common extension
+ * advice. UNCALIBRATED against this app's own farms.
+ */
+const HP_PER_KG = 1 / 500;
 
 export interface NightDoInput {
   currentDo: number; // mg/L
@@ -84,9 +109,19 @@ export class AerationService {
    */
   predictNightDoMin(input: NightDoInput): number {
     const nightHours = input.nightHours ?? 8;
-    const kB = input.kBiomass ?? 0.25; // per kg/m²
-    const kP = input.kPlankton ?? 0.5; // per plankton-load unit
-    const kA = input.kAeration ?? 0.04; // per (HP/ha · hour)
+    /*
+     * The night-DO coefficients. All three are TUNABLE PER REQUEST (see
+     * NightDoInput) and nothing in the product ever tunes them. That gap is
+     * real and deliberately left open here: there is today no path from a
+     * farmer's observation back to a coefficient. The knob stays; building the
+     * wiring is not part of this change.
+     *
+     * SOURCE for all three: industry rules of thumb, UNCALIBRATED. They set
+     * the shape of an overnight oxygen-decline curve, not a measured rate.
+     */
+    const kB = input.kBiomass ?? 0.25; // mg/L per (kg/m²) overnight
+    const kP = input.kPlankton ?? 0.5; // mg/L per plankton-load unit
+    const kA = input.kAeration ?? 0.04; // mg/L recovered per (HP/ha · hour)
     const planktonLoad = input.planktonLoad ?? 0.4;
     const temp = input.temp ?? 30;
     const tempFactor = 1 + Math.max(0, temp - 28) * 0.03;

@@ -11,7 +11,24 @@ The master feature reference for the Upcheck monorepo (shrimp-farming operations
 - Deeper context: [ARCHITECTURE.md](./ARCHITECTURE.md) · [backend guide](./guides/backend.md) · [frontend guide](./guides/frontend.md) · app flow in [APP_FLOW.md](./APP_FLOW.md).
 
 **Conventions worth knowing before you read:**
-- The API is request-driven — **there is no cron / scheduler anywhere** (`ScheduleModule`/`@Cron` unused). "Daily briefing" is computed live per request.
+- The API is **mostly** request-driven: "Daily briefing" and every engine output
+  are computed live, per request, when the farmer opens the app.
+  > **Correction (2026-09-07).** This line previously read "there is no cron /
+  > scheduler anywhere (`ScheduleModule`/`@Cron` unused)". That is **wrong**.
+  > `ScheduleModule.forRoot()` is wired in `news.module.ts` and
+  > `@Cron(CronExpression.EVERY_HOUR)` runs news ingestion. The infrastructure
+  > exists and is proven, so proactive alerting is not a greenfield build.
+  >
+  > Two consequences worth carrying into the alerts work:
+  > 1. **That cron is silently unreliable today.** `render.yaml` runs the backend
+  >    on Render's free plan, which spins down after ~15 minutes idle, and an
+  >    in-process cron on a sleeping instance does not fire. The file's own
+  >    comment acknowledges the spin-down and suggests an external ping, which
+  >    was never configured. This is a live bug independent of any engine work.
+  > 2. **A predicted pre-dawn DO crash is therefore computed only when the
+  >    farmer opens the app** — at 6 a.m., after the kill. An alert you have to
+  >    ask for is not an alert. Fixing it is a hosting decision (paid plan or a
+  >    Render Cron Job) before it is a code one.
 - Units are **fixed metric** on the client (m, m², kg) — no unit-conversion layer exists. Currency is **hardcoded ₹ INR** via local `formatMoney` helpers.
 - Localization is real: **6 languages** (English, Hindi, Tamil, Telugu, Bengali, Odia) via i18next; language persisted in AsyncStorage, picker in Settings.
 - Navigation: 5 bottom tabs — **Dashboard · Farms · (+) QuickLog · Reports · More** — everything else is pushed on the root stack.
@@ -128,7 +145,7 @@ All engines are **pure/request-driven** (no persisted cron). Each is a per-pond 
 | **Feed advisor** | `feed-advisor` → `POST compute`, `POST`, `GET pond/:pondId`, `PATCH :id/actual` | `engines/FeedAdvisorScreen` | `feed_plans` | Daily ration: `biomass×FR%` × tray-residue × molt-peak (×0.75) × env factors (low-DO, ammonia, temp), zeroed on fasting; split per-meal. `nh3` input is **free/un-ionised ammonia**, not TAN. |
 | **Harvest timing** | `harvest-timing` → `POST optimize`, `GET pond/:pondId` | `engines/HarvestTimingScreen` | `harvest_recommendations` | 30-day day-by-day projection maximizing `net = gross − feedCost − riskLoss`; also a partial-harvest (10–90% thinning) optimizer when overstocked. Many tunable constants (ADG decay ×0.97/day, density taper). |
 | **Disease early-warning** | `disease-risk` → `POST compute`, `POST`, `GET pond/:pondId`, `GET pond/:pondId/latest` | `engines/DiseaseRiskScreen` | `disease_risk_snapshots` | Maps boolean indicators → 7 diseases (WSSV/AHPND/EHP/WFD/Luminous/RMS/LSS) via weighted signatures; `score=100×Σweights`, bands Low/Watch/Critical (30/60). Indicator derivation happens upstream. |
-| **Aeration & power** | `aeration` → `POST adequacy`, `POST night-do`, `POST power-cost` | `engines/AerationScreen` | *(stateless)* | `requiredHp = biomassKg/500` (~2 HP/t); overnight DO budget predicts night-DO minimum and back-solves aerator run-hours; grid/diesel cost. **All coefficients are uncalibrated heuristics.** |
+| **Aeration & power** | `aeration` → `POST adequacy`, `POST night-do`, `POST power-cost` | `engines/AerationScreen` | *(stateless)* | `requiredHp = biomassKg/500` (~2 HP/t); overnight DO budget predicts night-DO minimum and back-solves aerator run-hours; grid/diesel cost. **All coefficients are uncalibrated heuristics** — and as of 2026-09-07 they say so at their own definitions in `aeration.service.ts` (provenance comments) and once in the UI, so the caveat no longer lives only in this file. |
 | **Lunar molt** | `lunar` → `GET phase`, `POST risk` | `engines/LunarScreen` | *(stateless)* | Deterministic synodic moon-phase math (29.53d, no external API); molt-likelihood peaks at new/full, `moltRisk` from pond stressors. Explicitly a heuristic. |
 | **Pond context** | `pond-context` → `GET :pondId` | *(consumed by engines/dashboards)* | *(aggregate)* | One snapshot: latest WQ, free-NH3, live population, biomass, running FCR, cumulative feed, DOC, targets + a completeness/freshness confidence score. |
 | **Alert center / briefing** | `alert-center` → `GET briefing`, `GET live-briefing`, `POST emit` | `engines/MorningBriefingScreen`, `engines/EnginesHubScreen` | *(uses `alerts`)* | `emit` writes engine alerts into the alerts stream; `briefing` rolls unread alerts into one top-severity card per pond; **`live-briefing` recomputes alerts live** (free-NH3, DO, FCR>1.8, lunar) across accessible ponds — not persisted (a future cron *could* persist/push; none exists). |

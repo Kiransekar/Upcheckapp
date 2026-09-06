@@ -10,6 +10,21 @@ export interface MoonPhase {
   daysToSpringTide: number; // unsigned days to nearest new/full
   signedDaysToSpringTide: number; // <0 = approaching (pre), >0 = just passed (post)
   inMoltWindow: boolean; // within ±windowDays of a spring tide
+
+  /**
+   * TRUE phase instants (E5.1), corrected per Meeus ch. 49 and reported as
+   * IST calendar days. The mean-phase figures above can be up to ±14 h out,
+   * which is enough to name the wrong date — and this audience checks the
+   * app against the Panchang.
+   */
+  /** `YYYY-MM-DD` in IST — what the farmer's calendar says. */
+  nextNewMoonIst: string;
+  nextFullMoonIst: string;
+  /** The same instants, unconverted, for any caller that wants the time. */
+  nextNewMoonAt: string;
+  nextFullMoonAt: string;
+  /** Distance to the nearest true spring tide, in days. */
+  trueDaysToSpringTide: number;
 }
 
 export interface MoltVulnerabilityInput {
@@ -68,6 +83,9 @@ export interface MoltRisk {
   phaseRel: 'pre' | 'peak' | 'post' | 'none';
 }
 
+import { nextPhase, daysToNearestSpringTide } from './moon-phase-meeus';
+import { toIstDateString } from '../common/ist-date';
+
 const SYNODIC = 29.530588853;
 const REF_NEW_MOON_JD = 2451550.26; // 2000-01-06 18:14 UTC new moon
 const MS_PER_DAY = 86400000;
@@ -104,10 +122,37 @@ export class LunarService {
       0,
     );
     const signedDaysToSpringTide = (phase - nearestSpring) * SYNODIC;
+
+    /**
+     * The TRUE next new and full moon, and the true distance to the nearest
+     * spring tide (E5.1).
+     *
+     * Everything above is MEAN phase — a fixed 29.53-day month — which is fine
+     * for illumination and the shape of the molt curve, but wrong by up to
+     * ±14 hours for the instant of a new or full moon. That is enough to put
+     * the date on the wrong day, and this audience reads Amavasya and Purnima
+     * off the Panchang, which uses true phase at local time. See
+     * `moon-phase-meeus.ts`.
+     *
+     * The dates are emitted as IST CALENDAR DAYS, not as raw instants. The
+     * September 2026 new moon is 03:26 UTC on the 11th — which is 08:56 IST on
+     * the 11th — but a phase falling between 18:30 and 24:00 UTC lands on the
+     * NEXT day in IST, and formatting the instant without converting is how
+     * the app came to disagree with the farmer's own calendar.
+     */
+    const trueNextNewMoon = nextPhase(date, true);
+    const trueNextFullMoon = nextPhase(date, false);
+
     return {
       jd,
       phase,
       ageDays,
+      nextNewMoonIst: toIstDateString(trueNextNewMoon),
+      nextFullMoonIst: toIstDateString(trueNextFullMoon),
+      nextNewMoonAt: trueNextNewMoon.toISOString(),
+      nextFullMoonAt: trueNextFullMoon.toISOString(),
+      /** True distance, which is what the molt window should key on. */
+      trueDaysToSpringTide: daysToNearestSpringTide(date),
       illumination,
       name: this.phaseName(phase),
       moltLikelihood,

@@ -15,6 +15,8 @@ export interface RationInput {
   temp?: number;
   fasting?: boolean;
   mealsPerDay?: number;
+  /** Pond-context confidence 0-100, so the engine can widen its answer (E2). */
+  confidence?: number;
 }
 
 export interface RationResult {
@@ -25,6 +27,12 @@ export interface RationResult {
   perMeal: number[];
   factors: { tray: number; molt: number; env: number; fasting: number };
   reasons: string[];
+  /**
+   * Present only when the inputs were thin (E2). Its presence is the
+   * instruction: show this INSTEAD of the point value. A precise number in a
+   * large font is a claim, and on a low band it is one we cannot support.
+   */
+  range?: { lowKg: number; highKg: number; band: 'low' | 'medium' | 'high' };
 }
 
 export interface FeedPlan extends RationResult {

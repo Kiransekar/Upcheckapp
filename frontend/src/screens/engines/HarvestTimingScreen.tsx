@@ -19,8 +19,10 @@ import { LineChart } from '../../components/charts/LineChart';
 import { theme } from '../../theme';
 import { harvestTimingApi, type HarvestTimingResult } from '../../api/harvestTiming';
 import { apiErrorMessage } from '../../api/errors';
-import { pondContextApi, type PondContext } from '../../api/pondContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { usePondContext } from '../../hooks/usePondContext';
+import { MissingInputs } from '../../components/ui/MissingInputs';
+import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
+import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
   if (v != null) setter(String(v));
@@ -38,32 +40,49 @@ const inr = (n: number) =>
 export const HarvestTimingScreen = ({ route }: any) => {
   const { t } = useTranslation();
   const { pondId, pondName } = route.params ?? {};
-  const [abwNow, setAbwNow] = useState('22');
-  const [adgNow, setAdgNow] = useState('0.4');
-  const [nNow, setNNow] = useState('80000');
-  const [areaM2, setAreaM2] = useState('4000');
+  const [abwNow, setAbwNow] = useState('');
+  const [adgNow, setAdgNow] = useState('');
+  const [nNow, setNNow] = useState('');
+  const [areaM2, setAreaM2] = useState('');
   const [carrying, setCarrying] = useState('2');
-  const [feedPrice, setFeedPrice] = useState('60');
+  const [feedPrice, setFeedPrice] = useState('');
   const [diseaseRisk, setDiseaseRisk] = useState('5');
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<HarvestTimingResult | null>(null);
-  const [ctx, setCtx] = useState<PondContext | null>(null);
+  /**
+   * Through the shared hook: a failure is a state the screen must render, not
+   * a `.catch(() => {})` that leaves seeded defaults standing in for data.
+   */
+  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
 
   // Refetch on FOCUS, not on mount. React Navigation keeps a screen
   // mounted once opened, so a mount-only effect never ran again: log a
   // reading, come back, and this still advised on the older numbers.
-  useFocusEffect(useCallback(() => {
-    if (!pondId) return;
-    pondContextApi.get(pondId).then(({ data }) => {
-      setCtx(data);
-      fill(data.abwG, setAbwNow);
-      fill(data.livePopulation, setNNow);
-      fill(data.areaM2, setAreaM2);
-      fill(data.crop?.carryingCapacityKgM2, setCarrying);
-      fill(data.crop?.feedPriceRpPerKg, setFeedPrice);
-    }).catch(() => {});
-  }, [pondId]));
+  // Auto-fill from the farmer's own logs. Only ever from a REAL value —
+  // there is nothing to fall back to any more, which is the point (E1).
+  useEffect(() => {
+    if (!ctx) return;
+      fill(ctx.abwG, setAbwNow);
+      fill(ctx.livePopulation, setNNow);
+      fill(ctx.areaM2, setAreaM2);
+      fill(ctx.crop?.carryingCapacityKgM2, setCarrying);
+      fill(ctx.crop?.feedPriceRpPerKg, setFeedPrice);
+  }, [ctx]);
+
+
+  /**
+   * THE WORST INSTANCE of the fabrication (E1). This screen advises WHEN TO
+   * HARVEST — the season's biggest financial decision — and it did so from a
+   * population of 80,000 and a feed price of ₹60/kg that nobody had entered.
+   */
+  const required: RequiredInput[] = [
+    { value: abwNow, labelKey: 'engines.common.needsSampling' },
+    { value: nNow, labelKey: 'engines.common.needsPopulation' },
+    { value: areaM2, labelKey: 'engines.common.needsArea' },
+    { value: feedPrice, labelKey: 'engines.common.needsFeedPrice' },
+  ];
+  const missing = missingInputs(required);
 
   const compute = useCallback(async () => {
     setLoading(true);
@@ -107,6 +126,8 @@ export const HarvestTimingScreen = ({ route }: any) => {
           </View>
         </View>
 
+        {/* A failure is a state now, not a swallowed catch (E1). */}
+        {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && <PrefilledBanner doc={ctx.doc} recordedAt={ctx.waterQuality?.recordedAt} />}
 
         {/* Inputs */}
@@ -121,7 +142,14 @@ export const HarvestTimingScreen = ({ route }: any) => {
             <NumberField label={t('engines.harvest.feedPrice')} value={feedPrice} onChangeText={setFeedPrice} unit="₹/kg" />
             <NumberField label={t('engines.harvest.diseaseRisk')} value={diseaseRisk} onChangeText={setDiseaseRisk} unit="%" />
           </View>
-          <Button title={t('engines.harvest.computeBtn')} onPress={compute} loading={loading} style={styles.cta} />
+          <MissingInputs missing={missing} />
+          <Button
+            title={t('engines.harvest.computeBtn')}
+            onPress={compute}
+            loading={loading}
+            disabled={missing.length > 0}
+            style={styles.cta}
+          />
         </Card>
 
         {loading && !result && <ActivityIndicator color={theme.roles.light.primary} style={{ marginTop: theme.spacing[6] }} />}
@@ -138,7 +166,7 @@ export const HarvestTimingScreen = ({ route }: any) => {
               <Text style={styles.verdict}>
                 {result.recommendNow ? t('engines.harvest.harvestNow') : t('engines.harvest.holdDays', { days: result.optimalDay })}
               </Text>
-              {ctx && <ConfidenceChip confidence={ctx.confidence} />}
+              <ConfidenceChip confidence={ctx?.confidence} />
               {!result.recommendNow && (
                 <Text style={styles.gain}>{t('engines.harvest.moreProfit', { amount: inr(result.expectedGain) })}</Text>
               )}

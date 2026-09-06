@@ -8,6 +8,7 @@ import {
   IsDateString,
   ValidateNested,
   Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { TrayResidue } from '../feed-advisor.service';
@@ -58,6 +59,16 @@ export class RationInputDto {
   @IsNumber()
   @IsOptional()
   mealsPerDay?: number;
+
+  /**
+   * Pond-context confidence, 0-100 (E2). Optional: an older client sends
+   * nothing and gets the old point-value behaviour, unchanged.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  confidence?: number;
 }
 
 export class GenerateFeedPlanDto {

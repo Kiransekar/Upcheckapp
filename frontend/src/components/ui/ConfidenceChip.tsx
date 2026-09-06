@@ -6,7 +6,16 @@ import { theme } from '../../theme';
 import type { DataConfidence } from '../../api/pondContext';
 
 interface ConfidenceChipProps {
-  confidence: DataConfidence;
+  /**
+   * `null` when the pond context could not be read — and that case MUST still
+   * render (E1).
+   *
+   * Every engine screen wrote `{ctx && <ConfidenceChip … />}`, which made the
+   * one element that signals doubt conditional on the very object whose
+   * absence is the doubt. The chip disappeared exactly when the data was least
+   * trustworthy, leaving a confidently formatted number with nothing beside it.
+   */
+  confidence: DataConfidence | null | undefined;
   /** Show the "raise these to improve" hint below the chip. */
   showHint?: boolean;
 }
@@ -23,6 +32,22 @@ const MAP = {
  */
 export const ConfidenceChip: React.FC<ConfidenceChipProps> = ({ confidence, showHint }) => {
   const { t } = useTranslation();
+
+  /**
+   * No context at all. Reads "no data" rather than vanishing — the absence of
+   * a confidence score is itself the most important thing to say.
+   */
+  if (!confidence) {
+    return (
+      <View style={[styles.chip, { backgroundColor: theme.roles.light.dangerBg }]} testID="confidence-none">
+        <MaterialCommunityIcons name="signal-off" size={14} color={theme.roles.light.dangerText} />
+        <Text numberOfLines={1} style={[styles.label, { color: theme.roles.light.dangerText }]}>
+          {t('engines.common.noData')}
+        </Text>
+      </View>
+    );
+  }
+
   const s = MAP[confidence.band] ?? MAP.medium;
   const improve = [...confidence.missing, ...confidence.stale];
   return (

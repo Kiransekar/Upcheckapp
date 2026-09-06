@@ -108,6 +108,14 @@ export interface PondContext {
   confidence: DataConfidence;
 }
 
+/**
+ * Score → band. Exported because the feed advisor widens its answer on a low
+ * band (E2), and a second copy of these thresholds would let the chip the
+ * farmer SEES disagree with the range they ACT ON.
+ */
+export const confidenceBand = (score: number): 'high' | 'medium' | 'low' =>
+  score >= 75 ? 'high' : score >= 50 ? 'medium' : 'low';
+
 export interface DataConfidence {
   score: number; // 0..100
   band: 'high' | 'medium' | 'low';
@@ -462,8 +470,7 @@ export class PondContextService {
       if (fr < 1) stale.push(f.key);
     }
     const score = total > 0 ? Math.round((got / total) * 100) : 0;
-    const band: DataConfidence['band'] =
-      score >= 75 ? 'high' : score >= 50 ? 'medium' : 'low';
+    const band: DataConfidence['band'] = confidenceBand(score);
     return { score, band, missing, stale };
   }
 

@@ -14,12 +14,15 @@ import { NumberField } from '../../components/ui/NumberField';
 import { GaugeArc } from '../../components/charts/GaugeArc';
 import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
+import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { useTranslation } from 'react-i18next';
 import { theme } from '../../theme';
 import { aerationApi, type AerationAdequacy } from '../../api/aeration';
 import { apiErrorMessage } from '../../api/errors';
-import { pondContextApi, type PondContext } from '../../api/pondContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { usePondContext } from '../../hooks/usePondContext';
+import { MissingInputs } from '../../components/ui/MissingInputs';
+import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
+import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 
 const fill = (v: number | null | undefined, setter: (s: string) => void) => {
   if (v != null) setter(String(v));
@@ -28,10 +31,10 @@ const fill = (v: number | null | undefined, setter: (s: string) => void) => {
 export const AerationScreen = ({ route }: any) => {
   const { t } = useTranslation();
   const { pondId, pondName } = route.params ?? {};
-  const [biomass, setBiomass] = useState('2000');
-  const [installedHp, setInstalledHp] = useState('4');
-  const [currentDo, setCurrentDo] = useState('6');
-  const [area, setArea] = useState('4000');
+  const [biomass, setBiomass] = useState('');
+  const [installedHp, setInstalledHp] = useState('');
+  const [currentDo, setCurrentDo] = useState('');
+  const [area, setArea] = useState('');
   const [runHours, setRunHours] = useState('6');
   const [ratePerKwh, setRatePerKwh] = useState('8');
 
@@ -39,21 +42,39 @@ export const AerationScreen = ({ route }: any) => {
   const [adq, setAdq] = useState<AerationAdequacy | null>(null);
   const [night, setNight] = useState<{ predicted: number; recommendedRunHours: number } | null>(null);
   const [power, setPower] = useState<{ cost: number; costPerKg: number | null } | null>(null);
-  const [ctx, setCtx] = useState<PondContext | null>(null);
+  /**
+   * Through the shared hook: a failure is a state the screen must render, not
+   * a `.catch(() => {})` that leaves seeded defaults standing in for data.
+   */
+  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
 
   // Refetch on FOCUS, not on mount. React Navigation keeps a screen
   // mounted once opened, so a mount-only effect never ran again: log a
   // reading, come back, and this still advised on the older numbers.
-  useFocusEffect(useCallback(() => {
-    if (!pondId) return;
-    pondContextApi.get(pondId).then(({ data }) => {
-      setCtx(data);
-      fill(data.biomassKg, setBiomass);
-      fill(data.waterQuality?.dissolvedOxygen, setCurrentDo);
-      fill(data.areaM2, setArea);
-      fill(data.installedAeratorHp, setInstalledHp);
-    }).catch(() => {});
-  }, [pondId]));
+  // Auto-fill from the farmer's own logs. Only ever from a REAL value —
+  // there is nothing to fall back to any more, which is the point (E1).
+  useEffect(() => {
+    if (!ctx) return;
+      fill(ctx.biomassKg, setBiomass);
+      fill(ctx.waterQuality?.dissolvedOxygen, setCurrentDo);
+      fill(ctx.areaM2, setArea);
+      fill(ctx.installedAeratorHp, setInstalledHp);
+  }, [ctx]);
+
+
+  /**
+   * Aeration adequacy is HP against standing biomass, and the night-DO curve
+   * needs the pond's area and its current reading. Without them the answer
+   * describes an invented pond — which is exactly what it used to do, from
+   * 2,000 kg / 4 HP / DO 6 / 4,000 m².
+   */
+  const required: RequiredInput[] = [
+    { value: biomass, labelKey: 'engines.common.needsBiomass' },
+    { value: installedHp, labelKey: 'engines.common.needsAerators' },
+    { value: currentDo, labelKey: 'engines.common.needsDo' },
+    { value: area, labelKey: 'engines.common.needsArea' },
+  ];
+  const missing = missingInputs(required);
 
   const compute = useCallback(async () => {
     setLoading(true);
@@ -101,6 +122,8 @@ export const AerationScreen = ({ route }: any) => {
           </View>
         </View>
 
+        {/* A failure is a state now, not a swallowed catch (E1). */}
+        {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && <PrefilledBanner doc={ctx.doc} recordedAt={ctx.waterQuality?.recordedAt} />}
 
         <Card style={styles.card}>
@@ -113,12 +136,29 @@ export const AerationScreen = ({ route }: any) => {
             <NumberField label={t('engines.aeration.runHours')} value={runHours} onChangeText={setRunHours} unit="h" />
             <NumberField label={t('engines.aeration.tariff')} value={ratePerKwh} onChangeText={setRatePerKwh} unit="₹/kWh" />
           </View>
-          <Button title={t('engines.aeration.analyze')} onPress={compute} loading={loading} style={styles.cta} />
+          <MissingInputs missing={missing} />
+          <Button
+            title={t('engines.aeration.analyze')}
+            onPress={compute}
+            loading={loading}
+            disabled={missing.length > 0}
+            style={styles.cta}
+          />
         </Card>
 
         {adq && (
           <Card style={[styles.card, { alignItems: 'center' }]}>
-            {ctx && <ConfidenceChip confidence={ctx.confidence} />}
+            <ConfidenceChip confidence={ctx?.confidence} />
+            {/*
+              * E4: said once, in the UI, not only in a developer document.
+              * The predicted pre-dawn DO is a rule of thumb — see the
+              * provenance comments on kBiomass/kPlankton/kAeration — and
+              * nothing on screen used to say so.
+              */}
+            <FirstUseHint
+              flagKey="aeration-heuristic"
+              message={t('engines.common.heuristicNote')}
+            />
             <Text style={styles.sectionLabel}>{t('engines.aeration.adequacy')}</Text>
             <GaugeArc
               value={ratio}

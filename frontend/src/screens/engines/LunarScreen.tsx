@@ -16,9 +16,14 @@ import { SeverityPill, type Severity } from '../../components/ui/SeverityPill';
 import { MoonDiagram } from '../../components/charts/MoonDiagram';
 import { PrefilledBanner } from '../../components/ui/PrefilledBanner';
 import { ConfidenceChip } from '../../components/ui/ConfidenceChip';
+import { FirstUseHint } from '../../components/ui/FirstUseHint';
 import { theme } from '../../theme';
 import { lunarApi, type MoonPhase, type MoltRisk, type LunarPlaybook, type PlaybookStep, type StepCategory, type StepPriority, type MoltVulnerabilityInput } from '../../api/lunar';
-import { pondContextApi, type PondContext } from '../../api/pondContext';
+import { type PondContext } from '../../api/pondContext';
+import { usePondContext } from '../../hooks/usePondContext';
+import { MissingInputs } from '../../components/ui/MissingInputs';
+import { EngineUnavailable } from '../../components/ui/EngineUnavailable';
+import { missingInputs, type RequiredInput } from '../../features/engineInputs';
 import { localizePhaseName } from '../../features/lunarPhaseI18n';
 import { apiErrorMessage } from '../../api/errors';
 
@@ -60,30 +65,39 @@ export const LunarScreen = ({ route }: any) => {
   const { t } = useTranslation();
   const { pondId, pondName } = route.params ?? {};
   const [phase, setPhase] = useState<MoonPhase | null>(null);
-  const [abw, setAbw] = useState('20');
+  const [abw, setAbw] = useState('');
   const [risk, setRisk] = useState<MoltRisk | null>(null);
   const [playbook, setPlaybook] = useState<LunarPlaybook | null>(null);
   const [loading, setLoading] = useState(false);
-  const [ctx, setCtx] = useState<PondContext | null>(null);
+  /**
+   * Through the shared hook (E1): a failure is a state this screen renders,
+   * not a swallowed catch that leaves a seeded ABW standing in for a sampling.
+   */
+  const { ctx, error: ctxError, refetch } = usePondContext(pondId);
 
   useEffect(() => {
-    lunarApi.phase().then(({ data }) => setPhase(data)).catch(() => {});
+    lunarApi.phase().then(({ data }) => setPhase(data)).catch(() => undefined);
   }, []);
 
-  // Prefill ABW from the latest sampling.
+  // Prefill ABW from the latest sampling — only when there IS one.
   useEffect(() => {
-    if (!pondId) return;
-    pondContextApi.get(pondId).then(({ data }) => {
-      setCtx(data);
-      if (data.abwG != null) setAbw(String(data.abwG));
-    }).catch(() => {});
-  }, [pondId]);
+    if (ctx?.abwG != null) setAbw(String(ctx.abwG));
+  }, [ctx]);
+
+  /** Molt vulnerability scales with size; without ABW it is not this pond's. */
+  const required: RequiredInput[] = [
+    { value: abw, labelKey: 'engines.common.needsSampling' },
+  ];
+  const missing = missingInputs(required);
 
   const assess = useCallback(async () => {
     setLoading(true);
     try {
       const vulnerability = ctx ? buildVulnerability(ctx) : undefined;
-      const { data } = await lunarApi.risk({ abwG: Number(abw) || 20, vulnerability });
+      // No fallback. An empty field used to become a 20 g shrimp silently,
+      // which is the same fabrication in miniature — the assess button is
+      // disabled until a real sampling exists.
+      const { data } = await lunarApi.risk({ abwG: Number(abw), vulnerability });
       setPhase(data.phase);
       setRisk(data.risk);
       setPlaybook(data.playbook);
@@ -96,8 +110,11 @@ export const LunarScreen = ({ route }: any) => {
 
   // Surface the phase playbook automatically: once on open, and again when the
   // pond snapshot loads (so the steps reflect the pond's latest data).
+  // Auto-assess once the pond snapshot lands — but only when there is
+  // actually an ABW to assess. It used to fire regardless and fall back to a
+  // 20 g default, so the screen showed a molt risk for an invented shrimp.
   useEffect(() => {
-    assess();
+    if (missing.length === 0) assess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx]);
 
@@ -123,18 +140,48 @@ export const LunarScreen = ({ route }: any) => {
               ) : (
                 <SeverityPill severity="low" label={t('engines.lunar.toNextWindow', { days: phase.daysToSpringTide.toFixed(1) })} icon="calendar-blank-outline" />
               )}
+              {/*
+                * The actual DATES (E5.1) — true phase, corrected per Meeus,
+                * and already bucketed into IST by the server.
+                *
+                * "5.6 days to the next spring tide" is not something a farmer
+                * can hold against their Panchang; a date is. And these are the
+                * first dates this screen has shown that agree with one: the
+                * mean-phase instant could be ±14 h out, and was formatted
+                * without converting to IST, so a phase after 18:30 UTC named
+                * the previous day.
+                */}
+              {phase.nextNewMoonIst && (
+                <Text style={styles.phaseDates}>
+                  {t('engines.lunar.nextNewMoon', { date: phase.nextNewMoonIst })}
+                </Text>
+              )}
+              {phase.nextFullMoonIst && (
+                <Text style={styles.phaseDates}>
+                  {t('engines.lunar.nextFullMoon', { date: phase.nextFullMoonIst })}
+                </Text>
+              )}
             </View>
           </Card>
         )}
 
+        {ctxError ? <EngineUnavailable onRetry={refetch} /> : null}
         {ctx && ctx.abwG != null && <PrefilledBanner doc={ctx.doc} />}
 
         <Card style={styles.card}>
           <Text style={styles.sectionLabel}>{t('engines.lunar.assessment')}</Text>
           <View style={styles.row}>
             <NumberField label={t('engines.lunar.abw')} value={abw} onChangeText={setAbw} unit="g" />
-            <Button title={t('engines.lunar.assess')} onPress={assess} loading={loading} style={styles.assessBtn} />
+            <Button
+              title={t('engines.lunar.assess')}
+              onPress={assess}
+              loading={loading}
+              disabled={missing.length > 0}
+              style={styles.assessBtn}
+            />
           </View>
+
+          <MissingInputs missing={missing} />
 
           {risk && (
             <View style={styles.riskBox}>
@@ -145,7 +192,12 @@ export const LunarScreen = ({ route }: any) => {
               <Text style={styles.riskMeta}>
                 {t('engines.lunar.moltPressure', { pressure: Math.round(risk.moltPressure * 100), vuln: Math.round(risk.vulnerability * 100) })}
               </Text>
-              {ctx && <ConfidenceChip confidence={ctx.confidence} />}
+              <ConfidenceChip confidence={ctx?.confidence} />
+              {/* E4: molt likelihood is a prediction, not a measurement. */}
+              <FirstUseHint
+                flagKey="lunar-heuristic"
+                message={t('engines.common.heuristicNote')}
+              />
             </View>
           )}
         </Card>
@@ -193,6 +245,14 @@ const PlaybookRow = ({ step, priorityLabel }: { step: PlaybookStep; priorityLabe
         {step.priority !== 'routine' && (
           <Text style={[styles.pbPriority, { color: ps.fg }]}>{priorityLabel}</Text>
         )}
+        {/*
+          * WHY this step is here (E5.2). The backend tags every data-driven
+          * step with the datum that produced it and the screen threw it away —
+          * the same "show your reasoning" standard the feed advisor's
+          * `reasons[]` already sets — which is what makes advice checkable
+          * rather than oracular.
+          */}
+        {step.trigger ? <Text style={styles.pbTrigger}>{step.trigger}</Text> : null}
       </View>
     </View>
   );
@@ -203,6 +263,16 @@ const styles = StyleSheet.create({
   title: { ...theme.typeScale.h1, color: theme.roles.light.textPrimary },
   subtitle: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary },
   card: { marginBottom: theme.spacing[4], padding: theme.spacing[4] },
+  pbTrigger: {
+    ...theme.typeScale.bodySmall,
+    color: theme.roles.light.textTertiary,
+    marginTop: theme.spacing[1],
+  },
+  phaseDates: {
+    ...theme.typeScale.bodySmall,
+    color: theme.roles.light.textSecondary,
+    marginTop: theme.spacing[1],
+  },
   phaseCard: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing[4] },
   phaseName: { ...theme.typeScale.h2, color: theme.roles.light.textPrimary },
   phaseMeta: { ...theme.typeScale.bodyMedium, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[2] },
