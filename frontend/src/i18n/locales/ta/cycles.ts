@@ -1,6 +1,7 @@
 const cycles = {
   // CreateCycleScreen
   fieldCycleName: 'சுழற்சி பெயர்',
+  fieldPond: "குளம்",
   placeholderCycleName: 'எ.கா. சுழற்சி 1',
   defaultCycleName: 'சுழற்சி {{n}}',
   fieldStockingDate: 'கையிருப்பு தேதி (YYYY-MM-DD)',

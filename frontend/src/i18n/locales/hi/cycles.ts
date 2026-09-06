@@ -1,6 +1,7 @@
 const cycles = {
   // CreateCycleScreen
   fieldCycleName: 'चक्र का नाम',
+  fieldPond: "तालाब",
   placeholderCycleName: 'उदा. चक्र 1',
   defaultCycleName: 'चक्र {{n}}',
   fieldStockingDate: 'स्टॉकिंग तारीख (YYYY-MM-DD)',

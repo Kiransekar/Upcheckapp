@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'rea
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
+import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { CalendarPicker } from '../../components/ui/CalendarPicker';
@@ -10,6 +11,7 @@ import { SelectField } from '../../components/ui/SelectField';
 import { CANONICAL_SPECIES, SEED_TYPES, speciesLabelKey } from '../../features/species';
 import { theme } from '../../theme';
 import { cropsApi } from '../../api/crops';
+import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
 import { toLocalISODate } from '../../utils/localDate';
 import { capture, EVENTS } from '../../features/analytics';
@@ -32,7 +34,22 @@ const INTENSITY: { key: Intensity; tkey: string; kgM2: number; icon: any }[] = [
 
 export const CreateCycleScreen = ({ route, navigation }: any) => {
     const { t } = useTranslation();
-    const { pondId } = route.params;
+    /**
+     * WHICH POND — answerable, and changeable.
+     *
+     * This screen took a `pondId` and then never mentioned it again: no header,
+     * no pond name, no back button, and no way to switch. Arriving from the
+     * Today hero ("Stock a cycle in Pond 2") that is survivable only if you
+     * remember what the card said; arriving any other way you are filling in a
+     * stocking form for a pond the app will not name. Reported as: "it took me
+     * to start a cycle pond and i dont even know which pond is that for and
+     * cant change, it didnt ask me also."
+     *
+     * The route param is the STARTING point now, not the whole answer.
+     */
+    const [pondId, setPondId] = useState<string>(route.params.pondId);
+    const [ponds, setPonds] = useState<Pond[]>([]);
+    const currentPond = ponds.find((p) => p.id === pondId);
     const [name, setName] = useState('');
     const [stockingDate, setStockingDate] = useState<Date>(new Date());
     const [stockingCount, setStockingCount] = useState('');
@@ -50,6 +67,39 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
 
     const [isLoading, setIsLoading] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; stockingCount?: string; seedType?: string }>({});
+
+    /**
+     * The ponds this cycle could go on: the rest of the same farm.
+     *
+     * Only ponds with NO running cycle are offered, plus whichever one we
+     * arrived on — a pond already mid-cycle cannot take a second, and listing
+     * it would be an option that only fails on save. Best-effort: if the farm
+     * cannot be read we simply do not offer the switch, which is exactly the
+     * behaviour before this existed, rather than a broken screen.
+     */
+    useEffect(() => {
+        let cancelled = false;
+        void pondsApi
+            .getById(route.params.pondId)
+            .then(async ({ data: pond }) => {
+                if (cancelled || !pond?.farmId) return;
+                const res = await pondsApi.getAll(pond.farmId, { take: 100 });
+                const raw: any = res.data;
+                const list: Pond[] = Array.isArray(raw)
+                    ? raw
+                    : (raw?.items ?? raw?.data ?? []);
+                if (cancelled) return;
+                setPonds(
+                    list.filter(
+                        (p) => !p.activeCycleId || p.id === route.params.pondId,
+                    ),
+                );
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [route.params.pondId]);
 
     // A blank required "Cycle Name" field with nothing to go on is exactly the
     // kind of internal-sounding ask a farmer shouldn't have to think about —
@@ -123,8 +173,39 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
     };
 
     return (
-        <ScreenWrapper>
+        <ScreenWrapper scroll={false} padded={false}>
+            {/*
+              * There was no header on this screen at all — so no pond name, and
+              * no back button either. The only way out was the Android gesture.
+              */}
+            <ScreenHeader
+                eyebrow={t('cycles.startCycle')}
+                title={
+                    currentPond
+                        ? currentPond.displayName || currentPond.pondCode || currentPond.name
+                        : t('cycles.startCycle')
+                }
+                onBack={() => navigation.goBack()}
+                accessibilityBackLabel={t('common.back')}
+            />
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.formContainer}>
+                {/*
+                  * Offered only when there is a real choice. One pond and this
+                  * is a dropdown with a single entry — noise on a form that is
+                  * already long, and the header above already names it.
+                  */}
+                {ponds.length > 1 && (
+                    <SelectField
+                        label={t('cycles.fieldPond')}
+                        value={pondId}
+                        options={ponds.map((p) => ({
+                            value: p.id,
+                            label: p.displayName || p.pondCode || p.name,
+                        }))}
+                        onSelect={setPondId}
+                        required
+                    />
+                )}
                 <Input
                     label={t('cycles.fieldCycleName')}
                     value={name}
@@ -237,6 +318,9 @@ export const CreateCycleScreen = ({ route, navigation }: any) => {
 
 const styles = StyleSheet.create({
     formContainer: {
+        // The screen is no longer padded by ScreenWrapper (it now owns a
+        // full-bleed header), so the form supplies its own gutter.
+        paddingHorizontal: theme.spacing[4],
         paddingTop: theme.spacing[4],
         paddingBottom: theme.spacing[10],
     },
