@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import type { AssignableRole } from './add-member.dto';
 
 /**
@@ -34,4 +34,15 @@ export class CreateInviteDto {
   @Min(1)
   @Max(50)
   maxUses?: number;
+
+  /**
+   * Whether whoever redeems this code still waits for approval (W5).
+   *
+   * Defaults to false — see the migration for why. The farm-level
+   * `joinApproval` policy is unchanged and still governs the open farm-code
+   * path; this is the invite saying what IT does.
+   */
+  @IsOptional()
+  @IsBoolean()
+  requiresApproval?: boolean;
 }

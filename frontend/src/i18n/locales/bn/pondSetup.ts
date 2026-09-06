@@ -80,6 +80,30 @@ const pondSetup = {
 
 
   moreDetailsHint: "এটি বন্ধ রাখলে আমরা নির্দিষ্ট আকারহীন মাটির পুকুর ধরে নেব। পুকুরের পাতা জানাবে যে সেগুলি নিশ্চিত নয়।",
+
+
+  stockedToggle: "এর মধ্যে কোনো পুকুরে ইতিমধ্যে মাছ ছাড়া হয়েছে? (ঐচ্ছিক)",
+
+
+  stockedHint: "জানালে অ্যাপ ওই পুকুরের বৃদ্ধি, খাবারের খরচ ও লাভ দেখাতে শুরু করবে। ফাঁকা রাখলে পরে যোগ করা যাবে।",
+
+
+  stockedDateLabel: "মাছ ছাড়ার তারিখ",
+
+
+  stockedDatePlaceholder: "YYYY-MM-DD",
+
+
+  stockedCountLabel: "পোনার সংখ্যা",
+
+
+  stockedCountPlaceholder: "PL সংখ্যা",
+
+
+  firstCycleName: "{{pond}} — প্রথম চক্র",
+
+
+  errCyclesPartial: "আপনার পুকুর তৈরি হয়েছে। {{count}}টি চক্র শুরু করা যায়নি — পুকুরের পাতা থেকে শুরু করুন।",
   areaPlaceholder: "আয়তন m²",
   areaOptionalNote: "আয়তন এখন বাধ্যতামূলক নয়। পুকুরে পোনা ছাড়ার সময় যোগ করতে পারবেন।",
   createFarmCta: "খামার তৈরি করুন",

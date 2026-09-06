@@ -28,7 +28,20 @@ const members = {
     revokeInvite: 'Revoke',
     revokeTitle: 'Revoke this invite?',
     revokeConfirm: 'Anyone still holding this code will no longer be able to join.',
-    shareInviteMessage: 'Join {{farm}} on Neerani with this code: {{code}}\nOr tap: upcheckapp://join/{{code}}',
+    /**
+     * An https link, NOT `upcheckapp://` (W4-A).
+     *
+     * The custom scheme was the only link here, and WhatsApp does not linkify
+     * custom schemes — so the line rendered as dead text for the person
+     * receiving it, and a recipient without the app installed got nothing at
+     * all: no page, no Play Store link, no way to carry the code through an
+     * install. The invite loop ended there.
+     *
+     * The bare code stays on the line above it deliberately. It is the
+     * fallback that always works — readable aloud, and typeable into the app
+     * by someone whose phone did nothing useful with the link.
+     */
+    shareInviteMessage: 'Join {{farm}} on Neerani with this code: {{code}}\nOr tap: https://api.upcheck.in/join/{{code}}',
     neverExpires: 'Never expires',
     expiresInDays: 'Expires in {{count}} days',
     expiresInHours: 'Expires in {{count}} hours',
@@ -37,6 +50,8 @@ const members = {
     joinExpired: 'That invite has expired. Ask the farm owner for a new code.',
     joinRevoked: 'That invite has been revoked. Ask the farm owner for a new code.',
     joinExhausted: 'That invite has already been used. Ask the farm owner for a new code.',
+    joinAlreadyPending: "Your code worked. You are waiting for the owner to let you in — there is nothing more to type.",
+    joinAlreadyMember: "You are already on this farm. Nothing to do — open it from your farm list.",
     joinNotFound: 'No farm found for that code. Check it and try again.',
     waitingTitle: 'Waiting to be let in',
     usedYourCode: 'Used your code',

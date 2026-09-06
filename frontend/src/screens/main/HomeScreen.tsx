@@ -37,7 +37,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { farmsApi } from '../../api/farms';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { fetchTodaySnapshot } from '../../api/todaySnapshot';
-import { farmMembersApi } from '../../api/farmMembers';
+import { farmMembersApi, type PendingJoinRequest } from '../../api/farmMembers';
 import { splitTasks, type Task } from '../../api/tasks';
 import { fetchTeamOverview } from '../../api/teamOverview';
 import { alertCenterApi, type BriefingItem, type AlertSeverity } from '../../api/alertCenter';
@@ -48,6 +48,7 @@ import Svg, { Ellipse, Path } from 'react-native-svg';
 
 /** Stable empty fallbacks — a fresh `[]` each render would break the memos. */
 const EMPTY_FARMS: { id: string; name: string }[] = [];
+const EMPTY_PENDING_JOINS: PendingJoinRequest[] = [];
 const EMPTY_PONDS: Pond[] = [];
 const EMPTY_ALERTS: BriefingItem[] = [];
 const EMPTY_CONTEXTS: PondContext[] = [];
@@ -121,6 +122,30 @@ export const HomeScreen = ({ navigation }: any) => {
         queryFn: async () => (await farmsApi.getAll()).data,
     });
     const farms = (farmsQuery.data as { id: string; name: string }[] | undefined) ?? EMPTY_FARMS;
+
+    /**
+     * Join requests this farmer is still waiting on (W1).
+     *
+     * Only fetched when they have NO farms — it exists solely to tell the
+     * zero-farm state apart from the waiting state, and a farmer who is already
+     * in a farm has no use for it.
+     *
+     * `getAccessibleFarmIds` filters on `status: 'active'`, correctly: a
+     * pending membership grants nothing, and loosening it would hand the client
+     * a full worker role for a farm it is not in yet. But that meant a worker
+     * who had just redeemed a valid code had zero accessible farms, and Home
+     * showed them the brand-new-user state — "No farms yet: create a farm or
+     * join with a code" — moments after they had joined one. Re-entering the
+     * code then told them the code was wrong.
+     *
+     * So the fix is a third state here, not a looser boundary there.
+     */
+    const pendingJoinsQuery = useAppQuery({
+        queryKey: ['farm-members', 'mine', 'pending'],
+        queryFn: async () => (await farmMembersApi.listMyPending()).data,
+        enabled: farms.length === 0,
+    });
+    const pendingJoins = pendingJoinsQuery.data ?? EMPTY_PENDING_JOINS;
 
     /** Ponds for the one-tap "Your Ponds" shortcut. Persisted; enrichment. */
     const pondsQuery = useAppQuery({
@@ -448,6 +473,16 @@ export const HomeScreen = ({ navigation }: any) => {
      * stocked" — it is null only until the enrichment call lands, and a hero
      * that flashes the wrong step for one frame is worse than one that waits.
      */
+    /**
+     * How many distinct people are on the farms in scope, or null if we could
+     * not read the roster. Null is NOT "nobody" — a failed request must never
+     * tell an owner with a full team to go and invite one.
+     */
+    const teamSize = React.useMemo(() => {
+        if (!teamQuery.data || teamQuery.isError) return null;
+        return new Set((teamQuery.data.members ?? []).map((m: any) => m.userId)).size;
+    }, [teamQuery.data, teamQuery.isError]);
+
     const firstStep = React.useMemo(() => {
         if (isLoading || scopeFarms.length === 0 || logsToday == null) return null;
         const farm = scopeFarm ?? scopeFarms[0];
@@ -465,9 +500,20 @@ export const HomeScreen = ({ navigation }: any) => {
                 go: () => goRoot('PondSetup', { farmId: farm!.id, totalPonds: 1 }),
             };
         }
-        if (logsToday.total === 0) {
+        /**
+         * Read the ponds, not a proxy.
+         *
+         * This branch used to be `logsToday.total === 0`, where `logsToday`
+         * counts STOCKED ponds — so its total doubled as "is anything stocked".
+         * That is true for one pond and wrong for four: a farmer who stocks one
+         * of four has `total > 0`, and the cycle step vanished for the other
+         * three even though they hold nothing the app can compute on.
+         * `activeCycleId` is the actual question.
+         */
+        const unstocked = scopePonds.filter((p) => !p.activeCycleId);
+        if (unstocked.length > 0) {
             if (!perms.canManageOperations) return null;
-            const pond = scopePonds[0];
+            const pond = unstocked[0];
             return {
                 key: 'cycle',
                 farm: farms.find((f) => f.id === pond.farmId)?.name,
@@ -487,8 +533,32 @@ export const HomeScreen = ({ navigation }: any) => {
                 go: () => goRoot('QuickLog'),
             };
         }
+        /**
+         * The last step, inherited from the checklist this hero replaces (W6).
+         *
+         * Home used to render TWO activation guides with different sequences
+         * and different finish lines: this hero (ponds → cycle → log) and a
+         * `GettingStarted` checklist (ponds → log → invite). The checklist
+         * could be completed 100% WITHOUT EVER STOCKING A CYCLE — water-quality
+         * logging correctly works on an unstocked pond — so a farmer could tick
+         * every box while FCR, ABW, growth, feed advice, disease risk and P&L
+         * all stayed empty. Its finish line was not the product's value moment.
+         *
+         * One guide now, with the sequence that was already right, plus the one
+         * step the checklist had and this did not.
+         */
+        if (teamSize != null && teamSize <= 1 && perms.canManageMembers) {
+            return {
+                key: 'invite',
+                farm: farm?.name,
+                headline: t('home.stepInviteTitle'),
+                why: t('home.stepInviteWhy'),
+                cta: t('home.stepInviteCta'),
+                go: () => goRoot('FarmMembers', { farmId: farm!.id, farmName: farm?.name }),
+            };
+        }
         return null;
-    }, [isLoading, scopeFarms, scopeFarm, scopePonds, logsToday, farms, perms.canManageOperations, t]);
+    }, [isLoading, scopeFarms, scopeFarm, scopePonds, logsToday, farms, teamSize, perms.canManageOperations, perms.canManageMembers, t]);
 
     // Each item carries the farm it came from — Home spans every farm, so an
     // action without its farm name is ambiguous the moment you have two.
@@ -749,6 +819,24 @@ export const HomeScreen = ({ navigation }: any) => {
                     error={error}
                     onRetry={onRetry}
                 />
+            ) : farms.length === 0 && pendingJoins.length > 0 ? (
+                /*
+                  * WAITING — the third state, between "loading" and "no farms".
+                  *
+                  * This worker has joined a farm. They are not a new user with
+                  * a decision to make, and showing them "create a farm or join
+                  * with a code" is what sent them back to re-enter a code that
+                  * had already worked. Nothing here offers that.
+                  */
+                <View style={styles.emptyFarms} testID="home-waiting-approval">
+                    <EmptyPondArt />
+                    <Text style={styles.emptyTitle}>
+                        {t('home.waitingApprovalTitle', {
+                            farm: pendingJoins[0].farmName,
+                        })}
+                    </Text>
+                    <Text style={styles.emptySub}>{t('home.waitingApprovalBody')}</Text>
+                </View>
             ) : farms.length === 0 ? (
                 /* Artboard 09 — the first-run dashboard. Two routes, always:
                    the old either/or branched on a global owner/worker flag, so
@@ -935,23 +1023,25 @@ export const HomeScreen = ({ navigation }: any) => {
                         onSeeAll={() => navigation.navigate('Farms')}
                     />
 
-                    {/* Getting Started (onboarding-plan Phase 2). Not in 1b —
-                        1b draws an established farm — so it is the quietest
-                        thing on the page and it goes below the band: setup
-                        advice must not outrank a dying pond. It disappears for
-                        good once every milestone is done, or when the farmer
-                        confirms they want it gone. */}
-                    {showGettingStarted && (
-                        <GettingStarted
-                            items={checklistItems}
-                            onSelect={(key) => {
-                                if (key === 'ponds') goRoot('PondSetup', { farmId: selectedFarm!.id, totalPonds: remainingPonds || 1 });
-                                else if (key === 'log') goRoot('QuickLog');
-                                else if (key === 'invite') goRoot('AddWorker', { farmId: selectedFarm!.id });
-                            }}
-                            onDismissForever={dismissChecklistForever}
-                        />
-                    )}
+                    {/*
+                      * The Getting Started checklist USED TO RENDER HERE, and
+                      * it is deliberately gone (W6).
+                      *
+                      * Home carried two activation guides with different
+                      * sequences and different finish lines: the hero above
+                      * (ponds → cycle → first log → invite) and this checklist
+                      * (ponds → log → invite). The checklist could be completed
+                      * 100% WITHOUT EVER STOCKING A CYCLE, because water-quality
+                      * logging correctly works on an unstocked pond — so a
+                      * farmer could tick every box and still have FCR, ABW,
+                      * growth, feed advice, disease risk and P&L all empty.
+                      *
+                      * Two guides that disagree about what "set up" means teach
+                      * the farmer that neither is worth following, and the one
+                      * that was easier to finish pointed away from the value
+                      * moment. One guide now, and its last step is a stocked
+                      * cycle producing a real number.
+                      */}
                 </>
             )}
         </ScreenWrapper>
@@ -995,6 +1085,13 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textPrimary,
         marginTop: theme.spacing[4],
         marginBottom: theme.spacing[6],
+    },
+    emptySub: {
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: -theme.spacing[3],
+        marginBottom: theme.spacing[4],
     },
     emptyCards: { alignSelf: 'stretch', gap: theme.spacing[3] },
     emptyChoice: {

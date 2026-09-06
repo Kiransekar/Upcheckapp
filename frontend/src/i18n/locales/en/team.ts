@@ -4,6 +4,7 @@ const team = {
     allFarms: "All farms",
     // The header button goes to the roster, so it says what it opens.
     manageTeam: 'Manage team',
+    manageTeamPending: "Manage team · {{count}} waiting",
     noFarmTitle: "No farms yet",
     noFarmSub: "Create or join a farm to see its team.",
     checkedInAt: 'You checked in at {{time}}',

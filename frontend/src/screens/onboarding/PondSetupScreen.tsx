@@ -191,7 +191,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
             installedAeratorHp: hasAerators && !isNaN(hp) ? Math.round(ac * hp * 100) / 100 : undefined,
         });
 
-        const result = pondRes.data as unknown as CreatePondResult;
+        const result = pondRes.data;
         const pondId = result.pond?.id ?? (result as any).id;
         const areaM2 = result.calculatedAreaM2 ?? previewArea ?? 0;
         const stockingCount = areaM2 > 0 ? Math.round(density * areaM2) : undefined;
@@ -240,7 +240,7 @@ export const PondSetupScreen = ({ navigation, route }: any) => {
                     installedAeratorHp: hasAerators && !isNaN(hp) ? Math.round(ac * hp * 100) / 100 : undefined,
                 });
 
-                const result = pondRes.data as unknown as CreatePondResult;
+                const result = pondRes.data;
                 pondId = result.pond?.id ?? (result as any).id;
                 areaM2 = result.calculatedAreaM2 ?? previewArea ?? 0;
                 pendingPondIdRef.current = pondId;

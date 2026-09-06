@@ -8,6 +8,7 @@
 //     retries ends up with two farms.
 jest.mock('../../../api/farms', () => ({ farmsApi: { create: jest.fn() } }));
 jest.mock('../../../api/ponds', () => ({ pondsApi: { create: jest.fn() } }));
+jest.mock('../../../api/crops', () => ({ cropsApi: { create: jest.fn() } }));
 jest.mock('../../../store/membershipStore', () => ({
     useMembershipStore: Object.assign(
         jest.fn((sel: any) => sel({ load: jest.fn().mockResolvedValue(undefined) })),
@@ -21,11 +22,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PondNamesScreen, pondNames, isValidPrefix } from '../PondNamesScreen';
 import { farmsApi } from '../../../api/farms';
 import { pondsApi } from '../../../api/ponds';
+import { cropsApi } from '../../../api/crops';
 import { useAuthStore } from '../../../store/authStore';
 import { useUIStore } from '../../../store/uiStore';
 
 const mockedCreateFarm = farmsApi.create as jest.Mock;
 const mockedCreatePond = pondsApi.create as jest.Mock;
+const mockedCreateCrop = cropsApi.create as jest.Mock;
 
 const TEST_SAFE_AREA_METRICS = {
     frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -72,7 +75,9 @@ describe('PondNamesScreen — artboard 06', () => {
         jest.clearAllMocks();
         useAuthStore.setState({ pendingFarmSetup: true } as any);
         mockedCreateFarm.mockResolvedValue({ data: { id: 'farm-1' } });
-        mockedCreatePond.mockResolvedValue({ data: {} });
+        // POST /ponds answers with the pond WRAPPED in its derived geometry.
+        mockedCreatePond.mockResolvedValue({ data: { pond: { id: 'pond-1' } } });
+        mockedCreateCrop.mockResolvedValue({ data: { id: 'crop-1' } });
     });
 
     it('offers one editable name per pond, pre-filled', () => {
@@ -205,6 +210,89 @@ describe('PondNamesScreen — artboard 06', () => {
             expect(mockedCreatePond.mock.calls[0][0].assumedFields).not.toContain('areaM2');
             // The pond beside it was NOT measured, and still says so.
             expect(mockedCreatePond.mock.calls[1][0].assumedFields).toContain('areaM2');
+        });
+    });
+
+    /**
+     * W7 — the one question that makes first run show a real number.
+     *
+     * FCR, ABW, growth, feed advice, disease risk and P&L every one need a
+     * stocked cycle, so a farmer could finish setup perfectly and still see
+     * nothing the product exists to compute. Faking it was not an option — the
+     * fabricated "EXAMPLE" dashboard was deleted for that reason — so it is
+     * asked at the one moment they are already thinking about the pond, and
+     * skipping is free.
+     */
+    describe('seeding the first cycle', () => {
+        it('creates no cycle when the farmer says nothing', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            expect(mockedCreateCrop).not.toHaveBeenCalled();
+        });
+
+        it('stocks only the pond the farmer answered for', async () => {
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-1'), '2026-08-01');
+            fireEvent.changeText(utils.getByTestId('stocked-count-1'), '40000');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreateCrop).toHaveBeenCalledTimes(1));
+            expect(mockedCreateCrop).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    pondId: 'pond-1',
+                    stockingDate: '2026-08-01',
+                    stockingCount: 40000,
+                }),
+            );
+        });
+
+        /**
+         * The screen's own rule, and the reason a blank count is not a zero:
+         * anything the app infers rather than the farmer states must not reach
+         * the engines looking like an answer.
+         */
+        it('sends no seed count when the farmer left it blank', async () => {
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-0'), '2026-08-01');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreateCrop).toHaveBeenCalledTimes(1));
+            expect(mockedCreateCrop.mock.calls[0][0].stockingCount).toBeUndefined();
+        });
+
+        /**
+         * The pond is the thing that matters and it already exists by the time
+         * the cycle is attempted. Failing the pond because its optional cycle
+         * failed would lose the part that worked.
+         */
+        it('keeps the pond when the cycle cannot be started, and says so', async () => {
+            const toasts: any[] = [];
+            useUIStore.setState({ showToast: (tst: any) => { toasts.push(tst); } } as any);
+            mockedCreateCrop.mockRejectedValue(new Error('boom'));
+
+            const utils = renderScreen();
+            fireEvent.press(utils.getByTestId('stocking-toggle'));
+            fireEvent.changeText(utils.getByTestId('stocked-date-0'), '2026-08-01');
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() =>
+                expect(navigation.reset).toHaveBeenCalledWith({
+                    index: 0,
+                    routes: [{ name: 'MainApp' }],
+                }),
+            );
+            // All three ponds were made. Only the cycle is missing, and the
+            // message points at the pond page rather than at the farm.
+            expect(mockedCreatePond).toHaveBeenCalledTimes(3);
+            expect(toasts.at(-1)?.message).toMatch(/cycle\(s\) could not be started/);
         });
     });
 

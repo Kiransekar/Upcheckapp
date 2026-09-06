@@ -39,6 +39,9 @@ function makeInvite(over: Partial<FarmInvite> = {}): FarmInvite {
     maxUses: 1,
     usedCount: 0,
     revokedAt: null,
+    // W5: the invite governs approval now, and a plain one lets its holder
+    // straight in. Tests that want the waiting queue say so explicitly.
+    requiresApproval: false,
     createdAt: new Date(),
     ...over,
   } as FarmInvite;
@@ -304,6 +307,7 @@ describe('push on pending join', () => {
     const { service, push } = makeService({
       farm: { joinApprover: 'managers' },
       managers: [{ userId: 'manager-1' }],
+      invite: makeInvite({ requiresApproval: true }),
     });
     await service.join(JOINER, { code: 'ABCD2345' });
     expect(push.sendToUser).toHaveBeenCalledWith(OWNER, expect.anything());
@@ -311,7 +315,10 @@ describe('push on pending join', () => {
   });
 
   it('notifies only the owner when joinApprover is owner', async () => {
-    const { service, push } = makeService({ farm: { joinApprover: 'owner' } });
+    const { service, push } = makeService({
+      farm: { joinApprover: 'owner' },
+      invite: makeInvite({ requiresApproval: true }),
+    });
     await service.join(JOINER, { code: 'ABCD2345' });
     expect(push.sendToUser).toHaveBeenCalledTimes(1);
     expect(push.sendToUser).toHaveBeenCalledWith(OWNER, expect.anything());
@@ -332,7 +339,10 @@ describe('push on pending join', () => {
   });
 
   it('fires only after the transaction has committed, never inside it', async () => {
-    const { service, manager, push } = makeService();
+    // Needs the PENDING path — that is the only one that pushes.
+    const { service, manager, push } = makeService({
+      invite: makeInvite({ requiresApproval: true }),
+    });
     const order: string[] = [];
     // Swap in an instrumented dataSource that still delegates to the same
     // manager makeService() wired up, so the transaction body runs unchanged.

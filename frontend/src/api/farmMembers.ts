@@ -92,21 +92,89 @@ export interface CreateInviteBody {
  * Why the server refused a code. Sent as `reason` alongside the message so the
  * client can translate each case instead of showing one generic failure.
  */
-export type InviteRejection = 'not_found' | 'revoked' | 'expired' | 'exhausted';
+export type InviteRejection =
+    | 'not_found'
+    | 'revoked'
+    | 'expired'
+    | 'exhausted'
+    /**
+     * The code was FINE. These two are about the caller, not the code, and
+     * they are the reason this list grew.
+     *
+     * A worker who redeemed a valid code under manual approval landed
+     * `pending`, held nothing, saw Home's brand-new-user state, and re-entered
+     * the code to try again. The server answered correctly — "you have already
+     * asked to join this farm" — but that reason had no value here, so
+     * `inviteRejectionOf` returned null and JoinFarmScreen fell through to its
+     * TYPO branch: red boxes, "check the code and try again". They asked for a
+     * new code; it produced the identical error. The loop ended only when an
+     * owner happened to open the app.
+     */
+    | 'already_pending'
+    | 'already_member';
+
+const REJECTIONS: InviteRejection[] = [
+    'not_found',
+    'revoked',
+    'expired',
+    'exhausted',
+    'already_pending',
+    'already_member',
+];
 
 /** Pull the machine-readable rejection out of an axios error, if present. */
 export const inviteRejectionOf = (e: any): InviteRejection | null => {
     const reason = e?.response?.data?.reason;
-    return reason === 'not_found' || reason === 'revoked' || reason === 'expired' || reason === 'exhausted'
-        ? reason
-        : null;
+    return REJECTIONS.includes(reason) ? (reason as InviteRejection) : null;
 };
+
+/**
+ * How a rejection should FEEL, which is not the same as what caused it.
+ *
+ * Three tones, because there are three different things the farmer should do:
+ *  • `typo`   — retype it. The code does not exist.
+ *  • `dead`   — ask the owner for a new one. The code existed and is finished.
+ *  • `waiting`— do nothing. It worked; someone has to let you in.
+ *
+ * Collapsing the third into the first is the whole bug: it told a worker their
+ * correct code was wrong and sent them to fetch another one.
+ */
+export type RejectionTone = 'typo' | 'dead' | 'waiting';
+
+export const toneOf = (r: InviteRejection | null): RejectionTone => {
+    if (r === 'already_pending' || r === 'already_member') return 'waiting';
+    if (r === 'revoked' || r === 'expired' || r === 'exhausted') return 'dead';
+    return 'typo';
+};
+
+/**
+ * A join request the caller has made that nobody has answered yet.
+ *
+ * Carries NO role, no capability overrides and no policy — a pending row
+ * grants nothing, and it is read from its own endpoint precisely so it can
+ * never be mistaken for a membership. See the backend's
+ * `listMyPendingRequests`.
+ */
+export interface PendingJoinRequest {
+    farmId: string;
+    farmName: string;
+    /** What they WILL be once approved. For copy only; not a role they hold. */
+    requestedRole: FarmRole;
+    requestedAt: string | null;
+}
 
 export const farmMembersApi = {
     lookupUser: (params: { userId?: string; phone?: string; email?: string }) =>
         apiClient.get<PublicUser>('/farm-members/users/lookup', { params }),
 
     listMine: () => apiClient.get<MyMembership[]>('/farm-members/mine'),
+
+    /**
+     * Join requests still waiting on an owner. Its own call, not a field on
+     * `listMine`, so a pending row can never be read as access.
+     */
+    listMyPending: () =>
+        apiClient.get<PendingJoinRequest[]>('/farm-members/mine/pending'),
 
     listMembers: (farmId: string) =>
         apiClient.get<FarmMember[]>(`/farms/${farmId}/members`),

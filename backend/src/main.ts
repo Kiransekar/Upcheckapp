@@ -4,7 +4,7 @@ if (typeof globalThis.crypto === 'undefined') {
 }
 
 import { NestFactory, HttpAdapterHost } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
 import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
@@ -47,7 +47,16 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: corsOrigin !== '*',
   });
-  app.setGlobalPrefix('api');
+  /**
+   * Everything is under /api EXCEPT the public invite landing page.
+   *
+   * That page is a link a farm worker taps in WhatsApp, so it has to read like
+   * a web address and not like an API call: `upcheck.in/join/ABCD2345`. See
+   * JoinLandingController.
+   */
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: 'join/:code', method: RequestMethod.GET }],
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

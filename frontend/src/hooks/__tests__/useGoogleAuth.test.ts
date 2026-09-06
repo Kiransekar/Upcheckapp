@@ -68,7 +68,12 @@ describe('useGoogleAuth.signInWithGoogle (#33 / #30)', () => {
         await result.current.signInWithGoogle('signin');
 
         expect(GoogleSignin.signIn).toHaveBeenCalled();
-        expect(mockGoogleLogin).toHaveBeenCalledWith('id-token-2', 'signin');
+        // Asserted on the args that carry meaning rather than on the exact
+        // arity — a third, optional argument was added later and pinning the
+        // shape made a purely additive change look like a regression.
+        const [token, oauthIntent] = mockGoogleLogin.mock.calls[0] as unknown[];
+        expect(token).toBe('id-token-2');
+        expect(oauthIntent).toBe('signin');
     });
 
     it('forwards "signup" intent from the Create Account screen', async () => {
@@ -80,6 +85,46 @@ describe('useGoogleAuth.signInWithGoogle (#33 / #30)', () => {
         const { result } = renderHook(() => useGoogleAuth());
         await result.current.signInWithGoogle('signup');
 
-        expect(mockGoogleLogin).toHaveBeenCalledWith('id-token-3', 'signup');
+        const [token, oauthIntent] = mockGoogleLogin.mock.calls[0] as unknown[];
+        expect(token).toBe('id-token-3');
+        expect(oauthIntent).toBe('signup');
+    });
+
+    /**
+     * W2. `IntentScreen` is a whole screen asking a real question, and its
+     * answer used to reach `signup()` on the EMAIL path only — Google dropped
+     * it entirely, so an owner who signed up with Google was never routed into
+     * farm setup and the server-side resume point that survives a reinstall was
+     * never armed.
+     *
+     * Two DIFFERENT intents travel together here, with confusingly similar
+     * names: the OAuth intent ('signup') decides whether the backend may
+     * provision an unknown email; the signup intent ('own_farm') decides which
+     * screen comes next. Both must arrive.
+     */
+    it('forwards the first-run intent from IntentScreen alongside the OAuth intent', async () => {
+        (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+            type: 'success',
+            data: { idToken: 'id-token-4' },
+        });
+
+        const { result } = renderHook(() => useGoogleAuth());
+        await result.current.signInWithGoogle('signup', 'own_farm');
+
+        expect(mockGoogleLogin).toHaveBeenCalledWith('id-token-4', 'signup', 'own_farm');
+    });
+
+    it('sends no first-run intent when the flow did not start at Register', async () => {
+        (GoogleSignin.signIn as jest.Mock).mockResolvedValue({
+            type: 'success',
+            data: { idToken: 'id-token-5' },
+        });
+
+        const { result } = renderHook(() => useGoogleAuth());
+        // Signing IN. A returning owner must not be dragged back through
+        // first-run farm setup.
+        await result.current.signInWithGoogle('signin');
+
+        expect((mockGoogleLogin.mock.calls[0] as unknown[])[2]).toBeUndefined();
     });
 });

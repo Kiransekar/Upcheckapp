@@ -3,6 +3,7 @@ const team = {
     // The tab spans every farm by default; the chips narrow it.
     allFarms: "அனைத்துப் பண்ணைகள்",
     manageTeam: 'குழுவை நிர்வகி',
+    manageTeamPending: "குழுவை நிர்வகி · {{count}} பேர் காத்திருக்கின்றனர்",
     noFarmTitle: "இன்னும் பண்ணை இல்லை",
     noFarmSub: "குழுவைப் பார்க்க ஒரு பண்ணையை உருவாக்கவும் அல்லது சேரவும்.",
     checkedInAt: 'நீங்கள் {{time}} மணிக்கு வந்தீர்கள்',

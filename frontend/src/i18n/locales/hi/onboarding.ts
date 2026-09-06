@@ -34,6 +34,11 @@ const onboarding = {
   joinedCta: "डैशबोर्ड पर जाएँ",
   joinedPendingTitle: "आपका अनुरोध भेज दिया गया",
   joinedPendingBody: "इस फ़ार्म पर कुछ भी दर्ज करने से पहले मालिक को आपको मंज़ूरी देनी होगी।",
+  joinedPendingCta: "आगे बढ़ें",
+  consentPointScreens: "कौन-सी स्क्रीन इस्तेमाल होती हैं, और ऐप कहाँ कठिन लगता है।",
+  consentPointNever: "आपके तालाब, पैसे, फ़सल या रीडिंग कभी नहीं।",
+  consentPointSame: "आप मना करें तो भी हर सुविधा बिल्कुल वैसे ही काम करेगी।",
+  consentFootnote: "आप इसे कभी भी सेटिंग्स में बदल सकते हैं।",
 };
 
 export default onboarding;

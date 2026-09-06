@@ -34,6 +34,11 @@ const onboarding = {
   joinedCta: "ଡ୍ୟାସବୋର୍ଡକୁ ଯାଆନ୍ତୁ",
   joinedPendingTitle: "ଆପଣଙ୍କ ଅନୁରୋଧ ପଠାଯାଇଛି",
   joinedPendingBody: "ଏହି ଫାର୍ମରେ କିଛି ଲେଖିବା ପୂର୍ବରୁ ମାଲିକ ଆପଣଙ୍କୁ ଅନୁମୋଦନ କରିବେ।",
+  joinedPendingCta: "ଆଗକୁ ବଢ଼ନ୍ତୁ",
+  consentPointScreens: "କେଉଁ ସ୍କ୍ରିନ ବ୍ୟବହାର ହୁଏ, ଓ ଆପ କେଉଁଠି କଠିନ ଲାଗେ।",
+  consentPointNever: "ଆପଣଙ୍କ ପୋଖରୀ, ଟଙ୍କା, ଅମଳ କିମ୍ବା ରିଡିଂ କେବେ ନୁହେଁ।",
+  consentPointSame: "ଆପଣ ନା କହିଲେ ମଧ୍ୟ ପ୍ରତ୍ୟେକ ସୁବିଧା ଠିକ୍ ସେହିପରି କାମ କରିବ।",
+  consentFootnote: "ଆପଣ ଯେକୌଣସି ସମୟରେ ସେଟିଂସରେ ଏହା ବଦଳାଇ ପାରିବେ।",
 };
 
 export default onboarding;

@@ -178,6 +178,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "अभी कोई फ़ार्म नहीं",
+  waitingApprovalTitle: "{{farm}} के अनुमति देने का इंतज़ार",
+  waitingApprovalBody: "आपका अनुरोध भेज दिया गया है। फ़ार्म मालिक आपको अंदर ले लेंगे — कोड दोबारा डालने की ज़रूरत नहीं।",
   createFarmCardSub: "अपने तालाब सेट करें और दर्ज करना शुरू करें",
   joinCodeCardTitle: "कोड से शामिल हों",
   joinCodeCardSub: "किसी और के चलाए फ़ार्म पर काम करें",
@@ -210,6 +212,9 @@ const home = {
   stepLogTitle: "आज की रीडिंग दर्ज करें",
   stepLogWhy: "आज कुछ दर्ज नहीं हुआ। यहाँ की हर चेतावनी ऑक्सीजन और पीएच से ही बनती है।",
   stepLogCta: "अभी दर्ज करें",
+  stepInviteTitle: "अपने साथ काम करने वालों को जोड़ें",
+  stepInviteWhy: "आपकी अनुपस्थिति में वे चारा और पानी दर्ज कर सकते हैं, और सारे आँकड़े एक ही जगह रहते हैं।",
+  stepInviteCta: "अपनी टीम को बुलाएँ",
   hideChecklist: "छिपाएँ",
   hideChecklistTitle: "सेटअप सूची छिपाएँ?",
   hideChecklistBody: "यह दोबारा नहीं आएगी। तालाब बनाना, रीडिंग दर्ज करना और टीम को बुलाना फ़ार्म और टीम टैब से अब भी हो सकता है।",

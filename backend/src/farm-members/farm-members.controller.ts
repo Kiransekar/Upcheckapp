@@ -57,6 +57,18 @@ export class FarmMembersController {
   }
 
   /**
+   * Join requests the caller is still waiting on.
+   *
+   * Its own route rather than a field on `/mine`, so a pending row can never
+   * be mistaken for a membership — see `listMyPendingRequests`. Grants nothing
+   * and is scoped to the caller by construction.
+   */
+  @Get('farm-members/mine/pending')
+  minePending(@CurrentUser() user) {
+    return this.membersService.listMyPendingRequests(user.id);
+  }
+
+  /**
    * Redeem an invite code and become a member of that farm.
    *
    * Throttled: an 8-char code over a 32-char alphabet is ~10^12 combinations,

@@ -323,6 +323,11 @@ export const TeamScreen = ({ navigation }: any) => {
     const activeMembers = members
         .filter((m) => m.status !== 'pending')
         .filter((m, i, all) => all.findIndex((x) => x.userId === m.userId) === i);
+    // Deduped the same way: one person waiting on two of your farms is one
+    // person to let in, not two.
+    const pendingCount = members
+        .filter((m) => m.status === 'pending')
+        .filter((m, i, all) => all.findIndex((x) => x.userId === m.userId) === i).length;
     const openTasks = tasks.filter((tk) => OPEN_STATUSES.includes(tk.status));
     const overdue = openTasks.filter((tk) => isOverdue(tk)).length;
 
@@ -422,7 +427,25 @@ export const TeamScreen = ({ navigation }: any) => {
                     low-end screen in sun reads as tappable. */}
                 {canManage && (
                     <Button
-                        title={t('team.manageTeam')}
+                        /**
+                         * The count is the point (W1).
+                         *
+                         * Someone waiting for approval holds nothing and can do
+                         * nothing until an owner acts, and until now the only
+                         * prompt to act was a push notification — which has to
+                         * arrive, survive the tray, and be tapped. If it did
+                         * not, the worker sat in a waiting state indefinitely
+                         * while the owner had no idea anyone was there.
+                         *
+                         * Putting the number on the button an owner already
+                         * looks at makes the queue visible without depending on
+                         * a notification at all.
+                         */
+                        title={
+                            pendingCount > 0
+                                ? t('team.manageTeamPending', { count: pendingCount })
+                                : t('team.manageTeam')
+                        }
                         variant="outlined"
                         onPress={() => startAction('members')}
                         style={styles.manageBtn}

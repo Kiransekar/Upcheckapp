@@ -339,6 +339,79 @@ describe('InventoryService', () => {
       );
       expect(alerts.createAutoAlert).not.toHaveBeenCalled();
     });
+
+    /**
+     * THE STUCK BANNER, reported twice.
+     *
+     * `adjustStock` kept the alerts honest. `update` — which is what the
+     * inventory EDIT FORM calls, and editing the quantity is how a farmer
+     * actually restocks — wrote the new number and told the alerts nothing.
+     * So the "running low" alert stayed open on an item that was now full: it
+     * could not be dismissed for good, and it came back on every launch,
+     * because nothing would re-raise it (the item was not low) and nothing
+     * would clear it either.
+     *
+     * Both writers go through one rule now. These tests are on `update`
+     * specifically, because that is the path that had none.
+     */
+    it('closes the open alerts when the farmer restocks by EDITING the item', async () => {
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        name: 'Feed',
+        quantity: 50,
+        reorderLevel: 10,
+        unit: 'kg',
+        farmId: 'farm-1',
+      });
+
+      await service.update('item-1', { quantity: 50 } as any, 'u1');
+
+      expect(alerts.resolveAutoAlerts).toHaveBeenCalledWith(
+        'inventory_low_stock',
+        'inventoryItemId',
+        'item-1',
+      );
+      expect(alerts.createAutoAlert).not.toHaveBeenCalled();
+    });
+
+    it('raises the alert when an edit drops the item below its level', async () => {
+      // The mirror case, and the reason this is a sync rather than a resolve:
+      // an edit can create the shortage as easily as it can fix it.
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        name: 'Feed',
+        quantity: 2,
+        reorderLevel: 10,
+        unit: 'kg',
+        farmId: 'farm-1',
+      });
+
+      await service.update('item-1', { quantity: 2 } as any, 'u1');
+
+      expect(alerts.createAutoAlert).toHaveBeenCalled();
+      expect(alerts.resolveAutoAlerts).not.toHaveBeenCalled();
+    });
+
+    it('closes the alert when the farmer lowers the reorder level instead', async () => {
+      // Restocking is not the only way to stop being low. Raising the bar is
+      // what made the item low; lowering it is a legitimate fix.
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        name: 'Feed',
+        quantity: 8,
+        reorderLevel: 5,
+        unit: 'kg',
+        farmId: 'farm-1',
+      });
+
+      await service.update('item-1', { reorderLevel: 5 } as any, 'u1');
+
+      expect(alerts.resolveAutoAlerts).toHaveBeenCalledWith(
+        'inventory_low_stock',
+        'inventoryItemId',
+        'item-1',
+      );
+    });
   });
 
   describe('adjustStock movement ledger', () => {

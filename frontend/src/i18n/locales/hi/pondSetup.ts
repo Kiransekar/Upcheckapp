@@ -80,6 +80,30 @@ const pondSetup = {
 
 
   moreDetailsHint: "इसे बंद रखेंगे तो हम बिना निश्चित आकार का मिट्टी का तालाब मान लेंगे। तालाब पेज बताएगा कि ये पुष्ट नहीं हैं।",
+
+
+  stockedToggle: "क्या इनमें से कोई तालाब पहले से स्टॉक है? (वैकल्पिक)",
+
+
+  stockedHint: "बताइए तो ऐप उस तालाब की बढ़त, चारा खपत और मुनाफ़ा दिखाना शुरू कर सकता है। खाली छोड़ें तो बाद में जोड़ें।",
+
+
+  stockedDateLabel: "स्टॉक करने की तारीख",
+
+
+  stockedDatePlaceholder: "YYYY-MM-DD",
+
+
+  stockedCountLabel: "बीज संख्या",
+
+
+  stockedCountPlaceholder: "PL संख्या",
+
+
+  firstCycleName: "{{pond}} — पहला चक्र",
+
+
+  errCyclesPartial: "आपके तालाब बन गए। {{count}} चक्र शुरू नहीं हो सके — उन्हें तालाब पेज से शुरू करें।",
   areaPlaceholder: "क्षेत्रफल m²",
   areaOptionalNote: "क्षेत्रफल अभी ज़रूरी नहीं। तालाब में बीज डालते समय जोड़ सकते हैं।",
   createFarmCta: "फ़ार्म बनाएँ",

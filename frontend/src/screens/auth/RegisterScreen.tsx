@@ -180,7 +180,7 @@ export const RegisterScreen = ({ navigation, route }: any) => {
             {/* @react-native-google-signin has no web build — hide on web like Truecaller below */}
             {Platform.OS !== 'web' && (
                 <GoogleLoginButton onPress={async () => {
-                    const r = await signInWithGoogle('signup');
+                    const r = await signInWithGoogle('signup', intent);
                     if (r?.requires2FA && r.tempToken) {
                         navigation.navigate('TwoFactorChallenge', { tempToken: r.tempToken });
                     }
@@ -192,7 +192,7 @@ export const RegisterScreen = ({ navigation, route }: any) => {
                 only working phone-number sign-up route; see the file header. */}
             {Platform.OS === 'android' && (
                 <TruecallerLoginButton
-                    onPress={() => { clearError(); navigation.navigate('TruecallerLogin'); }}
+                    onPress={() => { clearError(); navigation.navigate('TruecallerLogin', { intent }); }}
                     loading={isLoading}
                 />
             )}

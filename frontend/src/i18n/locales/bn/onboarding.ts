@@ -34,6 +34,11 @@ const onboarding = {
   joinedCta: "ড্যাশবোর্ডে যান",
   joinedPendingTitle: "আপনার অনুরোধ পাঠানো হয়েছে",
   joinedPendingBody: "এই খামারে কিছু লেখার আগে মালিককে আপনাকে অনুমোদন দিতে হবে।",
+  joinedPendingCta: "এগিয়ে যান",
+  consentPointScreens: "কোন স্ক্রিনগুলি ব্যবহার হয়, আর অ্যাপ কোথায় কঠিন লাগে।",
+  consentPointNever: "আপনার পুকুর, টাকা, ফসল বা রিডিং কখনও নয়।",
+  consentPointSame: "আপনি না বললেও প্রতিটি সুবিধা ঠিক একইভাবে কাজ করবে।",
+  consentFootnote: "আপনি যেকোনো সময় সেটিংসে এটি বদলাতে পারেন।",
 };
 
 export default onboarding;

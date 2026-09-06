@@ -520,4 +520,41 @@ export class FarmMembersService {
     }
     return result;
   }
+
+  /**
+   * Join requests the caller has made that nobody has answered yet.
+   *
+   * DELIBERATELY SEPARATE from `listMine`, and deliberately carrying no role,
+   * no capability overrides and no role policy. A pending row grants nothing
+   * server-side; the moment one appears in the memberships list the client
+   * resolves a full worker role for a farm it is not in yet, and every tap
+   * comes back 403. That is exactly why `listMine` filters on
+   * `status: 'active'`, and this must not undo it.
+   *
+   * It exists because the alternative was worse: `getAccessibleFarmIds` also
+   * filters on active — correctly, it is a real authorization boundary — so a
+   * worker waiting for approval had ZERO accessible farms and Home showed them
+   * the brand-new-user state, "No farms yet: create a farm or join with a
+   * code". They had just joined one. Re-entering the code then told them the
+   * code was wrong.
+   *
+   * So this returns the minimum needed to say "waiting for X to let you in",
+   * and nothing that could be mistaken for access.
+   */
+  async listMyPendingRequests(callerId: string) {
+    const pending = await this.membersRepo.find({
+      where: { userId: callerId, status: 'pending' },
+      relations: ['farm'],
+    });
+    return pending
+      .filter((m) => m.farm && !m.farm.deletedAt)
+      .map((m) => ({
+        farmId: m.farmId,
+        farmName: m.farm.name,
+        // What they will be once approved — for the copy only. It is not a
+        // role they hold, and nothing may treat it as one.
+        requestedRole: m.role as FarmRole,
+        requestedAt: m.createdAt ?? null,
+      }));
+  }
 }

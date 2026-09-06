@@ -56,6 +56,7 @@ import { Icon } from '../../components/ui/Icon';
 import { theme } from '../../theme';
 import { farmsApi, type CreateFarmDto } from '../../api/farms';
 import { pondsApi } from '../../api/ponds';
+import { cropsApi } from '../../api/crops';
 import { apiErrorMessage } from '../../api/errors';
 import { useAuthStore } from '../../store/authStore';
 import { useMembershipStore } from '../../store/membershipStore';
@@ -130,8 +131,28 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
     const [busy, setBusy] = useState(false);
     // Shut by default; opening it is what turns a default into an answer.
     const [showMore, setShowMore] = useState(false);
+    const [showStocking, setShowStocking] = useState(false);
     const [geometry, setGeometry] = useState<Geometry>('irregular');
     const [construction, setConstruction] = useState<Construction>('earthen');
+
+    /**
+     * "Is this pond already stocked?" — per pond, entirely optional (W7).
+     *
+     * Nothing in first run shows what this app computes, and honestly it
+     * cannot: FCR, ABW, growth, feed advice, disease risk and P&L each need a
+     * stocked cycle. Faking one is not an option — the fabricated "EXAMPLE"
+     * dashboard was deleted for exactly that reason — so the app asks, at the
+     * one moment the farmer is already thinking about this pond.
+     *
+     * Sparse, like `areas`: only the ponds the farmer actually answered for.
+     * A pond with no date here simply gets no cycle, and the Home hero picks
+     * up from there.
+     */
+    const [stocking, setStocking] = useState<
+        Record<number, { date?: string; count?: string }>
+    >({});
+    const setStockingField = (i: number, field: 'date' | 'count', value: string) =>
+        setStocking((prev) => ({ ...prev, [i]: { ...prev[i], [field]: value } }));
 
     const setName = (i: number, value: string) =>
         setNames((prev) => prev.map((n, j) => (j === i ? value : n)));
@@ -152,11 +173,16 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
             // The farm exists from here on. Every later failure is partial, not
             // total — never unwind it and never report it as "nothing happened".
             let failed = 0;
+            // Counted separately from `failed`: a pond that exists without its
+            // cycle is a very different outcome from a pond that never got
+            // made, and reporting them as one number would be a lie about
+            // which one to go and fix.
+            let cycleFailed = 0;
             for (let i = 0; i < pondCount; i++) {
                 const areaNum = parseFloat(areas[i] ?? '');
                 try {
                     const displayName = names[i].trim();
-                    await pondsApi.create({
+                    const createdPond = await pondsApi.create({
                         farmId: created.id,
                         displayName,
                         // The server still generates a code from a prefix; it is
@@ -192,6 +218,46 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
                             ...(pondCount > 1 ? ['depthM'] : []),
                         ],
                     });
+
+                    /**
+                     * Seed the first cycle, if the farmer said the pond is
+                     * already stocked (W7).
+                     *
+                     * Nothing in first run shows what this app computes, and the
+                     * honest reason is that it cannot: FCR, ABW, growth, feed
+                     * advice, disease risk and P&L every one need a stocked
+                     * cycle. Rather than fake a dashboard — the fabricated
+                     * "EXAMPLE" card was deleted for exactly that reason — ask
+                     * at the one moment the farmer is already thinking about
+                     * this pond.
+                     *
+                     * Optional in the strongest sense: skipping is free and
+                     * lands precisely where the Home hero picks up.
+                     *
+                     * Failing to create the CYCLE must never fail the POND. The
+                     * pond exists by this line, and unwinding it — or counting
+                     * it as failed — would lose the thing that did work.
+                     */
+                    const stockedOn = stocking[i]?.date?.trim();
+                    const newPondId = createdPond?.data?.pond?.id;
+                    if (stockedOn && newPondId) {
+                        const count = parseFloat(stocking[i]?.count ?? '');
+                        try {
+                            await cropsApi.create({
+                                pondId: newPondId,
+                                name: t('pondSetup.firstCycleName', { pond: displayName }),
+                                stockingDate: stockedOn,
+                                // A count the farmer did not give must not reach
+                                // the engines looking like an answer.
+                                stockingCount:
+                                    Number.isFinite(count) && count > 0 ? count : undefined,
+                            });
+                        } catch {
+                            // The pond stands. The cycle can be started from the
+                            // pond page, which is where the Home hero sends them.
+                            cycleFailed++;
+                        }
+                    }
                 } catch {
                     failed++;
                 }
@@ -207,10 +273,22 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
             if (pondCount - failed > 0) {
                 capture(EVENTS.POND_CREATED, { band: sizeBand(pondCount - failed) });
             }
+            /**
+             * Three outcomes, said apart.
+             *
+             * A pond that never got made and a pond that exists without its
+             * cycle need different things done about them, so reporting them
+             * as one number would point the farmer at the wrong screen. The
+             * cycle case is the milder one — the pond is there, and the Home
+             * hero will ask for the cycle anyway — so it is a warning, not an
+             * error.
+             */
             showToast(
                 failed > 0
                     ? { message: t('pondSetup.errPondsPartial', { count: failed }), type: 'error' }
-                    : { message: t('farms.farmCreatedToast', { name: farm.name, defaultValue: '{{name}} created' }), type: 'success' },
+                    : cycleFailed > 0
+                        ? { message: t('pondSetup.errCyclesPartial', { count: cycleFailed }), type: 'error' }
+                        : { message: t('farms.farmCreatedToast', { name: farm.name, defaultValue: '{{name}} created' }), type: 'success' },
             );
 
             if (pendingFarmSetup) completeFarmSetup();
@@ -276,6 +354,64 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
                         </View>
                     ))}
                 </View>
+
+                {/*
+                  * "Already stocked?" — optional, per pond (W7).
+                  *
+                  * The one question that turns a first run into a dashboard
+                  * with real numbers on it. Every differentiated figure the
+                  * product computes needs a stocked cycle, so without this a
+                  * farmer can finish setup perfectly and still see nothing.
+                  *
+                  * A separate, collapsed section rather than two more boxes on
+                  * every pond row: most ponds are not stocked at setup time,
+                  * and putting the fields inline would tax everyone for the
+                  * minority case.
+                  */}
+                <TouchableOpacity
+                    style={styles.moreToggle}
+                    onPress={() => setShowStocking((v) => !v)}
+                    testID="stocking-toggle"
+                    accessibilityRole="button"
+                >
+                    <Text style={styles.moreToggleText}>{t('pondSetup.stockedToggle')}</Text>
+                    <Icon
+                        name="expand_more"
+                        size={20}
+                        color={theme.roles.light.textSecondary}
+                    />
+                </TouchableOpacity>
+                {showStocking && (
+                    <View style={styles.moreBox}>
+                        <Text style={styles.note}>{t('pondSetup.stockedHint')}</Text>
+                        {names.map((n, i) => (
+                            <View key={i} style={styles.stockRow}>
+                                <Text style={styles.stockName} numberOfLines={1}>
+                                    {n}
+                                </Text>
+                                <TextInput
+                                    value={stocking[i]?.date ?? ''}
+                                    onChangeText={(v) => setStockingField(i, 'date', v)}
+                                    placeholder={t('pondSetup.stockedDatePlaceholder')}
+                                    placeholderTextColor={theme.roles.light.textTertiary}
+                                    style={styles.stockInput}
+                                    testID={`stocked-date-${i}`}
+                                    accessibilityLabel={`${n} — ${t('pondSetup.stockedDateLabel')}`}
+                                />
+                                <TextInput
+                                    value={stocking[i]?.count ?? ''}
+                                    onChangeText={(v) => setStockingField(i, 'count', v)}
+                                    placeholder={t('pondSetup.stockedCountPlaceholder')}
+                                    placeholderTextColor={theme.roles.light.textTertiary}
+                                    keyboardType="number-pad"
+                                    style={styles.stockInput}
+                                    testID={`stocked-count-${i}`}
+                                    accessibilityLabel={`${n} — ${t('pondSetup.stockedCountLabel')}`}
+                                />
+                            </View>
+                        ))}
+                    </View>
+                )}
                 {errors.names ? <Text style={styles.error}>{errors.names}</Text> : null}
                 <Text style={styles.note}>{t('pondSetup.areaOptionalNote')}</Text>
 
@@ -435,6 +571,26 @@ const styles = StyleSheet.create({
     optionActive: {
         borderColor: theme.roles.light.primary,
         backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    stockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[2],
+        marginTop: theme.spacing[3],
+    },
+    stockName: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textPrimary,
+        width: 64,
+    },
+    stockInput: {
+        flex: 1,
+        minHeight: 40,
+        paddingHorizontal: theme.spacing[2],
+        borderRadius: theme.radius.sm,
+        backgroundColor: theme.roles.light.surfaceVariant,
+        ...theme.typeScale.bodyMedium,
+        color: theme.roles.light.textPrimary,
     },
     optionText: {
         ...theme.typeScale.labelMedium,

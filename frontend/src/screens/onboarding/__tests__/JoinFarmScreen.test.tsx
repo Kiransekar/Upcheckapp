@@ -47,8 +47,8 @@ const renderScreen = () =>
     );
 
 /** How the server reports a code it recognised but will not honour. */
-const rejection = (reason: string) => ({
-    response: { status: 400, data: { reason, message: 'nope' } },
+const rejection = (reason: string, farmName?: string) => ({
+    response: { status: 400, data: { reason, message: 'nope', farmName } },
 });
 
 describe('JoinFarmScreen — artboard 07', () => {
@@ -132,6 +132,51 @@ describe('JoinFarmScreen — artboard 07', () => {
 
         await waitFor(() => expect(getByText(copy)).toBeTruthy());
         // Never the retype-it message — retyping a dead code cannot help.
+        expect(
+            queryByText('Could not join with that code. Check it and try again.'),
+        ).toBeNull();
+    });
+
+    /**
+     * W1 — THE LARGEST ACTIVATION LEAK IN THE PRODUCT, and it lived here.
+     *
+     * A worker redeemed a valid code, landed `pending` under manual approval,
+     * saw Home's brand-new-user state ("No farms yet — create or join"), and
+     * did the only sensible thing: re-entered the code. The server answered
+     * correctly, "you have already asked to join this farm" — but
+     * `already_pending` was not one of the four values in `InviteRejection`,
+     * so `inviteRejectionOf()` returned null and this screen fell through to
+     * its TYPO branch. Red boxes. "Check the code and try again."
+     *
+     * The worker concluded the code was wrong and asked for a new one. The new
+     * code produced the identical error. The loop ended only when an owner
+     * happened to open the app. Workers outnumber owners on every farm.
+     */
+    it('tells a waiting worker to WAIT, not that their correct code is wrong', async () => {
+        mockedJoinFarm.mockRejectedValue(rejection('already_pending', 'Kakinada East'));
+
+        const { getByLabelText, getByText, queryByText, getByTestId } = renderScreen();
+        fireEvent.changeText(getByLabelText('Farm code'), 'ABCD2345');
+        fireEvent.press(getByText('Join farm'));
+
+        await waitFor(() => expect(getByTestId('join-waiting')).toBeTruthy());
+        expect(getByText(/waiting for the owner to let you in/i)).toBeTruthy();
+        // The two things that sent them round in circles: being told it was
+        // their mistake, and being told to fetch a replacement code.
+        expect(
+            queryByText('Could not join with that code. Check it and try again.'),
+        ).toBeNull();
+        expect(queryByText(/Ask the farm owner for a new code/)).toBeNull();
+    });
+
+    it('tells someone already in the farm that there is nothing to do', async () => {
+        mockedJoinFarm.mockRejectedValue(rejection('already_member', 'Kakinada East'));
+
+        const { getByLabelText, getByText, queryByText, getByTestId } = renderScreen();
+        fireEvent.changeText(getByLabelText('Farm code'), 'ABCD2345');
+        fireEvent.press(getByText('Join farm'));
+
+        await waitFor(() => expect(getByTestId('join-waiting')).toBeTruthy());
         expect(
             queryByText('Could not join with that code. Check it and try again.'),
         ).toBeNull();

@@ -34,6 +34,11 @@ const onboarding = {
   joinedCta: "డాష్‌బోర్డ్‌కు వెళ్లండి",
   joinedPendingTitle: "మీ అభ్యర్థన పంపబడింది",
   joinedPendingBody: "ఈ ఫారమ్‌లో ఏదైనా నమోదు చేయడానికి ముందు యజమాని మిమ్మల్ని ఆమోదించాలి.",
+  joinedPendingCta: "కొనసాగించండి",
+  consentPointScreens: "ఏ స్క్రీన్లు వాడతారు, యాప్ ఎక్కడ కష్టంగా ఉంది అనేది.",
+  consentPointNever: "మీ చెరువులు, డబ్బు, పంట లేదా రీడింగ్‌లు ఎప్పుడూ కాదు.",
+  consentPointSame: "మీరు వద్దన్నా ప్రతి ఫీచర్ సరిగ్గా అలాగే పని చేస్తుంది.",
+  consentFootnote: "మీరు ఎప్పుడైనా సెట్టింగ్‌లలో దీన్ని మార్చవచ్చు.",
 };
 
 export default onboarding;

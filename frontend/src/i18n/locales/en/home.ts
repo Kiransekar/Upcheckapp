@@ -180,6 +180,8 @@ const home = {
 
   // Empty first-run dashboard (artboard 09)
   noFarmsYet: "No farms yet",
+  waitingApprovalTitle: "Waiting for {{farm}} to let you in",
+  waitingApprovalBody: "Your request has been sent. The farm owner will let you in — you do not need to enter the code again.",
   createFarmCardSub: "Set up your ponds and start logging",
   joinCodeCardTitle: "Join with a code",
   joinCodeCardSub: "Work on a farm someone else runs",
@@ -212,6 +214,9 @@ const home = {
   stepLogTitle: "Log today’s readings",
   stepLogWhy: "Nothing recorded today. Oxygen and pH are what every warning here is built from.",
   stepLogCta: "Log now",
+  stepInviteTitle: "Add the people who work with you",
+  stepInviteWhy: "They can log feed and water while you are away, and the numbers stay in one place.",
+  stepInviteCta: "Invite your team",
   hideChecklist: "Hide",
   hideChecklistTitle: "Hide the setup list?",
   hideChecklistBody: "It will not come back. You can still set up ponds, log readings and invite your team from the Farm and Team tabs.",

@@ -3,6 +3,7 @@ const team = {
     // The tab spans every farm by default; the chips narrow it.
     allFarms: "ସବୁ ଫାର୍ମ",
     manageTeam: 'ଦଳ ପରିଚାଳନା',
+    manageTeamPending: "ଦଳ ପରିଚାଳନା · {{count}} ଜଣ ଅପେକ୍ଷାରେ",
     noFarmTitle: "ଏପର୍ଯ୍ୟନ୍ତ କୌଣସି ଫାର୍ମ ନାହିଁ",
     noFarmSub: "ଦଳ ଦେଖିବାକୁ ଏକ ଫାର୍ମ ତିଆରି କରନ୍ତୁ କିମ୍ବା ଯୋଗ ଦିଅନ୍ତୁ।",
     checkedInAt: 'ଆପଣ {{time}} ରେ ଚେକ ଇନ କରିଛନ୍ତି',

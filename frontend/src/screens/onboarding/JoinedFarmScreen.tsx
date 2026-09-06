@@ -84,7 +84,11 @@ export const JoinedFarmScreen = ({ navigation, route }: any) => {
             <View style={styles.spacer} />
 
             <Button
-                title={t('onboarding.joinedCta')}
+                // "Go to dashboard" is not true for a pending arrival — Home
+                // shows them the waiting state, which is the honest hand-off
+                // (W1). Naming the destination wrongly is how the old flow
+                // implied the farm was already theirs.
+                title={t(pending ? 'onboarding.joinedPendingCta' : 'onboarding.joinedCta')}
                 onPress={() => navigation.reset({ index: 0, routes: [{ name: 'MainApp' }] })}
                 style={styles.cta}
             />

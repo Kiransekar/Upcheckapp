@@ -357,10 +357,24 @@ export class InventoryService {
   }
 
   async update(id: string, updateDto: UpdateInventoryItemDto, userId: string) {
-    await this.loadItem(id, userId, 'MANAGE_INVENTORY');
+    const { farms } = await this.loadItem(id, userId, 'MANAGE_INVENTORY');
     // farmId is not on the DTO (D14) — an item cannot change farms.
     await this.itemsRepository.update(id, updateDto);
-    return this.itemsRepository.findOneBy({ id });
+    const saved = await this.itemsRepository.findOneBy({ id });
+
+    /**
+     * THIS is where the stuck banner came from.
+     *
+     * Editing an item is how a farmer actually restocks — open it, change the
+     * quantity, save — and this method wrote the new number and told the alerts
+     * nothing. Only `adjustStock` kept them honest. So the "running low" alert
+     * stayed open on an item that was full, could not be dismissed for good,
+     * and came back on every launch.
+     *
+     * Same call as `adjustStock` makes, deliberately: one rule, both writers.
+     */
+    if (saved) await this.syncLowStockAlerts(saved, farms);
+    return saved;
   }
 
   async remove(id: string, userId: string) {
@@ -650,32 +664,48 @@ export class InventoryService {
     // stocked for depends on that stock; warning only whichever row Postgres
     // returned first left the others to discover the shortage themselves.
     // Mode is 'all' on any write capability, so `farms` is all of them.
-    if (isLowStock(savedItem)) {
-      for (const f of farms) {
-        await this.raiseLowStockAlert(savedItem, f);
-      }
-    } else {
-      // Restocked above the reorder level, so the alert is no longer true.
-      // Nothing used to clear these: the "running low" alert stayed unread
-      // forever after the farmer had already fixed it, which reads as the app
-      // being stuck rather than as stale data. Closed for EVERY recipient, not
-      // just the actor — the manager who reordered is often not the owner who
-      // was warned.
-      try {
-        await this.alertsService.resolveAutoAlerts(
-          'inventory_low_stock',
-          'inventoryItemId',
-          savedItem.id,
-        );
-      } catch (error: any) {
-        // Never fail a stock write because an alert would not close.
-        this.logger.error(
-          `Failed to resolve low stock alerts: ${error?.message ?? error}`,
-        );
-      }
-    }
+    await this.syncLowStockAlerts(savedItem, farms);
 
     return savedItem;
+  }
+
+  /**
+   * Bring the low-stock alerts into line with what the item now holds.
+   *
+   * EVERY path that can change stock level or reorder level must call this,
+   * which is the whole reason it is a method rather than two blocks.
+   * `adjustStock` did this inline and `update` did not — and `update` is what
+   * the inventory EDIT FORM calls. So a farmer who restocked the obvious way
+   * (open the item, change the quantity, save) left the alert open forever:
+   * the item was no longer low, so nothing would re-raise it and nothing would
+   * ever clear it. The banner sat on Today, survived being dismissed, and came
+   * back on every launch — "I restocked but it still shows low stock".
+   *
+   * Editing the reorder LEVEL counts too, in both directions: raising it above
+   * the quantity should warn, lowering it below should clear.
+   */
+  private async syncLowStockAlerts(item: InventoryItem, farms: Farm[]) {
+    if (isLowStock(item)) {
+      for (const f of farms) {
+        await this.raiseLowStockAlert(item, f);
+      }
+      return;
+    }
+    // No longer low, so the alert is no longer true. Closed for EVERY
+    // recipient, not just the actor — the manager who reordered is often not
+    // the owner who was warned.
+    try {
+      await this.alertsService.resolveAutoAlerts(
+        'inventory_low_stock',
+        'inventoryItemId',
+        item.id,
+      );
+    } catch (error: any) {
+      // Never fail a stock write because an alert would not close.
+      this.logger.error(
+        `Failed to resolve low stock alerts: ${error?.message ?? error}`,
+      );
+    }
   }
 
   /**

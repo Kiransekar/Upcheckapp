@@ -133,7 +133,20 @@ interface AuthState {
     enterOfflineSession: () => void;
     recoverSession: () => Promise<void>;
     login: (email: string, password: string) => Promise<{ requires2FA: boolean; tempToken?: string }>;
-    googleLogin: (idToken: string, intent?: 'signin' | 'signup') => Promise<{ requires2FA: boolean; tempToken?: string }>;
+    /**
+     * `intent` is the OAUTH intent ('signin' vs 'signup'), which the backend
+     * uses to decide whether an unknown email may provision an account.
+     * `signupIntent` is the FIRST-RUN routing answer from IntentScreen — a
+     * different question with a confusingly similar name, so both are spelled
+     * out rather than merged.
+     */
+    googleLogin: (
+        idToken: string,
+        intent?: 'signin' | 'signup',
+        signupIntent?: SignupIntent,
+    ) => Promise<{ requires2FA: boolean; tempToken?: string }>;
+    /** Arm the first-run gates from IntentScreen's answer. See the impl. */
+    armSignupIntent: (intent?: SignupIntent) => void;
     signup: (email: string, password: string, firstName?: string, lastName?: string, intent?: SignupIntent) => Promise<void>;
     logout: () => Promise<void>;
     deleteAccount: (password?: string) => Promise<void>;
@@ -303,6 +316,40 @@ export const useAuthStore = create<AuthState>()(
                     }
                 } catch {
                     // Offline or unreachable — leave the gates as they are.
+                }
+            },
+
+            /**
+             * Route the first run from the stated intent, and remember it.
+             *
+             * Someone who runs their own farm sets one up; someone joining an
+             * existing farm enters a code. Read by RootNavigator once
+             * authenticated. The intent grants NOTHING — either person can do
+             * either thing later; it only decides which screen comes next.
+             *
+             * Extracted because it used to live inside `signup()`, i.e. on the
+             * EMAIL PATH ONLY. `IntentScreen` is a whole screen asking a real
+             * question, and for anyone signing up with Google or Truecaller the
+             * answer was thrown away: no gate was set, and the server-side
+             * resume point that survives a reinstall was never armed. Truecaller
+             * is described in RegisterScreen's own header as "the only working
+             * phone-number sign-up route" — the likely dominant path for this
+             * audience — so for most farmers that screen was pure ceremony.
+             *
+             * Called on every sign-up path now. A missing intent clears both
+             * gates, which is the correct state for a plain sign-IN.
+             */
+            armSignupIntent: (intent) => {
+                set({
+                    pendingFarmSetup: intent === 'own_farm',
+                    pendingFarmJoin: intent === 'work_on_farm',
+                });
+                // Persist server-side so a reinstall, or signing in on a second
+                // phone mid-setup, resumes here instead of asking again.
+                // Fire-and-forget: failing to remember which screen to open
+                // next must not fail the signup that just succeeded.
+                if (intent) {
+                    void get().persistOnboardingIntent(intent);
                 }
             },
 
@@ -478,7 +525,11 @@ export const useAuthStore = create<AuthState>()(
                 }
             },
 
-            googleLogin: async (idToken: string, intent?: 'signin' | 'signup') => {
+            googleLogin: async (
+                idToken: string,
+                intent?: 'signin' | 'signup',
+                signupIntent?: SignupIntent,
+            ) => {
                 set({ isLoading: true, error: null });
                 try {
                     const { data } = await authApi.googleOAuth(idToken, intent);
@@ -503,6 +554,11 @@ export const useAuthStore = create<AuthState>()(
                             intent === 'signin' ? EVENTS.LOGIN_COMPLETED : EVENTS.SIGNUP_COMPLETED,
                             { method: 'google' },
                         );
+                        // Honour the intent the farmer gave on IntentScreen —
+                        // only on the SIGN-UP path. Arming these gates on a
+                        // plain sign-in would drag a returning owner back
+                        // through first-run farm setup.
+                        if (intent !== 'signin') get().armSignupIntent(signupIntent);
                     } else {
                         set({ isLoading: false });
                     }
@@ -527,22 +583,7 @@ export const useAuthStore = create<AuthState>()(
                     // back — an unconfirmed email withholds the session, it does
                     // not withhold the account.
                     capture(EVENTS.SIGNUP_COMPLETED, { method: 'email' });
-                    // Route the first run from the stated intent: someone who runs
-                    // their own farm sets one up, someone joining an existing farm
-                    // enters a code. Read by RootNavigator once authenticated. The
-                    // intent grants NOTHING — either person can do either thing
-                    // later; it only decides which screen comes next.
-                    set({
-                        pendingFarmSetup: intent === 'own_farm',
-                        pendingFarmJoin: intent === 'work_on_farm',
-                    });
-                    // Persist it server-side so a reinstall, or signing in on a
-                    // second phone mid-setup, resumes here instead of asking
-                    // again. Fire-and-forget: failing to remember which screen
-                    // to open next must not fail the signup that just succeeded.
-                    if (intent) {
-                        void get().persistOnboardingIntent(intent);
-                    }
+                    get().armSignupIntent(intent);
                     if (data.session) {
                         get().setSession(data.session);
                     } else {

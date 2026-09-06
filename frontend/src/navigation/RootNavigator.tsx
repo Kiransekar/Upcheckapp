@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { theme } from '../theme';
@@ -9,6 +9,10 @@ import type { FarmRole } from '../api/farmMembers';
 import type { CreateFarmDto } from '../api/farms';
 import type { ExportDataset } from '../features/export/types';
 import { hasChosenLanguage } from '../i18n';
+import {
+    loadTelemetryPrefs,
+    shouldAskAnalyticsConsent,
+} from '../features/telemetryPrefs';
 
 // EAGER — only what the app can actually paint on first frame.
 //
@@ -35,8 +39,9 @@ export type RootStackParamList = {
     Register: { intent?: SignupIntent } | undefined;
     ForgotPassword: undefined;
     ResetPassword: undefined;
-    TruecallerLogin: undefined;
-    TruecallerPhone: undefined;
+    // Both carry IntentScreen's answer when the flow began at Register (W2).
+    TruecallerLogin: { intent?: SignupIntent } | undefined;
+    TruecallerPhone: { intent?: SignupIntent } | undefined;
     OtpLogin: undefined;
     OtpCallback: undefined;
     TwoFactorChallenge: { tempToken: string };
@@ -47,6 +52,8 @@ export type RootStackParamList = {
 
     // Main
     MainApp: undefined;
+    // Asked once, after the account exists and before farm setup (W8).
+    AnalyticsConsent: undefined;
     QuickLog: undefined;
     HarvestLog: { pondId: string; pondName: string; cropId?: string };
 
@@ -186,6 +193,42 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Where the app opens. Pure, exported and tested, because the last version of
+ * this rule ENDED IN `undefined` and nobody could see what that meant.
+ *
+ * React Navigation treats an undefined `initialRouteName` as "the first
+ * registered screen", and the first screen in the signed-out stack is
+ * `Language`. So the branch that was supposed to mean "everyone else starts on
+ * the main app / login" silently meant "start on the language picker": anyone
+ * who logged out, or whose refresh token was revoked (which routes through
+ * `clearSession()`), reopened the app at a language question and had to walk
+ * Language → Welcome → "Skip for now" → Login to reach a form they had used a
+ * hundred times. Every branch is explicit now, and none of them is a fallthrough.
+ *
+ * Order matters and encodes the product decisions:
+ *  1. Consent first once an account exists (W8/D2) — asked before farm setup so
+ *     the setup funnel itself is measurable.
+ *  2. Then first-run setup, owner or worker.
+ *  3. Then the app.
+ *  4. Signed out: the language picker on a first run, the login screen after.
+ */
+export const initialRouteFor = (s: {
+    isAuthenticated: boolean;
+    needsConsent: boolean;
+    pendingFarmSetup: boolean;
+    pendingFarmJoin: boolean;
+    needsLanguage: boolean;
+}): keyof RootStackParamList => {
+    if (s.isAuthenticated) {
+        if (s.needsConsent) return 'AnalyticsConsent';
+        if (s.pendingFarmSetup) return 'CreateFarm';
+        if (s.pendingFarmJoin) return 'JoinFarm';
+        return 'MainApp';
+    }
+    return s.needsLanguage ? 'Language' : 'Login';
+};
+
 const RootNavigator = () => {
     // One selector per field, deliberately. Subscribing to the whole store made
     // every auth write (error text, per-request isLoading) re-render — and with
@@ -212,6 +255,29 @@ const RootNavigator = () => {
         hasChosenLanguage().then((chosen) => setNeedsLanguage(!chosen));
     }, []);
 
+    /**
+     * Whether the farmer still owes us an answer on product analytics (W8).
+     *
+     * Seventeen events are wired and the ONLY place to grant consent is a
+     * Settings toggle nobody is prompted to open — so in production the
+     * activation funnel is dark for effectively every user, and every decision
+     * about it ships on judgement with no way to tell whether it worked.
+     * "Never ask" is not the same as privacy-first.
+     *
+     * Asked once, after the account exists and before farm setup, so the setup
+     * funnel itself is measurable. `null` = still reading; hold the splash
+     * rather than flash a screen and replace it, exactly as `needsLanguage`
+     * does. A decline is permanent (see telemetryPrefs) — this never re-asks.
+     */
+    const [needsConsent, setNeedsConsent] = useState<boolean | null>(null);
+    const refreshConsentGate = useCallback(() => {
+        loadTelemetryPrefs()
+            .then((p) => setNeedsConsent(shouldAskAnalyticsConsent(p)))
+            // Unreadable storage must not strand anyone on a consent screen.
+            .catch(() => setNeedsConsent(false));
+    }, []);
+    useEffect(refreshConsentGate, [refreshConsentGate]);
+
     // Load the user's farm memberships once authenticated so usePermissions()
     // resolves correctly on every screen; clear them on logout.
     useEffect(() => {
@@ -222,7 +288,7 @@ const RootNavigator = () => {
     // ONLY startup may hold the splash. An in-flight login/signup must not, or
     // the navigator unmounts and the error message arrives at the first
     // onboarding screen instead of the screen the farmer was typing into.
-    if (isBootstrapping || needsLanguage === null) {
+    if (isBootstrapping || needsLanguage === null || needsConsent === null) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.roles.light.background }}>
                 <ActivityIndicator size="large" color={theme.roles.light.primary} />
@@ -232,18 +298,29 @@ const RootNavigator = () => {
 
     return (
         <Stack.Navigator
-            // Owners who just registered land on Create-Farm first (mandatory
-            // first-run setup); workers who just registered land on Join-Farm
-            // first; everyone else starts on the main app / login.
-            initialRouteName={
-                isAuthenticated && pendingFarmSetup
-                    ? 'CreateFarm'
-                    : isAuthenticated && pendingFarmJoin
-                        ? 'JoinFarm'
-                        : !isAuthenticated && needsLanguage
-                            ? 'Language'
-                            : undefined
-            }
+            /**
+             * The consent ask comes FIRST once there is an account (W8/D2) —
+             * before farm setup, so the setup funnel itself is measurable.
+             * Then owners land on Create-Farm and workers on Join-Farm; a
+             * signed-out farmer gets the language picker on first run and the
+             * login screen every time after.
+             *
+             * Every branch is explicit, and the last one especially (W3). It
+             * used to be `: undefined`, which makes React Navigation fall back
+             * to the FIRST REGISTERED SCREEN — and the first screen in the
+             * signed-out stack is `Language`. So the branch was dead: anyone
+             * who logged out, or whose refresh token was revoked (which routes
+             * through `clearSession()`), reopened the app at the language
+             * picker and had to walk Language → Welcome → "Skip for now" →
+             * Login to get back to a form they had used a hundred times.
+             */
+            initialRouteName={initialRouteFor({
+                isAuthenticated,
+                needsConsent,
+                pendingFarmSetup,
+                pendingFarmJoin,
+                needsLanguage,
+            })}
             screenOptions={{
                 headerShown: false,
                 animation: 'slide_from_right',
@@ -286,6 +363,7 @@ const RootNavigator = () => {
             ) : (
                 <>
                     <Stack.Screen name="MainApp" component={MainNavigator} />
+                    <Stack.Screen name="AnalyticsConsent" getComponent={() => require('../screens/onboarding/AnalyticsConsentScreen').AnalyticsConsentScreen} />
                     <Stack.Screen name="QuickLog" getComponent={() => require('../screens/main/QuickLogScreen').QuickLogScreen} options={{ presentation: 'modal' }} />
 
                     <Stack.Screen name="CreateFarm" getComponent={() => require('../screens/farms/CreateFarmScreen').CreateFarmScreen} />

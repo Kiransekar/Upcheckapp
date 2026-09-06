@@ -120,6 +120,8 @@ export class FarmInvitesService {
       createdById: callerId,
       expiresAt,
       maxUses: dto.maxUses ?? 1,
+      // Default false — the code is the credential. See the entity.
+      requiresApproval: dto.requiresApproval ?? false,
       usedCount: 0,
       revokedAt: null,
     });
@@ -259,18 +261,47 @@ export class FarmInvitesService {
         where: { farmId: farm.id, userId: callerId },
       });
       if (existing) {
-        throw new ConflictException(
-          existing.status === 'pending'
-            ? 'You have already asked to join this farm. The owner has not let you in yet.'
-            : 'You are already a member of this farm',
-        );
+        /**
+         * A machine-readable `reason` alongside the message, in the same shape
+         * every other rejection uses.
+         *
+         * These two cases used to carry prose only. The client's rejection
+         * contract had no value for either, so `inviteRejectionOf()` returned
+         * null and the screen fell through to its typo branch — telling a
+         * worker their perfectly valid code was wrong. They asked for a new
+         * code; the new code produced the identical error. The loop ended only
+         * when an owner happened to open the app.
+         *
+         * "You are already waiting" is not a failure the farmer can act on by
+         * retyping, and it must never be rendered as one.
+         */
+        throw new ConflictException({
+          message:
+            existing.status === 'pending'
+              ? 'You have already asked to join this farm. The owner has not let you in yet.'
+              : 'You are already a member of this farm',
+          reason:
+            existing.status === 'pending' ? 'already_pending' : 'already_member',
+          farmName: farm.name,
+        });
       }
 
-      // The farm decides what redeeming its code actually does. Under
-      // 'manual' (the default) the joiner lands in the waiting queue and
-      // gets NOTHING until someone approves; under 'auto' they are a member
-      // straight away, which is the pre-approval behaviour.
-      const status = farm.joinApproval === 'auto' ? 'active' : 'pending';
+      /**
+       * THE INVITE decides what redeeming it does (W5) — not the farm.
+       *
+       * `farm.joinApproval` defaults to 'manual', so every invite landed the
+       * joiner in a waiting queue holding nothing, which is the state that
+       * stranded workers. An invite code is already server-minted, expiring,
+       * revocable and use-limited: it IS the credential, and a second manual
+       * step buys no security while costing the worker their first day.
+       *
+       * `requiresApproval` defaults to false, so a code minted without an
+       * opinion lets its holder straight in. Owners who want gatekeeping tick
+       * the box per invite. The farm-level policy is untouched and still
+       * governs the OPEN FARM-CODE path (`joinByFarmCode` below), where there
+       * is no invite to carry an opinion.
+       */
+      const status = invite!.requiresApproval ? 'pending' : 'active';
 
       const member = manager.create(FarmMember, {
         farmId: farm.id,
@@ -411,6 +442,7 @@ export class FarmInvitesService {
       expiresAt: invite.expiresAt,
       maxUses: invite.maxUses,
       usedCount: invite.usedCount,
+      requiresApproval: invite.requiresApproval,
       createdAt: invite.createdAt,
     };
   }

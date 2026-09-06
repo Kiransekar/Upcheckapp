@@ -35,11 +35,17 @@ import {
     type TruecallerErrorCode,
 } from '../../native/TruecallerAuth';
 import { authApi, type AuthResponse } from '../../api/auth';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore, type SignupIntent } from '../../store/authStore';
 import { capture, EVENTS } from '../../features/analytics';
 import { ConsentNotice } from '../../components/ui/ConsentNotice';
 
 export interface TruecallerLoginScreenProps {
+    /**
+     * IntentScreen's answer, carried from RegisterScreen. Absent when this
+     * screen is reached from LOGIN, which is exactly right: a returning farmer
+     * must not be dragged back through first-run farm setup.
+     */
+    route?: { params?: { intent?: SignupIntent } };
     navigation: {
         navigate: (route: string, params?: object) => void;
         replace: (route: string, params?: object) => void;
@@ -65,9 +71,11 @@ function messageForError(error: TruecallerErrorCode): string {
 
 export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
     navigation,
+    route,
 }) => {
     const { t } = useTranslation();
     const setSession = useAuthStore((s) => s.setSession);
+    const armSignupIntent = useAuthStore((s) => s.armSignupIntent);
 
     const [loading, setLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -77,9 +85,11 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
         void TruecallerAuth.initialize();
     }, []);
 
+    // Carry the intent across the fallback hop too, or a farmer without the
+    // Truecaller app loses the answer at the last step of the same flow.
     const goToPhoneFallback = useCallback(() => {
-        navigation.navigate('TruecallerPhone');
-    }, [navigation]);
+        navigation.navigate('TruecallerPhone', { intent: route?.params?.intent });
+    }, [navigation, route?.params?.intent]);
 
     /** Turn an /exchange AuthResponse into a session, 2FA challenge, or error. */
     const handleAuthResponse = useCallback(
@@ -97,6 +107,23 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 // setSession on every silent token refresh, so an event there
                 // would count a refresh as a login. This is the one-tap Truecaller OAuth.
                 capture(EVENTS.LOGIN_COMPLETED, { method: 'truecaller' });
+                /**
+                 * Honour IntentScreen's answer (W2).
+                 *
+                 * This screen is reached from BOTH Register and Login. Only the
+                 * Register route passes an intent, so arming is conditional:
+                 * without the guard, a returning farmer signing in with
+                 * Truecaller would have both first-run gates cleared — which is
+                 * the same value they already hold, but stating the rule keeps
+                 * it from being read as "sign-in resets your setup".
+                 *
+                 * Truecaller is this audience's likely dominant sign-up route,
+                 * and until now the whole IntentScreen answer was discarded
+                 * here: no gate set, and the server-side resume point that
+                 * survives a reinstall never armed.
+                 */
+                const signupIntent = route?.params?.intent;
+                if (signupIntent) armSignupIntent(signupIntent);
                 return;
             }
             Alert.alert(
@@ -107,7 +134,7 @@ export const TruecallerLoginScreen: React.FC<TruecallerLoginScreenProps> = ({
                 ),
             );
         },
-        [navigation, setSession, t],
+        [navigation, setSession, armSignupIntent, route?.params?.intent, t],
     );
 
     const handleStartAuth = useCallback(async () => {

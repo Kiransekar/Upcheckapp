@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { GoogleSignin, isSuccessResponse, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import Constants from 'expo-constants';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, type SignupIntent } from '../store/authStore';
 
 const extra = Constants.expoConfig?.extra ?? {};
 
@@ -30,7 +30,15 @@ export function useGoogleAuth() {
     // request. Defaults to 'signup' so any other/legacy caller keeps today's
     // auto-provisioning behavior unchanged; only Login explicitly passes
     // 'signin' to gate on an existing account.
-    const signInWithGoogle = async (intent: 'signin' | 'signup' = 'signup') => {
+    /**
+     * `intent` is the OAuth intent; `signupIntent` is IntentScreen's answer,
+     * which used to be dropped entirely on this path — see
+     * `authStore.armSignupIntent`.
+     */
+    const signInWithGoogle = async (
+        intent: 'signin' | 'signup' = 'signup',
+        signupIntent?: SignupIntent,
+    ) => {
         if (!hasClientIds) {
             useAuthStore.getState().setError('Google Sign-In is not configured. Please contact support.');
             return;
@@ -57,7 +65,7 @@ export function useGoogleAuth() {
                 if (idToken) {
                     // Propagate the 2FA challenge (if any) so the screen can
                     // navigate to it — the store only sets a session on success.
-                    return await googleLogin(idToken, intent);
+                    return await googleLogin(idToken, intent, signupIntent);
                 } else {
                     useAuthStore.getState().setError('No ID token received from Google.');
                 }

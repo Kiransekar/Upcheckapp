@@ -26,6 +26,7 @@ function makeService(over: {
   joinApproval?: 'manual' | 'auto';
   joinApprover?: 'owner' | 'managers';
   callerRole?: 'owner' | 'manager';
+  requiresApproval?: boolean;
   pending?: any;
 } = {}) {
   const farm = {
@@ -67,7 +68,7 @@ function makeService(over: {
   const manager = {
     findOne: jest.fn(async (entity: any) => {
       if (entity === FarmInvite) {
-        return { id: 'invite-1', farmId: FARM, code: 'ABCD2345', role: 'worker', createdById: OWNER, expiresAt: null, maxUses: 0, usedCount: 0, revokedAt: null };
+        return { id: 'invite-1', farmId: FARM, code: 'ABCD2345', role: 'worker', createdById: OWNER, expiresAt: null, maxUses: 0, usedCount: 0, revokedAt: null, requiresApproval: over.requiresApproval ?? false };
       }
       if (entity === Farm) return farm;
       return null; // no existing membership
@@ -92,9 +93,41 @@ function makeService(over: {
   return { service, membersRepo, farmsRepo, farmAccess, manager, push, usersRepo };
 }
 
-describe('join honours the farm policy', () => {
-  it('manual approval puts the joiner in the queue, granting nothing yet', async () => {
+/**
+ * W5 — THE INVITE decides, not the farm.
+ *
+ * `farm.joinApproval` defaults to 'manual', so redeeming any code left the
+ * joiner pending: holding nothing, shown the brand-new-user state on Home, and
+ * told their valid code was wrong when they retyped it. An invite code is
+ * already server-minted, expiring, revocable and use-limited — it IS the
+ * credential — so a second manual step buys no security and costs the worker
+ * their first day.
+ *
+ * The farm-level policy is unchanged and still governs the OPEN FARM-CODE
+ * path, where there is no invite to carry an opinion.
+ */
+describe('join honours the invite, not the farm policy', () => {
+  it('admits the holder of a plain invite immediately', async () => {
+    // The farm still says 'manual'. The invite does not require approval, and
+    // the invite is what governs this path now.
     const { service, manager } = makeService({ joinApproval: 'manual' });
+
+    const out = await service.join(JOINER, { code: 'ABCD2345' });
+
+    expect(out.status).toBe('active');
+    expect(manager.create).toHaveBeenCalledWith(
+      FarmMember,
+      expect.objectContaining({ status: 'active' }),
+    );
+  });
+
+  it('queues the joiner when the OWNER ticked "I will approve first"', async () => {
+    // And the farm says 'auto' — proving the invite wins in both directions
+    // rather than the two merely agreeing.
+    const { service, manager } = makeService({
+      joinApproval: 'auto',
+      requiresApproval: true,
+    });
 
     const out = await service.join(JOINER, { code: 'ABCD2345' });
 
@@ -105,16 +138,54 @@ describe('join honours the farm policy', () => {
     );
   });
 
-  it('auto approval admits the joiner immediately', async () => {
-    const { service, manager } = makeService({ joinApproval: 'auto' });
+  /**
+   * W1 — THE LARGEST ACTIVATION LEAK, and it lived in a missing field.
+   *
+   * "You have already asked to join" was prose and nothing else. The client's
+   * rejection contract had four values, none of which covered it, so
+   * `inviteRejectionOf()` returned null and JoinFarmScreen fell through to its
+   * TYPO branch: red boxes, "check the code and try again". The worker asked
+   * for a fresh code, which produced the identical error, and the loop only
+   * ended when an owner happened to open the app.
+   *
+   * A machine-readable reason is what lets the screen say "you are already
+   * waiting" instead of "you got it wrong".
+   */
+  it('says WHY a queued worker was refused, in a form the client can act on', async () => {
+    const { service, manager } = makeService();
+    manager.findOne.mockImplementation((async (entity: any) => {
+      if (entity === FarmInvite) return { id: 'invite-1', farmId: FARM, code: 'ABCD2345', role: 'worker', createdById: OWNER, expiresAt: null, maxUses: 0, usedCount: 0, revokedAt: null, requiresApproval: true };
+      if (entity === Farm) return { id: FARM, name: 'Kakinada East', userId: OWNER, deletedAt: null, joinApproval: 'manual', joinApprover: 'managers' };
+      return { id: 'm1', status: 'pending' };
+    }) as any);
 
-    const out = await service.join(JOINER, { code: 'ABCD2345' });
+    const err: any = await service
+      .join(JOINER, { code: 'ABCD2345' })
+      .catch((e) => e);
 
-    expect(out.status).toBe('active');
-    expect(manager.create).toHaveBeenCalledWith(
-      FarmMember,
-      expect.objectContaining({ status: 'active' }),
-    );
+    expect(err).toBeInstanceOf(ConflictException);
+    // The reason, not just the sentence — a screen cannot branch on prose.
+    expect(err.getResponse()).toMatchObject({
+      reason: 'already_pending',
+      farmName: 'Kakinada East',
+    });
+  });
+
+  it('distinguishes an existing member from someone still waiting', async () => {
+    const { service, manager } = makeService();
+    manager.findOne.mockImplementation((async (entity: any) => {
+      if (entity === FarmInvite) return { id: 'invite-1', farmId: FARM, code: 'ABCD2345', role: 'worker', createdById: OWNER, expiresAt: null, maxUses: 0, usedCount: 0, revokedAt: null, requiresApproval: false };
+      if (entity === Farm) return { id: FARM, name: 'Kakinada East', userId: OWNER, deletedAt: null, joinApproval: 'auto', joinApprover: 'managers' };
+      return { id: 'm1', status: 'active' };
+    }) as any);
+
+    const err: any = await service
+      .join(JOINER, { code: 'ABCD2345' })
+      .catch((e) => e);
+
+    // Both are conflicts, and both are fine outcomes — but "you are already in"
+    // sends the farmer to the farm, while "you are waiting" does not.
+    expect(err.getResponse()).toMatchObject({ reason: 'already_member' });
   });
 
   it('tells someone already queued that they are waiting, not that they are a member', async () => {

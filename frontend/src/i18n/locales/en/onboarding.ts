@@ -34,6 +34,11 @@ const onboarding = {
   joinedCta: "Go to dashboard",
   joinedPendingTitle: "Your request was sent",
   joinedPendingBody: "The owner must approve you before you can log anything on this farm.",
+  joinedPendingCta: "Continue",
+  consentPointScreens: "Which screens get used, and where the app is hard to use.",
+  consentPointNever: "Never your ponds, money, harvests or readings.",
+  consentPointSame: "Every feature works exactly the same if you say no.",
+  consentFootnote: "You can change this any time in Settings.",
 };
 
 export default onboarding;

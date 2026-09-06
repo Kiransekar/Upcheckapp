@@ -85,10 +85,45 @@ export class FarmInvite {
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
+
+  /**
+   * Whether redeeming THIS invite still needs the owner to approve (W5).
+   *
+   * Takes precedence over `Farm.joinApproval` for the invite path only; the
+   * farm-level policy continues to govern the open farm-code path unchanged.
+   *
+   * Default false: the code is already server-minted, expiring, revocable and
+   * use-limited — it IS the credential, and a second manual step on top of it
+   * is what stranded workers on a dashboard where nothing worked.
+   */
+  @Column({
+    name: 'requires_approval',
+    type: 'boolean',
+    default: false,
+  })
+  requiresApproval: boolean;
 }
 
 /** Why a code was rejected — surfaced so the client can translate each case. */
 export type InviteRejection = 'not_found' | 'revoked' | 'expired' | 'exhausted';
+
+/**
+ * Why a JOIN was refused. Wider than `InviteRejection`, because two of the
+ * reasons are about the caller rather than the code: they already asked, or
+ * they are already in.
+ *
+ * These two existed as prose messages and nothing else, and the client's
+ * rejection contract had no value for them — so a worker who re-entered their
+ * PERFECTLY VALID code fell through to the typo branch and was told to "check
+ * the code and try again". They then asked for a new code, which produced the
+ * identical error, and the loop only ended when an owner happened to open the
+ * app. Workers outnumber owners on every farm; this was the largest activation
+ * leak in the product.
+ */
+export type JoinRejection =
+  | InviteRejection
+  | 'already_pending'
+  | 'already_member';
 
 /** Is this invite currently usable? Pure, so it is trivially testable. */
 export function inviteRejection(
