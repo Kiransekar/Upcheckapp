@@ -161,7 +161,29 @@ export const LoginScreen = ({ navigation }: any) => {
 
                 <Button
                     title={t('auth.createAccount')}
-                    onPress={() => navigation.navigate('Register')}
+                    /**
+                     * Into ONBOARDING, not straight to the form.
+                     *
+                     * Signing up is Welcome → Intent → Register, and this
+                     * button is now the main road to it. W3 stopped sending
+                     * signed-out farmers to the language picker — right, they
+                     * have already chosen a language — but that also meant
+                     * logging out left NO route back into the first-run flow:
+                     * "if I log out and want to start a new account from
+                     * onboarding it's not letting me now."
+                     *
+                     * Skipping to `Register` is not a smaller version of the
+                     * same thing. `RegisterScreen` defaults a missing intent to
+                     * `own_farm`, so it silently decides that everyone runs
+                     * their own farm — a worker signing up would be routed into
+                     * "create your farm" instead of "enter a join code", and
+                     * that wrong answer is now persisted server-side as their
+                     * resume point.
+                     *
+                     * Welcome's own "Skip for now" comes straight back here, so
+                     * nobody is trapped.
+                     */
+                    onPress={() => navigation.navigate('Welcome')}
                     variant="outlined"
                 />
 
