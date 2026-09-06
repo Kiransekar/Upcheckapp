@@ -2,8 +2,8 @@
 
 **Date:** 2026-09-06 · **Status:** design approved, NOT YET IMPLEMENTED
 **Baseline:** master `f7c3e3e`. Read against the working tree of 2026-09-06, which carries a
-concurrent session's uncommitted work on money/pond-scoping, `authStore` refresh-token
-persistence and `Pond.assumedFields`.
+concurrent session's then-uncommitted work on money/pond-scoping, `authStore` refresh-token
+persistence and `Pond.assumedFields` — all since landed as `130c114` and `01f8bb2`.
 **Supersedes:** `docs/ONBOARDING_MODULE_PLAN.md` (2026-07-11). That plan describes a flow
 that no longer exists — Language/Intent/JoinFarm/PondNames were added in the Aug–Sep
 redesign and the fabricated "EXAMPLE" welcome card it recommended has since been deleted.
@@ -58,17 +58,14 @@ these has made things worse, whatever else it fixed.
 
 ---
 
-## Two hard constraints — read before touching anything
+## One hard constraint — read before touching anything
 
-### 1. Two files are being edited by a concurrent session
+> **Resolved 2026-09-06, after this document was written.** The concurrent session's work
+> landed as `130c114` and `01f8bb2`, and the tree is clean. `authStore.ts` (W2) and
+> `PondNamesScreen.tsx` (W7) are no longer contended — start both from `master`. The depth
+> half of W7 shipped in `01f8bb2`; see W7 for what remains.
 
-`frontend/src/store/authStore.ts` (refresh-token persistence) and
-`frontend/src/screens/onboarding/PondNamesScreen.tsx` (`assumedFields`) both have
-uncommitted changes as of 2026-09-06. **W2 touches the first; W7 touches the second.**
-Land the other session's work — or at minimum rebase onto it — before starting either.
-Do not begin W2/W7 from the committed `HEAD`; it does not reflect reality.
-
-### 2. App Links depend on a key that does not exist yet
+### App Links depend on a key that does not exist yet
 
 `.well-known/assetlinks.json` must carry the **SHA-256 of the signing certificate**. With
 Play App Signing enabled, Google re-signs the bundle, so that is *not* the fingerprint of
@@ -147,7 +144,7 @@ reinstall is never armed.
 what `signup()` already does — set the gate, fire-and-forget `persistOnboardingIntent`.
 `RegisterScreen` passes its `intent` into both social buttons.
 
-**Blocked on:** the concurrent `authStore.ts` work. See constraint 1.
+**Unblocked** as of `130c114` — start from `master`.
 
 ---
 
@@ -264,20 +261,25 @@ one moment the farmer is already thinking about that pond.
 date and a rough PL count. Answering creates the crop; skipping is free and lands exactly
 where W6's hero picks up.
 
-Two rules, both inherited from the screen's own stated philosophy:
+One rule, inherited from the screen's own stated philosophy: **anything the app infers
+rather than the farmer states goes into `assumedFields`.** A stocking date or PL count the
+farmer skipped must not reach the engines looking like an answer.
 
-- Anything the app infers rather than the farmer states goes into `assumedFields`.
-- **This includes depth.** Today one depth is typed and applied to all N ponds, but unlike
-  shape, construction and area it is *not* recorded as assumed. Ponds 2..N carry a depth
-  nobody measured, presented at full confidence, feeding volume, aeration adequacy and every
-  dosing figure. Fix this in the same change.
+> **Depth: done, shipped in `01f8bb2` (2026-09-06).** This document originally called for
+> marking depth assumed on ponds 2..N, since one typed depth was applied to the whole set
+> and — unlike shape, construction and area — was not recorded as a guess, while feeding
+> volume, aeration adequacy and every dosing figure. The implemented rule is better than
+> the one proposed here: `pondCount > 1 ? ['depthM'] : []`. For a **single** pond the typed
+> depth genuinely *is* that pond's measurement, so marking it assumed would have been a
+> false negative — flagging a real reading as a guess and degrading confidence the farmer
+> had earned. Two mutation-proven tests pin both directions. Do not redo this.
 
 Also worth fixing here while the file is open: the create loop is **sequential** — one
 `pondsApi.create` round trip per pond — and on partial failure it toasts a count and
 `navigation.reset`s to Home with **no retry path**, leaving a farm with fewer ponds than the
 farmer named.
 
-**Blocked on:** the concurrent `PondNamesScreen.tsx` work. See constraint 1.
+**Unblocked** as of `01f8bb2` — start from `master`.
 
 ---
 
@@ -321,9 +323,9 @@ Once consent is live, these are the numbers the rest of this document is judged 
 | 3 | **W1** worker dead-end | The largest leak. Independent of the concurrent session's files. |
 | 4 | **W5** per-invite approval | Completes W1's story; needs a migration, so start it early enough to run. |
 | 5 | **W4-A** landing page + https link | Independent of the app entirely; unblocks the invite loop for uninstalled recipients. |
-| 6 | **W2** intent on all signup methods | Waits on the concurrent `authStore.ts` work. |
+| 6 | **W2** intent on all signup methods | No longer blocked (`130c114`); may move earlier if W1 slips. |
 | 7 | **W6** one activation guide | Should land before W7, so W7 has one guide to hand off to. |
-| 8 | **W7** cycle seeding + depth/assumed fix | Waits on the concurrent `PondNamesScreen.tsx` work. |
+| 8 | **W7** cycle seeding (depth half shipped in `01f8bb2`) | Wants W6 landed first, so there is one guide to hand off to. |
 | 9 | **W4-B** verified App Links | Blocked on the Play App Signing key. Bundle with the SHA re-registration. |
 
 ---
@@ -334,8 +336,8 @@ Once consent is live, these are the numbers the rest of this document is judged 
   registered in the other five silently resolves to nothing — this repo's single easiest
   mistake, per `AGENTS.md`. Check all six before calling any of these done.
 - **Migrations are manual.** W5 adds one to a queue that already has unrun entries.
-- **File collisions.** `authStore.ts` (W2) and `PondNamesScreen.tsx` (W7) are live in
-  another session. Sequence around them; do not start from `HEAD`.
+- ~~**File collisions.**~~ Resolved 2026-09-06: `130c114` and `01f8bb2` landed and the tree
+  is clean. No file in this document is contended.
 - **Verification gate.** `cd backend && npx tsc --noEmit -p . && npx jest` and
   `cd frontend && npx tsc --noEmit && npx jest` must both be green before any commit, per
   `AGENTS.md`. Branch from `development`, PR into `development`, no self-merge.
