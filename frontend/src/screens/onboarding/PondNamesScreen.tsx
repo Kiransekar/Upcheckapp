@@ -178,6 +178,18 @@ export const PondNamesScreen = ({ navigation, route }: any) => {
                         assumedFields: [
                             ...(showMore ? [] : ['geometryType', 'constructionType']),
                             ...(areaNum >= 1 ? [] : ['areaM2']),
+                            /**
+                             * Depth is asked ONCE and applied to every pond in
+                             * the set. For a single pond that is the farmer's
+                             * measurement of that pond. For a set it is the
+                             * app extrapolating one number across N ponds —
+                             * which pond it was actually measured on is
+                             * unknowable, so none of them may claim it. Depth
+                             * feeds volume, aeration adequacy and every dosing
+                             * figure, so a borrowed one is exactly the kind of
+                             * number this list exists to flag.
+                             */
+                            ...(pondCount > 1 ? ['depthM'] : []),
                         ],
                     });
                 } catch {

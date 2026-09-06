@@ -140,7 +140,44 @@ describe('PondNamesScreen — artboard 06', () => {
                 'geometryType',
                 'constructionType',
                 'areaM2',
+                // Three ponds, one depth question — see below.
+                'depthM',
             ]);
+        });
+
+        /**
+         * Depth is asked ONCE and applied to the whole set. Extrapolating one
+         * measurement across N ponds is the APP's move, not the farmer's:
+         * which pond they actually waded into is unknowable, so no pond in a
+         * set may present that depth as its own measurement. Volume, aeration
+         * adequacy and every dosing figure read it.
+         */
+        it('marks a depth borrowed across a set of ponds', async () => {
+            const utils = renderScreen();
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
+            for (const call of mockedCreatePond.mock.calls) {
+                expect(call[0].assumedFields).toContain('depthM');
+            }
+        });
+
+        it('does NOT mark the depth when there is only one pond to apply it to', async () => {
+            const utils = render(
+                <SafeAreaProvider initialMetrics={TEST_SAFE_AREA_METRICS}>
+                    <PondNamesScreen
+                        navigation={navigation}
+                        route={{ params: { farm: { name: 'Solo' }, pondCount: 1 } }}
+                    />
+                </SafeAreaProvider>,
+            );
+            fireEvent.changeText(utils.getByLabelText('Depth (m)'), '1.2');
+            fireEvent.press(utils.getByText('Create farm'));
+
+            await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(1));
+            // They measured this pond. It is their answer, not a guess.
+            expect(mockedCreatePond.mock.calls[0][0].assumedFields).not.toContain('depthM');
         });
 
         it('stops marking shape and construction once the farmer answers them', async () => {
@@ -153,8 +190,9 @@ describe('PondNamesScreen — artboard 06', () => {
             await waitFor(() => expect(mockedCreatePond).toHaveBeenCalledTimes(3));
             const sent = mockedCreatePond.mock.calls[0][0];
             expect(sent.constructionType).toBe('lined');
-            // Area is still a guess — nothing here measured it.
-            expect(sent.assumedFields).toEqual(['areaM2']);
+            // Area is still a guess — nothing here measured it — and so is the
+            // one depth spread across three ponds.
+            expect(sent.assumedFields).toEqual(['areaM2', 'depthM']);
         });
 
         it('stops marking area once a real one is typed', async () => {
