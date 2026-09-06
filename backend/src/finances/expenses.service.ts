@@ -169,6 +169,135 @@ export class ExpensesService {
     }));
   }
 
+  /**
+   * Every pond cost the caller may see, as Money-tab line items.
+   *
+   * The two ledgers are separate tables written by different screens:
+   * `transactions` (the Money tab's own "Add entry") and `expenses` (the pond
+   * Expenses tab). The Money tab's HEADLINE has always summed both — the
+   * financial report reads this service — but its ENTRY LIST rendered
+   * `transactions` only, and the pond costs were fetched solely when the
+   * farmer drilled into one specific pond. So a cost typed on a pond moved the
+   * total and then had no line to point at: "I added expense inside a pond but
+   * it didnt show inside the money screen".
+   *
+   * Merged at READ time, exactly like `HarvestsService.findMoneyEntries`, and
+   * for the same reason: writing a Transaction per expense would double-count
+   * it, because the report already sums this table.
+   *
+   * Scoped to VIEW_FINANCIALS and then to the ponds the caller may see, which
+   * is the same scoping `findAll`'s no-farm branch applies.
+   */
+  async findMoneyEntries(userId: string, q?: Partial<ExpenseQueryDto>) {
+    const farmIds = await this.farmAccess.getFarmIdsWithCapability(
+      userId,
+      'VIEW_FINANCIALS',
+    );
+    if (farmIds.length === 0) return [];
+
+    const pondIds = (
+      await Promise.all(
+        farmIds.map((farmId) =>
+          this.farmAccess.getAccessiblePondIds(
+            userId,
+            farmId,
+            'VIEW_FINANCIALS',
+          ),
+        ),
+      )
+    ).flat();
+    if (pondIds.length === 0) return [];
+
+    const qb = this.expensesRepository
+      .createQueryBuilder('expense')
+      .innerJoin('expense.pond', 'pond')
+      .where('expense.pondId IN (:...pondIds)', { pondIds });
+
+    // Same default as the financial report (D3): a retired pond's money is
+    // marked, not erased. Only an explicit `false` hides it.
+    if (q?.includeArchivedPonds === false) {
+      qb.andWhere("pond.status <> 'archived'");
+    }
+    // 400 on an inverted range rather than silently returning nothing.
+    dateRangeWhere(q);
+    if (q?.startDate) qb.andWhere('expense.date >= :startDate', { startDate: q.startDate });
+    if (q?.endDate) qb.andWhere('expense.date <= :endDate', { endDate: q.endDate });
+
+    const rows = await qb
+      .select('expense.id', 'id')
+      .addSelect('expense.date', 'date')
+      .addSelect('expense.amount', 'amount')
+      .addSelect('expense.category', 'category')
+      .addSelect('expense.description', 'description')
+      .addSelect('expense.pondId', 'pondId')
+      .addSelect('pond.farmId', 'farmId')
+      .addSelect('pond.displayName', 'pondDisplayName')
+      .addSelect('pond.pondCode', 'pondCode')
+      .addSelect('pond.status', 'pondStatus')
+      .orderBy('expense.date', 'DESC')
+      // ponytail: same bounded cap as the harvest projection; paginate if a
+      // farm ever outgrows it.
+      .take(500)
+      .getRawMany<Record<string, any>>();
+
+    return rows.map((r) => ({
+      id: `expense:${r.id}`,
+      source: 'expense' as const,
+      farmId: r.farmId,
+      pondId: r.pondId,
+      pondName: r.pondDisplayName || r.pondCode || null,
+      transactionDate:
+        r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date),
+      type: 'expense' as const,
+      category: r.category,
+      description: r.description ?? null,
+      amount: Number(r.amount) || 0,
+      archived: r.pondStatus === 'archived',
+    }));
+  }
+
+  /**
+   * Expense totals for a set of ponds, BY POND — one query, not one per crop.
+   *
+   * The financial report used to reach costs only through
+   * `getCycleFinancials(cropId)`, i.e. `WHERE cropId = ...`. An expense with no
+   * crop — which `create` produces whenever the pond has no running cycle,
+   * since it falls back to `pond.activeCycleId` — matched no crop and was
+   * therefore counted NOWHERE: not in the headline, not in any list. A farmer
+   * between crops could record costs all season and see ₹0.
+   *
+   * Filtering by pond instead of by crop counts every row exactly once,
+   * cropped or not.
+   */
+  async totalsByPond(pondIds: string[], q?: DateRangeDto) {
+    const empty = new Map<string, { total: number; byCategory: Record<string, number> }>();
+    if (pondIds.length === 0) return empty;
+
+    const qb = this.expensesRepository
+      .createQueryBuilder('expense')
+      .where('expense.pondId IN (:...pondIds)', { pondIds });
+    if (q?.startDate) qb.andWhere('expense.date >= :startDate', { startDate: q.startDate });
+    if (q?.endDate) qb.andWhere('expense.date <= :endDate', { endDate: q.endDate });
+
+    const rows = await qb
+      .select('expense.pondId', 'pondId')
+      .addSelect('expense.category', 'category')
+      .addSelect('SUM(expense.amount)', 'total')
+      .groupBy('expense.pondId')
+      .addGroupBy('expense.category')
+      .getRawMany<{ pondId: string; category: string; total: string }>();
+
+    for (const row of rows) {
+      const amount = Number(row.total) || 0;
+      const entry = empty.get(row.pondId) ?? { total: 0, byCategory: {} };
+      entry.total += amount;
+      entry.byCategory[row.category] =
+        (entry.byCategory[row.category] || 0) + amount;
+      empty.set(row.pondId, entry);
+    }
+    return empty;
+  }
+
   async findByCycle(cropId: string, userId: string, q?: DateRangeDto) {
     await this.assertCropFinancials(cropId, userId);
     const where: any = { cropId };

@@ -13,6 +13,8 @@ import { ReportsService } from './reports.service';
 const build = (opts: {
   cycleFinancials?: any[];
   transactions?: any[];
+  /** Pond-level expense totals, which is where costs are read from now. */
+  pondExpenses?: Record<string, { total: number; byCategory: Record<string, number> }>;
 }) => {
   const pondsService = {
     findAll: jest.fn().mockResolvedValue({ data: [{ id: 'pond-1' }] }),
@@ -27,6 +29,11 @@ const build = (opts: {
       .fn()
       .mockImplementation((cropId: string) =>
         Promise.resolve(opts.cycleFinancials![Number(cropId.split('-')[1])]),
+      ),
+    totalsByPond: jest
+      .fn()
+      .mockImplementation(async () =>
+        new Map(Object.entries(opts.pondExpenses ?? {})),
       ),
   } as any;
   const transactionsService = {
@@ -63,17 +70,42 @@ describe('getFinancialReport', () => {
     expect(report.profit).toBe(30000);
   });
 
+  /**
+   * THE MONEY THAT VANISHED.
+   *
+   * Costs used to be read only through `getCycleFinancials(cropId)`, i.e.
+   * `WHERE cropId = ...`. `ExpensesService.create` sets `cropId` to
+   * `pond.activeCycleId`, which is NULL for a pond with no running cycle — so
+   * a farmer recording costs between crops (pond prep, repairs, the seed for
+   * the season that has not started) produced rows that matched no crop and
+   * were counted NOWHERE. The headline read ₹0 and no list contained them.
+   *
+   * Costs are summed BY POND now, which counts every row exactly once whether
+   * or not it has a crop.
+   */
+  it('counts a pond cost that belongs to no cycle', async () => {
+    const service = build({
+      // No cycles at all on this pond — the between-crops case.
+      cycleFinancials: [],
+      pondExpenses: { 'pond-1': { total: 12000, byCategory: { Maintenance: 12000 } } },
+      transactions: [],
+    });
+
+    const report = await service.getFinancialReport('farm-1', 'user-1');
+
+    expect(report.totalExpenses).toBe(12000);
+    expect(report.expensesByCategory).toEqual([
+      { category: 'Maintenance', amount: 12000 },
+    ]);
+    expect(report.ponds[0]).toMatchObject({ pondId: 'pond-1', expenses: 12000 });
+  });
+
   // The two ledgers are separate tables written by different screens; nothing
   // writes both from one action, so this is a sum and not a double count.
   it('adds the cycle ledger and the transaction ledger together', async () => {
     const service = build({
-      cycleFinancials: [
-        {
-          totalRevenue: 100000,
-          totalExpenses: 40000,
-          expensesByCategory: { Seed: 40000 },
-        },
-      ],
+      cycleFinancials: [{ totalRevenue: 100000, totalExpenses: 0, expensesByCategory: {} }],
+      pondExpenses: { 'pond-1': { total: 40000, byCategory: { Seed: 40000 } } },
       transactions: [{ type: 'expense', category: 'Feed', amount: 10000 }],
     });
 
@@ -91,9 +123,8 @@ describe('getFinancialReport', () => {
 
   it('merges a category that appears in both ledgers into one row', async () => {
     const service = build({
-      cycleFinancials: [
-        { totalRevenue: 0, totalExpenses: 4000, expensesByCategory: { Feed: 4000 } },
-      ],
+      cycleFinancials: [{ totalRevenue: 0, totalExpenses: 0, expensesByCategory: {} }],
+      pondExpenses: { 'pond-1': { total: 4000, byCategory: { Feed: 4000 } } },
       transactions: [{ type: 'expense', category: 'Feed', amount: 6000 }],
     });
 
@@ -122,9 +153,8 @@ describe('getFinancialReport', () => {
   // cycles rather than failing the whole screen.
   it('still reports the cycle ledger when transactions cannot be read', async () => {
     const service = build({
-      cycleFinancials: [
-        { totalRevenue: 7000, totalExpenses: 1000, expensesByCategory: {} },
-      ],
+      cycleFinancials: [{ totalRevenue: 7000, totalExpenses: 0, expensesByCategory: {} }],
+      pondExpenses: { 'pond-1': { total: 1000, byCategory: {} } },
     });
     (service as any).transactionsService.findAll = jest
       .fn()
@@ -145,9 +175,10 @@ describe('getFinancialReport', () => {
   it('keeps the farm when one cycle cannot be read', async () => {
     const service = build({
       cycleFinancials: [
-        { totalRevenue: 5000, totalExpenses: 1000, expensesByCategory: { Seed: 1000 } },
+        { totalRevenue: 5000, totalExpenses: 0, expensesByCategory: {} },
         null as any, // the crop that throws, wired below
       ],
+      pondExpenses: { 'pond-1': { total: 1000, byCategory: { Seed: 1000 } } },
       transactions: [],
     });
     const original = (service as any).expensesService.getCycleFinancials;

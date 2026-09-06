@@ -219,20 +219,38 @@ export class ReportsService {
       expenses: number;
     }[] = [];
 
+    /**
+     * Costs come from the POND, not from the crop loop above.
+     *
+     * `getCycleFinancials` filters `WHERE cropId = ...`, and `create` leaves
+     * `cropId` null whenever the pond has no running cycle (it falls back to
+     * `pond.activeCycleId`). Those rows matched no crop and were counted
+     * NOWHERE — a farmer between crops could record costs all season and still
+     * read ₹0. Summing per pond counts every expense exactly once, cropped or
+     * not, and collapses the per-crop fan-out into one query.
+     *
+     * Revenue still comes from the crop loop: it is harvest-derived and a
+     * harvest genuinely belongs to a cycle.
+     */
+    const expensesByPond = await this.expensesService.totalsByPond(
+      pondsPage.data.map((p: any) => p.id),
+      q,
+    );
+
     perPondCropFinancials.forEach((cropFinancials, i) => {
       const pond: any = pondsPage.data[i];
       let pondRevenue = 0;
-      let pondExpenses = 0;
       for (const financials of cropFinancials) {
         if (!financials) continue; // skipped above, already logged
         pondRevenue += financials.totalRevenue;
-        pondExpenses += financials.totalExpenses;
-        for (const [category, amount] of Object.entries(
-          financials.expensesByCategory,
-        )) {
-          expensesByCategory[category] =
-            (expensesByCategory[category] || 0) + Number(amount);
-        }
+      }
+      const pondCosts = expensesByPond.get(pond?.id);
+      const pondExpenses = pondCosts?.total ?? 0;
+      for (const [category, amount] of Object.entries(
+        pondCosts?.byCategory ?? {},
+      )) {
+        expensesByCategory[category] =
+          (expensesByCategory[category] || 0) + Number(amount);
       }
       totalRevenue += pondRevenue;
       totalExpenses += pondExpenses;

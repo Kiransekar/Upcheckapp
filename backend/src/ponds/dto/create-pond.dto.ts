@@ -19,6 +19,24 @@ import {
 import { Type } from 'class-transformer';
 import { BoundaryPointDto } from '../../common/dto/boundary-point.dto';
 
+/**
+ * The only fields that may be marked as assumed — a closed list, so a client
+ * cannot invent a label the app then renders back to the farmer.
+ *
+ * Everything here is something onboarding fills in without asking, and each is
+ * read by a calculation downstream: geometry and area feed volume and stocking
+ * density, depth feeds volume and dosing, construction type feeds the
+ * water-quality expectations.
+ */
+export const ASSUMABLE_FIELDS = [
+  'geometryType',
+  'constructionType',
+  'dimensions',
+  'areaM2',
+  'depthM',
+  'aeration',
+] as const;
+
 export class CreatePondDto {
   @IsUUID()
   farmId: string;
@@ -95,6 +113,17 @@ export class CreatePondDto {
   @IsString()
   @MaxLength(100)
   displayName?: string;
+
+  /**
+   * Fields the CLIENT filled in without asking, so the pond can say which of
+   * its numbers are assumed rather than measured. Onboarding sends this;
+   * the full create form sends nothing. See `Pond.assumedFields`.
+   */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(ASSUMABLE_FIELDS.length)
+  @IsIn(ASSUMABLE_FIELDS, { each: true })
+  assumedFields?: string[];
 
   // Optional: GPS coordinates
   @IsOptional()

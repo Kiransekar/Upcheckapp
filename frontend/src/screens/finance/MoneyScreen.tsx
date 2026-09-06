@@ -893,26 +893,47 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         // or delete behind it, so it renders as a plain row and
                         // says what it is.
                         const isHarvest = tx.source === 'harvest';
+                        /**
+                         * A cost typed on a pond. It lives in the `expenses`
+                         * table, which this list did not render — so the
+                         * headline moved and there was no line to point at:
+                         * "I added expense inside a pond but it didnt show
+                         * inside the money screen". Merged in by the backend
+                         * now, same read-time projection harvests use.
+                         */
+                        const isPondCost = tx.source === 'expense';
                         const detail = isHarvest
                             ? tx.buyerName
                                 ? t('finance.harvestSoldTo', { buyer: tx.buyerName })
                                 : t('finance.harvestSale')
                             : tx.paymentMethod;
-                        // No archived treatment here, deliberately. A
-                        // transaction hangs off a FARM and has no pond, so the
-                        // backend hard-codes `archived: false` on every row.
-                        // Colouring on that flag would paint every entry "live"
-                        // and quietly claim there is no archived money, when the
-                        // truth is this ledger cannot tell. The toggle hint and
-                        // the pond list above answer it from the report instead.
+                        // The pond, when the row knows one. Pond costs always
+                        // do; a transaction does when the farmer picked one.
+                        const pond = tx.pondName ?? undefined;
+                        // Archived money is MARKED, not hidden (D3) — but only
+                        // where the row can actually tell. A farm-level
+                        // transaction hangs off no pond, so the backend
+                        // hard-codes `archived: false` on it; colouring on that
+                        // would claim there is no archived money when the truth
+                        // is the row cannot say. Pond costs genuinely know.
+                        const isArchived = isPondCost && tx.archived === true;
                         return (
                             <View key={tx.id} style={styles.entry}>
                                 <View style={{ flex: 1, minWidth: 0 }}>
-                                    <Text style={styles.entryTitle} numberOfLines={1}>
+                                    <Text
+                                        style={[styles.entryTitle, isArchived && styles.archivedText]}
+                                        numberOfLines={1}
+                                    >
                                         {tx.description || (isHarvest ? t('finance.harvestSale') : tx.category)}
                                     </Text>
                                     <Text style={styles.entryMeta} numberOfLines={1}>
-                                        {[shortDate(tx.transactionDate), farm, detail]
+                                        {[
+                                            shortDate(tx.transactionDate),
+                                            farm,
+                                            pond,
+                                            isArchived ? t('finance.archivedTag') : null,
+                                            detail,
+                                        ]
                                             .filter(Boolean)
                                             .join(' · ')}
                                     </Text>

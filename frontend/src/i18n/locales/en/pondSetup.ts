@@ -66,6 +66,20 @@ const pondSetup = {
   prefixPlaceholder: "prefix",
   namesLabel: "Names",
   pondsToCreate: "Ponds to create",
+
+  pondNameLabel: "Pond name",
+
+
+  pondNamePlaceholder: "e.g. North pond",
+
+
+  errPondName: "Give every pond a name",
+
+
+  moreDetails: "Add more details (optional)",
+
+
+  moreDetailsHint: "Leave this shut and we will assume an earthen pond of no fixed shape. The pond page will tell you those are not confirmed.",
   areaPlaceholder: "area m²",
   areaOptionalNote: "Area is optional now. You can add it when you stock a pond.",
   createFarmCta: "Create farm",

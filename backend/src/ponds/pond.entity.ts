@@ -147,6 +147,30 @@ export class Pond {
   boundary: { latitude: number; longitude: number }[];
 
   /**
+   * Which of this pond's measurements the APP filled in rather than the farmer.
+   *
+   * Onboarding creates ponds without asking for shape, construction type or
+   * dimensions — it defaults to `irregular` / `earthen` and leaves area
+   * unmeasured, because a measurement questionnaire in front of someone who
+   * has not seen the app yet is how you lose them. But the result was
+   * indistinguishable from an answer they actually gave: the pond page
+   * rendered "Earthen" and an area with the same confidence as a surveyed
+   * figure, and volume, aeration adequacy and every dosing calculation
+   * downstream read those numbers.
+   *
+   * So the assumption is RECORDED rather than hidden. A field named here is
+   * shown as unconfirmed and prompts to be completed; supplying it removes it
+   * from the list. Empty means nothing was assumed.
+   */
+  @Column({
+    name: 'assumed_fields',
+    type: 'text',
+    array: true,
+    default: () => "'{}'",
+  })
+  assumedFields: string[];
+
+  /**
    * Returns the effective area: override if set, otherwise calculated.
    * All downstream consumers (cycles, dashboards) should use this.
    */

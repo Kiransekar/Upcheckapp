@@ -79,7 +79,22 @@ interface AuthState {
     accessToken: string | null;
     isAuthenticated: boolean;
 
-    // ── Persisted (via partialize) — refresh token restored on hydration ──
+    /**
+     * The refresh token, held as STATE IN ITS OWN RIGHT — not derived from
+     * `session` when persisting.
+     *
+     * It used to be written as `partialize: () => ({ refreshToken:
+     * state.session?.refresh_token })`, which re-derives it on EVERY state
+     * write. `enterOfflineSession()` sets `session: null` — so the one path
+     * built to keep a farmer signed in through a network blip was itself
+     * erasing the token from SecureStore. The next cold start found nothing to
+     * restore and showed the login screen: "the app logs me out on network
+     * errors and phone restarts".
+     *
+     * Only `clearSession()` may null it. Supabase rotates the token on every
+     * refresh, so `setSession` keeps the newest one and never regresses to a
+     * spent one.
+     */
     refreshToken?: string | null;
 
     // ── Pending verification ──
@@ -185,6 +200,7 @@ export const useAuthStore = create<AuthState>()(
             session: null,
             accessToken: null,
             isAuthenticated: false,
+            refreshToken: null,
             pendingVerificationEmail: null,
             pendingFarmSetup: false,
             pendingFarmJoin: false,
@@ -193,6 +209,9 @@ export const useAuthStore = create<AuthState>()(
             setSession: (session) =>
                 set({
                     session,
+                    // Keep the newest rotated token; never fall back to null and
+                    // strand the device with no way to refresh again.
+                    refreshToken: session.refresh_token ?? get().refreshToken ?? null,
                     accessToken: session.access_token,
                     user: mapSupabaseUser(session.user),
                     isAuthenticated: true,
@@ -304,6 +323,9 @@ export const useAuthStore = create<AuthState>()(
                 clearCachedReads();
                 set({
                     session: null,
+                    // The ONLY place this is dropped. A logout is the one event
+                    // that genuinely ends the ability to refresh.
+                    refreshToken: null,
                     accessToken: null,
                     user: null,
                     isAuthenticated: false,
@@ -609,7 +631,8 @@ export const useAuthStore = create<AuthState>()(
             // Store: refresh_token for session restoration, user.id/email for quick access
             // Do NOT persist full session object or user metadata
             partialize: (state) => ({
-                refreshToken: state.session?.refresh_token,
+                // From the field, NOT from `session` — see the AuthState comment.
+                refreshToken: state.refreshToken,
                 userId: state.user?.id,
                 userEmail: state.user?.email,
                 pendingVerificationEmail: state.pendingVerificationEmail,

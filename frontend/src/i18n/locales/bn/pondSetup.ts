@@ -66,6 +66,20 @@ const pondSetup = {
   prefixPlaceholder: "উপসর্গ",
   namesLabel: "নামসমূহ",
   pondsToCreate: "যেসব পুকুর তৈরি হবে",
+
+  pondNameLabel: "পুকুরের নাম",
+
+
+  pondNamePlaceholder: "যেমন উত্তরের পুকুর",
+
+
+  errPondName: "প্রতিটি পুকুরের একটি নাম দিন",
+
+
+  moreDetails: "আরও তথ্য যোগ করুন (ঐচ্ছিক)",
+
+
+  moreDetailsHint: "এটি বন্ধ রাখলে আমরা নির্দিষ্ট আকারহীন মাটির পুকুর ধরে নেব। পুকুরের পাতা জানাবে যে সেগুলি নিশ্চিত নয়।",
   areaPlaceholder: "আয়তন m²",
   areaOptionalNote: "আয়তন এখন বাধ্যতামূলক নয়। পুকুরে পোনা ছাড়ার সময় যোগ করতে পারবেন।",
   createFarmCta: "খামার তৈরি করুন",

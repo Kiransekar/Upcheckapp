@@ -32,14 +32,18 @@ function makeService(over: any = {}) {
   const harvests = {
     findMoneyEntries: jest.fn().mockResolvedValue(over.harvests ?? []),
   };
+  const expenses = {
+    findMoneyEntries: jest.fn().mockResolvedValue(over.expenses ?? []),
+  };
   const svc = new MoneyOverviewService(
     farms as any,
     reports as any,
     transactions as any,
     credit as any,
     harvests as any,
+    expenses as any,
   );
-  return { svc, farms, reports, transactions, credit, harvests };
+  return { svc, farms, reports, transactions, credit, harvests, expenses };
 }
 
 /** A harvest sale as the backend projects it — read-only, no transaction id. */
@@ -151,6 +155,81 @@ describe('MoneyOverviewService', () => {
     expect((out.reports as any).f1.revenue).toBe(42000);
     expect((out.reports as any).f1.profit).toBe(42000);
     expect(reports.getFinancialReport).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * "I added expense inside a pond but it didnt show inside the money screen."
+   *
+   * Same shape of bug as the harvest one above, on the other ledger. Costs
+   * typed on a pond live in `expenses`, not `transactions`. The headline summed
+   * them (the report reads that table) but the entry list rendered
+   * `transactions` only, and the pond costs were fetched solely when the farmer
+   * drilled into one specific pond — so the total moved and nothing on screen
+   * explained why.
+   */
+  it('shows a pond cost as a line item in the entry list', async () => {
+    const { svc } = makeService({
+      expenses: [
+        {
+          id: 'expense:e1',
+          source: 'expense',
+          farmId: 'f1',
+          pondId: 'p1',
+          pondName: 'North pond',
+          transactionDate: '2026-01-03',
+          type: 'expense',
+          category: 'Feed',
+          amount: 8000,
+        },
+      ],
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.allEntries.find((e: any) => e.id === 'expense:e1')).toMatchObject({
+      source: 'expense',
+      type: 'expense',
+      amount: 8000,
+      farmId: 'f1',
+      pondName: 'North pond',
+    });
+  });
+
+  it('interleaves pond costs with transactions by date, newest first', async () => {
+    const { svc } = makeService({
+      entries: [
+        { id: 'tx-late', transactionDate: '2026-02-10' },
+        { id: 'tx-early', transactionDate: '2026-02-01' },
+      ],
+      expenses: [
+        { id: 'expense:e1', source: 'expense', transactionDate: '2026-02-05' },
+      ],
+    });
+
+    const out = await svc.forUser('u');
+
+    expect(out.allEntries.map((e: any) => e.id)).toEqual([
+      'tx-late',
+      'expense:e1',
+      'tx-early',
+    ]);
+  });
+
+  /**
+   * Merged at read time for the same reason harvests are: the financial report
+   * already sums the expenses table into the headline, so writing a real
+   * Transaction per expense would count every pond cost twice.
+   */
+  it('gives a pond cost row no transaction id to edit or delete', async () => {
+    const { svc } = makeService({
+      expenses: [{ id: 'expense:e1', source: 'expense', transactionDate: '2026-02-05' }],
+    });
+
+    const out = await svc.forUser('u');
+
+    const row: any = out.allEntries.find((e: any) => e.source === 'expense');
+    expect(row.id).toMatch(/^expense:/);
+    expect(row.id).not.toBe('e1');
   });
 
   it('gives a synthetic harvest row no transaction id to edit or delete', async () => {

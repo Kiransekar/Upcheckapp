@@ -293,7 +293,26 @@ export class SupabaseAuthService {
     });
 
     if (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      /**
+       * ONLY Supabase saying the token is bad ends the session.
+       *
+       * This used to map every failure to 401. The client treats a 401 here as
+       * proof the session is revoked and calls `clearSession()` — so a
+       * transient failure between THIS server and Supabase (timeout, 5xx, rate
+       * limit) logged the farmer out of their phone. That is the "app logs me
+       * out on network errors" report, and the farmer is then asked to sign in
+       * again against the very service that is currently unreachable.
+       *
+       * A 503 is what the client already handles correctly: it keeps the
+       * farmer authenticated against cached data and retries on reconnect.
+       */
+      const status = (error as { status?: number }).status;
+      if (status === 400 || status === 401 || status === 403) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      throw new ServiceUnavailableException(
+        'Could not reach the authentication service',
+      );
     }
 
     return {

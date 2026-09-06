@@ -269,6 +269,67 @@ describe('PondsService', () => {
       expect(historyRepository.save).not.toHaveBeenCalled();
       expect(pondsRepository.update).toHaveBeenCalledWith('pond-1', {
         displayName: 'Pond Alpha',
+        // Renaming confirms no measurement, so nothing is retired.
+        assumedFields: [],
+      });
+    });
+
+    /**
+     * A pond created through onboarding has measurements the APP chose, not the
+     * farmer: shape defaults to `irregular`, construction to `earthen`, area is
+     * unmeasured. Rendering those with the same confidence as a surveyed figure
+     * is a lie the farmer then plans a season on — volume, aeration adequacy
+     * and every dosing figure read them.
+     *
+     * The pond carries the list of what was assumed, and answering a question
+     * has to retire it — otherwise the app keeps doubting a number the farmer
+     * just typed.
+     */
+    describe('assumed measurements', () => {
+      const assumedPond = {
+        ...mockPond,
+        assumedFields: ['geometryType', 'constructionType', 'areaM2', 'aeration'],
+      };
+
+      beforeEach(() => {
+        pondsRepository.findOne.mockResolvedValue(assumedPond);
+        dimensionService.hasDimensionsChanged.mockReturnValue(false);
+        pondsRepository.update.mockResolvedValue(undefined);
+      });
+
+      it('retires only the assumption the farmer actually answered', async () => {
+        await service.update('pond-1', { constructionType: 'lined' }, 'user-1');
+
+        expect(pondsRepository.update).toHaveBeenCalledWith(
+          'pond-1',
+          expect.objectContaining({
+            assumedFields: ['geometryType', 'areaM2', 'aeration'],
+          }),
+        );
+      });
+
+      it('treats real dimensions as confirming the area too', async () => {
+        dimensionService.hasDimensionsChanged.mockReturnValue(true);
+
+        await service.update('pond-1', { lengthM: 25, widthM: 12 }, 'user-1');
+
+        expect(pondsRepository.update).toHaveBeenCalledWith(
+          'pond-1',
+          expect.objectContaining({
+            // areaM2 goes because it is now measured; aeration stays,
+            // because nothing here answered it.
+            assumedFields: ['geometryType', 'constructionType', 'aeration'],
+          }),
+        );
+      });
+
+      it('does not retire an assumption on an edit that answers nothing', async () => {
+        await service.update('pond-1', { displayName: 'North pond' }, 'user-1');
+
+        expect(pondsRepository.update).toHaveBeenCalledWith(
+          'pond-1',
+          expect.objectContaining({ assumedFields: assumedPond.assumedFields }),
+        );
       });
     });
 

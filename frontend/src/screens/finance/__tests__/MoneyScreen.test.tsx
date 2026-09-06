@@ -312,7 +312,39 @@ describe('MoneyScreen filters', () => {
 
     // The entry list is farm-level and cannot mark archived rows at all. Its
     // silence must not be readable as "there is no archived money here".
-    it('says the entry list cannot mark archived money, rather than implying none', async () => {
+    /**
+     * "I added expense inside a pond but it didnt show inside the money screen."
+     *
+     * Pond costs live in a different table from the entries this list rendered,
+     * so the headline moved and nothing on screen explained why. The backend
+     * merges them in now; the screen has to render one, say which pond it came
+     * from, and mark it when that pond is retired — the one row shape here that
+     * genuinely knows.
+     */
+    it('renders a pond cost, names its pond, and marks an archived one', async () => {
+        entriesInScope = [
+            {
+                id: 'expense:e1',
+                source: 'expense',
+                farmId: 'f1',
+                pondId: 'p2',
+                pondName: 'North pond',
+                transactionDate: '2026-03-02',
+                type: 'expense',
+                category: 'Feed',
+                amount: 8000,
+                description: 'Starter feed',
+                archived: true,
+            },
+        ];
+        const { findByText } = renderScreen();
+
+        expect(await findByText('Starter feed')).toBeTruthy();
+        expect(await findByText(/North pond/)).toBeTruthy();
+        expect(await findByText(/Archived/)).toBeTruthy();
+    });
+
+    it('says a farm-level entry has no pond to mark, rather than implying none is archived', async () => {
         reportsInScope = {
             f1: {
                 ...REPORTS.f1,
@@ -335,7 +367,9 @@ describe('MoneyScreen filters', () => {
             },
         ];
         const { findByText } = renderScreen();
-        expect(await findByText(/Entries are recorded against the farm, not a pond/)).toBeTruthy();
+        expect(
+            await findByText(/an entry recorded against the farm has no pond to mark/),
+        ).toBeTruthy();
     });
 
     it('stays quiet about archived money when there is none', async () => {

@@ -48,4 +48,9 @@ export class CreateTransactionDto {
   @IsUUID()
   @IsOptional()
   inventoryItemId?: string;
+
+  /** Optional: the pond this money belongs to. Omitted means "whole farm". */
+  @IsUUID()
+  @IsOptional()
+  pondId?: string;
 }

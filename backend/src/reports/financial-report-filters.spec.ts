@@ -43,6 +43,7 @@ const build = (opts: { ponds?: PondStub[]; transactions?: any[] } = {}) => {
       ]),
   } as any;
   const expensesService = {
+    // Revenue only — costs come from `totalsByPond` now, see below.
     getCycleFinancials: jest.fn().mockImplementation(async (cropId: string) => {
       const pond = ponds.find((p) => `cycle-of-${p.id}` === cropId)!;
       return {
@@ -50,6 +51,17 @@ const build = (opts: { ponds?: PondStub[]; transactions?: any[] } = {}) => {
         totalExpenses: pond.expenses ?? 0,
         expensesByCategory: pond.expenses ? { Feed: pond.expenses } : {},
       };
+    }),
+    // Costs come from the POND, keyed by pond id, so an expense with no crop
+    // is still counted. `pondIds` is whatever the report asked about.
+    totalsByPond: jest.fn().mockImplementation(async (pondIds: string[]) => {
+      const out = new Map<string, { total: number; byCategory: Record<string, number> }>();
+      for (const id of pondIds) {
+        const pond = ponds.find((p) => p.id === id);
+        if (!pond?.expenses) continue;
+        out.set(id, { total: pond.expenses, byCategory: { Feed: pond.expenses } });
+      }
+      return out;
     }),
   } as any;
 

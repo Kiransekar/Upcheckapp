@@ -4,6 +4,7 @@ import { Repository, IsNull } from 'typeorm';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { Transaction } from './transaction.entity';
+import { Pond } from '../ponds/pond.entity';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 
 const USER_ID = 'user-1';
@@ -33,6 +34,7 @@ describe('TransactionsService', () => {
   let service: TransactionsService;
   let mockRepository: any;
   // Financials are gated by VIEW_FINANCIALS (owner/manager) via FarmAccessService.
+  let module: TestingModule;
   let mockFarmAccess: {
     assertCanAccessFarm: jest.Mock;
     getFarmIdsWithCapability: jest.Mock;
@@ -47,12 +49,23 @@ describe('TransactionsService', () => {
       getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       providers: [
         TransactionsService,
         {
           provide: getRepositoryToken(Transaction),
           useValue: createMockRepository(),
+        },
+        {
+          // Ponds are read only to prove an optionally-named pond belongs to
+          // the farm the caller was authorized for. Defaults to "the pond is
+          // in farm-1", so a test that names one is not fighting this.
+          provide: getRepositoryToken(Pond),
+          useValue: {
+            findOne: jest
+              .fn()
+              .mockResolvedValue({ id: 'pond-1', farmId: 'farm-1' }),
+          },
         },
         { provide: FarmAccessService, useValue: mockFarmAccess },
       ],
@@ -97,6 +110,52 @@ describe('TransactionsService', () => {
       expect(result).toEqual(
         expect.objectContaining({ createdById: USER_ID }),
       );
+    });
+
+    /**
+     * A money row may now name the pond it belongs to, which means the id has
+     * to be checked. Being authorized for a FARM does not authorize an
+     * arbitrary pond id: without this, a farmer could pass their own farmId
+     * with another tenant's pondId and attach money to a pond in a farm they
+     * cannot see. Same rule ExpensesService.create applies to cropId.
+     */
+    it('refuses a pond that belongs to another farm', async () => {
+      const pondsRepo = module.get(getRepositoryToken(Pond));
+      pondsRepo.findOne.mockResolvedValue({
+        id: 'pond-x',
+        farmId: 'someone-elses-farm',
+      });
+
+      await expect(
+        service.create(
+          {
+            farmId: 'farm-1',
+            transactionDate: new Date().toISOString(),
+            type: 'expense',
+            category: 'Feed',
+            amount: 1000,
+            pondId: 'pond-x',
+          } as any,
+          USER_ID,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(mockRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('attributes the money when the pond really is in that farm', async () => {
+      const result = await service.create(
+        {
+          farmId: 'farm-1',
+          transactionDate: new Date().toISOString(),
+          type: 'expense',
+          category: 'Feed',
+          amount: 1000,
+          pondId: 'pond-1',
+        } as any,
+        USER_ID,
+      );
+
+      expect(result).toEqual(expect.objectContaining({ pondId: 'pond-1' }));
     });
 
     it('is idempotent: a replayed client id returns the existing row without re-inserting', async () => {

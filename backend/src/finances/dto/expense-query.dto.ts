@@ -1,5 +1,8 @@
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { DateRangeDto } from '../../transactions/dto/money-query.dto';
+import { IsBoolean, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import {
+  DateRangeDto,
+  DefaultTrue,
+} from '../../transactions/dto/money-query.dto';
 import { ExpenseCategory } from '../expense.entity';
 
 /**
@@ -25,4 +28,14 @@ export class ExpenseQueryDto extends DateRangeDto {
   @IsEnum(ExpenseCategory)
   @IsOptional()
   category?: ExpenseCategory;
+
+  /**
+   * Default TRUE — see D3, the same rule the financial report follows: a
+   * retired pond's money is marked, not erased. Only an explicit `false` hides
+   * it. Read by `findMoneyEntries`, which merges these rows into the Money
+   * tab's entry list.
+   */
+  @IsBoolean()
+  @DefaultTrue()
+  includeArchivedPonds: boolean = true;
 }

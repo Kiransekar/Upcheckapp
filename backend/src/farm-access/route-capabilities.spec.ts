@@ -473,6 +473,9 @@ describe('W1 — route guard capabilities match the service-layer policy', () =>
         update: jest.fn().mockResolvedValue({ affected: 1 }),
         delete: jest.fn().mockResolvedValue({ affected: 1 }),
       } as any,
+      // Ponds repo — only `create` reads it, to prove an optionally-named pond
+      // belongs to the farm. update/remove never touch it.
+      { findOne: jest.fn() } as any,
       { assertCanAccessFarm } as any,
     );
 

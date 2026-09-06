@@ -100,6 +100,9 @@ export class PondsService {
         channelCount: createPondDto.channelCount,
         calculatedAreaM2,
         overrideAreaM2: createPondDto.overrideAreaM2,
+        // What the client filled in without asking. Never inferred here: the
+        // server cannot tell a defaulted 'earthen' from a chosen one.
+        assumedFields: createPondDto.assumedFields ?? [],
         gpsLat: createPondDto.gpsLat,
         gpsLng: createPondDto.gpsLng,
         boundary: createPondDto.boundary,
@@ -306,6 +309,44 @@ export class PondsService {
     // fetch so a manager who passed the guard is not 403'd by owner-only findOne.
     const pond = await this.findOneAccessible(id, userId, 'WRITE_MANAGEMENT');
 
+    /**
+     * Answering a question retires the assumption behind it.
+     *
+     * The pond marks a field as assumed when the app filled it in without
+     * asking (see `Pond.assumedFields`). The moment the farmer supplies a real
+     * value, the "not confirmed" hint must stop — otherwise the app keeps
+     * doubting a number the farmer just typed.
+     *
+     * Derived from what this update actually SETS, not from a flag the client
+     * sends, so a confirmation cannot be claimed without a value behind it.
+     */
+    const confirmed = new Set<string>();
+    if (updatePondDto.geometryType !== undefined) confirmed.add('geometryType');
+    if (updatePondDto.constructionType !== undefined) {
+      confirmed.add('constructionType');
+    }
+    if (updatePondDto.depthM !== undefined) confirmed.add('depthM');
+    if (updatePondDto.overrideAreaM2 !== undefined) confirmed.add('areaM2');
+    if (
+      updatePondDto.lengthM !== undefined ||
+      updatePondDto.widthM !== undefined ||
+      updatePondDto.diameterM !== undefined
+    ) {
+      confirmed.add('dimensions');
+      // Dimensions ARE the area once they exist — nothing is being guessed any
+      // more, whether or not a surveyed override was also given.
+      confirmed.add('areaM2');
+    }
+    if (
+      updatePondDto.installedAeratorHp !== undefined ||
+      updatePondDto.aeratorCount !== undefined
+    ) {
+      confirmed.add('aeration');
+    }
+    const remainingAssumed = (pond.assumedFields ?? []).filter(
+      (f) => !confirmed.has(f),
+    );
+
     // Check if dimensions changed — log history if so
     // Exclude activeCycleId and other non-dimension fields from dimension check
     const dimensionFields = {
@@ -356,12 +397,14 @@ export class PondsService {
       await this.pondsRepository.update(id, {
         ...updateFields,
         calculatedAreaM2: newArea,
+        assumedFields: remainingAssumed,
         activeCycleId: updatePondDto.activeCycleId as any,
       });
     } else {
       const { changeReason, ...updateFields } = updatePondDto;
       await this.pondsRepository.update(id, {
         ...updateFields,
+        assumedFields: remainingAssumed,
         activeCycleId: updatePondDto.activeCycleId as any,
       });
     }

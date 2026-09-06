@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
@@ -26,6 +26,7 @@ import {
     CreateTransactionDto,
     TransactionSummary,
 } from '../../api/transactions';
+import { pondsApi, type Pond } from '../../api/ponds';
 import { apiErrorMessage } from '../../api/errors';
 
 type FilterKey = 'all' | 'income' | 'expense';
@@ -59,6 +60,29 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
     const [formType, setFormType] = useState<'income' | 'expense'>('income');
     const [formDate, setFormDate] = useState(toISODate(new Date()));
     const [formError, setFormError] = useState<string | null>(null);
+    /** Null means "whole farm" — the default, and what every older row is. */
+    const [formPondId, setFormPondId] = useState<string | null>(null);
+    const [ponds, setPonds] = useState<Pond[]>([]);
+
+    // The farm's ponds, for the optional attribution picker. Archived included:
+    // a cost can land on a pond that has since been retired, and hiding it
+    // would silently re-attribute the money to the whole farm.
+    // Best-effort — failing to load ponds must not block recording money.
+    useEffect(() => {
+        if (!farmId) return;
+        let alive = true;
+        void pondsApi
+            .getAll(farmId, { take: 100, includeArchived: true })
+            .then((res) => {
+                const data: any = res.data;
+                const list = Array.isArray(data) ? data : (data?.items ?? data?.data ?? []);
+                if (alive) setPonds(list as Pond[]);
+            })
+            .catch(() => undefined);
+        return () => {
+            alive = false;
+        };
+    }, [farmId]);
 
     const fetchAll = useCallback(async (activeFilter: FilterKey = filter) => {
         try {
@@ -105,6 +129,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         setFormDescription('');
         setFormType('income');
         setFormDate(toISODate(new Date()));
+        setFormPondId(null);
         setFormError(null);
     };
 
@@ -134,6 +159,7 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             category: formCategory.trim(),
             amount: parsedAmount,
             description: formDescription.trim() || undefined,
+            pondId: formPondId ?? undefined,
         };
 
         try {
@@ -351,6 +377,62 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
                     />
                 </View>
             </View>
+
+            {/*
+              * Which pond this money belongs to — OPTIONAL, and "Whole farm"
+              * is the default because a licence fee or a shared generator
+              * genuinely belongs to no single pond.
+              *
+              * Without this the two ledgers could not answer the same
+              * question: a cost typed on a pond knew its pond, a cost typed
+              * here never did, so "what did this pond cost me" silently
+              * omitted half the farmer's own entries.
+              */}
+            {ponds.length > 0 && (
+                <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>{t('finance.fieldPondLabel')}</Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.pondChips}
+                    >
+                        <TouchableOpacity
+                            testID="pond-choice-farm"
+                            style={[styles.pondChip, !formPondId && styles.pondChipActive]}
+                            onPress={() => setFormPondId(null)}
+                        >
+                            <Text
+                                style={[
+                                    styles.pondChipText,
+                                    !formPondId && styles.pondChipTextActive,
+                                ]}
+                            >
+                                {t('finance.wholeFarm')}
+                            </Text>
+                        </TouchableOpacity>
+                        {ponds.map((p) => (
+                            <TouchableOpacity
+                                key={p.id}
+                                testID={`pond-choice-${p.id}`}
+                                style={[
+                                    styles.pondChip,
+                                    formPondId === p.id && styles.pondChipActive,
+                                ]}
+                                onPress={() => setFormPondId(p.id)}
+                            >
+                                <Text
+                                    style={[
+                                        styles.pondChipText,
+                                        formPondId === p.id && styles.pondChipTextActive,
+                                    ]}
+                                >
+                                    {p.displayName || p.pondCode || p.name}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                </View>
+            )}
 
             {/* Description */}
             <View style={styles.fieldGroup}>
@@ -717,6 +799,27 @@ const styles = StyleSheet.create({
         color: theme.roles.light.textSecondary,
         marginBottom: theme.spacing[1.5],
     },
+    pondChips: {
+        gap: theme.spacing[2],
+        paddingVertical: theme.spacing[0.5],
+    },
+    pondChip: {
+        paddingHorizontal: theme.spacing[3],
+        paddingVertical: theme.spacing[1.5],
+        borderRadius: theme.radius.full,
+        borderWidth: 1,
+        borderColor: theme.roles.light.borderDefault,
+        backgroundColor: theme.roles.light.surfaceVariant,
+    },
+    pondChipActive: {
+        borderColor: theme.roles.light.borderBrand,
+        backgroundColor: theme.roles.light.surface,
+    },
+    pondChipText: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.textSecondary,
+    },
+    pondChipTextActive: { color: theme.roles.light.textPrimary },
     inputContainer: {
         borderWidth: 1,
         borderColor: theme.roles.light.borderDefault,

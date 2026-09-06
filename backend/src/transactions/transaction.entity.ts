@@ -56,4 +56,10 @@ export class Transaction {
   // having paid for it.
   @Column({ name: 'inventory_item_id', type: 'uuid', nullable: true })
   inventoryItemId: string | null;
+
+  // The pond this money belongs to, if any. Nullable because a farm-level cost
+  // (a licence, a shared generator) genuinely belongs to no single pond — and
+  // because every row that existed before the column did is one.
+  @Column({ name: 'pond_id', type: 'uuid', nullable: true })
+  pondId: string | null;
 }

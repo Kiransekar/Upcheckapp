@@ -66,6 +66,20 @@ const pondSetup = {
   prefixPlaceholder: "उपसर्ग",
   namesLabel: "नाम",
   pondsToCreate: "बनाए जाने वाले तालाब",
+
+  pondNameLabel: "तालाब का नाम",
+
+
+  pondNamePlaceholder: "जैसे उत्तरी तालाब",
+
+
+  errPondName: "हर तालाब को एक नाम दें",
+
+
+  moreDetails: "और जानकारी जोड़ें (वैकल्पिक)",
+
+
+  moreDetailsHint: "इसे बंद रखेंगे तो हम बिना निश्चित आकार का मिट्टी का तालाब मान लेंगे। तालाब पेज बताएगा कि ये पुष्ट नहीं हैं।",
   areaPlaceholder: "क्षेत्रफल m²",
   areaOptionalNote: "क्षेत्रफल अभी ज़रूरी नहीं। तालाब में बीज डालते समय जोड़ सकते हैं।",
   createFarmCta: "फ़ार्म बनाएँ",

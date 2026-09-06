@@ -594,6 +594,54 @@ export const PondDashboardScreen = ({ route, navigation }: any) => {
                 }
             >
                 {/*
+                  * WHAT THE APP GUESSED, said out loud.
+                  *
+                  * Onboarding creates ponds without asking for shape,
+                  * construction or area — the right trade in front of someone
+                  * who has not seen the app yet. But the result was
+                  * indistinguishable from an answer the farmer gave: the page
+                  * rendered "Earthen" and an area with the same confidence as a
+                  * surveyed figure, and volume, aeration adequacy and every
+                  * dosing number downstream read them.
+                  *
+                  * So the guess is labelled rather than hidden, and answering
+                  * any of it retires that label (backend `assumedFields`).
+                  */}
+                {(pond?.assumedFields?.length ?? 0) > 0 && (
+                    <TouchableOpacity
+                        testID="unconfirmed-banner"
+                        style={styles.unconfirmed}
+                        accessibilityRole="button"
+                        disabled={!perms.canManageOperations}
+                        onPress={() =>
+                            navigation.navigate('CreatePond', {
+                                farmId: pond?.farmId,
+                                editPondId: pondId,
+                            })
+                        }
+                    >
+                        <Icon name="warning" size={20} color={theme.roles.light.warningText} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.unconfirmedTitle}>
+                                {t('ponds.unconfirmedTitle')}
+                            </Text>
+                            <Text style={styles.unconfirmedBody}>
+                                {t('ponds.unconfirmedBody', {
+                                    fields: (pond?.assumedFields ?? [])
+                                        .map((f) => t(`ponds.assumed_${f}`, { defaultValue: f }))
+                                        .join(', '),
+                                })}
+                            </Text>
+                            {perms.canManageOperations && (
+                                <Text style={styles.unconfirmedCta}>
+                                    {t('ponds.unconfirmedCta')}
+                                </Text>
+                            )}
+                        </View>
+                    </TouchableOpacity>
+                )}
+
+                {/*
                   * What the farmer logged that the server has not got yet.
                   * Placed above the figures on purpose: the numbers below are
                   * the SERVER's, and this row is the honest explanation of why
@@ -1036,6 +1084,33 @@ const styles = StyleSheet.create({
     content: { paddingBottom: theme.spacing[16], backgroundColor: theme.roles.light.surface },
     skeleton: { padding: theme.spacing[4] },
     mb: { marginBottom: theme.spacing[3] },
+
+    unconfirmed: {
+        flexDirection: 'row',
+        gap: theme.spacing[3],
+        alignItems: 'flex-start',
+        marginHorizontal: theme.spacing[4],
+        marginTop: theme.spacing[4],
+        padding: theme.spacing[3],
+        borderRadius: theme.radius.md,
+        borderWidth: 1,
+        borderColor: theme.roles.light.warningBorder,
+        backgroundColor: theme.roles.light.warningBg,
+    },
+    unconfirmedTitle: {
+        ...theme.typeScale.labelLarge,
+        color: theme.roles.light.warningText,
+    },
+    unconfirmedBody: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[1],
+    },
+    unconfirmedCta: {
+        ...theme.typeScale.labelMedium,
+        color: theme.roles.light.primary,
+        marginTop: theme.spacing[2],
+    },
 
     alert: {
         flexDirection: 'row',

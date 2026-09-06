@@ -66,6 +66,20 @@ const pondSetup = {
   prefixPlaceholder: "ఉపసర్గ",
   namesLabel: "పేర్లు",
   pondsToCreate: "సృష్టించాల్సిన చెరువులు",
+
+  pondNameLabel: "చెరువు పేరు",
+
+
+  pondNamePlaceholder: "ఉదా. ఉత్తరపు చెరువు",
+
+
+  errPondName: "ప్రతి చెరువుకు ఒక పేరు ఇవ్వండి",
+
+
+  moreDetails: "మరిన్ని వివరాలు జోడించండి (ఐచ్ఛికం)",
+
+
+  moreDetailsHint: "దీన్ని మూసి ఉంచితే, నిర్దిష్ట ఆకారం లేని మట్టి చెరువుగా భావిస్తాం. అవి ధృవీకరించబడలేదని చెరువు పేజీ చెబుతుంది.",
   areaPlaceholder: "విస్తీర్ణం m²",
   areaOptionalNote: "విస్తీర్ణం ఇప్పుడు తప్పనిసరి కాదు. చెరువులో పిల్లలు వేసేటప్పుడు జోడించవచ్చు.",
   createFarmCta: "ఫారమ్ సృష్టించండి",

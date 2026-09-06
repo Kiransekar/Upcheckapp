@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull, EntityManager } from 'typeorm';
 import { Transaction } from './transaction.entity';
@@ -11,12 +15,15 @@ import {
 } from './dto/money-query.dto';
 import { FarmAccessService } from '../farm-access/farm-access.service';
 import { FarmCapability } from '../farm-access/farm-capability';
+import { Pond } from '../ponds/pond.entity';
 
 @Injectable()
 export class TransactionsService {
   constructor(
     @InjectRepository(Transaction)
     private transactionsRepository: Repository<Transaction>,
+    @InjectRepository(Pond)
+    private pondsRepository: Repository<Pond>,
     private readonly farmAccess: FarmAccessService,
   ) {}
 
@@ -45,6 +52,26 @@ export class TransactionsService {
       createDto.farmId,
       'VIEW_FINANCIALS',
     );
+    /**
+     * A named pond MUST belong to the named farm.
+     *
+     * Without this, a farmer could pass their own `farmId` (which they are
+     * authorized for) together with another tenant's `pondId` and attach money
+     * to that pond — polluting a farm they have no access to. Same rule
+     * `ExpensesService.create` applies to `cropId`: authorization on the parent
+     * never implies authorization for an arbitrary child id.
+     */
+    if (createDto.pondId) {
+      const pond = await this.pondsRepository.findOne({
+        where: { id: createDto.pondId },
+      });
+      if (!pond || pond.farmId !== createDto.farmId) {
+        throw new BadRequestException(
+          'pondId does not belong to the specified farm',
+        );
+      }
+    }
+
     // Stamp the actor so money rows say who entered them.
     const transaction = this.transactionsRepository.create({
       ...createDto,
@@ -98,6 +125,11 @@ export class TransactionsService {
     // never the default.
     if (q.includeInventoryPurchases === false) where.inventoryItemId = IsNull();
 
+    // A pond filter narrows to money attributed to that pond. Farm-level rows
+    // carry no pond and correctly drop out — "what did this pond cost me" is
+    // not answered by the farm's licence fee.
+    if (q.pondId) where.pondId = q.pondId;
+
     if (farmId) {
       await this.farmAccess.assertCanAccessFarm(
         userId,
@@ -119,10 +151,12 @@ export class TransactionsService {
       where,
       order: { transactionDate: 'DESC' },
     });
-    // Row flags the Money screen renders directly. `archived` is always false
-    // here: a transaction hangs off a FARM, not a pond, so there is no pond to
-    // be archived. It is present so transaction and expense rows share one
-    // shape on the client.
+    // Row flags the Money screen renders directly, so transaction and expense
+    // rows share one shape on the client.
+    // ponytail: `archived` is hardcoded false. It was exactly right while a
+    // transaction hung off a FARM only; now that one may optionally name a
+    // pond, a row on an archived pond will not be marked as such. Join the pond
+    // here when enough money is attributed for that to be visible.
     return rows.map((t) => ({
       ...t,
       inventoryPurchase: t.inventoryItemId != null,

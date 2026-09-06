@@ -6,6 +6,7 @@ import { ReportsModule } from '../reports/reports.module';
 import { TransactionsModule } from '../transactions/transactions.module';
 import { CreditModule } from '../credit/credit.module';
 import { HarvestsModule } from '../harvests/harvests.module';
+import { FinancesModule } from '../finances/finances.module';
 
 /**
  * Batching layer for the Money tab — see MoneyOverviewService for why.
@@ -21,6 +22,7 @@ import { HarvestsModule } from '../harvests/harvests.module';
     TransactionsModule,
     CreditModule,
     HarvestsModule,
+    FinancesModule,
   ],
   controllers: [MoneyOverviewController],
   providers: [MoneyOverviewService],

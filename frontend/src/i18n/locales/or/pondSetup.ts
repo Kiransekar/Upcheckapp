@@ -66,6 +66,20 @@ const pondSetup = {
   prefixPlaceholder: "ଉପସର୍ଗ",
   namesLabel: "ନାମଗୁଡ଼ିକ",
   pondsToCreate: "ତିଆରି ହେବାକୁ ଥିବା ପୋଖରୀ",
+
+  pondNameLabel: "ପୋଖରୀର ନାମ",
+
+
+  pondNamePlaceholder: "ଯଥା ଉତ୍ତର ପୋଖରୀ",
+
+
+  errPondName: "ପ୍ରତ୍ୟେକ ପୋଖରୀକୁ ଏକ ନାମ ଦିଅନ୍ତୁ",
+
+
+  moreDetails: "ଅଧିକ ବିବରଣୀ ଯୋଡ଼ନ୍ତୁ (ଐଚ୍ଛିକ)",
+
+
+  moreDetailsHint: "ଏହାକୁ ବନ୍ଦ ରଖିଲେ ଆମେ ନିର୍ଦ୍ଦିଷ୍ଟ ଆକାର ନଥିବା ମାଟି ପୋଖରୀ ବୋଲି ଧରିନେବୁ। ପୋଖରୀ ପୃଷ୍ଠା କହିବ ଯେ ସେଗୁଡ଼ିକ ନିଶ୍ଚିତ ନୁହେଁ।",
   areaPlaceholder: "କ୍ଷେତ୍ରଫଳ m²",
   areaOptionalNote: "କ୍ଷେତ୍ରଫଳ ବର୍ତ୍ତମାନ ବାଧ୍ୟତାମୂଳକ ନୁହେଁ। ପୋଖରୀରେ ପୋଣା ଛାଡ଼ିବା ସମୟରେ ଯୋଡ଼ିପାରିବେ।",
   createFarmCta: "ଫାର୍ମ ତିଆରି କରନ୍ତୁ",

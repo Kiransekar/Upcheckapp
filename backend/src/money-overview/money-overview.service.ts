@@ -4,6 +4,7 @@ import { ReportsService } from '../reports/reports.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { CreditService } from '../credit/credit.service';
 import { HarvestsService } from '../harvests/harvests.service';
+import { ExpensesService } from '../finances/expenses.service';
 import {
   MoneyOverviewQueryDto,
   dateRangeWhere,
@@ -35,6 +36,7 @@ export class MoneyOverviewService {
     private readonly transactions: TransactionsService,
     private readonly credit: CreditService,
     private readonly harvests: HarvestsService,
+    private readonly expenses: ExpensesService,
   ) {}
 
   async forUser(userId: string, q: Partial<MoneyOverviewQueryDto> = {}) {
@@ -45,7 +47,7 @@ export class MoneyOverviewService {
     const farms = await this.farms.findAll(userId);
 
     // prettier-ignore
-    const [reportPairs, transactionRows, creditRows, harvestRows] = await Promise.all([
+    const [reportPairs, transactionRows, creditRows, harvestRows, expenseRows] = await Promise.all([
       Promise.all(
         farms.map((farm: { id: string }) =>
           this.reports
@@ -70,6 +72,11 @@ export class MoneyOverviewService {
       // point at. Merging here rather than writing a Transaction on harvest
       // create is what keeps revenue from being counted twice.
       this.harvests.findMoneyEntries(userId).catch(() => []),
+      // Pond costs, projected read-only into entry shape for the same reason
+      // harvests are: the report already sums this table into the headline, so
+      // the farmer could see the total move with no line to point at. See
+      // ExpensesService.findMoneyEntries.
+      this.expenses.findMoneyEntries(userId, q).catch(() => []),
     ]);
 
     const reports: Record<string, unknown> = {};
@@ -95,7 +102,12 @@ export class MoneyOverviewService {
       e.transactionDate instanceof Date
         ? e.transactionDate.toISOString()
         : String(e.transactionDate ?? '');
-    const allEntries = [...transactionRows, ...harvestsInRange].sort((a, b) =>
+    const allEntries = [
+      ...transactionRows,
+      ...harvestsInRange,
+      // Already date-filtered in SQL — ExpensesService takes the range.
+      ...(expenseRows as any[]),
+    ].sort((a, b) =>
       sortKey(b).localeCompare(sortKey(a)),
     );
 

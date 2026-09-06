@@ -39,9 +39,19 @@ import { creditApi, type CreditLedger } from './credit';
  */
 export type MoneyEntry = Omit<Transaction, 'createdAt'> & {
     createdAt?: string;
-    source?: 'harvest';
+    /**
+     * `harvest` and `expense` are both READ-ONLY projections of another table,
+     * not transactions. Their ids are prefixed accordingly and nothing may
+     * offer edit or delete on them.
+     */
+    source?: 'harvest' | 'expense';
     buyerName?: string;
     weightKg?: number;
+    /** Set on pond costs, and on a transaction the farmer attributed to a pond. */
+    pondId?: string | null;
+    pondName?: string | null;
+    /** The pond this row belongs to is archived — marked, never hidden (D3). */
+    archived?: boolean;
 };
 
 export interface MoneyOverview {
