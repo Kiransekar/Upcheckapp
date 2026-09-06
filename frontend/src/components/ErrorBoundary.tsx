@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { reportError } from '../utils/reportError';
+import { isCrashReportingActive } from '../utils/sentry';
 import i18n from '../i18n';
 
 /**
@@ -37,12 +38,18 @@ interface State {
     // subtree — including the NavigationContainer, which rebuilds at its initial
     // (safe) route — which is the real "get me out of here" recovery.
     resetKey: number;
+    /**
+     * Did this crash ACTUALLY reach us? True only when crash reporting is
+     * initialised and the farmer has not switched it off, so the reassurance
+     * shown on screen is never a claim we have not honoured.
+     */
+    reported: boolean;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
     constructor(props: Props) {
         super(props);
-        this.state = { hasError: false, error: null, resetKey: 0 };
+        this.state = { hasError: false, error: null, resetKey: 0, reported: false };
     }
 
     static getDerivedStateFromError(error: Error): Partial<State> {
@@ -51,6 +58,21 @@ export class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         reportError(error, { componentStack: errorInfo.componentStack });
+        /**
+         * Whether the report ACTUALLY went anywhere, captured at the moment it
+         * was sent rather than assumed.
+         *
+         * `isCrashReportingActive()` is true only when Sentry is initialised
+         * AND the farmer has left crash reports on, so this can never tell
+         * someone their crash was reported when it was not — which would be
+         * both a lie and a privacy claim we had broken.
+         */
+        try {
+            this.setState({ reported: isCrashReportingActive() });
+        } catch {
+            // Never let the reporting notice be the thing that crashes the
+            // crash screen.
+        }
     }
 
     handleReset = () => {
@@ -78,6 +100,29 @@ export class ErrorBoundary extends Component<Props, State> {
                             <MaterialCommunityIcons name="refresh" size={20} color="#FFFFFF" />
                             <Text style={styles.buttonText}>{say('common.tryAgain', 'Try Again')}</Text>
                         </TouchableOpacity>
+
+                        {/*
+                          * Only when the report GENUINELY went (crash reporting
+                          * initialised and not switched off). Telling a farmer
+                          * who opted out that we had just collected their crash
+                          * would be a lie and a broken privacy promise in the
+                          * same sentence.
+                          *
+                          * Below the button, deliberately: getting back into
+                          * the app is what they came here to do; this is
+                          * reassurance, not an obstacle.
+                          */}
+                        {this.state.reported && (
+                            <View style={styles.reportedBox}>
+                                <MaterialCommunityIcons name="shield-check-outline" size={18} color="#3E5163" />
+                                <Text style={styles.reportedText}>
+                                    {say(
+                                        'common.crashReportSent',
+                                        'This has been sent to our team automatically. We will look into it and fix it — thank you for helping make the app better for everyone. You can turn this off any time in Settings.',
+                                    )}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 </View>
             );
@@ -113,6 +158,19 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 22,
         marginBottom: 24,
+    },
+    reportedBox: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        marginTop: 20,
+        paddingHorizontal: 4,
+    },
+    reportedText: {
+        flex: 1,
+        fontSize: 13,
+        lineHeight: 19,
+        color: '#3E5163',
     },
     errorBox: {
         backgroundColor: '#FDF0F0',

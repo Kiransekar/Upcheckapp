@@ -241,8 +241,21 @@ Field operators lose signal, so operational writes are offline-first:
   enqueue and return optimistically. Offline → enqueue immediately. A real
   server rejection (4xx/5xx *with* a response) is thrown for the user to see.
 - `drainRecordQueue()` (call on reconnect / app start) replays the queue via
-  `syncStore.drainQueue`. 2xx or 4xx → drop (done or permanently rejected);
-  network/5xx → keep for the next reconnect.
+  `syncStore.drainQueue`. The outcomes, as the code actually implements them:
+  - **2xx, and 409** → done, removed from the queue. A conflict means the
+    server already has it — the client-minted id makes replay idempotent.
+  - **400 / 422** → moved to `failedOperations`. **Parked, never dropped.** A
+    permanently rejected record stays visible on the Sync screen so the farmer
+    can see what did not save and re-enter it. This is load-bearing: an empty
+    or out-of-range reading rejected on drain (see the `AtLeastOneOf`
+    validator) must not evaporate silently hours after it was taken.
+  - **401 / 403 / 5xx / network** → kept, retried on the next reconnect.
+
+  > This paragraph previously read "2xx or 4xx → drop (done or permanently
+  > rejected)". That was **wrong about data loss**, which is the worst kind of
+  > stale documentation to leave standing: `syncStore` has never dropped a 4xx,
+  > and its own comment says "never silently drop". The code was right; this
+  > text was not.
 
 ### 3.4 i18n (`frontend/src/i18n/`)
 

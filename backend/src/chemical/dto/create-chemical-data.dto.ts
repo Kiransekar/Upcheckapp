@@ -1,3 +1,4 @@
+import { AtLeastOneOf } from '../../common/validators/at-least-one-of.validator';
 import {
   IsDateString,
   IsNumber,
@@ -7,7 +8,26 @@ import {
   Min,
 } from 'class-validator';
 
+/**
+ * The measurements. Free-text notes are deliberately excluded — a note is
+ * not a reading, and a record carrying only a note still counts as "logged"
+ * while leaving every derived figure untouched.
+ */
+const CHEMICAL_PARAMETERS = [
+  'alkalinityPpm',
+  'hardnessPpm',
+  'calciumCaPpm',
+  'magnesiumMgPpm',
+  'tomPpm',
+  'totalAmmoniaPpm',
+  'potassiumPpm',
+];
+
 export class CreateChemicalDataDto {
+  /** A record must carry at least one reading — see the validator (L2). */
+  @AtLeastOneOf(CHEMICAL_PARAMETERS)
+  readonly hasAtLeastOneReading!: unknown;
+
   // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
   @IsUUID()
   @IsOptional()

@@ -150,9 +150,13 @@ describe('WaterQualityLogScreen — quick mode', () => {
     it('does not prefill and does not error when there is no prior reading (new pond, offline)', async () => {
         mockedGetLatest.mockRejectedValue({ message: 'Network Error' });
 
-        const { getByText } = renderScreen();
+        const { getByText, getByLabelText } = renderScreen();
         await waitFor(() => expect(mockedGetLatest).toHaveBeenCalledWith('pond-1'));
 
+        // A log must carry at least one reading (L2), so Save is disabled on a
+        // blank form. These tests are about what happens AFTER a save is
+        // attempted, so they enter one value to get there.
+        fireEvent.changeText(getByLabelText('pH'), '7.8');
         fireEvent.press(getByText('Save Log'));
 
         await waitFor(() =>

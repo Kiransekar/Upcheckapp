@@ -251,10 +251,43 @@ export type AnalyticsEvent = (typeof EVENTS)[keyof typeof EVENTS];
  * `event` is the closed EVENTS union: a call site cannot invent a name, and
  * cannot accidentally pass a user-supplied string as one.
  */
+/**
+ * Properties attached to EVERY event, refreshed whenever they change.
+ *
+ * Why this exists: `role` and `language` were set as PERSON properties on
+ * identify and nowhere else. In person-on-events mode PostHog attaches a person
+ * property to events that arrive AFTER the identify that set it — so every
+ * event before the memberships load, which is most of a first session, carried
+ * no role at all. The dashboards duly reported `role: unknown` for essentially
+ * everything.
+ *
+ * Person properties are still set on identify (they are what makes a PERSON
+ * filterable). These are the same two facts stamped on the EVENT, so an insight
+ * can split by role without depending on when identify happened to run.
+ *
+ * Same allowlist as everything else — this is not a back door for new fields.
+ */
+let ambient: Record<string, string> = {};
+
+/**
+ * Set the ambient properties. Called from App.tsx alongside `identifyUser`, so
+ * the two never disagree about who the farmer currently is.
+ */
+export function setAmbientProps(props?: PersonProps): void {
+    ambient = sanitizePersonProps(props);
+}
+
+/** For tests, and for `reset()` on sign-out — a new person, no stale role. */
+export function clearAmbientProps(): void {
+    ambient = {};
+}
+
 export function capture(event: AnalyticsEvent, props?: AnalyticsProps): void {
     if (!client) return;
     try {
-        client.capture(event, sanitizeProps(props));
+        // Event props win: a call site that says `role` means that role, for
+        // that event, whatever the ambient one is.
+        client.capture(event, { ...ambient, ...sanitizeProps(props) });
     } catch {
         /* analytics must never be able to break a screen */
     }
@@ -275,7 +308,10 @@ export function capture(event: AnalyticsEvent, props?: AnalyticsProps): void {
 export function screenView(name: string): void {
     if (!client || !name) return;
     try {
-        client.screen(name);
+        // Carries role and language ON THE EVENT — see `ambient`. Without this
+        // a screen view is only attributable to a role if identify happened to
+        // have run first, which for a first session it mostly had not.
+        client.screen(name, { ...ambient });
     } catch {
         /* analytics must never be able to break a screen */
     }

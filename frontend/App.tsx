@@ -24,7 +24,13 @@ import {
   saveTelemetryPrefs,
   shouldAskAnalyticsConsent,
 } from './src/features/telemetryPrefs';
-import { syncAnalyticsConsent, screenView, identifyUser } from './src/features/analytics';
+import {
+  syncAnalyticsConsent,
+  screenView,
+  identifyUser,
+  setAmbientProps,
+  clearAmbientProps,
+} from './src/features/analytics';
 import { initSentry, setSentryUser } from './src/utils/sentry';
 import { useAuthStore } from './src/store/authStore';
 import { useActiveFarmStore } from './src/store/activeFarmStore';
@@ -204,10 +210,15 @@ export default function App() {
     // ponytail: i18n.language is read at identify time rather than subscribed
     // to — a language switch lands on the next identify. Subscribe to
     // i18n 'languageChanged' if the lag ever matters.
-    void identifyUser(isAuthenticated ? userId : null, {
-      language: i18n.language,
-      role: farmRole ?? undefined,
-    });
+    const person = { language: i18n.language, role: farmRole ?? undefined };
+    // Stamp the same two facts on every EVENT as well, not only on the person.
+    // In person-on-events mode a person property only reaches events sent AFTER
+    // the identify that set it, so every screen view before the memberships
+    // loaded — most of a first session — arrived with no role and the
+    // dashboards read `role: unknown` for nearly everything.
+    if (isAuthenticated) setAmbientProps(person);
+    else clearAmbientProps();
+    void identifyUser(isAuthenticated ? userId : null, person);
   }, [isAuthenticated, userId, farmRole]);
 
   /*

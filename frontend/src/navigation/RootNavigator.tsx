@@ -52,6 +52,8 @@ export type RootStackParamList = {
 
     // Main
     MainApp: undefined;
+    // Every pond's water quality in one pass (L3).
+    MorningRounds: undefined;
     // Asked once, after the account exists and before farm setup (W8).
     AnalyticsConsent: undefined;
     QuickLog: undefined;
@@ -365,6 +367,7 @@ const RootNavigator = () => {
                     <Stack.Screen name="MainApp" component={MainNavigator} />
                     <Stack.Screen name="AnalyticsConsent" getComponent={() => require('../screens/onboarding/AnalyticsConsentScreen').AnalyticsConsentScreen} />
                     <Stack.Screen name="QuickLog" getComponent={() => require('../screens/main/QuickLogScreen').QuickLogScreen} options={{ presentation: 'modal' }} />
+                    <Stack.Screen name="MorningRounds" getComponent={() => require('../screens/logs/MorningRoundsScreen').MorningRoundsScreen} />
 
                     <Stack.Screen name="CreateFarm" getComponent={() => require('../screens/farms/CreateFarmScreen').CreateFarmScreen} />
                     <Stack.Screen name="PondNames" getComponent={() => require('../screens/onboarding/PondNamesScreen').PondNamesScreen} />

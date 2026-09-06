@@ -46,12 +46,14 @@ describe('CreateWaterQualityRecordDto — VALID-1 range validation', () => {
 describe('CreateWaterQualityRecordDto — recordedAt', () => {
   it('accepts an ISO recordedAt', () => {
     expect(
-      errorsFor({ pondId: POND, recordedAt: '2026-07-01T10:00:00.000Z' }),
+      // A reading is required now (L2) — this case is about the TIMESTAMP,
+      // so it supplies the minimum that lets the record exist at all.
+      errorsFor({ pondId: POND, ph: 7.8, recordedAt: '2026-07-01T10:00:00.000Z' }),
     ).toHaveLength(0);
   });
 
   it('omitting recordedAt is still valid (falls back to server insert time)', () => {
-    expect(errorsFor({ pondId: POND })).toHaveLength(0);
+    expect(errorsFor({ pondId: POND, ph: 7.8 })).toHaveLength(0);
   });
 
   it('rejects a malformed recordedAt', () => {

@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // `mock`-prefixed so jest's out-of-scope guard allows the factory below.
 const mockConstructed = jest.fn();
 const mockCaptured = jest.fn();
+const mockScreen = jest.fn();
 const mockOptOut = jest.fn();
 const mockReset = jest.fn();
 const mockShutdown = jest.fn();
@@ -24,6 +25,7 @@ jest.mock('posthog-react-native', () => ({
             mockConstructed(key, opts);
         }
         capture = mockCaptured;
+        screen = mockScreen;
         optOut = mockOptOut;
         reset = mockReset;
         shutdown = mockShutdown;
@@ -35,6 +37,9 @@ import {
     isAnalyticsRunning,
     sanitizeProps,
     sanitizePersonProps,
+    setAmbientProps,
+    clearAmbientProps,
+    screenView,
     sizeBand,
     stopAnalytics,
     syncAnalyticsConsent,
@@ -160,5 +165,67 @@ describe('property allowlist', () => {
 
     it('drops non-primitive values even under an allowlisted key', () => {
         expect(sanitizeProps({ screen: { name: 'Money' } } as any)).toEqual({});
+    });
+});
+
+/**
+ * Every event must be able to say WHICH ROLE it came from.
+ *
+ * `role` and `language` were set as person properties on identify and nowhere
+ * else. PostHog's person-on-events mode attaches a person property only to
+ * events sent AFTER the identify that set it — and `role` comes from the
+ * membership store, which loads well after the first screens render. So most
+ * of a first session arrived unattributed and the dashboards reported
+ * `role: unknown` for very nearly everything.
+ *
+ * Stamping the same two facts on the EVENT removes the dependency on timing.
+ */
+describe('ambient event properties', () => {
+    beforeEach(async () => {
+        await stopAnalytics();
+        await AsyncStorage.clear();
+        jest.clearAllMocks();
+        clearAmbientProps();
+        await saveTelemetryPrefs({ analytics: 'granted', crashReports: true });
+        await syncAnalyticsConsent();
+    });
+
+    it('stamps the role on a screen view', () => {
+        setAmbientProps({ role: 'worker', language: 'ta' });
+        screenView('Today');
+        expect(mockScreen).toHaveBeenCalledWith('Today', { role: 'worker', language: 'ta' });
+    });
+
+    it('stamps the role on a captured event', () => {
+        setAmbientProps({ role: 'owner', language: 'en' });
+        capture(EVENTS.LOG_RECORDED, { screen: 'Today' });
+        expect(mockCaptured).toHaveBeenCalledWith(
+            EVENTS.LOG_RECORDED,
+            expect.objectContaining({ role: 'owner', screen: 'Today' }),
+        );
+    });
+
+    it('lets an explicit prop win over the ambient one', () => {
+        // A call site naming a role means that role for that event.
+        setAmbientProps({ role: 'owner' });
+        capture(EVENTS.INVITE_ACCEPTED, { role: 'worker' });
+        expect(mockCaptured).toHaveBeenCalledWith(
+            EVENTS.INVITE_ACCEPTED,
+            expect.objectContaining({ role: 'worker' }),
+        );
+    });
+
+    it('carries nothing once cleared, so a signed-out device keeps no role', () => {
+        setAmbientProps({ role: 'manager' });
+        clearAmbientProps();
+        screenView('Login');
+        expect(mockScreen).toHaveBeenCalledWith('Login', {});
+    });
+
+    it('still refuses anything outside the allowlist', () => {
+        // The ambient channel must not become a back door for new fields.
+        setAmbientProps({ role: 'owner', email: 'ramu@pond.in' } as any);
+        screenView('Today');
+        expect(mockScreen).toHaveBeenCalledWith('Today', { role: 'owner' });
     });
 });

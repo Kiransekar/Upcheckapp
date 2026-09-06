@@ -1,6 +1,7 @@
 const common = {
   crashTitle: "Something went wrong",
   crashBody: "The app hit an unexpected problem. Try again.",
+  crashReportSent: "This has been sent to our team automatically. We will review it and fix it soon — thank you for helping make the app better for you and everyone else. We respect your privacy: you can turn this off any time in Settings.",
   tryAgain: "Try again",
   noOptions: "No options available",
   selectPlaceholder: "Select…",

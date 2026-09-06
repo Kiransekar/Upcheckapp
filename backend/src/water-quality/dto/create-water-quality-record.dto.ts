@@ -1,3 +1,4 @@
+import { AtLeastOneOf } from '../../common/validators/at-least-one-of.validator';
 import {
   IsString,
   IsOptional,
@@ -27,7 +28,36 @@ import {
  *   hardness       |  0  | 5000 | mg/L
  *   transparency   |  0  | 300  | cm
  */
+/**
+ * The measurements. `notes` is deliberately NOT among them — a note is not a
+ * reading, and a record carrying only a note leaves every `*AsOf` untouched
+ * while still counting as "logged".
+ */
+const WATER_QUALITY_PARAMETERS = [
+  'ph',
+  'temperature',
+  'dissolvedOxygen',
+  'salinity',
+  'ammonia',
+  'nitrite',
+  'nitrate',
+  'alkalinity',
+  'hardness',
+  'transparency',
+];
+
 export class CreateWaterQualityRecordDto {
+  /**
+   * A record must carry at least one reading (L2 / D2).
+   *
+   * Every parameter here is optional, so a completely blank payload used to
+   * save — and `logProgress.pondSlotDone` only asks whether a record EXISTS in
+   * the slot, so the reminder stopped, the Today card went green and the
+   * streak held on no data at all.
+   */
+  @AtLeastOneOf(WATER_QUALITY_PARAMETERS)
+  readonly hasAtLeastOneReading!: unknown;
+
   // Client-minted idempotency key — lets offline replays be safe (insert-or-return).
   @IsUUID()
   @IsOptional()

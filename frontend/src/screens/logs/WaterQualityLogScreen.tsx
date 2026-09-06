@@ -124,7 +124,30 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
             <Text style={styles.carriedOver}>{t('logs.waterQuality_carriedOver')}</Text>
         ) : null;
 
+    /**
+     * At least one PARAMETER, not one field. `notes` is excluded on purpose —
+     * a note moves no `*AsOf`, feeds no engine and answers no question the
+     * reminder was asking, so a record carrying only a note must not be what
+     * makes the day count as logged.
+     */
+    const hasAnyReading = [
+        ph,
+        dissolvedOxygen,
+        temperature,
+        salinity,
+        ammonia,
+        nitrite,
+        nitrate,
+        alkalinity,
+        hardness,
+        transparency,
+    ].some((v) => v.trim() !== '');
+
     const handleSave = async () => {
+        // Belt to the disabled button's braces: the button cannot be pressed
+        // in this state, but this method is the thing that must not write an
+        // empty record, and a future caller may not know that.
+        if (!hasAnyReading) return;
         setIsLoading(true);
 
         const payload = {
@@ -322,10 +345,32 @@ export const WaterQualityLogScreen = ({ route, navigation }: any) => {
                     </>
                 )}
 
+                {/*
+                  * Say WHY the button is off. A disabled control with no
+                  * explanation is the farmer's problem to solve by guessing.
+                  */}
+                {!hasAnyReading && (
+                    <Text style={styles.needsValueHint}>{t('logs.needsOneValue')}</Text>
+                )}
                 <Button
                     title={isEditing ? t('logs.updateBtn', 'Update') : t('logs.waterQuality_saveBtn')}
                     onPress={handleSave}
                     loading={isLoading}
+                    /**
+                     * A log must carry at least one reading (L2 / D2).
+                     *
+                     * Saving a blank form used to succeed, and the empty row
+                     * was never the real damage: `logProgress.pondSlotDone`
+                     * asks only whether a record EXISTS in the slot, so the
+                     * reminder stopped, the Today card went green and the
+                     * streak held — while every `*AsOf` stayed old and the
+                     * engines' confidence kept decaying. The app showed the
+                     * farmer only the optimistic half of its own disagreement.
+                     *
+                     * The server enforces this too. Client-only would leave the
+                     * offline queue able to write empties from an older build.
+                     */
+                    disabled={!hasAnyReading}
                     style={styles.saveBtn}
                 />
             </ScrollView>
@@ -420,6 +465,12 @@ const styles = StyleSheet.create({
     textArea: {
         minHeight: 80,
         textAlignVertical: 'top',
+    },
+    needsValueHint: {
+        ...theme.typeScale.bodySmall,
+        color: theme.roles.light.textSecondary,
+        textAlign: 'center',
+        marginTop: theme.spacing[2],
     },
     saveBtn: {
         marginTop: theme.spacing[4],

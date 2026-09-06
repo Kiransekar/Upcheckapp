@@ -4,11 +4,10 @@
  * there's only one) and routes straight to the common daily logs, so they never
  * have to drill Farms → Farm → Pond → Log to record a reading.
  */
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
@@ -20,6 +19,11 @@ import { theme } from '../../theme';
 import { pondsApi, type Pond } from '../../api/ponds';
 import { pondLabel } from '../../utils/pondHealth';
 import { requiresActiveCycle } from '../../features/cycleRequirement';
+import { qk } from '../../query/client';
+import { useAppQuery, useRefetchOnFocus } from '../../query/hooks';
+
+/** Stable empty fallback — a fresh `[]` each render would break the memos. */
+const EMPTY_PONDS: Pond[] = [];
 
 type Action = {
     route: string;
@@ -31,6 +35,19 @@ type Action = {
 const ACTIONS: Action[] = [
     { route: 'WaterQualityLog', labelKey: 'ponds.actionWaterQuality', icon: 'water-percent', tint: '#2196F3' },
     { route: 'FeedLog', labelKey: 'ponds.actionFeed', icon: 'corn', tint: '#FF9800' },
+    /**
+     * Mortality on the fast path (L5 / D4).
+     *
+     * It was reachable only by drilling into the pond dashboard, yet it is a
+     * daily observation for this persona AND the input to live population →
+     * biomass → running FCR → feed advice. Leaving it off the fast path
+     * silently degrades the whole engine chain: the app keeps advising on a
+     * population it believes is still there.
+     *
+     * Crop-keyed (`mortality.crop_id` is NOT NULL), so `requiresActiveCycle`
+     * already locks it and routes to CreateCycle. No new logic.
+     */
+    { route: 'MortalityLog', labelKey: 'ponds.actionMortality', icon: 'skull-outline', tint: '#B3261E' },
     { route: 'DailyRoutine', labelKey: 'ponds.actionDailyRoutine', icon: 'clipboard-check-outline', tint: '#0B8457' },
     { route: 'SamplingLog', labelKey: 'ponds.actionSampling', icon: 'scale', tint: '#4CAF50' },
     { route: 'Measurements', labelKey: 'ponds.actionMeasurements', icon: 'chart-line', tint: theme.roles.light.primary },
@@ -39,27 +56,35 @@ const ACTIONS: Action[] = [
 
 export const QuickLogScreen = ({ navigation }: any) => {
     const { t } = useTranslation();
-    const [ponds, setPonds] = useState<Pond[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    // A network failure must NOT masquerade as "no ponds — create a farm"; the
-    // farmer likely already has ponds and only the request failed. Show retry.
-    const [error, setError] = useState<any>(null);
 
-    const load = useCallback(async () => {
-        setError(null);
-        try {
-            const { data } = await pondsApi.getMine();
-            setPonds(data);
-            setSelectedId((prev) => prev ?? data[0]?.id ?? null);
-        } catch (err) {
-            setError(err);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    /**
+     * THE READ CACHE, which this screen was the only major one not to use.
+     *
+     * It held ponds in `useState` and called `pondsApi.getMine()` directly, so
+     * offline at the pond the centre "+" button — the primary entrance to the
+     * entire daily loop — hit `error && ponds.length === 0` and rendered a
+     * retry screen. The farmer never reached a form, and `saveRecord` behind it
+     * would have queued the reading perfectly: an offline-first write queue
+     * behind an online-only door.
+     *
+     * `qk.ponds()` is already in PERSISTED_ROOTS and HomeScreen already warms
+     * exactly this key, so the data is on disk and hot before the farmer ever
+     * taps "+". The fix is to stop doing something, not to build anything.
+     *
+     * The three-way render below is unchanged and stays deliberate: "failed"
+     * must never look like "loading" or like "no ponds". It simply never got a
+     * chance to show cached data.
+     */
+    const pondsQuery = useAppQuery({
+        queryKey: qk.ponds(),
+        queryFn: async () => (await pondsApi.getMine()).data,
+    });
+    useRefetchOnFocus(qk.ponds());
 
-    useFocusEffect(useCallback(() => { load(); }, [load]));
+    const ponds = pondsQuery.data ?? EMPTY_PONDS;
+    const loading = pondsQuery.isPending && ponds.length === 0;
+    const error = pondsQuery.isError ? pondsQuery.error : null;
 
     const selected = ponds.find((p) => p.id === selectedId) ?? ponds[0] ?? null;
 
@@ -102,7 +127,7 @@ export const QuickLogScreen = ({ navigation }: any) => {
                 <View style={styles.center}><ActivityIndicator size="large" color={theme.roles.light.primary} /></View>
             ) : error && ponds.length === 0 ? (
                 <View style={styles.center}>
-                    <ErrorState error={error} onRetry={() => { setLoading(true); load(); }} />
+                    <ErrorState error={error} onRetry={() => pondsQuery.refetch()} />
                 </View>
             ) : ponds.length === 0 ? (
                 <View style={styles.center}>
@@ -119,6 +144,52 @@ export const QuickLogScreen = ({ navigation }: any) => {
                 </View>
             ) : (
                 <ScrollView showsVerticalScrollIndicator={false}>
+                    {/*
+                      * TWO INTENTS, said out loud (L3 / D5).
+                      *
+                      * This screen's model is "pick a pond → pick an action".
+                      * The grid is "pick an action → all ponds". Those do not
+                      * compose: if the water-quality tile fanned out across
+                      * every pond, the picker above it would mean nothing for
+                      * that tile while remaining necessary for feed, sampling
+                      * and measurements — one tile silently behaving unlike its
+                      * neighbours depending on how many ponds you own.
+                      *
+                      * So they are two sections. It also makes the grid
+                      * discoverable instead of hidden behind a tile.
+                      *
+                      * With ONE pond the rounds section collapses to nothing
+                      * useful, so it is not rendered at all and a single-pond
+                      * farmer sees exactly the screen they saw before.
+                      */}
+                    {ponds.length > 1 && (
+                        <>
+                            <Text style={styles.sectionTitle}>{t('home.quickLogRoundsSection')}</Text>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={() => navigation.navigate('MorningRounds')}
+                                accessibilityRole="button"
+                                accessibilityLabel={t('home.quickLogRoundsTitle')}
+                                testID="quicklog-morning-rounds"
+                            >
+                                <Card style={styles.roundsCard}>
+                                    <View style={[styles.iconWrap, { backgroundColor: '#2196F31A' }]}>
+                                        <MaterialCommunityIcons name="table-large" size={26} color="#2196F3" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.roundsTitle}>{t('home.quickLogRoundsTitle')}</Text>
+                                        <Text style={styles.roundsSub}>
+                                            {t('home.quickLogRoundsSub', { count: ponds.length })}
+                                        </Text>
+                                    </View>
+                                    <MaterialCommunityIcons name="chevron-right" size={22} color={theme.roles.light.textTertiary} />
+                                </Card>
+                            </TouchableOpacity>
+
+                            <Text style={styles.sectionTitle}>{t('home.quickLogSingleSection')}</Text>
+                        </>
+                    )}
+
                     {/*
                         Pond picker — only when there's a choice to make. The
                         shared PondPicker carries the farm grouping and the
@@ -214,6 +285,23 @@ const styles = StyleSheet.create({
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     createBtn: { alignSelf: 'stretch', marginTop: theme.spacing[4] },
     forPond: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary, marginBottom: theme.spacing[3] },
+    sectionTitle: {
+        ...theme.typeScale.labelSmall,
+        color: theme.roles.light.textTertiary,
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+        marginBottom: theme.spacing[2],
+        marginTop: theme.spacing[2],
+    },
+    roundsCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: theme.spacing[3],
+        padding: theme.spacing[4],
+        marginBottom: theme.spacing[4],
+    },
+    roundsTitle: { ...theme.typeScale.labelLarge, color: theme.roles.light.textPrimary },
+    roundsSub: { ...theme.typeScale.bodySmall, color: theme.roles.light.textSecondary },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: theme.spacing[3] },
     tile: { width: '47%' },
     tileCard: { padding: theme.spacing[4], alignItems: 'center', gap: theme.spacing[2] },
