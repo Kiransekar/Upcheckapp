@@ -32,7 +32,12 @@ import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 
-import { ReportIssueScreen, reportHeadline, MAX_PHOTOS } from '../ReportIssueScreen';
+import {
+    ReportIssueScreen,
+    reportHeadline,
+    MAX_PHOTOS,
+    PHOTO_ATTACH_ENABLED,
+} from '../ReportIssueScreen';
 import { feedbackApi } from '../../../api/feedback';
 import { useSyncStore } from '../../../store/syncStore';
 
@@ -179,51 +184,46 @@ describe('sending', () => {
         expect(getByTestId('feedback-message').props.value).toBe('The app crashed');
     });
 
-    it('still sends the report when a photo fails to upload', async () => {
-        (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
-            granted: true,
-        });
-        (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-            canceled: false,
-            assets: [{ uri: 'file:///a.jpg', mimeType: 'image/jpeg', fileName: 'a.jpg' }],
-        });
-        (feedbackApi.uploadAttachment as jest.Mock).mockRejectedValue(new Error('upload died'));
+});
 
-        const { getByText, getByTestId, getByLabelText } = renderScreen();
-        await waitFor(() => expect(feedbackApi.mine).toHaveBeenCalled());
-
-        fireEvent.press(getByLabelText('Add photo'));
-        await waitFor(() => expect(ImagePicker.launchImageLibraryAsync).toHaveBeenCalled());
-
-        fireEvent.changeText(getByTestId('feedback-message'), 'See the photo');
-        fireEvent.press(getByText('Send to the team'));
-
-        // The paragraph the farmer typed is worth more than the attachment.
-        await waitFor(() =>
-            expect(feedbackApi.create).toHaveBeenCalledWith(
-                expect.objectContaining({ message: 'See the photo', attachmentPaths: [] }),
-            ),
-        );
+/**
+ * Attaching photos is off for now (PHOTO_ATTACH_ENABLED) because the upload
+ * path is not stable. These tests exist so the flag is actually covered: they
+ * fail the moment someone flips it back without re-reading the upload code.
+ */
+describe('photo attaching is temporarily off', () => {
+    it('is off', () => {
+        expect(PHOTO_ATTACH_ENABLED).toBe(false);
     });
 
-    it('a refused photo permission is explained, not a dead end', async () => {
-        (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({
-            granted: false,
-        });
-
-        const { getByLabelText, getByText, getByTestId } = renderScreen();
+    it('offers the farmer no way to attach a photo', async () => {
+        const { queryByLabelText, queryByText } = renderScreen();
         await waitFor(() => expect(feedbackApi.mine).toHaveBeenCalled());
 
-        fireEvent.press(getByLabelText('Add photo'));
-        await waitFor(() =>
-            expect(Alert.alert).toHaveBeenCalledWith('Photos need permission', expect.any(String)),
-        );
-        expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+        expect(queryByLabelText('Add photo')).toBeNull();
+        // The whole section goes, not just the button — a "Photos 0/3" header
+        // with nothing under it reads as broken, not as disabled.
+        expect(queryByText('Photos')).toBeNull();
+        expect(
+            queryByText('Up to 3 photos. A screenshot of the problem helps most.'),
+        ).toBeNull();
+    });
 
-        // ...and the report is still sendable.
-        fireEvent.changeText(getByTestId('feedback-message'), 'No photo, still broken');
+    it('sends with no attachments and never touches the picker or the upload', async () => {
+        const { getByText, getByTestId } = renderScreen();
+        await waitFor(() => expect(feedbackApi.mine).toHaveBeenCalled());
+
+        fireEvent.changeText(getByTestId('feedback-message'), 'Still broken');
         fireEvent.press(getByText('Send to the team'));
-        await waitFor(() => expect(feedbackApi.create).toHaveBeenCalled());
+
+        await waitFor(() =>
+            expect(feedbackApi.create).toHaveBeenCalledWith(
+                expect.objectContaining({ message: 'Still broken', attachmentPaths: [] }),
+            ),
+        );
+        expect(feedbackApi.uploadAttachment).not.toHaveBeenCalled();
+        expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+        expect(ImagePicker.requestMediaLibraryPermissionsAsync).not.toHaveBeenCalled();
     });
 });
 

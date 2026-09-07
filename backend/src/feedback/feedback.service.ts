@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { FeedbackReport } from './feedback.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { PushService } from '../push/push.service';
+import { EmailService } from '../email.service';
 import {
   CreateFeedbackDto,
   ListFeedbackDto,
@@ -41,6 +42,7 @@ export class FeedbackService {
     private readonly repo: Repository<FeedbackReport>,
     private readonly storage: FeedbackStorageService,
     private readonly push: PushService,
+    private readonly email: EmailService,
   ) {}
 
   // ──────────────────────────────── farmer ────────────────────────────────
@@ -58,7 +60,30 @@ export class FeedbackService {
       attachmentPaths: paths,
       status: 'new',
     });
-    return this.withUrls(await this.repo.save(report));
+    const saved = await this.repo.save(report);
+
+    // Alert the team, or the report sits in a table nobody is watching.
+    // Best-effort by the same rule as update()'s push: the farmer was shown a
+    // success, so the save must stand whether or not Brevo is up. Logged, not
+    // swallowed silently — an outage that costs us every report should be
+    // visible somewhere.
+    await this.email
+      .sendFeedbackAlertEmail({
+        id: saved.id,
+        userId: saved.userId,
+        farmId: saved.farmId,
+        category: saved.category,
+        subject: saved.subject,
+        message: saved.message,
+        attachmentCount: paths.length,
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Feedback alert email failed for report ${saved.id}: ${err?.message}`,
+        ),
+      );
+
+    return this.withUrls(saved);
   }
 
   /** Every report this user has sent, newest first. */

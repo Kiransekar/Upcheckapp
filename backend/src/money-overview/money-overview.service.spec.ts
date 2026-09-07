@@ -302,16 +302,40 @@ describe('MoneyOverviewService', () => {
       expect(farms.findAll).not.toHaveBeenCalled();
     });
 
-    // Harvests are read through another module's service, which takes no date
-    // filter, so the range is applied here.
-    it('drops harvest rows outside the range, inclusive on both bounds', async () => {
+    /**
+     * The harvest range used to be applied HERE, with a `.filter()` over rows
+     * the query had already capped at 500 — so "this week" searched the 500
+     * most recent harvests instead of the week's, and a farm with more than
+     * that showed an empty week. It belongs in SQL, which means this layer's
+     * job is to hand the filters down intact.
+     */
+    it('hands the range and the archive toggle down to the harvest query', async () => {
+      const { svc, harvests } = makeService({ entries: [] });
+
+      await svc.forUser('u', {
+        startDate: '2026-02-01',
+        endDate: '2026-02-28',
+        includeArchivedPonds: false,
+      });
+
+      expect(harvests.findMoneyEntries).toHaveBeenCalledWith(
+        'u',
+        expect.objectContaining({
+          startDate: '2026-02-01',
+          endDate: '2026-02-28',
+          includeArchivedPonds: false,
+        }),
+      );
+    });
+
+    // Whatever the three queries return is merged as-is: they are each already
+    // filtered, so a second pass here could only disagree with them.
+    it('keeps every row the harvest query returned', async () => {
       const { svc } = makeService({
         entries: [],
         harvests: [
-          harvestEntry({ id: 'h-before', transactionDate: '2026-01-31' }),
           harvestEntry({ id: 'h-start', transactionDate: '2026-02-01' }),
           harvestEntry({ id: 'h-end', transactionDate: '2026-02-28' }),
-          harvestEntry({ id: 'h-after', transactionDate: '2026-03-01' }),
         ],
       });
 
@@ -320,10 +344,7 @@ describe('MoneyOverviewService', () => {
         endDate: '2026-02-28',
       });
 
-      expect(out.allEntries.map((e: any) => e.id)).toEqual([
-        'h-end',
-        'h-start',
-      ]);
+      expect(out.allEntries.map((e: any) => e.id)).toEqual(['h-end', 'h-start']);
     });
 
     it('sums the per-farm inventory subtotals so the tab needs no second request', async () => {

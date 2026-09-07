@@ -71,7 +71,24 @@ const settings = {
   aboutUpcheck: 'About Neerani',
   appTagline: 'Shrimp Aquaculture Management',
   versionLabel: 'Version',
-  buildInfo: 'Build 2026.04.30',
+  buildInfo: 'Build {{build}}',
+
+  // ── Over-the-air update status (UpdateStatus, shown under the version) ────
+  otaEmbedded: 'Running the version built into the app',
+  otaRunning: 'Update from {{date}}, {{time}}',
+  otaPending: 'New update ready — restart the app to use it',
+  otaAvailable: 'A new update is available',
+  otaChecking: 'Checking for updates…',
+  otaDownloading: 'Downloading update…',
+  otaDisabled: 'Updates are off in this build',
+  otaLatestCheckedAt: "You're on the latest — checked at {{time}}",
+  otaCheckedAt: 'Checked at {{time}}',
+  otaCheckFailed: 'Could not check. Try again when you have signal.',
+  otaCheck: 'Check for updates',
+  otaDownload: 'Download update',
+  otaRestart: 'Restart now',
+  otaUpdateId: 'Update {{id}}',
+
   descriptionLabel: 'Description',
   descriptionText:
     'Neerani is a comprehensive shrimp aquaculture management application designed to help farmers monitor water quality, manage feed, track growth, and optimize cultivation practices.',

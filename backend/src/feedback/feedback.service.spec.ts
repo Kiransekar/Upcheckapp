@@ -5,6 +5,7 @@ import { FeedbackService } from './feedback.service';
 import { FeedbackReport } from './feedback.entity';
 import { FeedbackStorageService } from './feedback-storage.service';
 import { PushService } from '../push/push.service';
+import { EmailService } from '../email.service';
 
 const MINE = 'farmer-1';
 const THEIRS = 'farmer-2';
@@ -19,6 +20,7 @@ describe('FeedbackService', () => {
   };
   let storage: { signAttachments: jest.Mock };
   let push: { sendToUser: jest.Mock };
+  let email: { sendFeedbackAlertEmail: jest.Mock };
 
   beforeEach(async () => {
     repo = {
@@ -29,6 +31,7 @@ describe('FeedbackService', () => {
     };
     storage = { signAttachments: jest.fn().mockResolvedValue([]) };
     push = { sendToUser: jest.fn().mockResolvedValue(true) };
+    email = { sendFeedbackAlertEmail: jest.fn().mockResolvedValue(undefined) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -36,6 +39,7 @@ describe('FeedbackService', () => {
         { provide: getRepositoryToken(FeedbackReport), useValue: repo },
         { provide: FeedbackStorageService, useValue: storage },
         { provide: PushService, useValue: push },
+        { provide: EmailService, useValue: email },
       ],
     }).compile();
 
@@ -91,6 +95,85 @@ describe('FeedbackService', () => {
           attachmentPaths: [`${MINE}/../${THEIRS}/abc.jpg`],
         }),
       ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  /**
+   * A report saved to a table nobody watches is a report nobody answers. The
+   * email is the alert; the constraints on it are privacy and never costing
+   * the farmer their submission.
+   */
+  describe('team alert email', () => {
+    it('emails the team with what triage needs', async () => {
+      await service.create(MINE, {
+        category: 'problem',
+        message: 'Water test did not save',
+        subject: 'Saving is broken',
+        farmId: 'farm-9',
+        attachmentPaths: [`${MINE}/a.jpg`, `${MINE}/b.jpg`],
+      });
+
+      expect(email.sendFeedbackAlertEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: MINE,
+          farmId: 'farm-9',
+          category: 'problem',
+          subject: 'Saving is broken',
+          message: 'Water test did not save',
+          attachmentCount: 2,
+        }),
+      );
+      // The id is what gets pasted into the dashboard, so it has to be there.
+      expect(email.sendFeedbackAlertEmail.mock.calls[0][0]).toHaveProperty('id');
+    });
+
+    /**
+     * The Privacy Policy governs the reporter's contact details and none of
+     * them help decide what to do about a bug. The user id is the handle.
+     */
+    it('never puts the reporter\'s phone or email in the payload', async () => {
+      // A user object carrying contact details, as the entity would if the
+      // relation were ever eager-loaded onto the saved row.
+      repo.save.mockImplementation((x: any) =>
+        Promise.resolve({
+          ...x,
+          id: 'r1',
+          user: { phone: '+919876543210', email: 'farmer@example.com' },
+        }),
+      );
+
+      await service.create(MINE, { category: 'problem', message: 'broken' });
+
+      const payload = JSON.stringify(
+        email.sendFeedbackAlertEmail.mock.calls[0][0],
+      );
+      expect(payload).not.toContain('9876543210');
+      expect(payload).not.toContain('farmer@example.com');
+      expect(payload).not.toMatch(/phone/i);
+    });
+
+    // Same rule as update()'s push: the farmer is shown a success, so the row
+    // has to stand whether or not Brevo is up.
+    it('still saves the report when the mailer is down', async () => {
+      email.sendFeedbackAlertEmail.mockRejectedValue(new Error('brevo down'));
+
+      await expect(
+        service.create(MINE, { category: 'problem', message: 'broken' }),
+      ).resolves.toEqual(
+        expect.objectContaining({ message: 'broken', status: 'new' }),
+      );
+      expect(repo.save).toHaveBeenCalled();
+    });
+
+    it('does not email when the attachment check rejects the report', async () => {
+      await expect(
+        service.create(MINE, {
+          category: 'problem',
+          message: 'sneaky',
+          attachmentPaths: [`${THEIRS}/a.jpg`],
+        }),
+      ).rejects.toThrow(ForbiddenException);
+      expect(email.sendFeedbackAlertEmail).not.toHaveBeenCalled();
     });
   });
 

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import { Request, Response } from 'express';
+import { Sentry } from '../sentry';
 
 @Catch(QueryFailedError)
 export class TypeORMExceptionFilter implements ExceptionFilter {
@@ -32,6 +33,12 @@ export class TypeORMExceptionFilter implements ExceptionFilter {
     } else if (code === '23502') {
       status = HttpStatus.BAD_REQUEST;
       message = 'A required field is missing (Not Null Violation).';
+    }
+
+    // A code we have no friendly mapping for is a real 500, and this filter
+    // shadows the catch-all Sentry one — so report it here or it is lost.
+    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+      Sentry.captureException(exception);
     }
 
     // Log the raw pg detail server-side only — it can contain schema/column/

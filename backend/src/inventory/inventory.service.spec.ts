@@ -206,14 +206,53 @@ describe('InventoryService', () => {
       expect(pairingRepo.find).toHaveBeenCalledWith({
         where: { farmId: expect.objectContaining({ _value: ['f1', 'f2'] }) },
       });
-      const { where } = items.find.mock.calls[0][0];
-      expect(where.id._value.sort()).toEqual(['item-a', 'item-b']);
+      const [, params] = updateBuilder.where.mock.calls[0];
+      expect(params.scopeFarmIds).toEqual(['f1', 'f2']);
+      expect([...params.itemIds].sort()).toEqual(['item-a', 'item-b']);
     });
 
     it('returns [] when the caller may view no farm', async () => {
       farmAccess.getFarmIdsWithCapability.mockResolvedValue([]);
       expect(await service.findAll('nobody')).toEqual([]);
-      expect(items.find).not.toHaveBeenCalled();
+      expect(items.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    /**
+     * The list was the ONE reader of three that recognised only
+     * `inventory_farms`. `countLowStock` and `farmsFor` both keep a fallback to
+     * the legacy `farm_id` column for un-backfilled rows — so such an item was
+     * counted in the dashboard's low-stock badge and openable by id, but was
+     * missing from the store screen the badge sends the farmer to.
+     */
+    it('still lists a legacy row that has no inventory_farms pairing', async () => {
+      pairingRepo.find.mockResolvedValue([]); // never backfilled
+      updateBuilder.getMany.mockResolvedValue([
+        { id: 'legacy-1', farmId: 'farm-1', name: 'Old feed', quantity: 0 },
+      ]);
+
+      const result = await service.findAll('u1', 'farm-1');
+
+      expect(result.map((i) => i.id)).toEqual(['legacy-1']);
+      // …and it reports the farm it is stocked for, from the legacy column.
+      expect(result[0].farmIds).toEqual(['farm-1']);
+      // Scoped by the legacy column alone — no empty IN (...) to match nothing.
+      expect(updateBuilder.where).toHaveBeenCalledWith(
+        'item.farmId IN (:...scopeFarmIds)',
+        { scopeFarmIds: ['farm-1'] },
+      );
+    });
+
+    it('filters by category without losing the farm scope', async () => {
+      pairingRepo.find.mockResolvedValue([
+        { inventoryId: 'item-a', farmId: 'farm-1' },
+      ]);
+
+      await service.findAll('u1', 'farm-1', 'feed');
+
+      expect(updateBuilder.andWhere).toHaveBeenCalledWith(
+        'item.category = :category',
+        { category: 'feed' },
+      );
     });
   });
 
@@ -406,6 +445,95 @@ describe('InventoryService', () => {
 
       await service.update('item-1', { reorderLevel: 5 } as any, 'u1');
 
+      expect(alerts.resolveAutoAlerts).toHaveBeenCalledWith(
+        'inventory_low_stock',
+        'inventoryItemId',
+        'item-1',
+      );
+    });
+
+    /**
+     * The two stock writers that were still not talking to the alerts, after
+     * `update` was fixed. Same bug shape both times: a path that changes
+     * whether "this item is low" is TRUE, without touching the alert that says
+     * so — so the store screen (which derives the badge from the row) and the
+     * Today banner (which reads the alert) disagreed about the same item.
+     */
+    it('raises the alert for an item CREATED already below its reorder level', async () => {
+      // How a farmer records something they have run out of and must buy.
+      items.save.mockResolvedValue({
+        id: 'item-1',
+        farmId: 'farm-1',
+        name: 'Feed',
+        quantity: 0,
+        reorderLevel: 10,
+        unit: 'bag',
+      });
+
+      await service.create(
+        {
+          farmIds: ['farm-1'],
+          name: 'Feed',
+          category: 'feed',
+          quantity: 0,
+          reorderLevel: 10,
+        } as any,
+        'u1',
+      );
+
+      expect(alerts.createAutoAlert).toHaveBeenCalledWith(
+        'owner-1',
+        'farm-1',
+        'inventory_low_stock',
+        expect.any(String),
+        expect.stringContaining('Feed'),
+        'warning',
+        { inventoryItemId: 'item-1' },
+      );
+    });
+
+    it('does NOT raise an alert for an item created with healthy stock', async () => {
+      items.save.mockResolvedValue({
+        id: 'item-1',
+        farmId: 'farm-1',
+        name: 'Feed',
+        quantity: 50,
+        reorderLevel: 10,
+        unit: 'bag',
+      });
+
+      await service.create(
+        {
+          farmIds: ['farm-1'],
+          name: 'Feed',
+          category: 'feed',
+          quantity: 50,
+          reorderLevel: 10,
+        } as any,
+        'u1',
+      );
+
+      expect(alerts.createAutoAlert).not.toHaveBeenCalled();
+    });
+
+    it('closes the open alert when a low item is DELETED', async () => {
+      // The alert carries the item id in a JSON `data` blob, not a foreign
+      // key, so nothing cascades. Deleting a low item used to leave "X is
+      // running low" open forever, pointing at a row that no longer exists —
+      // and it could never clear itself, because the item can never come back
+      // above its reorder level.
+      items.findOneBy.mockResolvedValue({
+        id: 'item-1',
+        farmId: 'farm-1',
+        name: 'Feed',
+        quantity: 0,
+        reorderLevel: 10,
+        unit: 'bag',
+      });
+
+      await service.remove('item-1', 'u1');
+
+      expect(items.delete).toHaveBeenCalledWith('item-1');
       expect(alerts.resolveAutoAlerts).toHaveBeenCalledWith(
         'inventory_low_stock',
         'inventoryItemId',
@@ -804,9 +932,11 @@ describe('InventoryService', () => {
         { inventoryId: 'i1', farmId: 'f1' },
         { inventoryId: 'i1', farmId: 'f2' },
       ]);
-      items.find.mockResolvedValue([{ id: 'i1', farmId: 'f1' }]);
+      updateBuilder.getMany.mockResolvedValue([{ id: 'i1', farmId: 'f1' }]);
       const result = await service.findAll('user-1', 'f2');
       expect(result.map((i: any) => i.id)).toContain('i1');
+      // Listed under f2 even though its fast-path column says f1.
+      expect(result[0].farmIds.sort()).toEqual(['f1', 'f2']);
     });
 
     it('reads an item when the caller has VIEW_INVENTORY on any paired farm', async () => {

@@ -89,12 +89,18 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
             const typeParam =
                 activeFilter === 'all' ? undefined : (activeFilter as 'income' | 'expense');
 
+            // "All ›" from the combined Money tab navigates here with NO farm,
+            // deliberately, so the ledger shows every farm. The summary
+            // endpoint is per-farm and was still called — `/transactions/farm/
+            // undefined/summary` — which rejected, took the whole Promise.all
+            // down with it and left the farmer staring at an error alert over
+            // an empty list. No farm, no summary card; the list still loads.
             const [txRes, sumRes] = await Promise.all([
                 transactionsApi.getAll(farmId, typeParam),
-                transactionsApi.getSummary(farmId),
+                farmId ? transactionsApi.getSummary(farmId) : Promise.resolve(null),
             ]);
             setTransactions(txRes.data);
-            setSummary(sumRes.data);
+            setSummary(sumRes?.data ?? null);
         } catch (err: any) {
             Alert.alert(t('common.error'), apiErrorMessage(err, t('finance.loadError')));
         } finally {
@@ -181,6 +187,16 @@ export const TransactionsScreen = ({ route, navigation }: any) => {
         return (
             <Card style={styles.summaryCard} variant="elevated">
                 <Text style={styles.summaryTitle}>{t('finance.financialSummary')}</Text>
+                {/*
+                  * Same three words as the Money tab's hero — "Total income",
+                  * "Total expense", "Net profit" — over a DIFFERENT number:
+                  * this endpoint sums the `transactions` table only, for all
+                  * time, for one farm, while the Money tab also counts pond
+                  * costs and harvest sales over the period the farmer picked.
+                  * Both are true. Neither is wrong. Which one this is has to
+                  * be on the card, or the app reads as disagreeing with itself.
+                  */}
+                <Text style={styles.summaryNote}>{t('finance.ledgerOnlyNote')}</Text>
                 <View style={styles.summaryRow}>
                     <View style={styles.summaryItem}>
                         <Text style={styles.summaryLabel}>{t('finance.totalIncome')}</Text>
@@ -631,6 +647,12 @@ const styles = StyleSheet.create({
     summaryTitle: {
         ...theme.typeScale.h3,
         color: theme.roles.light.textPrimary,
+        marginBottom: theme.spacing[1],
+    },
+    summaryNote: {
+        ...theme.typeScale.bodySmall,
+        fontSize: 11,
+        color: theme.roles.light.textTertiary,
         marginBottom: theme.spacing[4],
     },
     summaryRow: {

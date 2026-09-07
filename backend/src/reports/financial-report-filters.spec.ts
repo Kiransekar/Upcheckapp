@@ -18,7 +18,9 @@ import { ReportsService } from './reports.service';
 
 type PondStub = { id: string; name?: string; status?: string; revenue?: number; expenses?: number };
 
-const build = (opts: { ponds?: PondStub[]; transactions?: any[] } = {}) => {
+const build = (
+  opts: { ponds?: PondStub[]; transactions?: any[]; inScope?: string[] } = {},
+) => {
   const ponds = opts.ponds ?? [{ id: 'pond-1' }];
 
   const pondsService = {
@@ -73,6 +75,16 @@ const build = (opts: { ponds?: PondStub[]; transactions?: any[] } = {}) => {
     ),
   } as any;
 
+  const farmAccess = {
+    assertCanAccessFarm: jest.fn().mockResolvedValue({}),
+    // Unscoped caller — the real service returns every pond on the farm
+    // (archived included) for anyone who is not pond-scoped, which owner and
+    // manager always are. `opts.inScope` plays a scoped one.
+    getAccessiblePondIds: jest
+      .fn()
+      .mockResolvedValue(opts.inScope ?? ponds.map((p) => p.id)),
+  } as any;
+
   const service = new ReportsService(
     pondsService,
     {} as any, // inventoryService
@@ -81,10 +93,10 @@ const build = (opts: { ponds?: PondStub[]; transactions?: any[] } = {}) => {
     expensesService,
     {} as any, // samplingService
     cropsService,
-    { assertCanAccessFarm: jest.fn().mockResolvedValue({}) } as any,
+    farmAccess,
     transactionsService,
   );
-  return { service, pondsService, transactionsService, expensesService };
+  return { service, pondsService, transactionsService, expensesService, farmAccess };
 };
 
 const LIVE: PondStub = { id: 'live', name: 'Pond A', status: 'active', revenue: 10000, expenses: 4000 };
@@ -196,5 +208,77 @@ describe('getFinancialReport — date range', () => {
       }),
     ).rejects.toThrow(BadRequestException);
     expect(pondsService.findAll).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * A transaction may name a pond, and the report treated it as farm-level money
+ * regardless. Two consequences, both visible on the Money tab:
+ *
+ *  - "Count archived ponds" claimed to drop a retired pond's money and dropped
+ *    only the `expenses` half of it. The headline moved by less than the hint
+ *    next to the switch said it would.
+ *  - `ponds[]` — the ONLY thing that can answer "how much of this came from a
+ *    retired pond", which is what that hint reads — left the transaction out,
+ *    so the rows stopped adding up to the total above them.
+ */
+describe('getFinancialReport — transactions attributed to a pond', () => {
+  const TX = [
+    { type: 'expense', category: 'Feed', amount: 1000, pondId: 'live' },
+    // No pond: a licence, a shared generator. Farm-level money, always counted.
+    { type: 'expense', category: 'Licence', amount: 500 },
+    { type: 'expense', category: 'Feed', amount: 7000, pondId: 'gone' },
+  ];
+
+  it('lands a pond transaction in that pond row, not only in the farm total', async () => {
+    const { service } = build({ ponds: [LIVE, ARCHIVED], transactions: TX });
+
+    const report = await service.getFinancialReport('farm-1', 'user-1');
+
+    const byPond = Object.fromEntries(report.ponds.map((p) => [p.pondId, p]));
+    expect(byPond.live.expenses).toBe(5000); // 4000 pond costs + 1000 typed
+    expect(byPond.gone.expenses).toBe(27000); // 20000 pond costs + 7000 typed
+    expect(report.totalExpenses).toBe(32500); // + the 500 farm-level licence
+    // The per-pond rows plus the farm-level rows are the whole total.
+    expect(
+      report.ponds.reduce((a, p) => a + p.expenses, 0) + 500,
+    ).toBe(report.totalExpenses);
+  });
+
+  it('drops a transaction on an archived pond when includeArchivedPonds is false', async () => {
+    const { service } = build({ ponds: [LIVE, ARCHIVED], transactions: TX });
+
+    const report = await service.getFinancialReport('farm-1', 'user-1', {
+      includeArchivedPonds: false,
+    });
+
+    // 4000 live pond costs + 1000 typed on the live pond + 500 farm-level. The
+    // ₹7,000 recorded against the retired pond goes with the pond, which is
+    // what the toggle says it does.
+    expect(report.totalExpenses).toBe(5500);
+  });
+
+  /**
+   * VIEW_FINANCIALS is overridable, so an owner CAN grant it to a pond-scoped
+   * viewer or worker. `pondsService.findAll` is not member-aware, so for that
+   * caller the report summed costs for the WHOLE farm while its revenue came
+   * out pond by pond through a per-pond authorization check that 403'd on the
+   * ponds outside the scope — one report answering at two different scopes,
+   * and neither of them the one the entry list underneath used.
+   */
+  it('answers at the scoped caller’s ponds, costs and revenue alike', async () => {
+    const { service, expensesService } = build({
+      ponds: [LIVE, ARCHIVED],
+      transactions: TX,
+      inScope: ['live'],
+    });
+
+    const report = await service.getFinancialReport('farm-1', 'user-1');
+
+    expect(expensesService.totalsByPond).toHaveBeenCalledWith(['live'], {});
+    expect(report.ponds.map((p) => p.pondId)).toEqual(['live']);
+    expect(report.revenue).toBe(10000);
+    // 4000 + 1000 on the visible pond + 500 farm-level. Nothing from `gone`.
+    expect(report.totalExpenses).toBe(5500);
   });
 });

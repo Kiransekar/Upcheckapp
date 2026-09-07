@@ -351,22 +351,92 @@ describe('FeedRecordsService', () => {
       expect(mockRepository.delete).toHaveBeenCalledWith(recordId);
       expect(result).toEqual({ message: 'Feed record deleted successfully' });
     });
+
+    /**
+     * Stock is credited back BEFORE the row goes, mirroring `create` (which
+     * deducts first and compensates if the save fails). The other order lost
+     * stock outright: the delete committed, then adjustStock threw — the item
+     * had since been deleted, or the user no longer held WRITE_OPERATIONAL on
+     * one of its paired farms — and the credit never happened. With the feed
+     * log gone there was nothing left to say the store had been drawn down, so
+     * the quantity was simply wrong from then on, with no trail explaining it.
+     */
+    it('restores stock BEFORE deleting the record', async () => {
+      const inventory = module.get<InventoryService>(InventoryService);
+      const order: string[] = [];
+      (inventory.adjustStock as jest.Mock).mockImplementation(async () => {
+        order.push('adjustStock');
+      });
+      mockRepository.delete.mockImplementation(async () => {
+        order.push('delete');
+        return { affected: 1 };
+      });
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'r1',
+        quantityKg: 50,
+        inventoryItemId: 'inv-1',
+      });
+
+      await service.remove('r1', 'user-1');
+
+      expect(order).toEqual(['adjustStock', 'delete']);
+      expect(inventory.adjustStock).toHaveBeenCalledWith(
+        'inv-1',
+        50,
+        'user-1',
+        expect.objectContaining({ reason: 'Feed log deleted' }),
+      );
+    });
+
+    it('re-deducts the credit if the delete then fails', async () => {
+      const inventory = module.get<InventoryService>(InventoryService);
+      mockRepository.findOneBy.mockResolvedValue({
+        id: 'r1',
+        quantityKg: 50,
+        inventoryItemId: 'inv-1',
+      });
+      mockRepository.delete.mockRejectedValue(new Error('db down'));
+
+      await expect(service.remove('r1', 'user-1')).rejects.toThrow('db down');
+
+      // +50 credited, then -50 taken back: the record still exists and still
+      // claims to have used that feed, so the stock must still be down.
+      expect(inventory.adjustStock).toHaveBeenNthCalledWith(
+        2,
+        'inv-1',
+        -50,
+        'user-1',
+        expect.objectContaining({ reason: 'Feed log delete failed' }),
+      );
+    });
   });
 
   describe('getTotalFeedByPond', () => {
-    it('should return total feed for a pond', async () => {
-      const pondId = 'pond-1';
-      const mockResult = { totalFeed: '150' };
-
+    const mockSum = (totalFeed: unknown) => {
       mockRepository.createQueryBuilder.mockReturnValue({
         select: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue(mockResult),
+        getRawOne: jest.fn().mockResolvedValue({ totalFeed }),
       });
+    };
 
-      const result = await service.getTotalFeedByPond(pondId);
+    // SUM() over a pg `numeric` column arrives as a STRING. This used to be
+    // returned raw — so this method answered '150' where its sibling
+    // getDailyFeedUsage answers 150, and the controller served the string
+    // straight to the client. `'150' + 10` is '15010'.
+    it('returns a NUMBER, not the pg numeric string', async () => {
+      mockSum('150');
 
-      expect(result).toBe('150');
+      const result = await service.getTotalFeedByPond('pond-1');
+
+      expect(result).toBe(150);
+      expect(typeof result).toBe('number');
+    });
+
+    it('returns 0 for a pond with no feed records', async () => {
+      mockSum(null); // SUM() over no rows is NULL
+
+      await expect(service.getTotalFeedByPond('pond-1')).resolves.toBe(0);
     });
   });
 });

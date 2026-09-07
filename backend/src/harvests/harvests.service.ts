@@ -26,6 +26,10 @@ export interface HarvestMoneyEntry {
   description: string;
   buyerName?: string;
   weightKg?: number;
+  pondId: string | null;
+  pondName: string | null;
+  /** The pond this sale came from is retired. Marked, never hidden (D3). */
+  archived: boolean;
 }
 
 const asDateString = (d: unknown): string =>
@@ -162,18 +166,52 @@ export class HarvestsService {
    * narrower than `findAll`'s merely-accessible scoping on purpose. It matches
    * `transactionsService.findAll`, whose output these rows are merged with.
    */
-  async findMoneyEntries(userId: string): Promise<HarvestMoneyEntry[]> {
+  async findMoneyEntries(
+    userId: string,
+    q?: {
+      startDate?: string;
+      endDate?: string;
+      includeArchivedPonds?: boolean;
+    },
+  ): Promise<HarvestMoneyEntry[]> {
     const farmIds = await this.farmAccess.getFarmIdsWithCapability(
       userId,
       'VIEW_FINANCIALS',
     );
     if (farmIds.length === 0) return [];
 
-    const rows = await this.harvestsRepository
+    const qb = this.harvestsRepository
       .createQueryBuilder('harvest')
       .innerJoin('harvest.crop', 'crop')
       .innerJoin('crop.pond', 'pond')
-      .where('pond.farmId IN (:...farmIds)', { farmIds })
+      .where('pond.farmId IN (:...farmIds)', { farmIds });
+
+    /**
+     * The same two filters the report applies to the revenue it puts in the
+     * headline, applied HERE rather than by the caller in memory.
+     *
+     * D3: the Money tab's "count archived ponds" toggle dropped a retired
+     * pond's revenue from the total (the report skips the pond entirely) and
+     * kept its harvest sale rows in the list underneath — a line item the
+     * total above it did not contain.
+     *
+     * And the date range has to be SQL, not a `.filter()` after the fact: the
+     * read is capped at 500 rows, so filtering afterwards made "this week"
+     * search only the 500 most recent harvests instead of the week's.
+     */
+    if (q?.includeArchivedPonds === false) {
+      qb.andWhere("pond.status <> 'archived'");
+    }
+    // `harvests.harvest_date` is a plain DATE column, so `YYYY-MM-DD` bounds
+    // compare directly — no IST instant conversion, same as `expenses.date`.
+    if (q?.startDate)
+      qb.andWhere('harvest.harvestDate >= :startDate', {
+        startDate: q.startDate,
+      });
+    if (q?.endDate)
+      qb.andWhere('harvest.harvestDate <= :endDate', { endDate: q.endDate });
+
+    const rows = await qb
       // A harvest logged with no sale price yet is NOT ₹0 of revenue — it is a
       // sale that has not happened. It contributes nothing to the report's
       // revenue either, so listing it would put a line item on screen that the
@@ -185,8 +223,10 @@ export class HarvestsService {
       .addSelect('harvest.salePriceTotal', 'salePriceTotal')
       .addSelect('harvest.weightKg', 'weightKg')
       .addSelect('harvest.buyerName', 'buyerName')
+      .addSelect('pond.id', 'pondId')
       .addSelect('pond.farmId', 'farmId')
       .addSelect('pond.name', 'pondName')
+      .addSelect('pond.status', 'pondStatus')
       .addSelect('crop.name', 'cropName')
       .orderBy('harvest.harvestDate', 'DESC')
       // ponytail: same bounded cap as findAll; paginate if a farm ever needs it.
@@ -204,6 +244,11 @@ export class HarvestsService {
       amount: Number(r.salePriceTotal) || 0,
       buyerName: r.buyerName ?? undefined,
       weightKg: r.weightKg == null ? undefined : Number(r.weightKg),
+      pondId: r.pondId ?? null,
+      pondName: r.pondName ?? null,
+      // Marked, never hidden (D3) — same flag the pond-cost rows carry, so the
+      // client colours both from one rule.
+      archived: r.pondStatus === 'archived',
     }));
   }
 

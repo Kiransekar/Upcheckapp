@@ -246,14 +246,20 @@ export class FeedRecordsService {
 
   async remove(id: string, userId?: string): Promise<{ message: string }> {
     const existing = await this.findOne(id);
-    await this.recordsRepository.delete(id);
-    // Restore any stock this record had deducted, so deleting a feed log does
-    // not permanently drift inventory.
-    if (existing.inventoryItemId && userId) {
+    const shouldRestore = !!existing.inventoryItemId && !!userId;
+
+    // Restore the stock BEFORE deleting the record, mirroring `create` — which
+    // deducts first and compensates if the save fails. The other order silently
+    // lost stock: the delete committed, then `adjustStock` threw (the item has
+    // since been deleted, or this user no longer holds WRITE_OPERATIONAL on one
+    // of its paired farms), and the credit never happened. The feed log was
+    // gone, so nothing was left to say the store was ever drawn down — the
+    // quantity was simply wrong from then on, with no trail explaining it.
+    if (shouldRestore) {
       await this.inventoryService.adjustStock(
-        existing.inventoryItemId,
+        existing.inventoryItemId!,
         Number(existing.quantityKg),
-        userId,
+        userId!,
         {
           capability: 'WRITE_OPERATIONAL',
           reason: 'Feed log deleted',
@@ -261,16 +267,42 @@ export class FeedRecordsService {
         },
       );
     }
+
+    try {
+      await this.recordsRepository.delete(id);
+    } catch (err) {
+      // Un-credit, so a failed delete does not leave stock that was never
+      // returned sitting on top of a record that still claims to have used it.
+      if (shouldRestore) {
+        await this.inventoryService.adjustStock(
+          existing.inventoryItemId!,
+          -Number(existing.quantityKg),
+          userId!,
+          {
+            capability: 'WRITE_OPERATIONAL',
+            reason: 'Feed log delete failed',
+            feedRecordId: id,
+          },
+        );
+      }
+      throw err;
+    }
     return { message: 'Feed record deleted successfully' };
   }
 
-  async getTotalFeedByPond(pondId: string) {
+  async getTotalFeedByPond(pondId: string): Promise<number> {
     const result = await this.recordsRepository
       .createQueryBuilder('feed')
       .select('SUM(feed.quantityKg)', 'totalFeed')
       .where('feed.pondId = :pondId', { pondId })
       .getRawOne();
-    return result?.totalFeed || 0;
+    // SUM over a pg `numeric` column comes back as a STRING, so this returned
+    // '123.45' where its sibling `getDailyFeedUsage` returns 123.45 — and it is
+    // served raw to the client by GET /feed-records/pond/:id/total. Every
+    // consumer had to remember to coerce (reports.service.ts does; the wire
+    // does not), and the first one that forgot would have concatenated instead
+    // of added. Coerce once, here.
+    return parseFloat(result?.totalFeed ?? '0') || 0;
   }
   async getDailyFeedUsage(farmId: string, date: Date) {
     // Bucket by the farm's IST calendar day. The backend runs in UTC on Render,

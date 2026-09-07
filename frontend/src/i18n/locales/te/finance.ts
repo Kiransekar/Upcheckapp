@@ -46,6 +46,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'ఆర్థిక సారాంశం',
+  ledgerOnlyNote: "ఇక్కడ నమోదు చేసిన ఎంట్రీలు మాత్రమే, మొత్తం కాలానికి. డబ్బు ట్యాబ్‌లో చెరువు ఖర్చులు, పంట అమ్మకాలు కూడా లెక్కిస్తారు.",
   totalIncome: 'మొత్తం ఆదాయం',
   totalExpense: 'మొత్తం ఖర్చు',
 
@@ -91,6 +92,7 @@ const finance = {
   byFarm: "ఫారం వారీగా",
   farmInOut: "వచ్చినది {{income}} · పోయినది {{expense}}",
   creditOutstanding: "డీలర్ అప్పు బాకీ",
+  creditAllFarmsNote: "అన్ని ఫారాలు, అన్ని తేదీలు — డీలర్ అప్పు పై చిప్‌లతో వడపోత కాదు.",
   creditDue: "{{dealer}} · {{date}} న",
   creditDealers: "{{count}} డీలర్లలో",
   creditDealers_one: "ఒక డీలర్",

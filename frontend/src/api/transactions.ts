@@ -12,15 +12,16 @@ export interface Transaction {
     referenceNumber?: string;
     createdAt: string;
     /**
-     * ALWAYS FALSE for a transaction, and the backend says so deliberately
-     * (`transactions.service.ts`). A transaction may now optionally name a
-     * pond, but the read does not join it, so this flag cannot answer whether
-     * that pond is archived.
+     * The pond this money is attributed to is archived. Real now — the read
+     * joins the pond — but only meaningful when the row names one: a
+     * farm-level transaction belongs to no pond and always reports `false`.
      *
-     * Do not read a `false` here as "no archived money" — read the financial
-     * report's `ponds[]` for that, or an expense row, which does know.
+     * So a `false` still does not mean "no archived money on this farm". The
+     * financial report's `ponds[]` is the only thing that answers that.
      */
     archived?: boolean;
+    /** The pond's display name, when the row names a pond. */
+    pondName?: string | null;
     /** The row came from an inventory purchase rather than a typed entry. */
     inventoryPurchase?: boolean;
     /**

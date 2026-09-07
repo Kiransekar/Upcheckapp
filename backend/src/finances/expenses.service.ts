@@ -16,6 +16,7 @@ import {
 } from '../transactions/dto/money-query.dto';
 import { HarvestsService } from '../harvests/harvests.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
+import { toIstDateString } from '../common/ist-date';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -246,8 +247,13 @@ export class ExpensesService {
       farmId: r.farmId,
       pondId: r.pondId,
       pondName: r.pondDisplayName || r.pondCode || null,
+      // IST-local day, not UTC (DATE-1). A driver that hydrates the DATE column
+      // into a Date at local midnight is 18:30 UTC the day BEFORE, so
+      // `toISOString()` filed the cost one day early — and the SQL range filter
+      // above, which compares the raw date, disagreed with the day printed on
+      // the row it returned.
       transactionDate:
-        r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date),
+        r.date instanceof Date ? toIstDateString(r.date) : String(r.date),
       type: 'expense' as const,
       category: r.category,
       description: r.description ?? null,

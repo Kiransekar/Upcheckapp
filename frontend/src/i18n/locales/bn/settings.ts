@@ -71,7 +71,24 @@ const settings = {
   aboutUpcheck: 'Neerani সম্পর্কে',
   appTagline: 'চিংড়ি অ্যাকুয়াকালচার ম্যানেজমেন্ট',
   versionLabel: 'সংস্করণ',
-  buildInfo: 'বিল্ড 2026.04.30',
+  buildInfo: 'বিল্ড {{build}}',
+
+  // ── ওটিএ আপডেট অবস্থা (UpdateStatus, সংস্করণের নিচে) ─────────────────────
+  otaEmbedded: 'অ্যাপের সঙ্গে দেওয়া সংস্করণটি চলছে',
+  otaRunning: '{{date}}, {{time}}-এর আপডেট চলছে',
+  otaPending: 'নতুন আপডেট প্রস্তুত — ব্যবহার করতে অ্যাপটি আবার খুলুন',
+  otaAvailable: 'নতুন আপডেট এসেছে',
+  otaChecking: 'আপডেট দেখা হচ্ছে…',
+  otaDownloading: 'আপডেট ডাউনলোড হচ্ছে…',
+  otaDisabled: 'এই বিল্ডে আপডেট বন্ধ আছে',
+  otaLatestCheckedAt: 'আপনি সর্বশেষ সংস্করণে আছেন — {{time}}-এ দেখা হয়েছে',
+  otaCheckedAt: '{{time}}-এ দেখা হয়েছে',
+  otaCheckFailed: 'দেখা গেল না। নেটওয়ার্ক এলে আবার চেষ্টা করুন।',
+  otaCheck: 'আপডেট দেখুন',
+  otaDownload: 'আপডেট ডাউনলোড করুন',
+  otaRestart: 'এখনই আবার খুলুন',
+  otaUpdateId: 'আপডেট {{id}}',
+
   descriptionLabel: 'বিবরণ',
   descriptionText:
     'Neerani হলো একটি ব্যাপক চিংড়ি অ্যাকুয়াকালচার ব্যবস্থাপনা অ্যাপ্লিকেশন যা কৃষকদের পানির মান পর্যবেক্ষণ, খাদ্য ব্যবস্থাপনা, বৃদ্ধি ট্র্যাকিং এবং চাষ পদ্ধতি অপ্টিমাইজ করতে সাহায্য করে।',

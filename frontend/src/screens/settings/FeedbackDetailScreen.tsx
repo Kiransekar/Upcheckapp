@@ -131,8 +131,17 @@ export const FeedbackDetailScreen = ({ route, navigation }: any) => {
                             <Text style={styles.empty}>{t('feedback.photosUnavailable')}</Text>
                         ) : (
                             <View style={styles.photos}>
+                                {/* Adding photos is temporarily off (see
+                                    PHOTO_ATTACH_ENABLED in ReportIssueScreen);
+                                    reports that already have them still show
+                                    them here. */}
                                 {report.attachmentUrls.map((url) => (
-                                    <Image key={url} source={{ uri: url }} style={styles.photo} />
+                                    <Image
+                                        key={url}
+                                        source={{ uri: url }}
+                                        style={styles.photo}
+                                        testID="feedback-photo"
+                                    />
                                 ))}
                             </View>
                         )}

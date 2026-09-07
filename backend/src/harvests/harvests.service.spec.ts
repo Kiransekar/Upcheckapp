@@ -56,6 +56,9 @@ describe('HarvestsService.findMoneyEntries', () => {
       amount: 42000,
       buyerName: 'Ravi Traders',
       weightKg: 800,
+      pondId: null,
+      pondName: 'Pond 1',
+      archived: false,
     });
   });
 
@@ -290,5 +293,56 @@ describe('RECORD_HARVEST gate', () => {
       ForbiddenException,
     );
     expect(repo.delete).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The Money tab's date range and archive toggle, applied in SQL.
+ *
+ * Both used to be applied by the CALLER, in memory, over rows this query had
+ * already capped at 500 — so "this week" searched the 500 most recent harvests
+ * instead of the week's, and a busy farm's week came back empty. The archive
+ * toggle was never applied to harvest rows at all, so switching it off dropped
+ * a retired pond's revenue from the headline (the report skips the pond) and
+ * left its sale rows in the list underneath: a line item the total above it
+ * did not contain.
+ */
+describe('HarvestsService.findMoneyEntries — filters in the query', () => {
+  const clausesOf = (qb: any) =>
+    qb.andWhere.mock.calls.map((c: any[]) => c[0]).join(' | ');
+
+  it('bounds the date range in SQL, not after the row cap', async () => {
+    const { svc, qb } = makeService([]);
+
+    await svc.findMoneyEntries('u', {
+      startDate: '2026-02-01',
+      endDate: '2026-02-28',
+    });
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      'harvest.harvestDate >= :startDate',
+      { startDate: '2026-02-01' },
+    );
+    expect(qb.andWhere).toHaveBeenCalledWith('harvest.harvestDate <= :endDate', {
+      endDate: '2026-02-28',
+    });
+  });
+
+  it('hides a retired pond’s sales only when explicitly asked (D3)', async () => {
+    const { svc, qb } = makeService([]);
+    await svc.findMoneyEntries('u', { includeArchivedPonds: false });
+    expect(clausesOf(qb)).toContain("pond.status <> 'archived'");
+
+    const { svc: svc2, qb: qb2 } = makeService([]);
+    await svc2.findMoneyEntries('u');
+    expect(clausesOf(qb2)).not.toContain("pond.status <> 'archived'");
+  });
+
+  it('marks a sale from a retired pond rather than dropping it', async () => {
+    const { svc } = makeService([row({ pondStatus: 'archived' })]);
+
+    const [entry] = await svc.findMoneyEntries('u');
+
+    expect(entry.archived).toBe(true);
   });
 });

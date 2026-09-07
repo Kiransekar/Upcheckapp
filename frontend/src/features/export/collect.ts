@@ -36,6 +36,7 @@ import { inventoryApi, isLowStock, type InventoryItem } from '../../api/inventor
 import { attendanceApi, type AttendanceRecord } from '../../api/attendance';
 import { tasksApi, type Task } from '../../api/tasks';
 import { personName } from '../../utils/personName';
+import { toLocalISODate } from '../../utils/localDate';
 import type {
     ExportConfig,
     ExportSections,
@@ -63,10 +64,34 @@ interface Fmt {
     t: T;
     date: (v?: string | number | Date | null) => string;
     time: (v?: string | number | Date | null) => string;
-    num: (v?: number | null, digits?: number) => string;
-    money: (v?: number | null) => string;
+    /**
+     * `string` is not defensive typing, it is the truth: every pg `numeric` /
+     * `decimal` column (feed kg, dosage, mortality weight, inventory quantity,
+     * money amounts) arrives over the wire as a STRING, however the api/*.ts
+     * interfaces declare it. See `toNumber`.
+     */
+    num: (v?: number | string | null, digits?: number) => string;
+    money: (v?: number | string | null) => string;
     text: (v?: string | null) => string;
 }
+
+/**
+ * The one coercion for every figure that reaches this file.
+ *
+ * TypeORM hands pg `numeric`/`decimal` back as a STRING — `quantity_kg`,
+ * `dosage_kg`, `estimated_weight_kg`, `inventory.quantity`, `amount`. The
+ * `api/*.ts` interfaces all declare those `number`, so nothing in the type
+ * system catches it and the two halves of a table drifted apart silently:
+ * `f.num('12.5')` fell through `Number.prototype.toLocaleString` to
+ * `String.prototype.toLocaleString`, which ignores its arguments and returns
+ * the raw column text, while the Total row underneath went through `sum()`
+ * and printed 0. Same numbers, two answers, in one table.
+ */
+const toNumber = (v: unknown): number | null => {
+    if (v == null || v === '') return null;
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+};
 
 const makeFmt = (language: string): Fmt => {
     const tag = LOCALE_TAGS[language] ?? 'en-IN';
@@ -99,32 +124,64 @@ const makeFmt = (language: string): Fmt => {
             return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
         },
         num: (v, digits = 2) => {
-            if (v == null || Number.isNaN(v)) return DASH;
+            const n = toNumber(v);
+            if (n == null) return DASH;
             try {
-                return v.toLocaleString(tag, { maximumFractionDigits: digits });
+                return n.toLocaleString(tag, { maximumFractionDigits: digits });
             } catch {
-                return String(Math.round(v * 100) / 100);
+                return String(Math.round(n * 100) / 100);
             }
         },
         // formatINR is the app's one money formatter; grouping stays Indian in
         // every locale because the currency is.
-        money: (v) => (v == null || Number.isNaN(v) ? DASH : formatINR(v)),
+        money: (v) => {
+            const n = toNumber(v);
+            return n == null ? DASH : formatINR(n);
+        },
         text: (v) => (v == null || v === '' ? DASH : String(v)),
     };
+};
+
+/**
+ * The DEVICE-LOCAL calendar day of a record, which is the only day a farmer
+ * has ever meant.
+ *
+ * `startDate`/`endDate` come from `moneyPeriodRange`, which builds them with
+ * `toLocalISODate` — local days. Slicing the first ten characters off a
+ * timestamp gives the UTC day instead, and for IST (UTC+5:30) those two differ
+ * for everything logged between 00:00 and 05:30 local: a 04:00 feeding on the
+ * 7th is stamped `2026-09-06T22:30:00Z`, so "today" excluded from the export
+ * the very row the pond's history screen was showing.
+ *
+ * A bare `YYYY-MM-DD` (a pg `date` column — sampling, treatment, mortality) is
+ * already a calendar day and is returned untouched: parsing it would re-read it
+ * as UTC midnight and shift it a day BACKWARDS in any timezone west of UTC.
+ */
+const localDay = (value: string): string => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? value.slice(0, 10) : toLocalISODate(d);
 };
 
 /** Inclusive YYYY-MM-DD window, for the endpoints that take no date params. */
 const inRange = (value: string | null | undefined, start?: string, end?: string): boolean => {
     if (!start && !end) return true;
     if (!value) return false;
-    const day = String(value).slice(0, 10);
+    const day = localDay(String(value));
     if (start && day < start) return false;
     if (end && day > end) return false;
     return true;
 };
 
-const sum = (xs: (number | null | undefined)[]): number =>
-    xs.reduce<number>((a, b) => a + (typeof b === 'number' && !Number.isNaN(b) ? b : 0), 0);
+/**
+ * Total of a column. Coerces, because the values are pg `numeric` strings
+ * (see `toNumber`) — the old `typeof b === 'number'` guard scored every one of
+ * them as 0, so every Total row over a numeric column (feed kg, mortality
+ * weight, expense and transaction amounts) printed zero underneath rows that
+ * plainly did not add up to zero.
+ */
+const sum = (xs: (number | string | null | undefined)[]): number =>
+    xs.reduce<number>((a, b) => a + (toNumber(b) ?? 0), 0);
 
 const byDateDesc = <R>(rows: R[], pick: (r: R) => string | null | undefined): R[] =>
     [...rows].sort((a, b) => String(pick(b) ?? '').localeCompare(String(pick(a) ?? '')));
@@ -530,6 +587,16 @@ const collectInventory = async (config: ExportConfig, f: Fmt): Promise<Collected
         s.summary ? inventoryApi.getAll(config.farmId).then((r) => listOf<InventoryItem>(r.data)) : [],
     ]);
 
+    /**
+     * `costs` is a real toggle here, not decoration. The screen offers it for
+     * this dataset and drops it for anyone without VIEW_FINANCIALS — and this
+     * collector used to ignore it entirely, so unit price and stock value went
+     * into every inventory export: into the copy a farmer deliberately stripped
+     * of costs before handing it to a buyer, and into a worker's export of a
+     * farm whose money they are not allowed to see at all.
+     */
+    const withMoney = s.costs;
+
     const table: ReportTable = {
         key: 'summary',
         title: f.t('inventory.title', { defaultValue: 'Inventory' }),
@@ -539,16 +606,18 @@ const collectInventory = async (config: ExportConfig, f: Fmt): Promise<Collected
             f.t('inventory.quantity', { defaultValue: 'Quantity' }),
             f.t('inventory.unit', { defaultValue: 'Unit' }),
             f.t('inventory.reorderLevel', { defaultValue: 'Reorder level' }),
-            f.t('inventory.unitPrice', { defaultValue: 'Unit price' }),
+            ...(withMoney ? [f.t('inventory.unitPrice', { defaultValue: 'Unit price' })] : []),
             f.t('inventory.supplier', { defaultValue: 'Supplier' }),
             f.t('inventory.expiryDate', { defaultValue: 'Expiry' }),
         ],
-        numericColumns: [2, 4, 5],
+        numericColumns: withMoney ? [2, 4, 5] : [2, 4],
         rows: [...items]
             .sort((a, b) => a.name.localeCompare(b.name))
             .map((i) => [
                 f.text(i.name), f.text(i.category), f.num(i.quantity), f.text(i.unit),
-                f.num(i.reorderLevel), f.money(i.unitPrice), f.text(i.supplier), f.date(i.expiryDate),
+                f.num(i.reorderLevel),
+                ...(withMoney ? [f.money(i.unitPrice)] : []),
+                f.text(i.supplier), f.date(i.expiryDate),
             ]),
     };
 
@@ -561,10 +630,16 @@ const collectInventory = async (config: ExportConfig, f: Fmt): Promise<Collected
                     label: f.t('inventory.lowStock', { defaultValue: 'Low stock' }),
                     value: f.num(items.filter((i) => isLowStock(i)).length, 0),
                 },
-                {
-                    label: f.t('inventory.stockValue', { defaultValue: 'Stock value' }),
-                    value: f.money(sum(items.map((i) => (i.unitPrice ?? 0) * (i.quantity ?? 0)))),
-                },
+                ...(withMoney
+                    ? [
+                        {
+                            label: f.t('inventory.stockValue', { defaultValue: 'Stock value' }),
+                            value: f.money(
+                                sum(items.map((i) => (toNumber(i.unitPrice) ?? 0) * (toNumber(i.quantity) ?? 0))),
+                            ),
+                        },
+                    ]
+                    : []),
             ]
             : [],
         tables: keep([table]),
@@ -682,6 +757,34 @@ const DOC_TITLE_KEYS: Record<ExportConfig['dataset'], [string, string]> = {
     tasks: ['tasks.reportTitle', 'Task report'],
 };
 
+/**
+ * Which datasets actually FILTER on `startDate`/`endDate`.
+ *
+ * The screen offers the period chips for every dataset, and the document
+ * header printed the chosen range on every dataset — including the two that
+ * ignore it. So a farmer picked "This month", and a cycle report came out
+ * covering the whole cycle with "1 Sep – 30 Sep" across the top, and an
+ * inventory report came out as a snapshot of stock RIGHT NOW under the same
+ * line. The numbers were right; the header was describing a different document.
+ *
+ * Both are deliberately whole-of-scope and stay that way:
+ *  - a cycle report is the cycle. Its summary stats (FCR, survival, totals)
+ *    are cycle-wide, so range-filtering the tables underneath them would only
+ *    make the tables disagree with the stats above them.
+ *  - inventory is stock as it stands; there is no historical quantity to
+ *    filter. Its own scope line (farm, cycle) already says what it covers.
+ *
+ * So the fix is to stop printing the claim, not to start honouring it.
+ */
+const HONOURS_PERIOD: Record<ExportConfig['dataset'], boolean> = {
+    cycle: false,
+    pondLogs: true,
+    money: true,
+    inventory: false,
+    attendance: true,
+    tasks: true,
+};
+
 const COLLECTORS: Record<ExportConfig['dataset'], (c: ExportConfig, f: Fmt) => Promise<Collected>> = {
     cycle: collectCycle,
     pondLogs: collectPondLogs,
@@ -705,7 +808,7 @@ export const collectReport = async (config: ExportConfig, now: Date = new Date()
     const { scope, stats, tables } = await COLLECTORS[config.dataset](config, f);
 
     const [titleKey, titleDefault] = DOC_TITLE_KEYS[config.dataset];
-    const period = config.startDate || config.endDate
+    const period = HONOURS_PERIOD[config.dataset] && (config.startDate || config.endDate)
         ? `${config.startDate ? f.date(config.startDate) : DASH} – ${config.endDate ? f.date(config.endDate) : DASH}`
         : undefined;
 

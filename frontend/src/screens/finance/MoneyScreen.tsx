@@ -864,6 +864,16 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         <Icon name="chevron_right" size={22} color={c.dangerText} />
                     </TouchableOpacity>
                 )}
+                {/*
+                  * The credit ledger hangs off the USER and carries no farm and
+                  * no date, so this figure does not move when the farm chip or
+                  * the period chip does — unlike everything above it. A number
+                  * that ignores the filters sitting over it reads as a bug
+                  * unless it says why.
+                  */}
+                {outstanding.total > 0 && (
+                    <Text style={styles.note}>{t('finance.creditAllFarmsNote')}</Text>
+                )}
 
                 <SectionHeader
                     label={t('finance.recentEntries')}
@@ -910,13 +920,13 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                         // The pond, when the row knows one. Pond costs always
                         // do; a transaction does when the farmer picked one.
                         const pond = tx.pondName ?? undefined;
-                        // Archived money is MARKED, not hidden (D3) — but only
-                        // where the row can actually tell. A farm-level
-                        // transaction hangs off no pond, so the backend
-                        // hard-codes `archived: false` on it; colouring on that
-                        // would claim there is no archived money when the truth
-                        // is the row cannot say. Pond costs genuinely know.
-                        const isArchived = isPondCost && tx.archived === true;
+                        // Archived money is MARKED, not hidden (D3). Every
+                        // source can answer now — pond costs and harvest sales
+                        // always knew their pond, and a transaction that names
+                        // one has its pond joined server-side. A farm-level
+                        // transaction still cannot say, and reports `false`,
+                        // which is the truth for it: it belongs to no pond.
+                        const isArchived = tx.archived === true;
                         return (
                             <View key={tx.id} style={styles.entry}>
                                 <View style={{ flex: 1, minWidth: 0 }}>

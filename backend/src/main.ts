@@ -3,12 +3,11 @@ if (typeof globalThis.crypto === 'undefined') {
   (globalThis as any).crypto = webcrypto;
 }
 
-import { NestFactory, HttpAdapterHost } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { AppModule } from './app.module';
-import { TypeORMExceptionFilter } from './common/filters/typeorm-exception.filter';
-import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+import { useGlobalExceptionFilters } from './common/filters';
 import { assertSchemaReady } from './common/schema-guard';
 import { assertCorsOriginAllowed } from './common/cors-guard';
 import { initSentry, Sentry } from './common/sentry';
@@ -66,11 +65,7 @@ async function bootstrap() {
     }),
   );
 
-  const httpAdapter = app.get(HttpAdapterHost).httpAdapter;
-  app.useGlobalFilters(
-    new TypeORMExceptionFilter(),
-    new SentryExceptionFilter(httpAdapter),
-  );
+  useGlobalExceptionFilters(app);
 
   // Run onModuleDestroy/onApplicationShutdown hooks (e.g. close the DB pool)
   // when Render sends SIGTERM on deploy, instead of dropping in-flight work.
@@ -85,7 +80,13 @@ async function bootstrap() {
   process.on('uncaughtException', (err) => {
     console.error('Uncaught exception — shutting down:', err);
     Sentry.captureException(err);
-    void app.close().finally(() => process.exit(1));
+    // captureException only queues; process.exit() would kill the process
+    // before the transport ever sends it — losing exactly the crashes we most
+    // want to see. Flush first, with a bounded wait so a wedged network can
+    // not stop us from exiting.
+    void Sentry.close(2000)
+      .then(() => app.close())
+      .finally(() => process.exit(1));
   });
 
   const port = process.env.PORT ?? 8080;

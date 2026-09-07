@@ -65,6 +65,19 @@ const CATEGORIES: FeedbackCategory[] = ['problem', 'confusing', 'suggestion', 'o
 
 export const MAX_PHOTOS = 3;
 
+/**
+ * Attaching photos is OFF, temporarily. The picker → upload → signed-URL path
+ * is not stable enough to ship, and a farmer whose photo silently fails is a
+ * farmer who thinks the whole report failed.
+ *
+ * Flipping this back to `true` is the entire re-enable — nothing below was
+ * deleted, and neither was the upload call, the `attachmentPaths` field, or the
+ * backend's ownership check on those paths. VIEWING existing attachments is a
+ * different screen (FeedbackDetailScreen) and is deliberately untouched: reports
+ * already carrying photos still show them.
+ */
+export const PHOTO_ATTACH_ENABLED = false;
+
 /** What the list row shows when the farmer did not write a title. */
 export const reportHeadline = (report: FeedbackReport): string =>
     report.subject?.trim() || report.message.trim().split('\n')[0];
@@ -259,6 +272,8 @@ export const ReportIssueScreen = ({ navigation }: any) => {
                     />
                 </View>
 
+                {/* Temporarily off — see PHOTO_ATTACH_ENABLED. */}
+                {PHOTO_ATTACH_ENABLED && (<>
                 <SectionHeader
                     label={t('feedback.photosLabel')}
                     trailing={`${photos.length}/${MAX_PHOTOS}`}
@@ -293,6 +308,7 @@ export const ReportIssueScreen = ({ navigation }: any) => {
                         </TouchableOpacity>
                     )}
                 </View>
+                </>)}
 
                 <View style={styles.sendRow}>
                     <Button

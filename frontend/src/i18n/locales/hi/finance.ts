@@ -46,6 +46,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'वित्तीय सारांश',
+  ledgerOnlyNote: "केवल यहाँ दर्ज प्रविष्टियाँ, पूरे समय की। पैसा टैब में तालाब के खर्च और फसल बिक्री भी गिनी जाती है।",
   totalIncome: 'कुल आय',
   totalExpense: 'कुल खर्च',
 
@@ -91,6 +92,7 @@ const finance = {
   byFarm: "फ़ार्म के अनुसार",
   farmInOut: "आया {{income}} · गया {{expense}}",
   creditOutstanding: "डीलर उधार बाकी",
+  creditAllFarmsNote: "सभी खेत, सभी तारीखें — डीलर उधार ऊपर के चिप्स से नहीं छँटता।",
   creditDue: "{{dealer}} · देय {{date}}",
   creditDealers: "{{count}} डीलरों में",
   creditDealers_one: "एक डीलर",

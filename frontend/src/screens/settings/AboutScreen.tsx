@@ -5,7 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { ScreenWrapper } from '../../components/layout/ScreenWrapper';
 import { Card } from '../../components/ui/Card';
 import { ShrimpLogo } from '../../components/ui/ShrimpLogo';
+import { UpdateStatus } from '../../components/ui/UpdateStatus';
 import { theme } from '../../theme';
+import { appBuild, appVersion } from '../../utils/appVersion';
 
 const FEATURE_KEYS = [
     'settings.featureMultiFarm',
@@ -40,8 +42,11 @@ export const AboutScreen = ({ navigation }: any) => {
 
                 <Card style={styles.infoCard}>
                     <Text style={styles.sectionTitle}>{t('settings.versionLabel')}</Text>
-                    <Text style={styles.version}>v1.0.0</Text>
-                    <Text style={styles.buildInfo}>{t('settings.buildInfo')}</Text>
+                    <Text style={styles.version}>v{appVersion()}</Text>
+                    <Text style={styles.buildInfo}>{t('settings.buildInfo', { build: appBuild() })}</Text>
+                    <View style={styles.updateStatus}>
+                        <UpdateStatus />
+                    </View>
                 </Card>
 
                 <Card style={styles.infoCard}>
@@ -129,6 +134,12 @@ const styles = StyleSheet.create({
     buildInfo: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.textSecondary,
+    },
+    updateStatus: {
+        marginTop: theme.spacing[3],
+        paddingTop: theme.spacing[3],
+        borderTopWidth: 1,
+        borderTopColor: theme.roles.light.borderDefault,
     },
     description: {
         ...theme.typeScale.bodyMedium,

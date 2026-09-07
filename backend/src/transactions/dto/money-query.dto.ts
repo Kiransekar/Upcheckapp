@@ -58,6 +58,15 @@ export class TransactionQueryDto extends DateRangeDto {
   @IsBoolean()
   @DefaultTrue()
   includeInventoryPurchases: boolean = true;
+
+  /**
+   * Default TRUE — see D3. False drops rows attributed to an ARCHIVED pond, so
+   * the toggle means the same thing here as it does for the expense ledger.
+   * Rows with no pond are farm-level money and are never dropped.
+   */
+  @IsBoolean()
+  @DefaultTrue()
+  includeArchivedPonds: boolean = true;
 }
 
 export class MoneyOverviewQueryDto extends DateRangeDto {

@@ -79,9 +79,15 @@ export class ReportsService {
     // viewer the farm's cycle economics.
     const crop = await this.cropsService.findOne(cycleId, userId);
 
+    // Both signatures are `(userId, cropId?)` — the crop is the SECOND arg.
+    // Passing `cycleId` as the userId scoped the read to no farms at all, so
+    // every cycle analysis came back with zero harvest, zero survival and an
+    // empty growth chart while the same cycle's `getCycleFinancials` reported
+    // real harvested kg. Same mistake, same fix, as the one already called out
+    // in `ExpensesService.getCycleFinancials`.
     const [samplings, harvests] = await Promise.all([
-      this.samplingService.findAll(cycleId),
-      this.harvestsService.findAll(cycleId),
+      this.samplingService.findAll(userId, cycleId),
+      this.harvestsService.findAll(userId, cycleId),
     ]);
 
     let survivalRate = 0;
@@ -161,6 +167,28 @@ export class ReportsService {
       ALL_PONDS_PAGE,
     );
 
+    /**
+     * `pondsService.findAll` is NOT member-aware — it returns every pond on the
+     * farm. VIEW_FINANCIALS is an overridable capability, so an owner can grant
+     * it to a pond-scoped viewer or worker, and for that caller this report
+     * answered at two scopes at once: costs (summed per pond below) covered the
+     * whole farm, while revenue did not — `getCycleFinancials` re-asserts
+     * VIEW_FINANCIALS per pond and 403s on the ones outside the scope — and
+     * neither did the Money tab's entry list, which goes through
+     * `ExpensesService.findMoneyEntries`. Headline and list must agree.
+     *
+     * `getAccessiblePondIds` returns EVERY live pond for an unscoped caller,
+     * which owner and manager always are, so this narrows nothing for them.
+     */
+    const inScope = new Set(
+      await this.farmAccess.getAccessiblePondIds(
+        userId,
+        farmId,
+        'VIEW_FINANCIALS',
+      ),
+    );
+    const scopedPonds = pondsPage.data.filter((p: any) => inScope.has(p.id));
+
     let totalRevenue = 0;
     let totalExpenses = 0;
     const expensesByCategory: Record<string, number> = {};
@@ -184,7 +212,7 @@ export class ReportsService {
     // `getCycleFinancials` re-asserts VIEW_FINANCIALS per crop below. Only the
     // listing of which cycles exist moved to the member-aware read.
     const perPondCropFinancials = await Promise.all(
-      pondsPage.data.map(async (pond) => {
+      scopedPonds.map(async (pond) => {
         const crops = await this.cropsService
           .findAllAccessible(pond.id, userId)
           .catch((err) => {
@@ -208,7 +236,7 @@ export class ReportsService {
       }),
     );
 
-    // Per-pond rows, in the same order as `pondsPage.data`, each tagged with
+    // Per-pond rows, in the same order as `scopedPonds`, each tagged with
     // whether the pond is archived so the client can colour it differently
     // (D3) — and so a farmer can see WHICH money came from a retired pond.
     const ponds: {
@@ -233,12 +261,12 @@ export class ReportsService {
      * harvest genuinely belongs to a cycle.
      */
     const expensesByPond = await this.expensesService.totalsByPond(
-      pondsPage.data.map((p: any) => p.id),
+      scopedPonds.map((p: any) => p.id),
       q,
     );
 
     perPondCropFinancials.forEach((cropFinancials, i) => {
-      const pond: any = pondsPage.data[i];
+      const pond: any = scopedPonds[i];
       let pondRevenue = 0;
       for (const financials of cropFinancials) {
         if (!financials) continue; // skipped above, already logged
@@ -284,12 +312,31 @@ export class ReportsService {
     // Necessarily 0 when `includeInventoryPurchases=false` — those rows are
     // then not in `totalExpenses` either.
     let inventoryExpenses = 0;
+    const pondRowById = new Map(ponds.map((row) => [row.pondId, row]));
+    const reportPondIds = new Set(scopedPonds.map((p: any) => p.id));
     for (const tx of transactions) {
+      /**
+       * A transaction may name a pond. When it names one this report is not
+       * counting — archived while "count archived ponds" is off, or outside a
+       * scoped member's ponds — it must not ride into the totals anyway: the
+       * archive toggle claimed to drop that pond's money and dropped only the
+       * `expenses` half of it. A row with NO pond is a farm-level cost (a
+       * licence, a shared generator) and always counts.
+       */
+      if (tx.pondId && !reportPondIds.has(tx.pondId)) continue;
       const amount = Number(tx.amount) || 0;
+      // A transaction the farmer attributed to a pond belongs in that pond's
+      // row too, not only in the farm total — `ponds[]` is the ONLY thing that
+      // can answer "how much of this came from a retired pond", and the Money
+      // tab's archive hint reads it. Leaving pond-attributed transactions out
+      // made the rows stop adding up to the total above them.
+      const pondRow = tx.pondId ? pondRowById.get(tx.pondId) : undefined;
       if (tx.type === 'income') {
         totalRevenue += amount;
+        if (pondRow) pondRow.revenue += amount;
       } else {
         totalExpenses += amount;
+        if (pondRow) pondRow.expenses += amount;
         if (tx.inventoryItemId) inventoryExpenses += amount;
         const category = tx.category || 'Other';
         expensesByCategory[category] =

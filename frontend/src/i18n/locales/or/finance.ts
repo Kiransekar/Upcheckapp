@@ -46,6 +46,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'ଆର୍ଥିକ ସାରାଂଶ',
+  ledgerOnlyNote: "କେବଳ ଏଠାରେ ଲେଖା ଏଣ୍ଟ୍ରି, ସମସ୍ତ ସମୟର। ଟଙ୍କା ଟ୍ୟାବରେ ପୋଖରୀ ଖର୍ଚ୍ଚ ଓ ଅମଳ ବିକ୍ରି ମଧ୍ୟ ଗଣା ହୁଏ।",
   totalIncome: 'ମୋଟ ଆୟ',
   totalExpense: 'ମୋଟ ଖର୍ଚ',
 
@@ -91,6 +92,7 @@ const finance = {
   byFarm: "ଫାର୍ମ ଅନୁସାରେ",
   farmInOut: "ଆୟ {{income}} · ବ୍ୟୟ {{expense}}",
   creditOutstanding: "ଡିଲର ବାକି",
+  creditAllFarmsNote: "ସବୁ ଫାର୍ମ, ସବୁ ତାରିଖ — ଡିଲର ବାକି ଉପରର ଚିପ୍ ଦ୍ୱାରା ଛଣା ହୁଏ ନାହିଁ।",
   creditDue: "{{dealer}} · {{date}} ରେ",
   creditDealers: "{{count}} ଡିଲରଙ୍କ ପାଖରେ",
   creditDealers_one: "ଜଣେ ଡିଲର",

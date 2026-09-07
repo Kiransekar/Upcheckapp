@@ -48,7 +48,12 @@ const build = (opts: {
     expensesService,
     {} as any, // samplingService
     cropsService,
-    { assertCanAccessFarm: jest.fn().mockResolvedValue({}) } as any,
+    {
+      assertCanAccessFarm: jest.fn().mockResolvedValue({}),
+      // Unscoped caller — every pond on the farm, which is what an owner or
+      // manager always gets back.
+      getAccessiblePondIds: jest.fn().mockResolvedValue(['pond-1']),
+    } as any,
     transactionsService,
   );
 };

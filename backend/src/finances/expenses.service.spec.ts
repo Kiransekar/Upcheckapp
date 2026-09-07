@@ -237,3 +237,58 @@ describe('ExpensesService.getCycleFinancials — date range', () => {
     expect(out.totalRevenue).toBe(14000);
   });
 });
+
+/**
+ * The Money tab's pond-cost line items.
+ *
+ * `expenses.date` is a plain DATE column and the SQL range filter compares it
+ * as `YYYY-MM-DD`, so the day printed on the row has to be derived the same
+ * way. `toISOString()` does not: a driver that hydrates the column into a Date
+ * at IST-local midnight is 18:30 UTC the day BEFORE, so the row rendered a day
+ * earlier than the range that had just selected it — the classic DATE-1.
+ */
+describe('ExpensesService.findMoneyEntries — the day on the row', () => {
+  const buildQb = (rows: any[]) => {
+    const qb: any = {
+      innerJoin: jest.fn(() => qb),
+      where: jest.fn(() => qb),
+      andWhere: jest.fn(() => qb),
+      select: jest.fn(() => qb),
+      addSelect: jest.fn(() => qb),
+      orderBy: jest.fn(() => qb),
+      take: jest.fn(() => qb),
+      getRawMany: jest.fn().mockResolvedValue(rows),
+    };
+    const { service, farmAccess } = build();
+    (service as any).expensesRepository = { createQueryBuilder: () => qb };
+    return { service, qb, farmAccess };
+  };
+
+  it('buckets a hydrated Date by the IST calendar day, not the UTC one', async () => {
+    // 2026-02-09T18:30:00Z is 2026-02-10 00:00 IST — the row is a 10 Feb cost.
+    const { service } = buildQb([
+      {
+        id: 'e1',
+        date: new Date('2026-02-09T18:30:00.000Z'),
+        amount: '250.00',
+        category: 'Feed',
+        pondId: 'p1',
+      },
+    ]);
+
+    const [entry] = await service.findMoneyEntries('u');
+
+    expect(entry.transactionDate).toBe('2026-02-10');
+    expect(entry.transactionDate).not.toBe('2026-02-09');
+  });
+
+  it('passes a string date straight through', async () => {
+    const { service } = buildQb([
+      { id: 'e1', date: '2026-02-10', amount: '250.00', category: 'Feed' },
+    ]);
+
+    const [entry] = await service.findMoneyEntries('u');
+
+    expect(entry.transactionDate).toBe('2026-02-10');
+  });
+});

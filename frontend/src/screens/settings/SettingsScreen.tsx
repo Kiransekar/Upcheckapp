@@ -27,7 +27,9 @@ import { ScreenHeader } from '../../components/ui/ScreenHeader';
 import { SectionHeader } from '../../components/ui/SectionHeader';
 import { Button } from '../../components/ui/Button';
 import { Icon, type IconName } from '../../components/ui/Icon';
+import { UpdateStatus } from '../../components/ui/UpdateStatus';
 import { theme } from '../../theme';
+import { appVersion } from '../../utils/appVersion';
 import {
     registerForPushNotificationsAsync,
     syncReminders,
@@ -487,7 +489,14 @@ export const SettingsScreen = ({ navigation }: any) => {
                 <Row row={{ key: 'terms', icon: 'badge', label: t('settings.termsOfService'), route: 'Terms' }} />
                 <View style={styles.row}>
                     <Text style={[styles.rowLabel, { flex: 1 }]}>{t('common.version')}</Text>
-                    <Text style={styles.version}>v1.0.0</Text>
+                    <Text style={styles.version}>v{appVersion()}</Text>
+                </View>
+                {/* Directly under the version, because "which version am I on"
+                    and "did my last launch actually pick up the fix" are the
+                    same question to a farmer — and EAS Update applies on the
+                    NEXT launch, so the answer is invisible without this. */}
+                <View style={styles.updateStatusRow}>
+                    <UpdateStatus />
                 </View>
 
                 <View style={styles.accountActions}>
@@ -692,6 +701,10 @@ const styles = StyleSheet.create({
     reminderStatusBad: { backgroundColor: c.warningBg, borderColor: c.warningBorder },
     reminderStatusText: { ...theme.typeScale.bodySmall, color: c.textPrimary },
     version: { fontFamily: 'DMMono-Regular', fontSize: 13, color: c.textTertiary },
+    updateStatusRow: {
+        paddingHorizontal: theme.spacing[5],
+        paddingBottom: theme.spacing[3],
+    },
 
     accountActions: {
         flexDirection: 'row',

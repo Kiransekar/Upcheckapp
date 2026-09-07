@@ -33,20 +33,29 @@ const createMockRepository = () => ({
 describe('TransactionsService', () => {
   let service: TransactionsService;
   let mockRepository: any;
+  let mockPondsRepository: any;
+  /** The ponds that exist, for both the row lookup and the scoping check. */
+  let pondRows: any[];
   // Financials are gated by VIEW_FINANCIALS (owner/manager) via FarmAccessService.
   let module: TestingModule;
   let mockFarmAccess: {
     assertCanAccessFarm: jest.Mock;
     getFarmIdsWithCapability: jest.Mock;
+    getAccessiblePondIds: jest.Mock;
   };
 
   beforeEach(async () => {
+    pondRows = [];
     mockFarmAccess = {
       // Resolves => caller may view this farm's financials. Tests override to deny.
       assertCanAccessFarm: jest
         .fn()
         .mockResolvedValue({ id: 'farm-1', userId: USER_ID }),
       getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
+      // Unscoped caller — every pond the ponds repo knows about, which is what
+      // the real service hands back for an owner or manager. The pond-scoping
+      // suite at the bottom of this file plays the scoped case.
+      getAccessiblePondIds: jest.fn(async () => pondRows.map((p) => p.id)),
     };
 
     module = await Test.createTestingModule({
@@ -65,6 +74,9 @@ describe('TransactionsService', () => {
             findOne: jest
               .fn()
               .mockResolvedValue({ id: 'pond-1', farmId: 'farm-1' }),
+            // `findAll` looks the named ponds up in one go, to read `status`
+            // for the archived flag and the name for the row label.
+            find: jest.fn(async () => pondRows),
           },
         },
         { provide: FarmAccessService, useValue: mockFarmAccess },
@@ -75,6 +87,7 @@ describe('TransactionsService', () => {
     mockRepository = module.get<Repository<Transaction>>(
       getRepositoryToken(Transaction),
     );
+    mockPondsRepository = module.get(getRepositoryToken(Pond));
   });
 
   it('should be defined', () => {
@@ -192,7 +205,13 @@ describe('TransactionsService', () => {
       expect(mockRepository.find).toHaveBeenCalled();
       // Same rows, plus the two flags every money row now carries.
       expect(result).toEqual([
-        { id: '1', amount: 100, inventoryPurchase: false, archived: false },
+        {
+          id: '1',
+          amount: 100,
+          inventoryPurchase: false,
+          pondName: null,
+          archived: false,
+        },
       ]);
     });
 
@@ -335,14 +354,63 @@ describe('TransactionsService', () => {
       expect(rows.map((r) => r.inventoryPurchase)).toEqual([true, false]);
     });
 
-    it('reports archived=false on every transaction — they hang off a farm, not a pond', async () => {
-      mockRepository.find.mockResolvedValue([{ id: 't1' }]);
+    it('reports archived=false on a row that names no pond', async () => {
+      mockRepository.find.mockResolvedValue([{ id: 't1', pondId: null }]);
 
       const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
 
-      // Documented, not derived: `transactions` has no pond column, so there
-      // is no pond whose archived status could be read.
+      // A farm-level cost — a licence, a shared generator — belongs to no pond,
+      // so there is no archived status to read. No pond is looked up either.
       expect(rows[0].archived).toBe(false);
+      expect(rows[0].pondName).toBeNull();
+      expect(mockPondsRepository.find).not.toHaveBeenCalled();
+    });
+
+    /**
+     * `archived` used to be hardcoded `false` for every transaction, which was
+     * right while one hung off a FARM only. Once a row could name a pond that
+     * `false` became a wrong answer confidently given: the Money tab's "count
+     * archived ponds" switch dropped an archived pond's EXPENSES and kept its
+     * transactions, so flipping it moved the headline by less than the hint
+     * beside it promised, and the list never marked the row.
+     */
+    it('reads archived and the pond name from the pond the row names', async () => {
+      mockRepository.find.mockResolvedValue([
+        { id: 't1', pondId: 'pond-old' },
+        { id: 't2', pondId: 'pond-1' },
+      ]);
+      pondRows = [
+        { id: 'pond-old', displayName: 'Old Pond', status: 'archived' },
+        { id: 'pond-1', displayName: 'Pond One', status: 'active' },
+      ];
+
+      const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
+
+      expect(rows.map((r) => r.archived)).toEqual([true, false]);
+      expect(rows.map((r) => r.pondName)).toEqual(['Old Pond', 'Pond One']);
+      // One lookup for the whole page, not one per row.
+      expect(mockPondsRepository.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops archived-pond rows when includeArchivedPonds is false (D3)', async () => {
+      mockRepository.find.mockResolvedValue([
+        { id: 't1', pondId: 'pond-old' },
+        { id: 't2', pondId: 'pond-1' },
+        { id: 't3', pondId: null },
+      ]);
+      pondRows = [
+        { id: 'pond-old', status: 'archived' },
+        { id: 'pond-1', status: 'active' },
+      ];
+
+      const rows: any[] = await service.findAll(USER_ID, {
+        farmId: 'farm-1',
+        includeArchivedPonds: false,
+      });
+
+      // The farm-level row survives: it belongs to no pond, so no pond's
+      // retirement can take it away.
+      expect(rows.map((r) => r.id)).toEqual(['t2', 't3']);
     });
   });
 
@@ -553,5 +621,64 @@ describe('TransactionsService', () => {
       expect(result.inventoryExpense).toBe(0);
       expect(result.totalExpense).toBe(500);
     });
+  });
+});
+
+/**
+ * Pond scoping on the money list.
+ *
+ * VIEW_FINANCIALS is overridable, so an owner can grant it to a pond-scoped
+ * viewer or worker. That member's pond COSTS are narrowed, and so is the
+ * financial report — a transaction attributed to a pond outside their scope
+ * was the last piece of another pond's money still reaching them, and the one
+ * row in the Money tab's list that the headline above it did not contain.
+ */
+describe('TransactionsService.findAll — pond scoping', () => {
+  const build = (allowedPondIds: string[]) => {
+    const transactionsRepository = {
+      find: jest.fn().mockResolvedValue([
+        { id: 'mine', pondId: 'p1' },
+        { id: 'theirs', pondId: 'p2' },
+        { id: 'farm-level', pondId: null },
+      ]),
+    };
+    const pondsRepository = {
+      find: jest.fn().mockResolvedValue([
+        { id: 'p1', farmId: 'farm-1', status: 'active' },
+        { id: 'p2', farmId: 'farm-1', status: 'active' },
+      ]),
+    };
+    const farmAccess = {
+      assertCanAccessFarm: jest.fn().mockResolvedValue({ id: 'farm-1' }),
+      getFarmIdsWithCapability: jest.fn().mockResolvedValue(['farm-1']),
+      getAccessiblePondIds: jest.fn().mockResolvedValue(allowedPondIds),
+    };
+    const service = new TransactionsService(
+      transactionsRepository as any,
+      pondsRepository as any,
+      farmAccess as any,
+    );
+    return { service, farmAccess };
+  };
+
+  it('hides a pond transaction the caller is scoped away from', async () => {
+    const { service, farmAccess } = build(['p1']);
+
+    const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
+
+    expect(rows.map((r) => r.id)).toEqual(['mine', 'farm-level']);
+    expect(farmAccess.getAccessiblePondIds).toHaveBeenCalledWith(
+      USER_ID,
+      'farm-1',
+      'VIEW_FINANCIALS',
+    );
+  });
+
+  it('narrows nothing for an unscoped caller — owner and manager always are', async () => {
+    const { service } = build(['p1', 'p2']);
+
+    const rows: any[] = await service.findAll(USER_ID, { farmId: 'farm-1' });
+
+    expect(rows.map((r) => r.id)).toEqual(['mine', 'theirs', 'farm-level']);
   });
 });

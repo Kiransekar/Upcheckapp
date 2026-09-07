@@ -214,6 +214,185 @@ describe('collectReport — excluded sections', () => {
     });
 });
 
+/**
+ * Every pg `numeric`/`decimal` column reaches the app as a STRING, whatever
+ * the api/*.ts interface claims: quantity_kg, dosage_kg, estimated_weight_kg,
+ * inventory.quantity, and every money `amount`. Both halves of the formatter
+ * quietly disagreed about that, in one table:
+ *
+ *   rows  → f.num('12.5')  fell through Number.prototype.toLocaleString to
+ *           String.prototype.toLocaleString, which ignores its arguments and
+ *           hands back the raw column text.
+ *   total → sum() scored anything failing `typeof b === 'number'` as 0.
+ *
+ * So a feed table listed 20 kg of feed over a Total row reading 0.
+ */
+describe('collectReport — pg numeric columns arrive as strings', () => {
+    it('totals a feed table whose quantities are numeric strings', async () => {
+        (feedApi.getByCrop as jest.Mock).mockReturnValue(
+            ok([
+                { id: 'fr1', pondId: 'p1', feedType: 'Starter', quantityKg: '12.50', recordedAt: '2026-08-24T06:00:00.000Z' },
+                { id: 'fr2', pondId: 'p1', feedType: 'Grower', quantityKg: '7.50', recordedAt: '2026-08-23T06:00:00.000Z' },
+            ]),
+        );
+
+        const data = await collectReport(config({ cropId: 'c1' }));
+        const feed = data.tables.find((t) => t.key === 'feed')!;
+
+        expect(feed.total?.[3]).toBe('20');
+        // …and the rows are formatted, not echoed back as the raw column text.
+        expect(feed.rows[0][3]).toBe('12.5');
+    });
+
+    it('totals money whose amounts are numeric strings', async () => {
+        (expensesApi.findByCycle as jest.Mock).mockReturnValue(
+            ok([
+                { id: 'e1', pondId: 'p1', userId: 'u', date: '2026-07-01', category: 'Feed', amount: '25000.00', createdAt: '', updatedAt: '' },
+                { id: 'e2', pondId: 'p1', userId: 'u', date: '2026-07-02', category: 'Fuel', amount: '5000.00', createdAt: '', updatedAt: '' },
+            ]),
+        );
+
+        const data = await collectReport(config({ cropId: 'c1' }));
+        const costs = data.tables.find((t) => t.key === 'costs')!;
+
+        expect(costs.total?.[3]).toBe('₹30,000');
+    });
+
+    it('sums a pond-log feed stat that the table below it also shows', async () => {
+        (feedApi.getAll as jest.Mock).mockReturnValue(
+            ok([{ id: 'fr1', pondId: 'p1', feedType: 'Starter', quantityKg: '12.5', recordedAt: '2026-08-24T06:00:00.000Z' }]),
+        );
+
+        const data = await collectReport(config({ dataset: 'pondLogs', pondId: 'p1' }));
+
+        // The summary stat and the table it summarises must not disagree.
+        expect(data.stats.find((s) => s.label === 'Feed History')?.value).toBe('12.5 kg');
+    });
+});
+
+/**
+ * `startDate`/`endDate` are DEVICE-LOCAL days (moneyPeriodRange builds them
+ * with toLocalISODate). The filter compared them against the first ten
+ * characters of an ISO timestamp, which is the UTC day — so for IST (UTC+5:30)
+ * everything logged between 00:00 and 05:30 local fell into the previous day
+ * and vanished from an export of "today", while the pond's own history screen
+ * went on showing it.
+ */
+describe('collectReport — date ranges bucket by the LOCAL day', () => {
+    const realTz = process.env.TZ;
+    beforeAll(() => {
+        process.env.TZ = 'Asia/Kolkata';
+    });
+    afterAll(() => {
+        process.env.TZ = realTz;
+    });
+
+    it('keeps a pre-dawn IST record on its own local day', async () => {
+        // 04:00 IST on 24 Aug is 22:30 UTC on the 23rd.
+        (feedApi.getAll as jest.Mock).mockReturnValue(
+            ok([{ id: 'fr1', pondId: 'p1', feedType: 'Starter', quantityKg: 12.5, recordedAt: '2026-08-23T22:30:00.000Z' }]),
+        );
+        (waterQualityApi.getAll as jest.Mock).mockReturnValue(ok([]));
+        (harvestsApi.getByPond as jest.Mock).mockReturnValue(ok([]));
+
+        const data = await collectReport(
+            config({ dataset: 'pondLogs', pondId: 'p1', startDate: '2026-08-24', endDate: '2026-08-24' }),
+        );
+
+        expect(keys(data.tables)).toContain('feed');
+    });
+
+    it('still excludes a record that is genuinely outside the range', async () => {
+        (feedApi.getAll as jest.Mock).mockReturnValue(
+            ok([{ id: 'fr1', pondId: 'p1', feedType: 'Starter', quantityKg: 12.5, recordedAt: '2026-08-20T06:00:00.000Z' }]),
+        );
+        (waterQualityApi.getAll as jest.Mock).mockReturnValue(ok([]));
+        (harvestsApi.getByPond as jest.Mock).mockReturnValue(ok([]));
+
+        const data = await collectReport(
+            config({ dataset: 'pondLogs', pondId: 'p1', startDate: '2026-08-24', endDate: '2026-08-24' }),
+        );
+
+        expect(keys(data.tables)).not.toContain('feed');
+    });
+
+    it('leaves a bare YYYY-MM-DD date column alone', async () => {
+        // A pg `date` (sampling/treatment/mortality) is already a calendar day.
+        // Parsing it would re-read it as UTC midnight and shift it a day back
+        // in any zone west of UTC.
+        (mortalityApi.getByCrop as jest.Mock).mockReturnValue(
+            ok([{ id: 'm1', cropId: 'c1', recordDate: '2026-08-24', quantity: 400 }]),
+        );
+        (feedApi.getAll as jest.Mock).mockReturnValue(ok([]));
+        (waterQualityApi.getAll as jest.Mock).mockReturnValue(ok([]));
+        (harvestsApi.getByPond as jest.Mock).mockReturnValue(ok([]));
+
+        const data = await collectReport(
+            config({ dataset: 'pondLogs', pondId: 'p1', startDate: '2026-08-24', endDate: '2026-08-24' }),
+        );
+
+        expect(keys(data.tables)).toContain('mortality');
+    });
+});
+
+describe('collectReport — inventory honours the costs toggle', () => {
+    // The rendered labels, so the negative assertions below cannot pass by
+    // matching a string the document never contained under any setting.
+    const UNIT_PRICE = 'Unit price';
+    const STOCK_VALUE = 'Stock value';
+
+    const inventoryConfig = (costs: boolean) =>
+        config({ dataset: 'inventory', farmId: 'f1', sections: sections({ costs }) });
+
+    it('drops unit price and stock value from a copy with costs switched off', async () => {
+        // The screen also switches costs off for anyone without VIEW_FINANCIALS,
+        // so this is the same guard that stops a worker exporting what the farm
+        // paid for its feed.
+        const data = await collectReport(inventoryConfig(false));
+
+        expect(data.tables[0].columns).not.toContain(UNIT_PRICE);
+        expect(data.stats.map((s) => s.label)).not.toContain(STOCK_VALUE);
+        expect(JSON.stringify(data)).not.toContain('₹');
+    });
+
+    it('includes them when costs are switched on', async () => {
+        const data = await collectReport(inventoryConfig(true));
+
+        expect(data.tables[0].columns).toContain(UNIT_PRICE);
+        expect(data.stats.map((s) => s.label)).toContain(STOCK_VALUE);
+        // 40 units at ₹70 — and quantity/unitPrice are pg numeric strings.
+        expect(data.stats.find((s) => s.label === STOCK_VALUE)?.value).toBe('₹2,800');
+    });
+});
+
+/**
+ * The screen offers the period chips for every dataset and the header printed
+ * the chosen range on every dataset — including the two whose collector never
+ * looks at it. A cycle report covering the whole cycle came out stamped
+ * "1 Aug – 31 Aug", and an inventory snapshot of stock RIGHT NOW came out under
+ * the same line. The numbers were right; the header described another document.
+ */
+describe('collectReport — the period label only claims a range that was applied', () => {
+    const range = { startDate: '2026-08-01', endDate: '2026-08-31' };
+
+    it('omits it from a cycle report, which is always the whole cycle', async () => {
+        const data = await collectReport(config({ cropId: 'c1', ...range }));
+        expect(data.meta.periodLabel).toBeUndefined();
+        // The scope line still says what the document covers.
+        expect(data.meta.cycleLabel).toBe('Cycle 7 (C-7)');
+    });
+
+    it('omits it from an inventory report, which is a snapshot', async () => {
+        const data = await collectReport(config({ dataset: 'inventory', farmId: 'f1', ...range }));
+        expect(data.meta.periodLabel).toBeUndefined();
+    });
+
+    it('keeps it where the rows really were filtered', async () => {
+        const data = await collectReport(config({ dataset: 'pondLogs', pondId: 'p1', ...range }));
+        expect(data.meta.periodLabel).toBe('1 Aug 2026 – 31 Aug 2026');
+    });
+});
+
 describe('collectReport — document language', () => {
     it('renders in the DOCUMENT language, not the app language', async () => {
         // The app is English (setupTests initialises i18n at 'en'); the farmer

@@ -71,7 +71,24 @@ const settings = {
   aboutUpcheck: 'Neerani ବିଷୟରେ',
   appTagline: 'ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା',
   versionLabel: 'ସଂସ୍କରଣ',
-  buildInfo: 'Build 2026.04.30',
+  buildInfo: 'ବିଲ୍ଡ {{build}}',
+
+  // ── OTA ଅପଡେଟ୍ ସ୍ଥିତି (UpdateStatus, ସଂସ୍କରଣ ତଳେ) ────────────────────────
+  otaEmbedded: 'ଆପ୍ ସହ ଆସିଥିବା ସଂସ୍କରଣ ଚାଲୁଛି',
+  otaRunning: '{{date}}, {{time}}ର ଅପଡେଟ୍ ଚାଲୁଛି',
+  otaPending: 'ନୂଆ ଅପଡେଟ୍ ପ୍ରସ୍ତୁତ — ବ୍ୟବହାର କରିବାକୁ ଆପ୍ ପୁଣି ଖୋଲନ୍ତୁ',
+  otaAvailable: 'ନୂଆ ଅପଡେଟ୍ ଉପଲବ୍ଧ',
+  otaChecking: 'ଅପଡେଟ୍ ଦେଖାଯାଉଛି…',
+  otaDownloading: 'ଅପଡେଟ୍ ଡାଉନଲୋଡ୍ ହେଉଛି…',
+  otaDisabled: 'ଏହି ବିଲ୍ଡରେ ଅପଡେଟ୍ ବନ୍ଦ ଅଛି',
+  otaLatestCheckedAt: 'ଆପଣ ସର୍ବଶେଷ ସଂସ୍କରଣରେ ଅଛନ୍ତି — {{time}}ରେ ଦେଖାଯାଇଛି',
+  otaCheckedAt: '{{time}}ରେ ଦେଖାଯାଇଛି',
+  otaCheckFailed: 'ଦେଖି ହେଲା ନାହିଁ। ନେଟୱାର୍କ ଆସିଲେ ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ।',
+  otaCheck: 'ଅପଡେଟ୍ ଦେଖନ୍ତୁ',
+  otaDownload: 'ଅପଡେଟ୍ ଡାଉନଲୋଡ୍ କରନ୍ତୁ',
+  otaRestart: 'ବର୍ତ୍ତମାନ ପୁଣି ଖୋଲନ୍ତୁ',
+  otaUpdateId: 'ଅପଡେଟ୍ {{id}}',
+
   descriptionLabel: 'ବିବରଣ',
   descriptionText:
     'Neerani ହେଉଛି ଏକ ସମ୍ପୂର୍ଣ୍ଣ ଚିଙ୍ଗୁଡ଼ି ଜଳ ଚାଷ ପରିଚାଳନା ଆପ୍ଲିକେସନ ଯାହା ଚାଷୀଙ୍କୁ ଜଳ ଗୁଣମାନ ଦେଖୁ ରଖିବା, ଖାଦ୍ୟ ପ୍ରଦାନ ପରିଚାଳନା, ବୃଦ୍ଧି ଟ୍ର୍ୟାକ ଏବଂ ଚାଷ ଅଭ୍ୟାସ ଅପ୍ଟିମାଇଜ୍ କରିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ ଡିଜାଇନ ହୋଇଛି।',

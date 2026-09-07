@@ -46,6 +46,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'আর্থিক সারসংক্ষেপ',
+  ledgerOnlyNote: "শুধু এখানে লেখা এন্ট্রি, সব সময়ের। টাকা ট্যাবে পুকুরের খরচ ও ফসল বিক্রিও ধরা হয়।",
   totalIncome: 'মোট আয়',
   totalExpense: 'মোট ব্যয়',
 
@@ -91,6 +92,7 @@ const finance = {
   byFarm: "খামার অনুযায়ী",
   farmInOut: "আয় {{income}} · ব্যয় {{expense}}",
   creditOutstanding: "ডিলার বাকি",
+  creditAllFarmsNote: "সব খামার, সব তারিখ — ডিলার বাকি উপরের চিপ দিয়ে ছাঁকা হয় না।",
   creditDue: "{{dealer}} · {{date}} তারিখে",
   creditDealers: "{{count}} জন ডিলারের কাছে",
   creditDealers_one: "একজন ডিলার",

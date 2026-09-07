@@ -70,6 +70,26 @@ beforeEach(() => {
 });
 
 describe('the config handed to runExport', () => {
+    /**
+     * The clock is read TWICE here and the two readings must agree: the screen
+     * calls `moneyPeriodRange()` (default `now = new Date()`) inside its config
+     * useMemo while rendering, and the assertion below calls it again after the
+     * await. A day boundary landing between the two — likelier on a slow cold
+     * run, which is exactly the first run after an edit — changes `endDate` and
+     * fails a deep equality that passes on the very next run.
+     *
+     * Pinning the system time removes the race without weakening the assertion
+     * to `expect.any(String)`. Timers are pinned for this test only: `waitFor`
+     * elsewhere in this file relies on the real ones.
+     */
+    beforeEach(() => {
+        jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate', 'setTimeout', 'clearTimeout'] });
+        jest.setSystemTime(new Date('2026-08-19T09:00:00.000Z')); // a Wednesday
+    });
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     it('is exactly what the farmer chose', async () => {
         const { getByTestId } = renderScreen({ dataset: 'cycle', farmId: 'f1', pondId: 'p1', cropId: 'c1' });
 

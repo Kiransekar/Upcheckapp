@@ -46,6 +46,12 @@ const finance = {
 
   // Summary card
   financialSummary: 'Financial Summary',
+  // This card counts the `transactions` table only, for all time, for ONE
+  // farm — the Money tab's net counts pond costs and harvest sales too, over
+  // the period the farmer picked. Two different true numbers under the same
+  // three words is how "the app disagrees with itself" starts, so the card
+  // says which one it is.
+  ledgerOnlyNote: 'Entries typed here only, all time. The Money tab also counts pond costs and harvest sales.',
   totalIncome: 'Total Income',
   totalExpense: 'Total Expense',
 
@@ -91,6 +97,11 @@ const finance = {
   byFarm: "By farm",
   farmInOut: "In {{income}} · Out {{expense}}",
   creditOutstanding: "Dealer credit outstanding",
+  // The credit ledger hangs off the USER, not a farm, and carries no dates —
+  // so this row does not change when the farm chip or the period chip does.
+  // Said out loud, because a figure that ignores the filters above it reads
+  // as a bug otherwise.
+  creditAllFarmsNote: "All farms, all dates — dealer credit is not filtered by the chips above.",
   creditDue: "{{dealer}} · due {{date}}",
   creditDealers: "Across {{count}} dealers",
   creditDealers_one: "One dealer",

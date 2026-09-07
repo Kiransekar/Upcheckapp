@@ -46,6 +46,7 @@ const finance = {
 
   // Summary card
   financialSummary: 'நிதி சுருக்கம்',
+  ledgerOnlyNote: "இங்கே பதிவு செய்த உள்ளீடுகள் மட்டும், மொத்த காலத்திற்கும். பணம் தாவலில் குளச் செலவுகளும் அறுவடை விற்பனையும் சேர்க்கப்படும்.",
   totalIncome: 'மொத்த வருமானம்',
   totalExpense: 'மொத்த செலவு',
 
@@ -91,6 +92,7 @@ const finance = {
   byFarm: "பண்ணை வாரியாக",
   farmInOut: "வரவு {{income}} · செலவு {{expense}}",
   creditOutstanding: "வியாபாரி கடன் நிலுவை",
+  creditAllFarmsNote: "அனைத்து பண்ணைகள், அனைத்து தேதிகள் — வியாபாரி கடன் மேலே உள்ள சிப்களால் வடிகட்டப்படாது.",
   creditDue: "{{dealer}} · {{date}} அன்று",
   creditDealers: "{{count}} வியாபாரிகளிடம்",
   creditDealers_one: "ஒரு வியாபாரி",

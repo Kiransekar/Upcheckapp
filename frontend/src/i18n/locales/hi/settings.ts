@@ -71,7 +71,24 @@ const settings = {
   aboutUpcheck: 'Neerani के बारे में',
   appTagline: 'झींगा जलकृषि प्रबंधन',
   versionLabel: 'संस्करण',
-  buildInfo: 'बिल्ड 2026.04.30',
+  buildInfo: 'बिल्ड {{build}}',
+
+  // ── ओटीए अपडेट स्थिति (UpdateStatus, संस्करण के नीचे) ─────────────────────
+  otaEmbedded: 'ऐप में पहले से मौजूद संस्करण चल रहा है',
+  otaRunning: '{{date}}, {{time}} का अपडेट चल रहा है',
+  otaPending: 'नया अपडेट तैयार है — इस्तेमाल करने के लिए ऐप दोबारा खोलें',
+  otaAvailable: 'नया अपडेट उपलब्ध है',
+  otaChecking: 'अपडेट देखा जा रहा है…',
+  otaDownloading: 'अपडेट डाउनलोड हो रहा है…',
+  otaDisabled: 'इस बिल्ड में अपडेट बंद हैं',
+  otaLatestCheckedAt: 'आप नवीनतम पर हैं — {{time}} बजे देखा गया',
+  otaCheckedAt: '{{time}} बजे देखा गया',
+  otaCheckFailed: 'देख नहीं सके। नेटवर्क आने पर फिर कोशिश करें।',
+  otaCheck: 'अपडेट देखें',
+  otaDownload: 'अपडेट डाउनलोड करें',
+  otaRestart: 'अभी दोबारा खोलें',
+  otaUpdateId: 'अपडेट {{id}}',
+
   descriptionLabel: 'विवरण',
   descriptionText:
     'Neerani एक व्यापक झींगा जलकृषि प्रबंधन ऐप है जो किसानों को जल गुणवत्ता निगरानी, आहार प्रबंधन, वृद्धि ट्रैकिंग और खेती प्रथाओं को अनुकूलित करने में मदद करता है।',

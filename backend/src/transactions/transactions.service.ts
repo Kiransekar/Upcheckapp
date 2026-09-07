@@ -151,17 +151,79 @@ export class TransactionsService {
       where,
       order: { transactionDate: 'DESC' },
     });
+
+    /**
+     * Pond context for the rows that name one.
+     *
+     * `archived` used to be hardcoded `false`, which was right while a
+     * transaction hung off a FARM only. Now that one may name a pond, that
+     * `false` was a wrong answer confidently given: the Money tab's "count
+     * archived ponds" toggle dropped an archived pond's EXPENSES and kept its
+     * transactions, so flipping it moved the headline by less than it claimed.
+     *
+     * One lookup for the whole page, and none at all when no row names a pond —
+     * which is every row written before the column existed.
+     */
+    const pondIds = [
+      ...new Set(rows.map((t) => t.pondId).filter(Boolean) as string[]),
+    ];
+    const pondById = new Map(
+      (pondIds.length
+        ? await this.pondsRepository.find({ where: { id: In(pondIds) } })
+        : []
+      ).map((p) => [p.id, p]),
+    );
+
+    /**
+     * Pond scoping, for the rows that name a pond.
+     *
+     * VIEW_FINANCIALS is overridable, so an owner CAN grant it to a
+     * pond-scoped viewer or worker. That member's pond costs are already
+     * narrowed (`ExpensesService.findMoneyEntries`) and so is the financial
+     * report — a transaction on a pond outside their scope was the one piece
+     * of another pond's money still reaching them, and the one row in the
+     * Money tab's list that its headline did not contain.
+     *
+     * Asked per farm only for the farms that actually have pond-attributed
+     * rows, and `getAccessiblePondIds` returns every pond for an unscoped
+     * caller, so this costs nothing and narrows nothing for owner or manager.
+     */
+    const outOfScope = new Set<string>();
+    if (pondById.size > 0) {
+      const pondsByFarm = new Map<string, string[]>();
+      for (const p of pondById.values()) {
+        pondsByFarm.set(p.farmId, [...(pondsByFarm.get(p.farmId) ?? []), p.id]);
+      }
+      await Promise.all(
+        [...pondsByFarm].map(async ([fid, ids]) => {
+          const allowed = new Set(
+            await this.farmAccess.getAccessiblePondIds(
+              userId,
+              fid,
+              'VIEW_FINANCIALS',
+            ),
+          );
+          for (const id of ids) if (!allowed.has(id)) outOfScope.add(id);
+        }),
+      );
+    }
+
     // Row flags the Money screen renders directly, so transaction and expense
     // rows share one shape on the client.
-    // ponytail: `archived` is hardcoded false. It was exactly right while a
-    // transaction hung off a FARM only; now that one may optionally name a
-    // pond, a row on an archived pond will not be marked as such. Join the pond
-    // here when enough money is attributed for that to be visible.
-    return rows.map((t) => ({
-      ...t,
-      inventoryPurchase: t.inventoryItemId != null,
-      archived: false,
-    }));
+    return rows
+      .filter((t) => !t.pondId || !outOfScope.has(t.pondId))
+      .map((t) => {
+        const pond = t.pondId ? pondById.get(t.pondId) : undefined;
+        return {
+          ...t,
+          inventoryPurchase: t.inventoryItemId != null,
+          pondName: pond?.displayName ?? pond?.name ?? null,
+          archived: pond?.status === 'archived',
+        };
+      })
+      // D3: a retired pond's money is MARKED, not erased — only an explicit
+      // `false` hides it, exactly as in `ExpensesService.findMoneyEntries`.
+      .filter((t) => q.includeArchivedPonds !== false || !t.archived);
   }
 
   private async findWithCapability(

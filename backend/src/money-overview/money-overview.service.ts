@@ -8,7 +8,6 @@ import { ExpensesService } from '../finances/expenses.service';
 import {
   MoneyOverviewQueryDto,
   dateRangeWhere,
-  inDateRange,
 } from '../transactions/dto/money-query.dto';
 
 /**
@@ -71,7 +70,13 @@ export class MoneyOverviewService {
       // (the report sums salePriceTotal) but wrote no row the farmer could
       // point at. Merging here rather than writing a Transaction on harvest
       // create is what keeps revenue from being counted twice.
-      this.harvests.findMoneyEntries(userId).catch(() => []),
+      // Filtered in SQL, with the same date range and archive rule the report
+      // applies to the revenue it puts in the headline. It used to be filtered
+      // here in memory, AFTER the query's 500-row cap — so "this week" searched
+      // the 500 most recent harvests rather than the week's — and the archive
+      // toggle was not applied to it at all, leaving sale rows on screen that
+      // the total above them excluded.
+      this.harvests.findMoneyEntries(userId, q).catch(() => []),
       // Pond costs, projected read-only into entry shape for the same reason
       // harvests are: the report already sums this table into the headline, so
       // the farmer could see the total move with no line to point at. See
@@ -87,13 +92,6 @@ export class MoneyOverviewService {
       inventoryExpenses += Number((pair[1] as any)?.inventoryExpenses || 0);
     }
 
-    // Harvest rows are filtered here rather than in the query: HarvestsService
-    // belongs to another module and takes no date filter. Its read is capped
-    // at 500 rows, so this stays cheap.
-    const harvestsInRange = (harvestRows as any[]).filter((e) =>
-      inDateRange(e?.transactionDate, q),
-    );
-
     // One list, newest first, so a harvest sits among the entries the farmer
     // typed on the same day instead of in a section of its own.
     // `transactionDate` is a `YYYY-MM-DD` string on both sides; normalise a
@@ -102,10 +100,10 @@ export class MoneyOverviewService {
       e.transactionDate instanceof Date
         ? e.transactionDate.toISOString()
         : String(e.transactionDate ?? '');
+    // All three sources are now date- and archive-filtered in SQL.
     const allEntries = [
       ...transactionRows,
-      ...harvestsInRange,
-      // Already date-filtered in SQL — ExpensesService takes the range.
+      ...(harvestRows as any[]),
       ...(expenseRows as any[]),
     ].sort((a, b) =>
       sortKey(b).localeCompare(sortKey(a)),
