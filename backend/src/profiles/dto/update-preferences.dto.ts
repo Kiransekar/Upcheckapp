@@ -19,7 +19,13 @@ export type SignupIntent = (typeof SIGNUP_INTENTS)[number];
  * declared here is stripped before the controller ever sees it.
  */
 export class UpdatePreferencesDto {
+  /**
+   * `null` means CLEAR — see ProfilesService.setPreferences. class-validator's
+   * `@IsOptional` already skips validation for null as well as undefined, so
+   * null travels through untouched; the type says so out loud because the
+   * difference between the two is load-bearing here rather than incidental.
+   */
   @IsOptional()
   @IsIn(SIGNUP_INTENTS as unknown as string[])
-  onboardingIntent?: SignupIntent;
+  onboardingIntent?: SignupIntent | null;
 }

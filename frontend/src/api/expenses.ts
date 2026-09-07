@@ -26,6 +26,19 @@ export interface Expense {
     archived?: boolean;
     /** Came from an inventory purchase rather than a typed expense. */
     inventoryPurchase?: boolean;
+    /**
+     * Which money table this row actually came from.
+     *
+     * Absent for a real `expenses` row. `'transaction'` means it was typed on
+     * the farm Money screen and tagged to this pond — the backend projects it
+     * into the cycle list at read time so the pond's Expenses tab and its
+     * totals stop disagreeing with what the farmer entered.
+     *
+     * Such a row is READ-ONLY here: its `id` is prefixed `transaction:` and no
+     * `/expenses` endpoint owns it, so it must never be offered for edit or
+     * delete on this tab.
+     */
+    source?: 'transaction';
 }
 
 /**

@@ -912,11 +912,19 @@ export const MoneyScreen = ({ navigation, route }: any) => {
                          * now, same read-time projection harvests use.
                          */
                         const isPondCost = tx.source === 'expense';
+                        // Say WHERE each row was entered, both ways. The pond's
+                        // Expenses tab marks a farm-money row "From farm Money";
+                        // this is the mirror. Without it the same cost appears
+                        // on two screens with nothing to say which one owns it —
+                        // and neither row is tappable, so a farmer looking for
+                        // the edit button has no idea which screen to go to.
                         const detail = isHarvest
                             ? tx.buyerName
                                 ? t('finance.harvestSoldTo', { buyer: tx.buyerName })
                                 : t('finance.harvestSale')
-                            : tx.paymentMethod;
+                            : isPondCost
+                              ? t('finance.fromPondExpenses')
+                              : tx.paymentMethod;
                         // The pond, when the row knows one. Pond costs always
                         // do; a transaction does when the farmer picked one.
                         const pond = tx.pondName ?? undefined;

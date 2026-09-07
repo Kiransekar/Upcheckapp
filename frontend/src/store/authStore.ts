@@ -7,6 +7,7 @@ import i18n from '../i18n';
 import { authApi } from '../api/auth';
 import { apiErrorMessage } from '../api/errors';
 import { profilesApi } from '../api/profiles';
+import { farmsApi } from '../api/farms';
 import { TruecallerAuth } from '../native/TruecallerAuth';
 import { useSyncStore } from './syncStore';
 import { useActiveFarmStore } from './activeFarmStore';
@@ -290,7 +291,14 @@ export const useAuthStore = create<AuthState>()(
 
             clearOnboardingIntent: async () => {
                 try {
-                    await profilesApi.setMyPreferences({ onboardingIntent: undefined });
+                    // `null`, NOT `undefined`. JSON.stringify DROPS undefined
+                    // properties, so this request used to go out as `{}` and the
+                    // server — which skips undefined keys — wrote nothing. The
+                    // intent therefore survived every completed setup, forever,
+                    // and restoreOnboardingIntent re-armed the gate from it on
+                    // the next launch. Null is a value that actually travels;
+                    // the server deletes the key when it sees one.
+                    await profilesApi.setMyPreferences({ onboardingIntent: null });
                 } catch {
                     // Same: never let bookkeeping fail the action that succeeded.
                 }
@@ -300,22 +308,45 @@ export const useAuthStore = create<AuthState>()(
              * Re-derive the first-run gates from the server after a session is
              * restored on a device that has never seen this account.
              *
-             * Only ever turns a gate ON when the server still holds an intent —
-             * an intent is cleared once acted on, so a farmer who already made
-             * their farm cannot be trapped back in setup.
+             * An intent is a resume point for someone who has not arrived yet,
+             * so it may only gate someone with NO farm. It is not enough to
+             * trust that the intent was cleared on the way past: clearing is
+             * best-effort and fire-and-forget, so it can be lost to a dropped
+             * connection even now that the payload itself is fixed. One lost
+             * clear used to mean the farm-creation screen on every single launch
+             * with no way out, which is exactly what happened in production.
+             * Owning a farm is the durable fact; the stored intent is not.
              */
             restoreOnboardingIntent: async () => {
                 // A device that already knows where it is does not need asking.
                 if (get().pendingFarmSetup || get().pendingFarmJoin) return;
                 try {
                     const { data } = await profilesApi.getMyPreferences();
-                    if (data?.onboardingIntent === 'own_farm') {
-                        set({ pendingFarmSetup: true });
-                    } else if (data?.onboardingIntent === 'work_on_farm') {
-                        set({ pendingFarmJoin: true });
+                    const intent = data?.onboardingIntent;
+                    if (intent !== 'own_farm' && intent !== 'work_on_farm') return;
+
+                    // Only paid for when an intent actually survives, so the
+                    // common case (nothing stored) costs no extra round trip.
+                    // Covers BOTH gates: /farms is member-aware, so a worker who
+                    // has joined somewhere comes back non-empty too.
+                    const { data: farms } = await farmsApi.getAll();
+                    if (farms?.length) {
+                        // Stale. Heal the row so this stops costing a request.
+                        void get().clearOnboardingIntent();
+                        return;
                     }
+
+                    set(
+                        intent === 'own_farm'
+                            ? { pendingFarmSetup: true }
+                            : { pendingFarmJoin: true },
+                    );
                 } catch {
                     // Offline or unreachable — leave the gates as they are.
+                    // Failing here leaves them OFF, which is the safe direction:
+                    // a farmer who should have been gated reaches the app and
+                    // can still create a farm from it, whereas a wrong gate is a
+                    // screen they cannot get past.
                 }
             },
 

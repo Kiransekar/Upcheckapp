@@ -21,9 +21,11 @@ function makeService(stored: Record<string, unknown> = {}) {
     query: jest.fn(async (sql: string, params: unknown[]) => {
       calls.push({ sql, params });
       if (/^\s*SELECT/i.test(sql)) return [{ preferences: stored }];
-      // Mimic Postgres `||`: merge the patch over what is stored.
+      // Mimic Postgres `||` then `- text[]`: merge the patch over what is
+      // stored, then drop the named keys.
       const patch = JSON.parse(params[1] as string);
       Object.assign(stored, patch);
+      for (const key of (params[2] as string[]) ?? []) delete stored[key];
       return [{ preferences: stored }];
     }),
   };
@@ -80,6 +82,43 @@ describe('ProfilesService preferences — what may be written', () => {
     expect(result).not.toHaveProperty('isAdmin');
   });
 
+  /**
+   * The production bug this pins.
+   *
+   * `clearOnboardingIntent` sent `{ onboardingIntent: undefined }`, which
+   * JSON.stringify drops — the body arrived as `{}`, this method skipped it as
+   * "nothing writable", and the intent stayed on the row for good. Every owner
+   * who finished setup then had the gate re-armed from it on the next launch
+   * and was returned to the farm-creation screen at every app open, with no way
+   * past it. A clear has to be expressible, and null is how it is spelled.
+   */
+  it('deletes the key when the value is an explicit null', async () => {
+    const { svc, stored } = makeService({ onboardingIntent: 'own_farm' });
+
+    const result = await svc.setPreferences('u1', { onboardingIntent: null });
+
+    expect(result).not.toHaveProperty('onboardingIntent');
+    expect(stored).not.toHaveProperty('onboardingIntent');
+  });
+
+  it('clearing one key leaves the others alone', async () => {
+    const { svc } = makeService({ language: 'te', onboardingIntent: 'own_farm' });
+
+    const result = await svc.setPreferences('u1', { onboardingIntent: null });
+
+    expect(result).toEqual({ language: 'te' });
+  });
+
+  it('a clear is one atomic statement, not read-then-write', async () => {
+    const { svc, calls } = makeService({ onboardingIntent: 'own_farm' });
+
+    await svc.setPreferences('u1', { onboardingIntent: null });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].sql).toMatch(/UPDATE users/);
+    expect(calls[0].params[2]).toEqual(['onboardingIntent']);
+  });
+
   it('issues no UPDATE at all when nothing writable was sent', async () => {
     const { svc, calls } = makeService({ onboardingIntent: 'own_farm' });
 
@@ -115,5 +154,12 @@ describe('UpdatePreferencesDto — what the API accepts', () => {
 
   it('accepts an empty patch — the field is optional', async () => {
     expect(await check({})).toHaveLength(0);
+  });
+
+  it('accepts an explicit null, because that is how a clear is spelled', async () => {
+    // @IsOptional skips validators for null as well as undefined. If that ever
+    // changes, clearing starts 400ing and owners get stranded on the
+    // farm-creation screen again — so it is pinned here rather than assumed.
+    expect(await check({ onboardingIntent: null })).toHaveLength(0);
   });
 });

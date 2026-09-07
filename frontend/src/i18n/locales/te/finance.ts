@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'అన్ని ఖర్చులు',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'ఫారం డబ్బు నుండి',
+  fromPondExpenses: 'చెరువు ఖర్చుల నుండి',
 
   // Empty / loading states
   loadingExpenses: 'ఖర్చులు లోడ్ అవుతున్నాయి…',

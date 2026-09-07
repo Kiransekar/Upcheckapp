@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'সমস্ত ব্যয়',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'ফার্ম টাকা থেকে',
+  fromPondExpenses: 'পুকুর খরচ থেকে',
 
   // Empty / loading states
   loadingExpenses: 'ব্যয় লোড হচ্ছে…',

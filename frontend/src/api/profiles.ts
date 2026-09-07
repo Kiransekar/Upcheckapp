@@ -105,5 +105,9 @@ export const profilesApi = {
 
 /** Server-persisted, per-user preferences. Routes first-run; grants nothing. */
 export interface UserPreferences {
-    onboardingIntent?: 'own_farm' | 'work_on_farm';
+    /**
+     * `null` on a WRITE means clear it. Not `undefined` — JSON.stringify drops
+     * undefined properties, so that never reaches the server at all.
+     */
+    onboardingIntent?: 'own_farm' | 'work_on_farm' | null;
 }

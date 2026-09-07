@@ -227,25 +227,62 @@ export const ExpensesScreen = ({ route, navigation }: any) => {
         );
     };
 
-    const renderExpenseItem = ({ item }: { item: Expense }) => (
-        <Card style={styles.expenseCard} variant="outlined">
-            <View style={styles.expenseHeader}>
-                <View style={[styles.categoryBadge, { backgroundColor: theme.roles.light.infoBg }]}>
-                    <MaterialCommunityIcons name="cash" size={16} color={theme.roles.light.infoText} />
+    /**
+     * One cost in this cycle — from either money table.
+     *
+     * A row with `source === 'transaction'` was typed on the farm Money screen
+     * and tagged to this pond. It counts in the totals above (the backend
+     * projects it into the same list they are reduced from), but it lives in
+     * the `transactions` table: the `/expenses` endpoints do not own it and
+     * would 404 on its `transaction:`-prefixed id. So it says where it came
+     * from, and this whole tab exposes no edit or delete affordance at all —
+     * the row is a plain View, not a touchable, which is what makes acting on
+     * the wrong row impossible rather than merely discouraged.
+     */
+    const renderExpenseItem = ({ item }: { item: Expense }) => {
+        const fromFarmMoney = item.source === 'transaction';
+        return (
+            <Card style={styles.expenseCard} variant="outlined">
+                <View style={styles.expenseHeader}>
+                    <View
+                        style={[
+                            styles.categoryBadge,
+                            {
+                                backgroundColor: fromFarmMoney
+                                    ? theme.roles.light.surfaceVariant
+                                    : theme.roles.light.infoBg,
+                            },
+                        ]}
+                    >
+                        <MaterialCommunityIcons
+                            name={fromFarmMoney ? 'bank-transfer' : 'cash'}
+                            size={16}
+                            color={
+                                fromFarmMoney
+                                    ? theme.roles.light.textSecondary
+                                    : theme.roles.light.infoText
+                            }
+                        />
+                    </View>
+                    <View style={styles.expenseInfo}>
+                        <Text style={styles.expenseCategory} numberOfLines={1}>{item.category}</Text>
+                        {item.description ? (
+                            <Text style={styles.expenseNotes} numberOfLines={1}>{item.description}</Text>
+                        ) : null}
+                        {fromFarmMoney ? (
+                            <Text style={styles.sourceTag} numberOfLines={1}>
+                                {t('finance.fromFarmMoney')}
+                            </Text>
+                        ) : null}
+                    </View>
+                    <View style={styles.expenseRight}>
+                        <Text style={styles.expenseAmount} numberOfLines={1}>{formatMoney(item.amount)}</Text>
+                        <Text style={styles.expenseDate} numberOfLines={1}>{item.date}</Text>
+                    </View>
                 </View>
-                <View style={styles.expenseInfo}>
-                    <Text style={styles.expenseCategory} numberOfLines={1}>{item.category}</Text>
-                    {item.description ? (
-                        <Text style={styles.expenseNotes} numberOfLines={1}>{item.description}</Text>
-                    ) : null}
-                </View>
-                <View style={styles.expenseRight}>
-                    <Text style={styles.expenseAmount} numberOfLines={1}>{formatMoney(item.amount)}</Text>
-                    <Text style={styles.expenseDate} numberOfLines={1}>{item.date}</Text>
-                </View>
-            </View>
-        </Card>
-    );
+            </Card>
+        );
+    };
 
     const renderAddForm = () => (
         <Card style={styles.formCard} variant="elevated">
@@ -610,6 +647,11 @@ const styles = StyleSheet.create({
     expenseNotes: {
         ...theme.typeScale.bodySmall,
         color: theme.roles.light.textSecondary,
+        marginTop: theme.spacing[0.5],
+    },
+    sourceTag: {
+        ...theme.typeScale.caption,
+        color: theme.roles.light.textTertiary,
         marginTop: theme.spacing[0.5],
     },
     expenseRight: {

@@ -8,14 +8,64 @@ import { ExpensesService } from './expenses.service';
  * branch FAILS CLOSED: a caller who does not hold VIEW_FINANCIALS on a farm
  * must get none of that farm's costs, including when they name no farm at all.
  */
+/**
+ * A query builder that actually FILTERS.
+ *
+ * `cycleTransactions` is nothing but its where-clauses — the cycle window, the
+ * pond and the type — so a mock that returns every row regardless would assert
+ * the shape of SQL strings and prove nothing about which rows come back.
+ * This interprets the handful of clause shapes that method emits
+ * (`t.<field> <op> :<param>`), which makes "a transaction outside the window
+ * does not appear" a real test: break a bound in the service and it fails.
+ */
+const filteringQb = (rows: any[]) => {
+  const preds: [string, any][] = [];
+  const push = (clause: string, params: any) => (
+    preds.push([clause, params]), qb
+  );
+  const matches = (row: any) =>
+    preds.every(([clause, params]) => {
+      const m = /^t\.(\w+) (=|>=|<=) :(\w+)$/.exec(clause);
+      if (!m) return true;
+      const [, field, op, param] = m;
+      const left = row[field];
+      const right = params[param];
+      if (left instanceof Date || right instanceof Date) {
+        const a = new Date(left).getTime();
+        const b = new Date(right).getTime();
+        if (op === '=') return a === b;
+        return op === '>=' ? a >= b : a <= b;
+      }
+      if (op === '=') return left === right;
+      return op === '>=' ? left >= right : left <= right;
+    });
+  const qb: any = {
+    where: push,
+    andWhere: push,
+    orderBy: () => qb,
+    take: () => qb,
+    getMany: async () => rows.filter(matches),
+  };
+  return qb;
+};
+
 const build = (over: any = {}) => {
   const expensesRepository = {
     find: jest.fn().mockResolvedValue(over.rows ?? []),
   };
   const cropsRepository = {
-    findOne: jest
+    findOne: jest.fn().mockResolvedValue(
+      over.crop ?? {
+        id: 'crop-1',
+        pondId: 'pond-1',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    ),
+  };
+  const transactionsRepository = {
+    createQueryBuilder: jest
       .fn()
-      .mockResolvedValue(over.crop ?? { id: 'crop-1', pondId: 'pond-1' }),
+      .mockImplementation(() => filteringQb(over.transactions ?? [])),
   };
   const harvestsService = {
     findAll: jest.fn().mockResolvedValue(over.harvests ?? []),
@@ -36,8 +86,15 @@ const build = (over: any = {}) => {
     cropsRepository as any,
     harvestsService as any,
     farmAccess as any,
+    transactionsRepository as any,
   );
-  return { service, expensesRepository, farmAccess, harvestsService };
+  return {
+    service,
+    expensesRepository,
+    transactionsRepository,
+    farmAccess,
+    harvestsService,
+  };
 };
 
 const whereOf = (repo: any, call = 0) => repo.find.mock.calls[call][0].where;
@@ -235,6 +292,180 @@ describe('ExpensesService.getCycleFinancials — date range', () => {
     const out = await service.getCycleFinancials('crop-1', 'u');
 
     expect(out.totalRevenue).toBe(14000);
+  });
+});
+
+/**
+ * The other half of the two-table money merge.
+ *
+ * The farm Money screen writes a `transactions` row and can tag it to a pond;
+ * the pond's Expenses tab reads `expenses WHERE cropId = ...`. A transaction
+ * has no cropId, so a pond-tagged cost was invisible there: "i added an expense
+ * in the money button ... and selected one pond ... but the expense tab inside
+ * that pond didnt show this."
+ *
+ * The list and the total have to move TOGETHER — `getCycleFinancials` reduces
+ * over `findByCycle`, so every case below asserts both.
+ */
+describe('ExpensesService.findByCycle — pond-tagged transactions', () => {
+  // Cycle: stocked 10 Jan, still running.
+  const crop = {
+    id: 'crop-1',
+    pondId: 'pond-1',
+    stockingDate: '2026-01-10',
+    createdAt: new Date('2026-01-08T00:00:00.000Z'),
+  };
+  const tx = (over: any = {}) => ({
+    id: 't1',
+    pondId: 'pond-1',
+    type: 'expense',
+    category: 'feed',
+    amount: '750.50',
+    description: 'Feed from the Money tab',
+    transactionDate: new Date('2026-02-10T06:00:00.000Z'),
+    createdAt: new Date('2026-02-10T06:00:00.000Z'),
+    inventoryItemId: null,
+    createdById: 'u',
+    ...over,
+  });
+
+  it('shows a pond-tagged transaction in the cycle list AND in totalExpenses', async () => {
+    const { service } = build({
+      crop,
+      rows: [{ id: 'e1', amount: '100', category: 'Feed', date: '2026-02-01' }],
+      transactions: [tx()],
+    });
+
+    const list: any[] = await service.findByCycle('crop-1', 'u');
+    expect(list.map((r) => r.id)).toEqual(['transaction:t1', 'e1']);
+    // pg hands numerics back as strings — the row must carry a number.
+    expect(list[0].amount).toBe(750.5);
+    // Marked as coming from the other table, and impossible to mistake for an
+    // expense id the edit/delete endpoints would accept.
+    expect(list[0].source).toBe('transaction');
+
+    const { totalExpenses } = await service.getCycleFinancials('crop-1', 'u');
+    expect(totalExpenses).toBe(850.5);
+  });
+
+  it('excludes a transaction on ANOTHER pond', async () => {
+    const { service } = build({
+      crop,
+      transactions: [tx({ pondId: 'pond-2' })],
+    });
+
+    expect(await service.findByCycle('crop-1', 'u')).toEqual([]);
+    expect((await service.getCycleFinancials('crop-1', 'u')).totalExpenses).toBe(
+      0,
+    );
+  });
+
+  it('excludes a transaction dated BEFORE the cycle window opened', async () => {
+    const { service } = build({
+      crop,
+      // 9 Jan IST — the day before stocking.
+      transactions: [
+        tx({ transactionDate: new Date('2026-01-09T06:00:00.000Z') }),
+      ],
+    });
+
+    expect(await service.findByCycle('crop-1', 'u')).toEqual([]);
+    expect((await service.getCycleFinancials('crop-1', 'u')).totalExpenses).toBe(
+      0,
+    );
+  });
+
+  it('excludes a transaction dated AFTER a closed cycle was harvested', async () => {
+    const { service } = build({
+      crop: { ...crop, actualHarvestDate: new Date('2026-03-01T04:00:00.000Z') },
+      transactions: [
+        tx({ transactionDate: new Date('2026-03-02T06:00:00.000Z') }),
+      ],
+    });
+
+    expect(await service.findByCycle('crop-1', 'u')).toEqual([]);
+  });
+
+  it('keeps a transaction dated ON the harvest day — the window is inclusive', async () => {
+    const { service } = build({
+      // Harvested 1 Mar IST; the cost was typed later that same IST day.
+      crop: { ...crop, actualHarvestDate: new Date('2026-03-01T04:00:00.000Z') },
+      transactions: [
+        tx({ transactionDate: new Date('2026-03-01T16:00:00.000Z') }),
+      ],
+    });
+
+    expect((await service.findByCycle('crop-1', 'u')).length).toBe(1);
+  });
+
+  it('leaves income out — this cycle takes revenue from harvests, not typed rows', async () => {
+    const { service } = build({
+      crop,
+      transactions: [tx({ type: 'income', category: 'harvest_sale' })],
+    });
+
+    expect(await service.findByCycle('crop-1', 'u')).toEqual([]);
+  });
+
+  it('dates the row by the IST calendar day, not the UTC one', async () => {
+    const { service } = build({
+      crop,
+      // 18:30Z on 9 Feb is 10 Feb 00:00 IST — a 10 Feb cost.
+      transactions: [
+        tx({ transactionDate: new Date('2026-02-09T18:30:00.000Z') }),
+      ],
+    });
+
+    const [row]: any[] = await service.findByCycle('crop-1', 'u');
+    expect(row.date).toBe('2026-02-10');
+  });
+
+  it('narrows with ?startDate/?endDate on top of the cycle window', async () => {
+    const { service } = build({
+      crop,
+      transactions: [
+        // All three sit inside the cycle window; only the middle one is inside
+        // the requested range, so BOTH bounds have to be applied.
+        tx({ id: 'early', transactionDate: new Date('2026-01-15T06:00:00.000Z') }),
+        tx({ id: 'in', transactionDate: new Date('2026-02-10T06:00:00.000Z') }),
+        tx({ id: 'late', transactionDate: new Date('2026-04-10T06:00:00.000Z') }),
+      ],
+    });
+
+    const list: any[] = await service.findByCycle('crop-1', 'u', {
+      startDate: '2026-02-01',
+      endDate: '2026-02-28',
+    });
+    expect(list.map((r) => r.id)).toEqual(['transaction:in']);
+  });
+
+  it('marks a projected row archived when the crop’s pond is retired', async () => {
+    const { service } = build({
+      crop: { ...crop, pond: { id: 'pond-1', status: 'archived' } },
+      transactions: [tx()],
+    });
+
+    const [row]: any[] = await service.findByCycle('crop-1', 'u');
+    expect(row.archived).toBe(true);
+  });
+
+  it('returns NOTHING to a caller without VIEW_FINANCIALS — neither table is read', async () => {
+    const { service, transactionsRepository, expensesRepository } = build({
+      crop,
+      transactions: [tx()],
+      farmAccess: {
+        assertCanAccessPond: jest.fn().mockRejectedValue(new ForbiddenException()),
+      },
+    });
+
+    await expect(service.findByCycle('crop-1', 'worker')).rejects.toThrow(
+      ForbiddenException,
+    );
+    await expect(
+      service.getCycleFinancials('crop-1', 'worker'),
+    ).rejects.toThrow(ForbiddenException);
+    expect(transactionsRepository.createQueryBuilder).not.toHaveBeenCalled();
+    expect(expensesRepository.find).not.toHaveBeenCalled();
   });
 });
 

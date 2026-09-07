@@ -34,6 +34,11 @@ const finance = {
 
   // List
   allExpenses: 'அனைத்து செலவுகளும்',
+  // Marks a cycle-expense row that actually lives in the `transactions`
+  // table — typed on the farm Money screen and tagged to this pond. It is
+  // read-only here: the edit/delete endpoints on this tab do not own it.
+  fromFarmMoney: 'பண்ணை பணத்திலிருந்து',
+  fromPondExpenses: 'குள செலவிலிருந்து',
 
   // Empty / loading states
   loadingExpenses: 'செலவுகளை ஏற்றுகிறது…',

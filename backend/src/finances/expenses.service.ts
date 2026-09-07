@@ -7,18 +7,31 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Expense } from './expense.entity';
 import { Crop } from '../crops/crop.entity';
+import { Transaction } from '../transactions/transaction.entity';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { ExpenseQueryDto } from './dto/expense-query.dto';
 import {
   DateRangeDto,
   dateRangeWhere,
   inDateRange,
+  istBounds,
 } from '../transactions/dto/money-query.dto';
 import { HarvestsService } from '../harvests/harvests.service';
 import { FarmAccessService } from '../farm-access/farm-access.service';
-import { toIstDateString } from '../common/ist-date';
+import { istDayRangeUtc, toIstDateString } from '../common/ist-date';
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/**
+ * The IST calendar day of a value that may arrive either way.
+ *
+ * A `date` column comes back from pg as `'YYYY-MM-DD'` and is already local; a
+ * `timestamptz` comes back as a `Date` and must be shifted to IST before the
+ * day is read, or anything after 18:30 UTC files under tomorrow. Same rule
+ * `Crop`'s DOC helper and `findMoneyEntries` follow.
+ */
+const istDay = (value: string | Date): string =>
+  value instanceof Date ? toIstDateString(value) : String(value).slice(0, 10);
 
 @Injectable()
 export class ExpensesService {
@@ -29,11 +42,20 @@ export class ExpensesService {
     private cropsRepository: Repository<Crop>,
     private harvestsService: HarvestsService, // For P&L reports
     private readonly farmAccess: FarmAccessService,
+    @InjectRepository(Transaction)
+    private transactionsRepository: Repository<Transaction>,
   ) {}
 
-  /** Resolve a crop to its pond and assert the caller may view financials. */
+  /**
+   * Resolve a crop to its pond and assert the caller may view financials.
+   * Returns the crop (with its pond joined) — `findByCycle` needs the cycle's
+   * window and the pond's archived status, and this already reads the row.
+   */
   private async assertCropFinancials(cropId: string, userId: string) {
-    const crop = await this.cropsRepository.findOne({ where: { id: cropId } });
+    const crop = await this.cropsRepository.findOne({
+      where: { id: cropId },
+      relations: { pond: true },
+    });
     if (!crop) {
       throw new NotFoundException(`Crop with ID ${cropId} not found`);
     }
@@ -42,6 +64,7 @@ export class ExpensesService {
       crop.pondId,
       'VIEW_FINANCIALS',
     );
+    return crop;
   }
 
   async create(createDto: CreateExpenseDto, userId: string) {
@@ -304,16 +327,124 @@ export class ExpensesService {
     return empty;
   }
 
+  /**
+   * The farm Money screen's pond-tagged costs, as cycle expense rows.
+   *
+   * The reverse of `findMoneyEntries`, and the other half of the same bug.
+   * Money lives in two tables: the Money screen writes a `transactions` row
+   * (which may now name a pond) and the pond's Expenses tab reads
+   * `expenses WHERE cropId = ...`. A transaction has no `cropId` and never
+   * will, so a pond-tagged cost could not appear there — "I added an expense
+   * in the money button and selected one pond ... but the expense tab inside
+   * that pond didnt show this."
+   *
+   * Merged at READ time, exactly like the projection going the other way.
+   * Nothing is migrated and the Money screen keeps writing where it wrote.
+   *
+   * WHICH transactions belong to the cycle — a transaction has a pond and a
+   * date but no cycle, so: same pond, dated inside the cycle's window. The
+   * window opens on the stocking day (or, for a cycle never stocked, the day
+   * the cycle was created — pond prep is spent before stocking) and closes on
+   * the actual harvest day, staying open while the cycle still runs.
+   *
+   * `transaction_date` is a timestamptz, so the window's IST calendar days are
+   * converted to UTC instants; `expenses.date` is a plain DATE compared as a
+   * string. That is why the two halves of `findByCycle` filter differently —
+   * they are NOT interchangeable.
+   *
+   * Expense-type rows only. Income is deliberately left out: this cycle's
+   * `totalRevenue` is derived from harvests, and a farmer who records a
+   * harvest AND types the sale as an income row would have it counted twice.
+   * ponytail: revisit if income ever needs a home here — it needs a
+   * harvest-vs-typed reconciliation rule first, not just a `type` filter.
+   */
+  private async cycleTransactions(crop: Crop, q?: DateRangeDto) {
+    const startDay = istDay(crop.stockingDate ?? crop.createdAt);
+    const endDay = crop.actualHarvestDate
+      ? istDay(crop.actualHarvestDate)
+      : null;
+
+    const qb = this.transactionsRepository
+      .createQueryBuilder('t')
+      .where('t.pondId = :pondId', { pondId: crop.pondId })
+      .andWhere('t.type = :type', { type: 'expense' })
+      .andWhere('t.transactionDate >= :cycleStart', {
+        cycleStart: istDayRangeUtc(startDay).start,
+      });
+    if (endDay) {
+      qb.andWhere('t.transactionDate <= :cycleEnd', {
+        cycleEnd: istDayRangeUtc(endDay).end,
+      });
+    }
+
+    // The caller's `?startDate=&endDate=` narrows on top of the window, the
+    // same way it does for the expense half. (`findByCycle` has already called
+    // `dateRangeWhere` for the inverted-range 400.)
+    const { start, end } = istBounds(q ?? {});
+    if (start) qb.andWhere('t.transactionDate >= :qStart', { qStart: start });
+    if (end) qb.andWhere('t.transactionDate <= :qEnd', { qEnd: end });
+
+    const rows = await qb
+      .orderBy('t.transactionDate', 'DESC')
+      // ponytail: same bounded cap as the other two money projections.
+      .take(500)
+      .getMany();
+
+    // D3: a retired pond's money is MARKED, not erased — the row flag the
+    // client colours, same as `listWithFlags`.
+    const archived = crop.pond?.status === 'archived';
+
+    return rows.map((t) => ({
+      // Prefixed, like `findMoneyEntries`: there is no expense with this id,
+      // and the prefix makes that impossible to miss client-side.
+      id: `transaction:${t.id}`,
+      source: 'transaction' as const,
+      cropId: crop.id,
+      pondId: crop.pondId,
+      date: toIstDateString(t.transactionDate),
+      category: t.category,
+      // pg returns numeric as a STRING.
+      amount: Number(t.amount) || 0,
+      description: t.description ?? null,
+      userId: t.createdById,
+      createdAt: t.createdAt,
+      // `transactions` has no updated_at column; the creation instant is the
+      // only timestamp this row can honestly report.
+      updatedAt: t.createdAt,
+      archived,
+      inventoryPurchase: t.inventoryItemId != null,
+    }));
+  }
+
+  /**
+   * Every cost in this cycle, from BOTH money tables.
+   *
+   * `getCycleFinancials` reduces over this exact list, so the itemised rows
+   * and the total printed above them cannot disagree — one code path, by
+   * construction.
+   */
   async findByCycle(cropId: string, userId: string, q?: DateRangeDto) {
-    await this.assertCropFinancials(cropId, userId);
+    // Authorization for both halves: VIEW_FINANCIALS on the crop's pond.
+    const crop = await this.assertCropFinancials(cropId, userId);
     const where: any = { cropId };
     const dateWhere = dateRangeWhere(q);
     if (dateWhere) where.date = dateWhere;
-    return this.listWithFlags(where);
+    const [expenses, projected] = await Promise.all([
+      this.listWithFlags(where),
+      this.cycleTransactions(crop, q),
+    ]);
+    return [...expenses, ...projected].sort((a, b) =>
+      istDay(b.date as any).localeCompare(istDay(a.date as any)),
+    );
   }
 
   async getCycleFinancials(cropId: string, userId: string, q?: DateRangeDto) {
-    // 1. Get Expenses (also performs the VIEW_FINANCIALS authorization check)
+    // 1. Get Expenses (also performs the VIEW_FINANCIALS authorization check).
+    // This is the SAME list the Expenses tab itemises — both halves of the
+    // ledger — so the total below can never disagree with the rows above it.
+    // The category breakdown therefore carries the free-text category a
+    // transaction was typed with alongside the expense enum; that is what the
+    // farmer wrote, and inventing a mapping would misfile their money.
     const expenses = await this.findByCycle(cropId, userId, q);
     const totalExpenses = expenses.reduce(
       (sum, e) => sum + Number(e.amount),
